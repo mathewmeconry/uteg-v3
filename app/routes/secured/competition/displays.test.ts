@@ -3,7 +3,8 @@ import { APP_ORIGIN } from '~/lib/env.server';
 import { prisma } from '~/lib/prisma.server';
 import { createCompetition, truncateTables } from '~/tests/helpers';
 import { callAction, contextFor, statusOf } from '~/tests/routeContext';
-import { action, loader } from './displays';
+import { safeClientAction } from '~/lib/safeClientAction';
+import { action, clientAction, loader } from './displays';
 
 beforeEach(truncateTables);
 
@@ -31,6 +32,10 @@ describe('loader', () => {
     const { context } = await setup('VIEWER');
     expect(await statusOf(async () => loader({ context } as any))).toBe(403);
   });
+});
+
+it('keeps the page when an action fails', () => {
+  expect(clientAction).toBe(safeClientAction);
 });
 
 describe('action', () => {

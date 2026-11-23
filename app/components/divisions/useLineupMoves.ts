@@ -40,6 +40,8 @@ export function useLineupMoves(url: string, serverColumns: Column[], loaderData:
         .map((item) => (item.move === next ? { ...item, savedWith } : item)),
     );
     if (result.ok) return void revalidate();
+    // The server sends the browser to the login page and back.
+    if (result.signedOut) return location.reload();
 
     const message = result.forbidden ? t('domainErrors.FORBIDDEN') : result.error;
     // One toast, also when several moves fail in a row.
@@ -56,18 +58,18 @@ export function useLineupMoves(url: string, serverColumns: Column[], loaderData:
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-type PostResult = { ok: boolean; error?: string; forbidden?: boolean };
+type PostResult = { ok: boolean; error?: string; forbidden?: boolean; signedOut?: boolean };
 
 async function post(url: string, move: Move): Promise<PostResult> {
   try {
     const response = await fetch(url, {
       method: 'POST',
       body: toFormData(move),
-      // To the login page.
       redirect: 'manual',
       // Moves wait for the one before.
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
+    if (response.type === 'opaqueredirect') return { ok: false, signedOut: true };
     if (response.status === 403) return { ok: false, forbidden: true };
     const body = (await response.json()) as { ok?: boolean; error?: string } | null;
     return { ok: response.ok && body?.ok === true, error: body?.error };

@@ -154,6 +154,16 @@ it('reloads after a failure when the server is there again', async () => {
   expect(screen.getByText('|ba')).toBeInTheDocument();
 });
 
+it('goes to the login page when signed out', async () => {
+  const reload = vi.fn();
+  vi.stubGlobal('location', { ...window.location, reload });
+  await setup();
+  await settle(() => move(UP));
+  await answer({ type: 'opaqueredirect', status: 0, ok: false } as Response);
+  expect(reload).toHaveBeenCalledTimes(1);
+  expect(toast.error).not.toHaveBeenCalled();
+});
+
 it('still sends everything after leaving the page', async () => {
   const router = await setup();
   await settle(() => {

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nextProvider } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
@@ -110,6 +110,26 @@ describe('LineupBoard', () => {
     expect(screen.getByText('L w')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'L w verschieben' })).not.toBeInTheDocument();
     expect(reck().getByText('3')).toBeInTheDocument();
+  });
+
+  it.each([
+    [['ArrowDown'], { columnId: 'reck', beforeId: 'c' }],
+    [['ArrowDown', 'ArrowDown'], { columnId: 'reck', beforeId: 'w' }],
+    [['ArrowDown', 'ArrowUp'], null],
+    [['ArrowRight'], { columnId: 'boden', beforeId: undefined }],
+    [['ArrowLeft'], { columnId: UNASSIGNED, beforeId: 'u' }],
+    [['ArrowRight', 'ArrowLeft', 'ArrowLeft'], { columnId: UNASSIGNED, beforeId: 'u' }],
+  ])('moves with the keyboard: %j', async (keys, expected) => {
+    const onMove = renderBoard();
+    const press = async (code: string) => {
+      fireEvent.keyDown(document.activeElement!, { code });
+      // The sensor listens on the document only after a moment, and dnd-kit measures in between.
+      await act(() => new Promise((resolve) => setTimeout(resolve, 30)));
+    };
+    screen.getByRole('button', { name: 'L a verschieben' }).focus();
+    for (const code of ['Space', ...keys, 'Space']) await press(code);
+    if (expected) expect(onMove.mock.calls).toEqual([[{ entryIds: ['a'], ...expected }]]);
+    else expect(onMove).not.toHaveBeenCalled();
   });
 
   it('has nothing to change for viewers', () => {

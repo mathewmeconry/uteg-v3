@@ -104,6 +104,21 @@ describe('action', () => {
     expect(await order()).toEqual(entries);
   });
 
+  it('does not work through another contest of the competition', async () => {
+    const { competition, division, reck, unassigned, entries } = await setup();
+    const { module, config } = competition.contest;
+    const contest = await prisma.contest.create({
+      data: { competitionId: competition.id, module, config: config as object, name: 'Final' },
+    });
+    const context = await contextFor({ id: competition.id, contest }, 'EDITOR');
+    const params = { divisionId: division.id };
+    const move = { intent: 'move', lineup: reck, entry: unassigned };
+    expect(await callAction(action, context, move, params)).toMatchObject({ status: 404 });
+    const unassign = { intent: 'unassign', entry: entries };
+    expect(await callAction(action, context, unassign, params)).toMatchObject({ status: 404 });
+    expect(await prisma.entry.count({ where: { lineupId: reck } })).toBe(2);
+  });
+
   it('does not work through a division of another competition', async () => {
     const { competition, entries } = await setup();
     const foreign = await createDivision((await createCompetition()).contest.id);

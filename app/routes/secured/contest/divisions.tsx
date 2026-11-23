@@ -213,6 +213,8 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
 
   function resetFilters() {
     setSearch('');
+    // The button disappears.
+    content.current?.focus();
     setParams(
       (current) => {
         const next = new URLSearchParams(current);

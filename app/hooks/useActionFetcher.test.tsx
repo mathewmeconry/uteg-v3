@@ -57,7 +57,54 @@ async function submit(serverAction: () => unknown) {
   await userEvent.click(screen.getByRole('button'));
 }
 
+/** Submits and waits for the answer before React renders, so it never shows the busy state. */
+async function submitAtOnce() {
+  await act(async () => {
+    screen.getByRole('button').click();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+  });
+}
+
 describe('useActionFetcher', () => {
+  it('notices answers that come before the busy state is rendered', async () => {
+    const answers = [null, data({ error: 'Geht nicht.' }, 400), null];
+    const router = createMemoryRouter([
+      { path: '/', element: <Page />, action: () => answers.shift() },
+    ]);
+    render(
+      <I18nextProvider i18n={createI18n('de')}>
+        <RouterProvider router={router} />
+      </I18nextProvider>,
+    );
+    await submitAtOnce();
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(toast.error).not.toHaveBeenCalled();
+
+    await submitAtOnce();
+    expect(toast.error).toHaveBeenCalledWith('Geht nicht.');
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+
+    await submitAtOnce();
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not take the error of an earlier attempt for the answer', async () => {
+    const answers = [data({ error: 'Geht nicht.' }, 400), redirect('/')];
+    const router = createMemoryRouter([
+      { path: '/', element: <Page />, action: () => answers.shift() },
+    ]);
+    render(
+      <I18nextProvider i18n={createI18n('de')}>
+        <RouterProvider router={router} />
+      </I18nextProvider>,
+    );
+    await submitAtOnce();
+    await submitAtOnce();
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+  });
+
   it('reports success once, after the page has the new data', async () => {
     let release = () => {};
     const gate = new Promise<void>((resolve) => (release = resolve));
