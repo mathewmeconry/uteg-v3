@@ -85,6 +85,17 @@ describe('getRanking', () => {
     expect((await getRanking(id, contest.id, K5)).hasRunning).toBe(false);
   });
 
+  it('counts the missing grades of the ranked entries', async () => {
+    const { id, contest } = await createCompetition();
+    const division = await createDivision(contest.id, { state: 'ENDED' });
+    const all = { reck: 0, boden: 9000, schaukelringe: 9000, sprung: 9000 };
+    await add(id, division, 'A', { grades: all });
+    expect((await getRanking(id, contest.id, K5)).missingGrades).toBe(0);
+    await add(id, division, 'B', { grades: { reck: 9000, barren: 9000 } });
+    await add(id, division, 'withdrawn', { withdrawnAt: new Date() });
+    expect((await getRanking(id, contest.id, K5)).missingGrades).toBe(3);
+  });
+
   it('knows the last change', async () => {
     const { id, contest } = await createCompetition();
     const division = await createDivision(contest.id, { state: 'ENDED' });

@@ -7,12 +7,11 @@ export const securityHeadersMiddleware: MiddlewareFunction<Response> = async (
 ) => {
   const response = await next();
   const { pathname } = new URL(request.url);
-  // The URLs of judges and displays contain their token.
-  const hasToken = /^\/(api\/)?(judge|display)\//.test(pathname);
+  const isAccessPage = /^\/(judge|display)\//i.test(pathname);
 
   response.headers.set(
     'Referrer-Policy',
-    hasToken ? 'no-referrer' : 'strict-origin-when-cross-origin',
+    isAccessPage ? 'no-referrer' : 'strict-origin-when-cross-origin',
   );
   response.headers.set('X-Content-Type-Options', 'nosniff');
   // Same origin, so pages can show a PDF preview.

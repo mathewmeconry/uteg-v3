@@ -1,4 +1,4 @@
-import { createEventStream, publish, subscribe } from './events.server';
+import { closeEventStreams, createEventStream, publish, subscribe } from './events.server';
 
 const decoder = new TextDecoder();
 
@@ -116,6 +116,15 @@ describe('createEventStream', () => {
     await read();
     await vi.advanceTimersByTimeAsync(20_000);
     expect(await read()).toBeNull();
+  });
+
+  it('closes all streams at shutdown', async () => {
+    const streams = [open(), open({}, 'c2')];
+    for (const { read } of streams) await read();
+    closeEventStreams();
+    for (const { read } of streams) expect(await read()).toBeNull();
+    expect(listenerCount('c1')).toBe(0);
+    closeEventStreams();
   });
 
   it('closes when access cannot be checked', async () => {

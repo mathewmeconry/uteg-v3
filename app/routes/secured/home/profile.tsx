@@ -16,6 +16,7 @@ import {
 import { auth, authCookies, callAuth, getUser } from '~/lib/auth/auth.server';
 import { parseForm } from '~/lib/forms.server';
 import { prisma } from '~/lib/prisma.server';
+import { createRateLimit } from '~/lib/rateLimit.server';
 import { isLanguage, LANGUAGES } from '~/locales';
 import { getT, languageCookie } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
@@ -57,6 +58,9 @@ export async function action({ request, context }: Route.ActionArgs) {
         }),
       );
       if (errors) return data({ errors }, 400);
+      if (!mayCheckPassword(user.id)) {
+        return data({ errors: { emailPassword: t('errors.tooManyRequests') } }, 429);
+      }
       if (!(await checkPassword(request, values.emailPassword))) {
         return data({ errors: { emailPassword: t('auth:errors.currentPassword') } }, 400);
       }
@@ -115,6 +119,9 @@ export async function action({ request, context }: Route.ActionArgs) {
       throw data(null, 400);
   }
 }
+
+// better-auth only limits requests to its own endpoints, and verifyPassword has none.
+const mayCheckPassword = createRateLimit({ windowMs: 60_000, max: 10 });
 
 async function checkPassword(request: Request, password: string) {
   try {

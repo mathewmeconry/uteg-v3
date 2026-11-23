@@ -6,10 +6,19 @@ type Listener = (topic: Topic) => void;
 const KEEP_ALIVE_MS = 20_000;
 const RETRY_MS = 2_000;
 
-const globalStore = globalThis as typeof globalThis & { __eventBus?: Map<string, Set<Listener>> };
+const globalStore = globalThis as typeof globalThis & {
+  __eventBus?: Map<string, Set<Listener>>;
+  __eventStreams?: Set<() => void>;
+};
 
 // Open streams must keep receiving events after Vite reloads this module.
 const listeners = (globalStore.__eventBus ??= new Map<string, Set<Listener>>());
+const openStreams = (globalStore.__eventStreams ??= new Set<() => void>());
+
+/** Ends all streams, for the shutdown: the server waits for open responses. */
+export function closeEventStreams() {
+  for (const close of [...openStreams]) close();
+}
 
 /** Tells everyone watching the competition that something changed. Call it after the commit. */
 export function publish(competitionId: string, topic: Topic) {
@@ -67,11 +76,13 @@ export function createEventStream(
       const timer = setInterval(() => void send(': keep-alive\n\n'), KEEP_ALIVE_MS);
       cleanup = () => {
         closed = true;
+        openStreams.delete(close);
         unsubscribe();
         clearInterval(timer);
         request.signal.removeEventListener('abort', close);
       };
 
+      openStreams.add(close);
       controller.enqueue(encoder.encode(`retry: ${RETRY_MS}\n\n`));
       request.signal.addEventListener('abort', close);
       if (request.signal.aborted) close();

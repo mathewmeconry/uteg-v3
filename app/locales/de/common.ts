@@ -136,6 +136,7 @@ export default {
     ALREADY_MEMBER: 'Diese Person ist bereits Mitglied.',
     ATHLETE_ALREADY_STARTS: 'Diese Person nimmt bereits teil.',
     DIVISION_MISMATCH: 'Die Abteilung passt nicht zu Kategorie oder Geschlecht.',
+    DIVISION_NOT_ENDED: 'Es sind noch nicht alle Abteilungen beendet.',
     DIVISION_NOT_RUNNING: 'Die Abteilung läuft nicht.',
     DIVISION_RUNNING: 'Das geht nicht, solange die Abteilung läuft.',
     ENTRY_NOT_JUDGEABLE: 'Diese Person ist an diesem Gerät nicht an der Reihe.',
@@ -156,6 +157,8 @@ export default {
     NOT_FOUND: 'Nicht gefunden.',
     RESTART_NOT_CONFIRMED: 'Der Neustart muss bestätigt werden.',
     ROUND_NOT_CURRENT: 'Dieser Durchgang ist nicht mehr aktuell.',
+    STARTER_REMOVED:
+      'Diese Person wurde aus dem Wettkampf entfernt. Füge sie wieder hinzu, statt die STV-ID zu ändern.',
     STV_ID_CONFLICT: 'Diese STV-ID gehört bereits zu einer anderen Person.',
     USER_NOT_FOUND: 'Es gibt kein Konto mit dieser E-Mail-Adresse.',
   },
