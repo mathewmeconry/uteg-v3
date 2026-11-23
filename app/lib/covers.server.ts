@@ -1,4 +1,4 @@
-import { MAX_COVER_PAGE_BYTES, MAX_COVER_PAGES } from './domain/cover';
+import { MAX_COVER_PAGE_BYTES, MAX_COVER_PAGES, MAX_COVER_PIXELS } from './domain/cover';
 import { cleanJpeg } from './domain/jpeg';
 import { DomainError } from './errors';
 import { publish } from './events.server';
@@ -16,7 +16,7 @@ export async function setCover(competitionId: string, templateId: string, files:
     throw new DomainError('FILE_TOO_LARGE');
   }
   const pages = files.map((file) => {
-    const page = cleanJpeg(file);
+    const page = cleanJpeg(file, MAX_COVER_PIXELS);
     if (!page) throw new DomainError('INVALID_COVER');
     return page;
   });

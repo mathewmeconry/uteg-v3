@@ -4,19 +4,24 @@ import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 
 GlobalWorkerOptions.workerSrc = workerUrl;
 
-// Fonts that PDFs don't have to contain, and decoders of scans.
+// Fonts that PDFs don't have to contain, Asian ones included, and decoders of scans.
 const files = import.meta.glob<string>(
-  ['/node_modules/pdfjs-dist/{standard_fonts,wasm}/*', '!**/LICENSE*', '!**/quickjs*'],
-  { query: '?url', import: 'default' },
+  ['/node_modules/pdfjs-dist/{cmaps,standard_fonts,wasm}/*', '!**/LICENSE*', '!**/quickjs*'],
+  { query: '?url&no-inline', import: 'default', eager: true },
 );
+
+const FOLDERS: Record<string, string> = {
+  cMapUrl: 'cmaps',
+  standardFontDataUrl: 'standard_fonts',
+  wasmUrl: 'wasm',
+};
 
 /** pdf.js asks for files by name, but the build gives them other names. */
 class BinaryDataFactory {
   async fetch({ kind, filename }: { kind: string; filename: string }) {
-    const folder = kind === 'wasmUrl' ? 'wasm' : 'standard_fonts';
-    const load = files[`/node_modules/pdfjs-dist/${folder}/${filename}`];
-    if (!load) throw new Error(`No file ${filename}`);
-    const response = await fetch(await load());
+    const url = files[`/node_modules/pdfjs-dist/${FOLDERS[kind]}/${filename}`];
+    if (!url) throw new Error(`No file ${filename}`);
+    const response = await fetch(url);
     return new Uint8Array(await response.arrayBuffer());
   }
 }

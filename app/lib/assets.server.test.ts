@@ -1,10 +1,10 @@
 import { createCompetition, errorCode, truncateTables } from '~/tests/helpers';
-import { createPng } from '~/tests/images';
-import { checkLogo, getLogo, removeLogo, setLogo } from './assets.server';
+import { createJpeg, createPng } from '~/tests/images';
+import { cleanLogo, getLogo, removeLogo, setLogo } from './assets.server';
 import { prisma } from './prisma.server';
 
 const PNG = createPng();
-const JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+const JPEG = createJpeg();
 
 beforeEach(truncateTables);
 
@@ -30,7 +30,7 @@ describe('setLogo', () => {
     const { id } = await createCompetition();
     for (const text of ['<svg xmlns="http://www.w3.org/2000/svg"/>', 'GIF89a', '']) {
       const data = new TextEncoder().encode(text);
-      expect(await errorCode(checkLogo(data))).toBe('INVALID_IMAGE');
+      expect(await errorCode(cleanLogo(data))).toBe('INVALID_IMAGE');
       expect(await errorCode(setLogo(id, data))).toBe('INVALID_IMAGE');
     }
     expect(await getLogo(id)).toBeNull();
@@ -49,6 +49,16 @@ describe('setLogo', () => {
     await setLogo(id, createPng(4000, 40));
     expect(await errorCode(setLogo(id, createPng(4001, 10)))).toBe('IMAGE_TOO_LARGE');
     expect(await errorCode(setLogo(id, createPng(10, 4001)))).toBe('IMAGE_TOO_LARGE');
+  });
+
+  it('stores JPEGs without metadata and rejects broken ones', async () => {
+    const { id } = await createCompetition();
+    // Claims four billion values, which libraries would read.
+    const exif = [0xff, 0xe1, 0, 34, 0x45, 0x78, 0x69, 0x66, 0, 0, 0x4d, 0x4d, 0, 42, 0, 0, 0, 8];
+    const entry = [0, 1, 1, 0, 0, 4, 255, 255, 255, 240, 0, 0, 0, 8, 0, 0, 0, 0];
+    await setLogo(id, createJpeg(200, 100, { segments: [...exif, ...entry] }));
+    expect((await getLogo(id))!.data).toEqual(JPEG);
+    expect(await errorCode(setLogo(id, JPEG.slice(0, -2)))).toBe('INVALID_IMAGE');
   });
 
   it('rejects images that become larger than their header says', async () => {

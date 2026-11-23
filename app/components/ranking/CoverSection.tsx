@@ -46,7 +46,10 @@ function Cover({
   const { t } = useTranslation(['pdf', 'common']);
   const { submit, pending, errors } = useActionFetcher();
   const [isDrawing, setIsDrawing] = useState(false);
-  const [fileError, setFileError] = useState<string>();
+  // Until the cover changes, e.g. because it was removed.
+  const cover = coverPages.join();
+  const [failure, setFailure] = useState<{ cover: string; message: string }>();
+  const fileError = failure?.cover === cover ? failure.message : undefined;
   const isBusy = isDrawing || pending;
   const input = useRef<HTMLInputElement>(null);
   const [searchParams] = useSearchParams();
@@ -58,7 +61,7 @@ function Cover({
   }, [isFocused]);
 
   async function upload(file: File) {
-    setFileError(undefined);
+    setFailure(undefined);
     setIsDrawing(true);
     try {
       // Only in the browser, and large.
@@ -70,12 +73,12 @@ function Cover({
         for (const page of await createCoverPages(file)) formData.append('page', page, 'page.jpg');
       } catch (error) {
         if (!(error instanceof CoverFileError)) throw error;
-        setFileError(t(`common:domainErrors.${error.code}`));
+        setFailure({ cover, message: t(`common:domainErrors.${error.code}`) });
         return;
       }
       void submit(formData, { method: 'post', encType: 'multipart/form-data' });
     } catch {
-      setFileError(t('common:errors.connection'));
+      setFailure({ cover, message: t('common:errors.connection') });
     } finally {
       setIsDrawing(false);
     }

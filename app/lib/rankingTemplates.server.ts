@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Prisma } from '~/generated/prisma/client';
+import { MAX_COVER_PIXELS } from './domain/cover';
 import { cleanJpeg } from './domain/jpeg';
 import {
   defaultRankingTemplate,
@@ -48,7 +49,9 @@ export async function getRankingTemplate(competitionId: string, templateId: stri
   return {
     options: template ? parseStoredTemplate(template.options) : defaultRankingTemplate,
     // Never hands the PDF worker something else, whatever is stored.
-    cover: (template?.coverPages ?? []).flatMap(({ data }) => cleanJpeg(data) ?? []),
+    cover: (template?.coverPages ?? []).flatMap(
+      ({ data }) => cleanJpeg(data, MAX_COVER_PIXELS) ?? [],
+    ),
   };
 }
 

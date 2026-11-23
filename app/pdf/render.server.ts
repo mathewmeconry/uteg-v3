@@ -1,8 +1,8 @@
+import { fork, type ChildProcess } from 'node:child_process';
 import { resolve as resolvePath } from 'node:path';
-import { Worker } from 'node:worker_threads';
 import bold from './fonts/Roboto-Bold.ttf?inline';
 import regular from './fonts/Roboto-Regular.ttf?inline';
-import type { PdfJob, PdfResult } from './worker';
+import type { PdfJob, PdfMessage, PdfResult } from './worker';
 
 /** The PDF takes too long, or too many are being rendered. */
 export class PdfUnavailableError extends Error {
@@ -11,22 +11,28 @@ export class PdfUnavailableError extends Error {
 
 type Task = {
   job: PdfJob;
-  worker?: Worker;
+  child?: ChildProcess;
   succeed: (pdf: Uint8Array) => void;
   fail: (error: unknown) => void;
 };
 
-const WORKERS = 2;
+const CHILDREN = 2;
 const MAX_QUEUE = 20;
 const TIMEOUT_MS = 20_000;
+/**
+ * Of the JavaScript heap. Buffers, e.g. of decompressed images, are not included, so images are
+ * checked before, see png.server.ts and domain/jpeg.ts.
+ */
+const MAX_HEAP_MB = 512;
 
-const idle: Worker[] = [];
+const idle: ChildProcess[] = [];
 const queue: Task[] = [];
 let running = 0;
 
 /**
- * Renders in worker threads, because it takes up to seconds and would block everyone else. Ends a
- * worker that takes too long or whose request was aborted.
+ * Renders in child processes. It takes up to seconds and would block everyone else, and running out
+ * of memory ends a whole process, also from a worker thread. Kills a child that takes too long or
+ * whose request was aborted.
  */
 export function renderPdf(
   job: PdfJob,
@@ -59,8 +65,8 @@ export function renderPdf(
       if (index >= 0) queue.splice(index, 1);
       task.fail(error);
       // Its exit makes room for the next one.
-      void task.worker?.terminate();
-      task.worker = undefined;
+      task.child?.kill('SIGKILL');
+      task.child = undefined;
     }
     function onAbort() {
       cancel(signal?.reason);
@@ -73,7 +79,7 @@ export function renderPdf(
 }
 
 function startNext() {
-  while (running < WORKERS) {
+  while (running < CHILDREN) {
     const task = queue.shift();
     if (!task) return;
     start(task);
@@ -81,64 +87,79 @@ function startNext() {
 }
 
 function start(task: Task) {
-  const worker = idle.pop() ?? createWorker();
-  task.worker = worker;
+  const child = takeChild();
+  task.child = child;
   running++;
 
   function finish() {
-    worker.off('message', onMessage).off('error', onError).off('exit', onExit);
-    task.worker = undefined;
+    child.off('message', onMessage).off('error', onError).off('exit', onExit);
+    task.child = undefined;
     running--;
     startNext();
   }
-  /** Also when it runs out of memory. The exit follows. */
-  function onError(error: unknown) {
-    task.fail(new PdfUnavailableError(String(error)));
-  }
-  function onExit() {
-    task.fail(new PdfUnavailableError('The worker exited'));
+  /** It could not be started or reached. An exit may or may not follow. */
+  function onError(error: Error) {
+    child.kill('SIGKILL');
+    task.fail(new PdfUnavailableError(error.message));
     finish();
   }
-  function onMessage(result: PdfResult) {
+  /** Also when it runs out of memory. */
+  function onExit(code: number | null, signal: string | null) {
+    task.fail(new PdfUnavailableError(`The process ended with ${code ?? signal}`));
+    finish();
+  }
+  function onMessage(message: unknown) {
     // Cancelled just now, the exit follows.
-    if (!task.worker) return;
+    if (!task.child) return;
+    const result = message as PdfResult;
     // In development the next one gets the current code.
-    if (import.meta.env.MODE === 'development') void worker.terminate();
-    else idle.push(worker);
-    if ('pdf' in result) task.succeed(result.pdf);
+    if (import.meta.env.MODE === 'development') child.kill();
+    else idle.push(child);
+    if ('pdf' in result) task.succeed(new Uint8Array(result.pdf));
     else task.fail(new Error(result.error));
     finish();
   }
 
-  worker.on('message', onMessage).on('error', onError).on('exit', onExit);
+  child.on('message', onMessage).on('error', onError).on('exit', onExit);
   try {
-    worker.postMessage(task.job);
+    child.send({ job: task.job } satisfies PdfMessage);
   } catch (error) {
-    // Something in the job cannot be sent. The worker never saw it.
-    idle.push(worker);
+    // Something in the job cannot be sent. The child never saw it.
+    idle.push(child);
     task.fail(error);
     finish();
   }
 }
 
-function createWorker() {
+function takeChild() {
+  for (let child = idle.pop(); child; child = idle.pop()) if (child.connected) return child;
+  return createChild();
+}
+
+function createChild() {
   // Built by vite.pdf.config.ts for production.
-  const worker = new Worker(
+  const child = fork(
     resolvePath(import.meta.env.PROD ? 'build/server/pdf-worker.js' : 'app/pdf/worker.tsx'),
     {
-      workerData: { regular, bold },
-      execArgv: import.meta.env.PROD ? [] : ['--import', 'tsx'],
-      // Only limits the JavaScript heap. Buffers, e.g. of decompressed images, are not included, so
-      // images are checked before, see png.server.ts and domain/jpeg.ts.
-      resourceLimits: { maxOldGenerationSizeMb: 512 },
+      serialization: 'advanced',
+      execArgv: [
+        `--max-old-space-size=${MAX_HEAP_MB}`,
+        ...(import.meta.env.PROD ? [] : ['--import', 'tsx']),
+      ],
+      // Not those of the database and the sign-in.
+      env: { NODE_ENV: process.env.NODE_ENV, PATH: process.env.PATH },
+      stdio: ['ignore', 'ignore', 'inherit', 'ipc'],
     },
   );
-  worker.unref();
+  // Neither keeps the server running.
+  child.unref();
+  child.channel?.unref();
   // An error without listener would end the server.
-  worker.on('error', () => {});
-  worker.on('exit', () => {
-    const index = idle.indexOf(worker);
+  child.on('error', () => {});
+  child.on('exit', () => {
+    const index = idle.indexOf(child);
     if (index >= 0) idle.splice(index, 1);
   });
-  return worker;
+  child.send({ fonts: { regular, bold } } satisfies PdfMessage);
+  return child;
 }

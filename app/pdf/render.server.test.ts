@@ -1,4 +1,5 @@
-import { Worker } from 'node:worker_threads';
+import { ChildProcess, execFileSync } from 'node:child_process';
+import { once } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
 import { createI18n } from '~/lib/i18n';
 import { NAMESPACES } from '~/locales';
@@ -9,7 +10,7 @@ import type { PdfJob } from './worker';
 
 const t = createI18n('de').getFixedT(null, NAMESPACES);
 
-function job(rows: number): PdfJob {
+function job(rows: number): Extract<PdfJob, { type: 'starters' }> {
   return {
     type: 'starters',
     language: 'de',
@@ -57,15 +58,36 @@ describe('renderPdf', () => {
     expect(longest).toBeLessThan(300);
   });
 
-  it('gives up after the time limit, ends the thread and works afterwards', async () => {
-    const terminate = vi.spyOn(Worker.prototype, 'terminate');
+  it('gives up after the time limit, ends the process and works afterwards', async () => {
+    const kill = vi.spyOn(ChildProcess.prototype, 'kill');
     await expect(renderPdf(large, { timeoutMs: 50 })).rejects.toThrow(PdfUnavailableError);
-    expect(terminate).toHaveBeenCalledOnce();
-    // Resolves with the exit code.
-    expect(await terminate.mock.results[0].value).toBe(1);
-    terminate.mockRestore();
+    expect(kill).toHaveBeenCalledOnce();
+    const child = kill.mock.contexts[0] as ChildProcess;
+    expect(await once(child, 'exit')).toEqual([null, 'SIGKILL']);
+    kill.mockRestore();
     expect((await renderPdf(small)).length).toBeGreaterThan(0);
   });
+
+  it('survives a process that aborts, as when it runs out of memory', async () => {
+    const result = expect(renderPdf(large)).rejects.toThrow('The process ended with SIGABRT');
+    const pids = execFileSync('pgrep', ['-P', String(process.pid), '-f', 'pdf/worker'], {
+      encoding: 'utf8',
+    });
+    for (const pid of pids.trim().split('\n')) process.kill(Number(pid), 'SIGABRT');
+    await result;
+    expect((await renderPdf(small)).length).toBeGreaterThan(0);
+  });
+
+  it('limits the heap of the process', async () => {
+    const strings = Array.from({ length: 400_000 }, (_, index) => ({
+      ...job(1).props.clubs[0].rows[0],
+      id: `${index}`,
+    }));
+    const clubs = [{ ...job(1).props.clubs[0], rows: strings }];
+    const huge = { ...small, props: { competitionName: 'X', clubs } } as PdfJob;
+    await expect(renderPdf(huge, { timeoutMs: 60_000 })).rejects.toThrow(/ended with/);
+    expect((await renderPdf(small)).length).toBeGreaterThan(0);
+  }, 70_000);
 
   it('counts waiting as time, and rejects waiting tasks at once when aborted', async () => {
     const controller = new AbortController();

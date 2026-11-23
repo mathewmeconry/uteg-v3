@@ -1,4 +1,5 @@
 import { COVER_PIXELS, MAX_COVER_PAGE_BYTES, MAX_COVER_PAGES } from '~/lib/domain/cover';
+import { createCanvas, detectImageType, drawImage, toBlob } from '~/lib/images.client';
 
 type CoverFileErrorCode =
   'COVER_ENCRYPTED' | 'COVER_TOO_MANY_PAGES' | 'FILE_TOO_LARGE' | 'INVALID_COVER';
@@ -21,9 +22,14 @@ const QUALITIES = [0.9, 0.75, 0.5];
  */
 export async function createCoverPages(file: File): Promise<Blob[]> {
   if (file.size > MAX_FILE_BYTES) throw new CoverFileError('FILE_TOO_LARGE');
-  // The content, names and types can be anything. Some PDFs start with something else.
+  // Some PDFs start with something else.
   const start = new TextDecoder('latin1').decode(await file.slice(0, 1024).arrayBuffer());
-  return start.includes('%PDF-') ? drawPdf(file) : [await drawImage(file)];
+  if (start.includes('%PDF-')) return drawPdf(file);
+  if (!(await detectImageType(file))) throw new CoverFileError('INVALID_COVER');
+  const canvas = await drawImage(file, COVER_PIXELS, 'white').catch(() => {
+    throw new CoverFileError('INVALID_COVER');
+  });
+  return [await toJpeg(canvas)];
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -55,33 +61,9 @@ async function drawPdf(file: File) {
   }
 }
 
-async function drawImage(file: File) {
-  const image = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => {
-    throw new CoverFileError('INVALID_COVER');
-  });
-  const scale = Math.min(1, COVER_PIXELS / Math.max(image.width, image.height));
-  const canvas = createCanvas(image.width * scale, image.height * scale);
-  const context = canvas.getContext('2d')!;
-  context.fillStyle = 'white';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.imageSmoothingQuality = 'high';
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  image.close();
-  return toJpeg(canvas);
-}
-
-function createCanvas(width: number, height: number) {
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(width));
-  canvas.height = Math.max(1, Math.round(height));
-  return canvas;
-}
-
 async function toJpeg(canvas: HTMLCanvasElement) {
   for (const quality of QUALITIES) {
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, 'image/jpeg', quality),
-    );
+    const blob = await toBlob(canvas, 'image/jpeg', quality);
     if (!blob) throw new CoverFileError('INVALID_COVER');
     if (blob.size <= MAX_COVER_PAGE_BYTES) return blob;
   }

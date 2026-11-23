@@ -12,6 +12,8 @@ export function createJpeg(
     components = 3,
     scans = 1,
     segments = [] as number[],
+    /** Too much in the header of the scan. */
+    scanHeader = [] as number[],
     trailing = [0xff, 0xd9],
     scanBytes = (Math.ceil(width / 8) * Math.ceil(height / 8)) / 4,
   } = {},
@@ -35,7 +37,7 @@ export function createJpeg(
     ]),
     ...segment(0xc4, [0, 1, ...Array<number>(15).fill(0), 0]),
   ];
-  const scan = segment(0xda, [1, 1, 0, 0, 63, 0]);
+  const scan = segment(0xda, [1, 1, 0, 0, 63, 0, ...scanHeader]);
   const data = Buffer.alloc(Math.ceil(scanBytes), 0x55);
   const parts = Array.from({ length: scans }, () => [Buffer.from(scan), data]).flat();
   return new Uint8Array(Buffer.concat([Buffer.from(head), ...parts, Buffer.from(trailing)]));
