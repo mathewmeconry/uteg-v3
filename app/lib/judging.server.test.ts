@@ -5,7 +5,11 @@ import {
   errorCode,
   truncateTables,
 } from '~/tests/helpers';
+import { NAMESPACES } from '~/locales';
+import { domainErrorMessage } from './domainErrors.server';
+import type { DomainError } from './errors';
 import { subscribe } from './events.server';
+import { createI18n } from './i18n';
 import {
   confirmRound,
   deleteGrade,
@@ -14,6 +18,8 @@ import {
   saveGrades,
   type GradeScope,
 } from './judging.server';
+import { moveEntriesToLineup } from './lineups.server';
+import { lockDivisions } from './locks.server';
 import { prisma } from './prisma.server';
 
 const EDITOR: GradeScope = { kind: 'editor' };
@@ -173,8 +179,9 @@ describe('getJudgingState', () => {
       const { id, contest } = await createCompetition();
       const early = await createDivision(contest.id, { state: 'RUNNING' });
       const late = await createDivision(contest.id, { number: 2, state: 'RUNNING' });
+      const grades = { reck: 9000, boden: 9000, schaukelringe: 9000, sprung: 9000 };
       for (const apparatus of WOMEN) {
-        await addStarter(id, early, apparatus, { firstname: `early-${apparatus}` });
+        await addStarter(id, early, apparatus, { firstname: `early-${apparatus}`, grades });
         await addStarter(id, late, apparatus, { firstname: `late-${apparatus}` });
       }
       await setProgress(early.id, 2);
@@ -291,9 +298,9 @@ describe('saveGrades', () => {
   });
 
   it.each([
-    ['K5', [9100, 9205], 9205],
+    ['K5', [9100, 9210], 9210],
     ['K5', [0, 0], 0],
-    ['K6', [9100, 9205], 9153],
+    ['K6', [9100, 9210], 9155],
     ['K7', [0, 9000], 4500],
   ])('computes the vault of %s from %j', async (category, attempts, value) => {
     const { save, grade } = await setup('RUNNING', category);
@@ -553,5 +560,161 @@ describe('confirmRound', () => {
     });
     expect(await errorCode(foreign)).toBe('NOT_FOUND');
     expect(id).not.toBe(other.id);
+  });
+
+  it.each([4, 7, 0.5])('rejects round %s, which the division does not have', async (round) => {
+    const { division, confirm } = await setup();
+    await setProgress(division.id, Math.floor(round), 'reck');
+    expect(await errorCode(confirm({ round }))).toBe('ROUND_NOT_CURRENT');
+    expect(await progressOf(division.id)).toMatchObject({ reck: Math.floor(round) });
+  });
+});
+
+describe('ending a division', () => {
+  async function setup() {
+    const { id, contest } = await createCompetition();
+    const division = await createDivision(contest.id, { state: 'RUNNING' });
+    const { entry } = await addStarter(id, division, 'reck', {
+      firstname: 'Anna',
+      lastname: 'Muster',
+      grades: { reck: 9000, boden: 9000, schaukelringe: 9000, sprung: 9000 },
+    });
+    const confirm = (apparatus: string, round: number) =>
+      confirmRound(id, { ground: 1, apparatus, round, divisionIds: [division.id] });
+    const confirmAll = async (round: number, apparatus = WOMEN) => {
+      for (const key of apparatus) await confirm(key, round);
+    };
+    const state = async () => (await prisma.division.findFirstOrThrow()).state;
+    return { id, division, entry, confirm, confirmAll, state };
+  }
+
+  async function failure(action: Promise<unknown>) {
+    return action.then(
+      () => null,
+      (error: unknown) => error as DomainError,
+    );
+  }
+
+  it('needs every grade and tells which are missing', async () => {
+    const { id, division, entry, confirm, confirmAll, state } = await setup();
+    await confirmAll(0);
+    await deleteGrade(id, { entryId: entry.id, apparatus: 'reck' }, EDITOR);
+    // Neither withdrawn entries nor those without a lineup count.
+    await addStarter(id, division, 'reck', { withdrawnAt: new Date() });
+    await addStarter(id, division, 'reck', { lineupId: undefined });
+    for (const round of [1, 2]) await confirmAll(round);
+    await confirmAll(3, WOMEN.slice(0, 3));
+
+    const error = await failure(confirm('sprung', 3));
+    expect(error).toMatchObject({
+      code: 'GRADES_MISSING',
+      details: {
+        missing: [{ entryId: entry.id, firstname: 'Anna', lastname: 'Muster', apparatus: 'reck' }],
+      },
+    });
+    expect(domainErrorMessage(error, createI18n('de').getFixedT(null, NAMESPACES))).toBe(
+      'Es fehlen noch Noten. Anna Muster (Reck)',
+    );
+    expect(await state()).toBe('RUNNING');
+    expect(await progressOf(division.id)).toMatchObject({ sprung: 3 });
+
+    // An editor enters the grade of the past round and confirms.
+    await saveGrades(id, [{ entryId: entry.id, apparatus: 'reck', value: 8000 }], EDITOR);
+    await confirm('sprung', 3);
+    expect(await state()).toBe('ENDED');
+  });
+
+  it('catches an entry that skipped an apparatus by moving to another lineup', async () => {
+    const { id, division, entry, confirm, confirmAll, state } = await setup();
+    await deleteGrade(id, { entryId: entry.id, apparatus: 'boden' }, EDITOR);
+    await confirmAll(0);
+    await moveEntriesToLineup(id, division.lineup('boden'), [entry.id]);
+    for (const round of [1, 2]) await confirmAll(round);
+    await confirmAll(3, WOMEN.slice(0, 3));
+    expect(await errorCode(confirm('sprung', 3))).toBe('GRADES_MISSING');
+    expect(await state()).toBe('RUNNING');
+  });
+
+  it('names the missing grades of a normal round as well', async () => {
+    const { id, division, confirm } = await setup();
+    const { entry } = await addStarter(id, division, 'reck');
+    expect(await failure(confirm('reck', 0))).toMatchObject({
+      details: { missing: [{ entryId: entry.id, apparatus: 'reck' }] },
+    });
+  });
+
+  it('does not let a judge delete a grade of a confirmed round', async () => {
+    const { id, entry, confirm } = await setup();
+    const remove = (apparatus: string, scope: GradeScope) =>
+      errorCode(deleteGrade(id, { entryId: entry.id, apparatus }, scope));
+    await confirm('reck', 0);
+    expect(await remove('reck', judge('reck'))).toBe('ROUND_NOT_CURRENT');
+    expect(await remove('boden', judge('boden'))).toBeNull();
+    expect(await remove('reck', EDITOR)).toBeNull();
+    expect(await prisma.grade.count()).toBe(2);
+  });
+
+  it.each(['saveGrades', 'deleteGrade'])('%s waits for a confirmation', async (service) => {
+    const { id, division, entry } = await setup();
+    const key = { entryId: entry.id, apparatus: 'reck' };
+    let change!: Promise<unknown>;
+    let isDone = false;
+    await prisma.$transaction(async (tx) => {
+      await lockDivisions(tx, id, [division.id]);
+      change =
+        service === 'saveGrades'
+          ? saveGrades(id, [{ ...key, value: 1 }], judge('reck'))
+          : deleteGrade(id, key, judge('reck'));
+      change = change.then(
+        () => (isDone = true),
+        (error: DomainError) => error.code,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(isDone).toBe(false);
+      await tx.division.update({ where: { id: division.id }, data: { state: 'ENDED' } });
+    });
+    expect(await change).toBe('ENTRY_NOT_JUDGEABLE');
+  });
+
+  it('lets several apparatus save at once', async () => {
+    const { id, division, entry } = await setup();
+    await prisma.$transaction(async (tx) => {
+      await lockDivisions(tx, id, [division.id], 'SHARE');
+      await saveGrades(id, [{ entryId: entry.id, apparatus: 'reck', value: 1 }], judge('reck'));
+    });
+  });
+
+  it('saves the same grades from two devices without a deadlock', async () => {
+    const { id, division } = await setup();
+    const inputs = [];
+    for (let index = 0; index < 20; index++) {
+      const { entry } = await addStarter(id, division, 'reck', { grades: { reck: 1 } });
+      inputs.push({ entryId: entry.id, apparatus: 'reck', value: 9000 + index });
+    }
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const [saved] = await Promise.all([
+        saveGrades(id, inputs.toReversed(), EDITOR),
+        saveGrades(id, inputs, EDITOR),
+      ]);
+      expect(saved.map(({ entryId }) => entryId)).toEqual(
+        inputs.toReversed().map(({ entryId }) => entryId),
+      );
+    }
+  }, 30_000);
+});
+
+describe('attempts', () => {
+  // Two decimals keep the average of two attempts exact, so it is only rounded in the ranking.
+  it('have at most two decimals', async () => {
+    const { id, contest } = await createCompetition();
+    const division = await createDivision(contest.id, { category: 'K6', state: 'RUNNING' });
+    const { entry } = await addStarter(id, division, 'sprung');
+    const save = (apparatus: string, data: object) =>
+      saveGrades(id, [{ entryId: entry.id, apparatus, ...data }], EDITOR);
+    expect(await errorCode(save('sprung', { attempts: [9005, 9004] }))).toBe('INVALID_GRADE');
+    expect(await save('sprung', { attempts: [9000, 9010] })).toMatchObject([{ value: 9005 }]);
+    // A final grade may have three.
+    expect(await save('sprung', { value: 9225 })).toMatchObject([{ value: 9225 }]);
+    expect(await save('reck', { attempts: [9225] })).toMatchObject([{ value: 9225 }]);
   });
 });

@@ -35,15 +35,17 @@ export default [
     ]),
   ]),
 
-  // Access with a token instead of an account.
-  route('judge/:token', 'routes/judge.tsx'),
-  route('display/:token', 'routes/display.tsx'),
+  // Access with a link instead of an account, see lib/access.server.ts.
+  route('judge/:linkId', 'routes/judge.tsx'),
+  route('display/:linkId', 'routes/display.tsx'),
 
   ...prefix('api', [
     route('auth/*', 'routes/api/auth.ts'),
     route('events/:competitionId', 'routes/api/events.ts'),
-    route('judge/:token/events', 'routes/api/judgeEvents.ts'),
-    route('display/:token/events', 'routes/api/displayEvents.ts'),
+    route('judge/:linkId/login', 'routes/api/judgeLogin.ts'),
+    route('judge/:linkId/events', 'routes/api/judgeEvents.ts'),
+    route('display/:linkId/login', 'routes/api/displayLogin.ts'),
+    route('display/:linkId/events', 'routes/api/displayEvents.ts'),
     route('assets/:assetId', 'routes/api/asset.ts'),
     route('competitions/:competitionId', 'routes/api/competition/layout.ts', [
       route('starters.xlsx', 'routes/api/competition/startersXlsx.ts'),

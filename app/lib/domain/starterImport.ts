@@ -117,11 +117,14 @@ function capitalize(name: string) {
     .replace(/(^|[\s-])(\S)/g, (_, separator, letter) => separator + letter.toUpperCase());
 }
 
+/** A year, or the year of a birth date: "2010", "10", "15.03.2010", "15.03.10", "2010-03-15". */
 function parseBirthYear(text: string) {
-  const year = parseInt(text, 10);
-  if (Number.isNaN(year)) return null;
+  const full = /(?<!\d)\d{4}(?!\d)/.exec(text);
+  if (full) return Number(full[0]);
   // Excel drops the leading zero of "05".
-  if (year >= 100) return year;
+  const short = /^(?:\d{1,2}[./-]\d{1,2}[./-])?(\d{1,2})$/.exec(text);
+  if (!short) return null;
+  const year = Number(short[1]);
   return year > 50 ? 1900 + year : 2000 + year;
 }
 

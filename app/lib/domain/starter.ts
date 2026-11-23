@@ -1,14 +1,16 @@
 import { z } from 'zod';
 
+/** PostgreSQL cannot store NUL. */
+export function withoutNul(schema: z.ZodString) {
+  return schema.refine((value) => !value.includes('\0'));
+}
+
 /** STV-IDs are optional, blank input means none. */
-const stvIdSchema = z
-  .string()
-  .trim()
-  .max(50)
+const stvIdSchema = withoutNul(z.string().trim().max(50))
   .nullish()
   .transform((value) => value || null);
 
-const name = z.string().trim().min(1).max(100);
+const name = withoutNul(z.string().trim().min(1).max(100));
 
 export const starterSchema = z.object({
   stvId: stvIdSchema,
@@ -23,10 +25,7 @@ export type StarterData = z.output<typeof starterSchema>;
 
 /** For updates: undefined keeps the value, also of the STV-ID. */
 export const starterUpdateSchema = starterSchema.partial().extend({
-  stvId: z
-    .string()
-    .trim()
-    .max(50)
+  stvId: withoutNul(z.string().trim().max(50))
     .nullable()
     .transform((value) => value || null)
     .optional(),

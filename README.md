@@ -47,4 +47,9 @@ limits are kept in memory.
 Put a TLS proxy in front that **replaces** `X-Forwarded-For` with the client address. Rate limiting
 of logins relies on it: with no such header, or one with several addresses, all visitors share one
 limit. Don't buffer responses of `/api/**/events` and `/api/events/**` (server-sent events).
+The app rejects bodies over 1 MB, or 20 MB where files are uploaded, and bodies without
+`Content-Length`. Limit them in the proxy as well (e.g. `client_max_body_size 20m`).
 `GET /healthz` checks the database connection.
+
+The links of judges and displays contain their key after `#`, which browsers never send. So it is
+in no access log, neither of the app nor of the proxy.
