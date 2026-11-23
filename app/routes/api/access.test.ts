@@ -45,6 +45,8 @@ describe.each([
   it('rejects wrong keys', async () => {
     const { post, other } = await setup();
     expect(await status(post('wrong'))).toBe(403);
+    const answer = await post('wrong').catch((error: Response) => error);
+    expect(answer.headers.has('X-Wrong-Key')).toBe(true);
     expect(await status(post(other.token))).toBe(403);
   });
 

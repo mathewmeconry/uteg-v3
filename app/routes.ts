@@ -42,12 +42,15 @@ export default [
   ...prefix('api', [
     route('auth/*', 'routes/api/auth.ts'),
     route('events/:competitionId', 'routes/api/events.ts'),
+    route('language', 'routes/api/language.ts'),
     route('judge/:linkId/login', 'routes/api/judgeLogin.ts'),
     route('judge/:linkId/events', 'routes/api/judgeEvents.ts'),
+    route('judge/:linkId/grades', 'routes/api/judgeGrades.ts'),
     route('display/:linkId/login', 'routes/api/displayLogin.ts'),
     route('display/:linkId/events', 'routes/api/displayEvents.ts'),
     route('assets/:assetId', 'routes/api/asset.ts'),
     route('competitions/:competitionId', 'routes/api/competition/layout.ts', [
+      route('grades', 'routes/api/competition/grades.ts'),
       route('athletes', 'routes/api/competition/athletes.ts'),
       route('clubs', 'routes/api/competition/clubs.ts'),
       route('starters.xlsx', 'routes/api/competition/startersXlsx.ts'),

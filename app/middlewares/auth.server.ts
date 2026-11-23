@@ -1,6 +1,7 @@
 import { redirect, type MiddlewareFunction } from 'react-router';
 import { userContext } from '~/context';
 import { auth, authCookies } from '~/lib/auth/auth.server';
+import { pagePath } from '~/lib/auth/redirect';
 
 /** Loads the session, if there is one, and passes on refreshed session cookies. */
 export const sessionMiddleware: MiddlewareFunction<Response> = async (
@@ -29,7 +30,6 @@ export const authMiddleware: MiddlewareFunction<Response> = ({ request, context 
   if (request.headers.get('Accept')?.includes('text/event-stream')) {
     throw new Response(null, { status: 401 });
   }
-  const url = new URL(request.url);
-  const target = request.method === 'GET' ? url.pathname + url.search : '/home';
+  const target = request.method === 'GET' ? pagePath(request.url) : '/home';
   throw redirect(`/login?redirectTo=${encodeURIComponent(target)}`);
 };

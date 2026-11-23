@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createCookie } from 'react-router';
 import type { AccessKind, AccessLink } from '~/generated/prisma/client';
 import { getContestsApparatus } from '~/modules/registry';
+import { WRONG_KEY_HEADER } from './access';
 import { APP_ORIGIN } from './env.server';
 import { DomainError } from './errors';
 import { publish } from './events.server';
@@ -108,7 +109,7 @@ export async function logIn(request: Request, linkId: string, kind: AccessKind) 
   const formData = await request.formData().catch(() => null);
   if (!formData) throw new Response(null, { status: 400 });
   const cookie = await createAccessCookie(linkId, kind, formData.get('token'));
-  if (!cookie) throw new Response(null, { status: 403 });
+  if (!cookie) throw new Response(null, { status: 403, headers: { [WRONG_KEY_HEADER]: '1' } });
 
   const headers = new Headers({ 'Set-Cookie': cookie });
   // Too many would exceed the header size that servers accept. Browsers send the oldest first.
@@ -159,7 +160,10 @@ function accessCookie(linkId: string) {
 
 async function checkToken(linkId: string, kind: AccessKind, token: unknown) {
   if (!LINK_ID.test(linkId) || typeof token !== 'string') return null;
-  const link = await prisma.accessLink.findFirst({ where: { id: linkId, kind } });
+  const link = await prisma.accessLink.findFirst({
+    where: { id: linkId, kind },
+    include: { competition: { select: { name: true } } },
+  });
   return link && timingSafeEqual(hash(token), hash(link.token)) ? link : null;
 }
 

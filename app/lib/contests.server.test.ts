@@ -82,8 +82,11 @@ describe('changed vault rules', () => {
     const { id: gradeId, updatedAt } = await addVault(entry.id, 9000, [8000, 9000]);
     expect(await updateContestConfig(id, contest.id, AVERAGE)).toEqual({ recomputed: 1 });
     expect(await vaultOf(entry.id)).toEqual({ value: 8500, attempts: [8000, 9000] });
-    // It must not look like the latest grade.
-    expect(await prisma.grade.findUnique({ where: { id: gradeId } })).toMatchObject({ updatedAt });
+    // It must not look like the latest grade, but judges have not seen it yet.
+    expect(await prisma.grade.findUnique({ where: { id: gradeId } })).toMatchObject({
+      updatedAt,
+      version: 2,
+    });
   });
 
   it('use the category of the division when the entry has none', async () => {
