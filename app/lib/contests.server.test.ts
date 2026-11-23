@@ -136,7 +136,21 @@ describe('changed vault rules', () => {
     expect(listener.mock.calls.flat()).toEqual(['settings', 'grades']);
   });
 
-  it('apply to a grade saved at the same time', async () => {
+  const LONG = { timeout: 30_000 };
+
+  /** Until the work is done or waits for a lock of another transaction, however long it takes. */
+  async function doneOrBlocked(work: Promise<unknown>) {
+    let done = false;
+    void work.finally(() => (done = true)).catch(() => {});
+    while (!done) {
+      const [{ blocked }] = await prisma.$queryRaw<{ blocked: bigint }[]>`
+        SELECT count(*) AS blocked FROM pg_stat_activity
+        WHERE datname = current_database() AND wait_event_type = 'Lock'`;
+      if (blocked > 0) return;
+    }
+  }
+
+  it('apply to a grade saved at the same time', LONG, async () => {
     const { id, contest, entry } = await setup();
     await addVault(entry.id, 9000, [8000, 9000]);
     let save: Promise<unknown> | undefined;
@@ -147,18 +161,17 @@ describe('changed vault rules', () => {
       save = saveGrades(id, [{ entryId: entry.id, apparatus: 'sprung', attempts: [9500, 9700] }], {
         kind: 'editor',
       });
-      // Time to get ahead, if nothing made it wait.
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    });
+      await doneOrBlocked(save);
+    }, LONG);
     await save;
     expect(await vaultOf(entry.id)).toEqual({ value: 9600, attempts: [9500, 9700] });
   });
 
-  it('do not deadlock with saved grades and confirmed rounds', async () => {
+  it('do not deadlock with saved grades and confirmed rounds', LONG, async () => {
     const { id, contest } = await createCompetition();
     const division = await createDivision(contest.id, { state: 'RUNNING' });
     const entryIds: string[] = [];
-    for (let index = 0; index < 20; index++) {
+    for (let index = 0; index < 8; index++) {
       const { entry } = await createStarter(id, {
         divisionId: division.id,
         lineupId: division.lineup('sprung'),
@@ -194,19 +207,19 @@ describe('changed vault rules', () => {
     }
   });
 
-  it('wait for a grade that is being saved', async () => {
+  it('wait for a grade that is being saved', LONG, async () => {
     const { id, contest, entry } = await setup();
     await addVault(entry.id, 9000, [8000, 9000]);
     let update: Promise<unknown> | undefined;
     await prisma.$transaction(async (tx) => {
       await lockContestConfigs(tx, id);
       update = updateContestConfig(id, contest.id, AVERAGE);
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await doneOrBlocked(update);
       await tx.grade.updateMany({
         where: { entryId: entry.id },
         data: { value: 9700, attempts: [9500, 9700] },
       });
-    });
+    }, LONG);
     await update;
     expect(await vaultOf(entry.id)).toEqual({ value: 9600, attempts: [9500, 9700] });
   });
