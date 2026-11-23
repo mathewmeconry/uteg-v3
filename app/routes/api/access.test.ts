@@ -48,6 +48,40 @@ describe.each([
     expect(await status(post(other.token))).toBe(403);
   });
 
+  it.each([
+    ['text/plain', 'token=a'],
+    ['application/json', '{}'],
+    ['multipart/form-data', 'token=a'],
+    [undefined, new Uint8Array([1])],
+    [undefined, undefined],
+  ])('rejects a body of the type %s', async (type, body) => {
+    const { params } = await setup();
+    const request = new Request('http://localhost', { method: 'POST', body });
+    if (type) request.headers.set('Content-Type', type);
+    expect(await status(login({ request, params } as any))).toBe(400);
+  });
+
+  it('keeps the number of cookies small', async () => {
+    const { link, params } = await setup();
+    const names = Array.from(
+      { length: 33 },
+      (_, index) => `uteg_access_${String(index).padStart(26, '0')}`,
+    );
+    const cookies = ['a=b', ...names, `uteg_access_${link.id}`].map((name) => `${name}=x`);
+    const request = new Request('http://localhost', {
+      method: 'POST',
+      headers: { Cookie: cookies.join('; ') },
+      body: new URLSearchParams({ token: link.token }),
+    });
+    const response = await login({ request, params } as any);
+    const [own, ...expired] = response.headers.getSetCookie();
+    expect(own).toMatch(new RegExp(`^uteg_access_${link.id}=`));
+    expect(own).toMatch(/Max-Age=1209600/);
+    // Browsers send the oldest first. 29 others stay.
+    expect(expired.map((cookie) => cookie.split('=')[0])).toEqual(names.slice(0, 4));
+    for (const cookie of expired) expect(cookie).toMatch(/^\w+=; Max-Age=0; Path=\//);
+  });
+
   it('sends events until the link is reset', async () => {
     const { id, link, params, request } = await setup();
     const open = async () => events({ request: await request(), params } as any);

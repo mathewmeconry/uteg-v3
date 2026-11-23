@@ -1,10 +1,12 @@
 import { UnlinkIcon } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { startTransition, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { EmptyState } from './EmptyState';
 
-type Status = 'idle' | 'checking' | 'invalid';
+const RETRY_MS = 5_000;
+/** As created by access.server.ts. Other hashes are ordinary anchors. */
+const KEY = /^#([\w-]{43})$/;
 
 /**
  * Wraps the pages of judges and displays. A key after "#" (see accessUrl) is exchanged for a cookie
@@ -14,58 +16,82 @@ type Status = 'idle' | 'checking' | 'invalid';
 export function AccessGate({ children }: { children?: ReactNode }) {
   const { t } = useTranslation(['judging', 'common']);
   const navigate = useNavigate();
-  // The server does not see the key, so a denied page cannot know yet whether there is one.
-  const [status, setStatus] = useState<Status>(children ? 'idle' : 'checking');
-  const attempts = useRef(0);
+  const [isInvalid, setIsInvalid] = useState(false);
+  const pendingKey = useRef<string | null>(null);
+  const isDenied = !children;
 
   useEffect(() => {
-    async function exchangeKey() {
+    let isDisposed = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+
+    function takeKey() {
       const { hash, pathname, search } = window.location;
-      const key = hash.slice(1);
-      if (!key) {
-        // Not when an effect of StrictMode runs again after the key was removed.
-        if (attempts.current === 0) setStatus('idle');
-        return;
-      }
+      const key = KEY.exec(hash)?.[1];
+      if (!key) return;
+      pendingKey.current = key;
       window.history.replaceState(window.history.state, '', pathname + search);
-      const attempt = ++attempts.current;
-      setStatus('checking');
-      const isValid = await logIn(pathname, key);
-      if (attempt !== attempts.current) return;
-      // Not revalidate(): an error page only goes away for sure with a navigation.
-      if (isValid) await navigate({ pathname, search }, { replace: true });
-      setStatus(isValid ? 'idle' : 'invalid');
     }
 
-    const onHashChange = () => void exchangeKey();
+    function onHashChange() {
+      takeKey();
+      void exchange();
+    }
+
+    async function exchange() {
+      clearTimeout(retry);
+      const key = pendingKey.current;
+      if (isDenied) setIsInvalid(!key);
+      if (!key) return;
+      const { pathname, search } = window.location;
+      const status = await logIn(pathname, key);
+      if (isDisposed || pendingKey.current !== key) return;
+      if (status !== 204 && status !== 403) {
+        retry = setTimeout(() => void exchange(), RETRY_MS);
+        return;
+      }
+      pendingKey.current = null;
+      // Not revalidate(): an error page only goes away for sure with a navigation.
+      if (status === 204) await navigate({ pathname, search }, { replace: true });
+      // After the navigation, if this is still a denied page the key was of no use.
+      startTransition(() => setIsInvalid(status === 403 || isDenied));
+    }
+
+    // A key may also still be pending when the effect runs again.
     onHashChange();
     window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, [navigate]);
+    return () => {
+      isDisposed = true;
+      clearTimeout(retry);
+      window.removeEventListener('hashchange', onHashChange);
+    };
+  }, [navigate, isDenied]);
 
-  if (status === 'checking') {
+  if (isInvalid) {
     return (
-      <main className="p-6 text-center text-muted-foreground" role="status">
-        {t('common:loading')}
+      <main id="content" className="p-6">
+        <EmptyState icon={UnlinkIcon} title={t('linkInvalidTitle')} text={t('linkInvalidText')} />
       </main>
     );
   }
-  if (status === 'idle' && children) return children;
+  // The server does not see the key, so a denied page cannot know yet whether there is one.
   return (
-    <main className="p-6">
-      <EmptyState icon={UnlinkIcon} title={t('linkInvalidTitle')} text={t('linkInvalidText')} />
-    </main>
+    children ?? (
+      <main id="content" className="p-6 text-center text-muted-foreground" role="status">
+        {t('common:loading')}
+      </main>
+    )
   );
 }
 
+/** The status of the response, null without one. */
 async function logIn(pathname: string, token: string) {
   try {
     const response = await fetch(`/api${pathname.replace(/\/$/, '')}/login`, {
       method: 'POST',
       body: new URLSearchParams({ token }),
     });
-    return response.ok;
+    return response.status;
   } catch {
-    return false;
+    return null;
   }
 }

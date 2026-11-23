@@ -107,7 +107,7 @@ describe('using a link', () => {
     const cookie = await createAccessCookie(judge.id, 'JUDGE', judge.token);
     expect(cookie).toMatch(new RegExp(`^uteg_access_${judge.id}=`));
     expect(cookie).toMatch(/; Path=\/; HttpOnly; SameSite=Lax/);
-    expect(cookie).toMatch(/Max-Age=31536000/);
+    expect(cookie).toMatch(/Max-Age=1209600/);
 
     const request = requestWith(cookie);
     expect(await resolveAccess(request, judge.id, 'JUDGE')).toMatchObject({
