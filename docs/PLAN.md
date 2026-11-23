@@ -42,7 +42,7 @@ React Router 8 (framework mode, SSR), Vite, TypeScript, Prisma 7 + PostgreSQL, T
 Configurable per contest because the STV Weisungen leave it to the event: Auszeichnung percentage
 per category and sex, quota rounding (`round` as in v2, `ceil` as at the SM), grade precision
 (2 decimals as in v2, 3 as at the SM), and the tie-break order
-(default Ringe, Boden, Reck, Barren as at the SM).
+(default Boden, Schaukelringe, Sprung, Barren, Reck).
 
 ## Structure
 
