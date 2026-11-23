@@ -13,7 +13,7 @@ import {
 } from './domain/rotation';
 import { DomainError, type MissingGrade } from './errors';
 import { publish } from './events.server';
-import { lockDivisions } from './locks.server';
+import { lockContestConfigs, lockDivisions } from './locks.server';
 import { prisma } from './prisma.server';
 
 export type GradeInput = {
@@ -152,6 +152,7 @@ export async function saveGrades(
   );
   const saved = await prisma.$transaction(async (tx) => {
     const ids = grades.map(({ entryId }) => entryId);
+    await lockContestConfigs(tx, competitionId);
     const entries = await lockGradedEntries(tx, competitionId, ids);
     // Two devices grading the same entry take turns, the second one sees the first one's grade.
     await tx.$queryRaw`

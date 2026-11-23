@@ -1,9 +1,11 @@
+import { createHash } from 'node:crypto';
 import type { Prisma, Sex } from '~/generated/prisma/client';
-import { getContestModule, getModule } from '~/modules/registry';
+import { getContestModule, getModule, type BoundModule } from '~/modules/registry';
+import { aggregate } from './domain/grade';
 import { selectQualifiers } from './domain/ranking';
 import { DomainError } from './errors';
 import { publish } from './events.server';
-import { lockCompetition } from './locks.server';
+import { lockCompetition, lockContest } from './locks.server';
 import { prisma } from './prisma.server';
 import { getRanking } from './ranking.server';
 
@@ -18,17 +20,72 @@ export async function getContest(
   return { ...contest, module: getContestModule(contest) };
 }
 
-export async function updateContestConfig(
+/** Changes with the config. Pages send back the version they edited. */
+export function getConfigVersion({ config }: { config: unknown }) {
+  // jsonb returns the keys of equal objects in the same order.
+  return createHash('sha256').update(JSON.stringify(config)).digest('base64url');
+}
+
+/** Replaces the config. With a `version` only when nobody else changed it since. */
+export function updateContestConfig(
   competitionId: string,
   contestId: string,
   config: unknown,
+  { version }: { version?: string } = {},
 ) {
-  const contest = await getContest(competitionId, contestId);
-  await prisma.contest.update({
-    where: { id: contest.id },
-    data: { config: parseContestConfig(contest.module.key, config) },
+  return patchContestConfig(competitionId, contestId, () => config, { version });
+}
+
+/**
+ * Changes parts of the config, keeping what others change at the same time, and recomputes the
+ * stored grades whose attempts are now combined differently.
+ */
+export async function patchContestConfig<Config = unknown>(
+  competitionId: string,
+  contestId: string,
+  change: (config: Config) => unknown,
+  { version }: { version?: string } = {},
+) {
+  const recomputed = await prisma.$transaction(async (tx) => {
+    await lockContest(tx, contestId);
+    const contest = await getContest(competitionId, contestId, tx);
+    if (version !== undefined && version !== getConfigVersion(contest)) {
+      throw new DomainError('CONFIG_CHANGED');
+    }
+    // The config is validated by the module, which the caller knows.
+    const changed = change(contest.module.config as Config);
+    if (!changed) throw new DomainError('INVALID_CONFIG');
+    const newConfig = parseContestConfig(contest.module.key, changed);
+    await tx.contest.update({ where: { id: contest.id }, data: { config: newConfig } });
+    const module = getContestModule({ module: contest.module.key, config: newConfig });
+    return recomputeGrades(tx, contest.id, contest.module, module);
   });
   publish(competitionId, 'settings');
+  if (recomputed > 0) publish(competitionId, 'grades');
+  return { recomputed };
+}
+
+export type AttemptGradeCount = {
+  apparatus: string;
+  category: string;
+  attempts: number;
+  count: number;
+};
+
+/** How many grades were entered as attempts. They depend on the input rules of the config. */
+export async function countAttemptGrades(
+  competitionId: string,
+  contestId: string,
+): Promise<AttemptGradeCount[]> {
+  const contest = await getContest(competitionId, contestId);
+  const groups = Map.groupBy(
+    await findAttemptGrades(prisma, contest.id),
+    ({ apparatus, category, attempts }) => JSON.stringify([apparatus, category, attempts.length]),
+  );
+  return [...groups.values()].map((grades) => {
+    const [{ apparatus, category, attempts }] = grades;
+    return { apparatus, category, attempts: attempts.length, count: grades.length };
+  });
 }
 
 /** Validates a config for a module. Without one the module's default is used. */
@@ -104,4 +161,53 @@ export async function createContestFromRanking(
   });
   publish(competitionId, 'settings');
   return contest;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+async function findAttemptGrades(tx: Prisma.TransactionClient, contestId: string) {
+  const grades = await tx.grade.findMany({
+    where: { entry: { contestId }, NOT: { attempts: { isEmpty: true } } },
+    select: {
+      id: true,
+      apparatus: true,
+      value: true,
+      attempts: true,
+      entry: { select: { category: true, division: { select: { category: true } } } },
+    },
+  });
+  return grades.map(({ entry, ...grade }) => ({
+    ...grade,
+    category: entry.category ?? entry.division?.category ?? '',
+  }));
+}
+
+/** Grades with another number of attempts than the new rule keep their value. */
+async function recomputeGrades(
+  tx: Prisma.TransactionClient,
+  contestId: string,
+  oldModule: BoundModule,
+  newModule: BoundModule,
+) {
+  const ids: string[] = [];
+  const values: number[] = [];
+  for (const grade of await findAttemptGrades(tx, contestId)) {
+    const { id, apparatus, category, value, attempts } = grade;
+    const rule = newModule.inputRule(apparatus, category);
+    const oldRule = oldModule.inputRule(apparatus, category);
+    const isSameRule =
+      rule.attempts === oldRule.attempts && rule.aggregation === oldRule.aggregation;
+    if (isSameRule || rule.attempts !== attempts.length) continue;
+    const newValue = aggregate(attempts, rule.aggregation);
+    if (newValue === null || newValue === value) continue;
+    ids.push(id);
+    values.push(newValue);
+  }
+  if (ids.length === 0) return 0;
+  // Keeps updatedAt: dashboard and displays show who was graded last, which does not change. The
+  // version changes, so nobody replaces a value they have not seen.
+  return tx.$executeRaw`
+    UPDATE grade SET value = changed.value, version = version + 1
+    FROM unnest(${ids}::text[], ${values}::int[]) AS changed(id, value)
+    WHERE grade.id = changed.id`;
 }
