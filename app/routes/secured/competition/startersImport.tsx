@@ -30,12 +30,7 @@ import { listClubs } from '~/lib/clubs.server';
 import { getContestOptions } from '~/lib/contestOptions.server';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { withoutNul } from '~/lib/domain/starter';
-import {
-  findClubConflicts,
-  importStarters,
-  type ClubAnswer,
-  type ImportRow,
-} from '~/lib/starters.server';
+import { findClubConflicts, importStarters, type ImportRow } from '~/lib/starters.server';
 import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
@@ -55,10 +50,7 @@ const importSchema = z.object({
   contestId: id,
   clubId: id,
   /** The answer to the conflicts. They are checked before, so the first request has none. */
-  clubAnswers: z
-    .array(z.object({ starterId: id, fromClubId: id, change: z.boolean() }))
-    .max(MAX_IMPORT_ROWS)
-    .optional(),
+  changeClubOf: z.array(id).max(MAX_IMPORT_ROWS).optional(),
   rows: z
     .array(
       z.object({
@@ -84,7 +76,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   const rows = values.rows as ImportRow[];
   try {
-    if (!values.clubAnswers) {
+    if (!values.changeClubOf) {
       const conflicts = await findClubConflicts(id, { clubId: values.clubId, rows });
       if (conflicts.length > 0) return { conflicts };
     }
@@ -179,16 +171,16 @@ function Wizard({
     if (result) resultRef.current?.focus();
   }, [result]);
 
-  function submit(clubAnswers?: ClubAnswer[]) {
+  function submit(changeClubOf?: string[]) {
     if (!club) return;
     // The question stays open while its answer is sent.
-    setHandled(clubAnswers ? [importer.data] : [importer.data, checker.data]);
-    void (clubAnswers ? importer : checker).submit(
+    setHandled(changeClubOf ? [importer.data] : [importer.data, checker.data]);
+    void (changeClubOf ? importer : checker).submit(
       {
         contestId: contest.id,
         clubId: club.id,
         rows: rows.map(toImportRow),
-        ...(clubAnswers && { clubAnswers }),
+        ...(changeClubOf && { changeClubOf }),
       },
       { method: 'post', encType: 'application/json' },
     );
@@ -331,13 +323,6 @@ function Wizard({
               <Count label={t('import.clubsKept')} value={result.clubsKept} />
               <Count label={t('import.failures')} value={result.failures.length} />
             </dl>
-            {result.clubsOutdated.length > 0 && (
-              <p className="text-sm">
-                {t('import.clubsOutdated', {
-                  names: result.clubsOutdated.map(fullName).join(', '),
-                })}
-              </p>
-            )}
           </div>
           {result.failures.length > 0 && (
             <Alert variant="destructive">

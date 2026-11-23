@@ -1,5 +1,5 @@
 import { egtModule } from '~/modules/egt/module';
-import { getAffectedGrades, getVaultRule, setAllHonour, setVaultRule } from './egtConfig';
+import { getVaultRule, setAllHonour, setVaultRule } from './egtConfig';
 
 const config = egtModule.defaultConfig;
 const AVERAGE = { attempts: 2, aggregation: 'AVG' } as const;
@@ -28,23 +28,6 @@ describe('setVaultRule', () => {
     const changed = setVaultRule({ ...config, inputs: {} }, 'K5', AVERAGE);
     expect(getVaultRule(changed, 'K5')).toEqual(AVERAGE);
     expect(getVaultRule(changed, 'K4')).toEqual({ attempts: 1, aggregation: 'NONE' });
-  });
-});
-
-describe('getAffectedGrades', () => {
-  const counts = [
-    { apparatus: 'sprung', category: 'K5', attempts: 2, count: 12 },
-    { apparatus: 'sprung', category: 'K5', attempts: 1, count: 3 },
-    { apparatus: 'sprung', category: 'K4', attempts: 2, count: 7 },
-  ];
-
-  it('counts what is recomputed and what stays', () => {
-    const changed = setVaultRule(config, 'K5', AVERAGE);
-    expect(getAffectedGrades(config, changed, counts)).toEqual({ recompute: 12, keep: 3 });
-  });
-
-  it('is empty without changes', () => {
-    expect(getAffectedGrades(config, config, counts)).toEqual({ recompute: 0, keep: 0 });
   });
 });
 

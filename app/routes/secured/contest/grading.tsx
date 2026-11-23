@@ -1,5 +1,4 @@
 import { CheckIcon, ClipboardPenIcon } from 'lucide-react';
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data, Link } from 'react-router';
 import type { Route } from './+types/grading';
@@ -67,16 +66,10 @@ export default function Grading({ loaderData }: Route.ComponentProps) {
   const status = useLiveUpdates(`/api/events/${competition.id}`);
   const { ground, divisions, apparatus, loadedAt } = loaderData;
 
-  const slots = useMemo(
-    () => apparatus.flatMap(({ rounds }) => rounds.flatMap((round) => round.slots)),
-    [apparatus],
-  );
   const drafts = useGradeDrafts({
     url: `/api/competitions/${competition.id}/grades`,
-    prefix: `grading:${competition.id}`,
-    slots,
+    storageKey: `grading:${competition.id}`,
     loadedAt,
-    status,
   });
 
   return (

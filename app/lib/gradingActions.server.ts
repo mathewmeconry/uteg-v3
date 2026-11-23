@@ -10,7 +10,6 @@ import { confirmRound, deleteGrade } from './judging.server';
 const deleteSchema = z.object({
   entryId: z.string().min(1),
   apparatus: z.string().min(1),
-  gradeId: z.string().min(1),
   version: z.coerce.number().int(),
 });
 
@@ -25,9 +24,7 @@ export async function runDeleteGrade(context: Context, competitionId: string, fo
   const { data: values } = parseForm(formData, deleteSchema);
   return run(context, async () => {
     if (!values) throw new DomainError('INVALID_INPUT');
-    const { entryId, apparatus, gradeId, version } = values;
-    const previous = { id: gradeId, version };
-    await deleteGrade(competitionId, { entryId, apparatus, previous }, { kind: 'editor' });
+    await deleteGrade(competitionId, values, { kind: 'editor' });
   });
 }
 

@@ -1,5 +1,9 @@
-import { MAX_COVER_PAGE_BYTES, MAX_COVER_PAGES, MAX_COVER_PIXELS } from './domain/cover';
-import { cleanJpeg } from './domain/jpeg';
+import {
+  MAX_COVER_PAGE_BYTES,
+  MAX_COVER_PAGES,
+  readCoverPage,
+  type CoverImage,
+} from './domain/cover';
 import { DomainError } from './errors';
 import { publish } from './events.server';
 import { lockCompetition } from './locks.server';
@@ -16,7 +20,7 @@ export async function setCover(competitionId: string, templateId: string, files:
     throw new DomainError('FILE_TOO_LARGE');
   }
   const pages = files.map((file) => {
-    const page = cleanJpeg(file, MAX_COVER_PIXELS);
+    const page = readCoverPage(file);
     if (!page) throw new DomainError('INVALID_COVER');
     return page;
   });
@@ -40,11 +44,7 @@ export async function findBrokenCovers(competitionId: string) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-async function replacePages(
-  competitionId: string,
-  templateId: string,
-  pages: { data: Uint8Array<ArrayBuffer> }[],
-) {
+async function replacePages(competitionId: string, templateId: string, pages: CoverImage[]) {
   await prisma.$transaction(async (tx) => {
     await lockCompetition(tx, competitionId);
     const template = await tx.rankingTemplate.findFirst({

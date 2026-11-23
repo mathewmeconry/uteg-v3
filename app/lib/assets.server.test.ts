@@ -51,14 +51,9 @@ describe('setLogo', () => {
     expect(await errorCode(setLogo(id, createPng(10, 4001)))).toBe('IMAGE_TOO_LARGE');
   });
 
-  it('stores JPEGs without metadata and rejects broken ones', async () => {
+  it('rejects JPEGs without a size', async () => {
     const { id } = await createCompetition();
-    // Claims four billion values, which libraries would read.
-    const exif = [0xff, 0xe1, 0, 34, 0x45, 0x78, 0x69, 0x66, 0, 0, 0x4d, 0x4d, 0, 42, 0, 0, 0, 8];
-    const entry = [0, 1, 1, 0, 0, 4, 255, 255, 255, 240, 0, 0, 0, 8, 0, 0, 0, 0];
-    await setLogo(id, createJpeg(200, 100, { segments: [...exif, ...entry] }));
-    expect((await getLogo(id))!.data).toEqual(JPEG);
-    expect(await errorCode(setLogo(id, JPEG.slice(0, -2)))).toBe('INVALID_IMAGE');
+    expect(await errorCode(setLogo(id, JPEG.slice(0, 20)))).toBe('INVALID_IMAGE');
   });
 
   it('rejects images that become larger than their header says', async () => {

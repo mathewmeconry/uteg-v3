@@ -70,14 +70,6 @@ export function getHonourQuota(
   return honourRounding === 'ceil' ? Math.ceil(quota) : Math.round(quota);
 }
 
-/** Everyone ranked in the first `topN`. A shared rank at the cutoff qualifies as a whole. */
-export function selectQualifiers<Entry extends { rank: number }>(
-  rankings: readonly Entry[],
-  topN: number,
-) {
-  return rankings.filter(({ rank }) => rank <= topN);
-}
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function compareTieBreak(

@@ -30,13 +30,7 @@ function renderElement(element: React.ReactNode) {
 
 function renderForm(props: Partial<React.ComponentProps<typeof EgtSettingsForm>> = {}) {
   return renderElement(
-    <EgtSettingsForm
-      savedConfig={egtModule.defaultConfig}
-      version="1"
-      attemptGrades={[{ apparatus: 'sprung', category: 'K5', attempts: 2, count: 12 }]}
-      canEdit
-      {...props}
-    />,
+    <EgtSettingsForm savedConfig={egtModule.defaultConfig} version="1" canEdit {...props} />,
   );
 }
 
@@ -71,19 +65,6 @@ describe('EgtSettingsForm', () => {
     });
   });
 
-  it('warns about grades that are recomputed', async () => {
-    renderForm();
-    await choose('Final grade in K5', 'Average');
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      '12 saved vault grades are recomputed on saving.',
-    );
-    await choose('Attempts in K5', '3');
-    expect(screen.getByRole('alert')).toHaveTextContent('stay unchanged');
-    await choose('Attempts in K5', '2');
-    await choose('Final grade in K5', 'Best attempt');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
-
   it('has no aggregation for a single attempt', async () => {
     renderForm();
     await choose('Attempts in K4', '1');
@@ -115,7 +96,6 @@ describe('EgtSettingsForm', () => {
           <EgtSettingsForm
             savedConfig={saved.config}
             version={saved.version}
-            attemptGrades={[]}
             canEdit
             error="Refused"
           />
@@ -162,12 +142,7 @@ describe('EgtSettingsForm', () => {
         return (
           <>
             <button onClick={() => setSaved({ config: reordered, version: '2' })}>Own save</button>
-            <EgtSettingsForm
-              savedConfig={saved.config}
-              version={saved.version}
-              attemptGrades={[]}
-              canEdit
-            />
+            <EgtSettingsForm savedConfig={saved.config} version={saved.version} canEdit />
           </>
         );
       }

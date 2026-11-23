@@ -38,9 +38,7 @@ async function setup(role: Role = 'EDITOR', state: 'PENDING' | 'RUNNING' | 'ENDE
       entryId: entry.id,
       apparatus: 'reck',
       grade: { value: 9500, attempts: [] },
-      previous: { id: grade.id, version: grade.version },
-      requestId: 'r1',
-      supersedes: [],
+      version: grade.version,
       ...patch,
     };
     const request = new Request('http://localhost', { method: 'POST', body: JSON.stringify(body) });
@@ -92,7 +90,7 @@ describe('editing', () => {
 
   it('notices changes by the tablet', async () => {
     const { save } = await setup();
-    expect(await save({ previous: null })).toEqual({ ok: false, code: 'GRADE_CHANGED' });
+    expect(await save({ version: null })).toEqual({ ok: false, code: 'GRADE_CHANGED' });
   });
 
   it('refuses a round without ground and apparatus', async () => {
@@ -108,18 +106,13 @@ describe('editing', () => {
   });
 
   it('deletes the grade that was shown', async () => {
-    const { entry, grade, context, save } = await setup();
+    const { entry, context, save } = await setup();
     const remove = (version?: number) =>
       post(divisionAction, context, [
         ['intent', 'delete'],
         ['entryId', entry.id],
         ['apparatus', 'reck'],
-        ...(version
-          ? [
-              ['gradeId', grade.id],
-              ['version', String(version)],
-            ]
-          : []),
+        ...(version ? [['version', String(version)]] : []),
       ]);
     await save();
     const refused = { data: { error: expect.any(String) }, init: { status: 400 } };

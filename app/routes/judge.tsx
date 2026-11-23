@@ -89,13 +89,7 @@ export default function Judge({ loaderData, params: { linkId } }: Route.Componen
           </div>
         </header>
         <main id="content" className="p-4 pb-10 sm:px-6">
-          <Tablet
-            key={linkId}
-            linkId={linkId}
-            url={`${api}/grades`}
-            data={tablet}
-            status={status}
-          />
+          <Tablet key={linkId} linkId={linkId} url={`${api}/grades`} data={tablet} />
         </main>
       </div>
     </AccessGate>

@@ -12,7 +12,6 @@ const SLOT = {
   inputRule: { attempts: 1, aggregation: 'NONE' },
   grade: null,
 } as const;
-const SLOTS = [SLOT];
 
 let drafts: GradeDrafts;
 const load = vi.fn(() => null);
@@ -24,13 +23,7 @@ async function setup() {
     drafts = value;
   };
   function Page() {
-    const value = useGradeDrafts({
-      url: '/grades',
-      prefix: 'test',
-      slots: SLOTS,
-      loadedAt: 0,
-      status: 'lost',
-    });
+    const value = useGradeDrafts({ url: '/grades', storageKey: 'test', loadedAt: 0 });
     capture(value);
     return <p>page</p>;
   }
@@ -38,7 +31,7 @@ async function setup() {
   render(<Stub />);
   await screen.findByText('page');
   load.mockClear();
-  act(() => drafts.change(SLOT, null, { attempts: [], final: '9.1' }));
+  act(() => drafts.change(SLOT, { attempts: [], final: '9.1' }));
 }
 
 beforeEach(() => {
@@ -67,6 +60,18 @@ describe('a grade that was not answered', () => {
     await act(() => drafts.submit(KEY));
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
   });
+});
+
+it('keeps the grades that another tab stored', async () => {
+  send.mockImplementation(unreachable);
+  await setup();
+  const [[, draft]] = JSON.parse(localStorage.getItem('test')!);
+  localStorage.setItem('test', JSON.stringify([['reck:e2', draft]]));
+  act(() => drafts.change(SLOT, { attempts: [], final: '9.2' }));
+  const keys = () => JSON.parse(localStorage.getItem('test')!).map(([key]: [string]) => key);
+  expect(keys()).toEqual(['reck:e2', KEY]);
+  act(() => drafts.discard(KEY));
+  expect(keys()).toEqual(['reck:e2']);
 });
 
 function fetched() {

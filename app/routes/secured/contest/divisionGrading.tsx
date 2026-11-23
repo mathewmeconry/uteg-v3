@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data } from 'react-router';
 import type { Route } from './+types/divisionGrading';
@@ -52,16 +51,10 @@ export default function DivisionGrading({ loaderData }: Route.ComponentProps) {
   const status = useLiveUpdates(`/api/events/${competition.id}`);
   const { division, apparatus, loadedAt } = loaderData;
 
-  const slots = useMemo(
-    () => apparatus.flatMap(({ rounds }) => rounds.flatMap((round) => round.slots)),
-    [apparatus],
-  );
   const drafts = useGradeDrafts({
     url: `/api/competitions/${competition.id}/grades`,
-    prefix: `grading:${competition.id}`,
-    slots,
+    storageKey: `grading:${competition.id}`,
     loadedAt,
-    status,
   });
 
   const name = t('division', {

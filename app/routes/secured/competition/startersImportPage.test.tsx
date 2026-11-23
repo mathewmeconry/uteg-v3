@@ -14,14 +14,12 @@ const CONFLICTS = ['Anna', 'Bea'].map((firstname) => ({
   birthYear: 2010,
   club: { id: 'alt', name: 'TV Alt', location: 'Bern' },
 }));
-const answer = (starterId: string, change: boolean) => ({ starterId, fromClubId: 'alt', change });
 const RESULT = {
   created: 1,
   restored: 0,
   existing: 2,
   clubsChanged: 1,
   clubsKept: 1,
-  clubsOutdated: [{ firstname: 'Bea', lastname: 'Muster' }],
   failures: [],
 };
 
@@ -105,8 +103,7 @@ it('imports right away when nobody is affected', async () => {
   await waitFor(() => expect(title).toHaveFocus());
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(requests).toHaveLength(1);
-  expect(requests[0]).not.toHaveProperty('clubAnswers');
-  expect(screen.getByText(/inzwischen geändert.*Bea Muster/)).toBeInTheDocument();
+  expect(requests[0]).not.toHaveProperty('changeClubOf');
   expect(screen.getByText('Verein geändert').nextSibling).toHaveTextContent('1');
   expect(screen.getByText('Verein behalten').nextSibling).toHaveTextContent('1');
 });
@@ -122,7 +119,7 @@ it('asks whose club changes, nobody by default', async () => {
 
   await user.click(dialog.getByRole('button', { name: 'Importieren' }));
   await screen.findByRole('heading', { name: 'Import abgeschlossen' });
-  expect(requests[1].clubAnswers).toEqual([answer('Anna', false), answer('Bea', false)]);
+  expect(requests[1].changeClubOf).toEqual([]);
 });
 
 it('sends the chosen starters, and selects all or none', async () => {
@@ -136,7 +133,7 @@ it('sends the chosen starters, and selects all or none', async () => {
   await user.click(dialog.getByRole('button', { name: 'Importieren' }));
   const title = await screen.findByRole('heading', { name: 'Import abgeschlossen' });
   await waitFor(() => expect(title).toHaveFocus());
-  expect(requests[1].clubAnswers).toEqual([answer('Anna', false), answer('Bea', true)]);
+  expect(requests[1].changeClubOf).toEqual(['Bea']);
 });
 
 it('goes back to the rows and checks again', async () => {
@@ -153,7 +150,7 @@ it('goes back to the rows and checks again', async () => {
   await waitFor(() => expect(submit).toHaveFocus());
   await user.click(submit);
   expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
-  expect(requests[1]).not.toHaveProperty('clubAnswers');
+  expect(requests[1]).not.toHaveProperty('changeClubOf');
 });
 
 it('imports corrected rows that lead to another question', async () => {
@@ -204,5 +201,5 @@ it('keeps the rows when the check fails, and the choice when the import fails', 
 
   await user.click(dialog.getByRole('button', { name: 'Importieren' }));
   await screen.findByRole('heading', { name: 'Import abgeschlossen' });
-  expect(requests[3].clubAnswers).toEqual([answer('Anna', true), answer('Bea', false)]);
+  expect(requests[3].changeClubOf).toEqual(['Anna']);
 });

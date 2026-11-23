@@ -8,10 +8,9 @@ import { Button } from '~/components/ui/button';
 import { useApparatusName } from '~/hooks/useApparatusName';
 import { formatEntered } from '~/lib/domain/gradeInput';
 import { cn } from '~/lib/utils';
-import { draftKey } from './draftStore';
 import { GradeInputs } from './GradeInputs';
 import { ConflictNotice, RejectedNotice, SaveState } from './SaveState';
-import type { GradeDrafts } from './useGradeDrafts';
+import { draftKey, type GradeDrafts } from './useGradeDrafts';
 
 /**
  * One starter in the grading tables. Saves by itself when the row is left, Enter goes to the next
@@ -38,7 +37,8 @@ export function GradingRow({
   const key = draftKey(slot);
   const name = fullName(slot);
   const isEditable = canEdit && !slot.withdrawn;
-  const isTyping = drafts.drafts.get(key)?.typing ?? false;
+  /** Not set by what was restored after a reload: passing through must not save that. */
+  const isTyped = useRef(false);
   const row = useRef<HTMLLIElement>(null);
   const isCleared = state.isDirty && state.evaluated.isEmpty && !state.wasSent && !state.isConflict;
 
@@ -53,11 +53,11 @@ export function GradingRow({
     // The window lost the focus, the field did not: the value may be half typed.
     if (document.activeElement === target) return;
     setIsActive(false);
-    if (!isTyping) return;
+    if (!isTyped.current) return;
+    isTyped.current = false;
     // Clearing a field does not delete a grade.
-    if (isCleared) drafts.discard(key);
+    if (isCleared || !state.isDirty) drafts.discard(key);
     else save();
-    drafts.leave(key);
   }
 
   function undo() {
@@ -71,8 +71,8 @@ export function GradingRow({
     let next = row.current?.nextElementSibling;
     while (next && !findInput(next)) next = next.nextElementSibling;
     const input = findInput(next);
-    // Typed before a reload: passing through does not save it, Enter does.
-    if (!input || !isTyping) save();
+    // Otherwise leaving the row saves it.
+    if (!input || !isTyped.current) save();
     input?.focus();
     input?.select();
   }
@@ -124,7 +124,8 @@ export function GradingRow({
             showRequired={showRequired && state.isDirty}
             onChange={(fields) => {
               setShowRequired(false);
-              drafts.change(slot, state.saved, fields);
+              isTyped.current = true;
+              drafts.change(slot, fields);
             }}
             onSubmit={goToNext}
           />
@@ -193,7 +194,6 @@ export function GradingRow({
                   intent: 'delete',
                   entryId: slot.entryId,
                   apparatus: slot.apparatus,
-                  gradeId: shown?.id ?? '',
                   version: String(shown?.version),
                 }}
               />
