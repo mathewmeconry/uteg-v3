@@ -53,8 +53,20 @@ export async function suggestAthletes(query: string) {
 export async function resolveAthlete(
   tx: Prisma.TransactionClient,
   competitionId: string,
-  { athleteId, stvId, ...person }: StarterData & { athleteId?: string | null },
+  data: StarterData & { athleteId?: string | null },
 ): Promise<Athlete> {
+  const athlete = await matchAthlete(tx, competitionId, data);
+  if (athlete) return addMissingStvId(tx, athlete, data.stvId);
+  const { athleteId: _, ...person } = data;
+  return tx.athlete.create({ data: person });
+}
+
+/** The existing athlete of resolveAthlete, or null. Changes nothing. */
+export async function matchAthlete(
+  tx: Prisma.TransactionClient,
+  competitionId: string,
+  { athleteId, stvId, ...person }: StarterData & { athleteId?: string | null },
+): Promise<Athlete | null> {
   const owner = stvId ? await tx.athlete.findUnique({ where: { stvId } }) : null;
 
   if (athleteId) {
@@ -64,13 +76,11 @@ export async function resolveAthlete(
     if (belongsToOther || (stvId && athlete.stvId && athlete.stvId !== stvId)) {
       throw new DomainError('STV_ID_CONFLICT');
     }
-    return addMissingStvId(tx, athlete, stvId);
+    return athlete;
   }
 
   if (owner) return assertMayBe(owner, person);
-  const match = await findByPerson(tx, competitionId, person, stvId);
-  if (match) return addMissingStvId(tx, match, stvId);
-  return tx.athlete.create({ data: { ...person, stvId } });
+  return findByPerson(tx, competitionId, person, stvId);
 }
 
 /**

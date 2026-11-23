@@ -124,9 +124,10 @@ describe('parseSheet', () => {
     ['K8', 'w', 'KD'],
     ['KD', 'm', 'KH'],
     ['KH', '', 'KH'],
-    ['K8', '', undefined],
-    ['K9', 'w', undefined],
-    ['foo', 'w', undefined],
+    // Unknown categories are kept, so the user sees what to correct.
+    ['K8', '', 'K8'],
+    ['K9', 'w', 'K9'],
+    ['foo', 'w', 'foo'],
     ['', 'w', undefined],
   ])('reads the category "%s" for "%s"', (input, sex, category) => {
     expect(parseRow('', 'A', 'B', 2010, sex, input)?.category).toBe(category);

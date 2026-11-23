@@ -30,11 +30,14 @@ export function parseForm<Schema extends z.ZodType>(
   formData: FormData,
   schema: Schema,
 ): { data: z.infer<Schema>; errors?: undefined } | { data?: undefined; errors: FieldErrors } {
-  const values = Object.fromEntries(formData);
-  // Browsers never send NUL, and PostgreSQL rejects it.
-  if (Object.values(values).some((value) => typeof value === 'string' && value.includes('\0'))) {
-    throw data(null, 400);
-  }
-  const result = schema.safeParse(values);
+  rejectNul(formData);
+  const result = schema.safeParse(Object.fromEntries(formData));
   return result.success ? { data: result.data } : { errors: fieldErrors(result.error) };
+}
+
+/** Browsers never send NUL, and PostgreSQL rejects it. Part of parseForm. */
+export function rejectNul(formData: FormData) {
+  for (const value of formData.values()) {
+    if (typeof value === 'string' && value.includes('\0')) throw data(null, 400);
+  }
 }

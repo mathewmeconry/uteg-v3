@@ -27,7 +27,7 @@ const HEADERS: Record<Field, readonly string[]> = {
   stvId: ['stvid', 'stv', 'stvnr', 'stvnummer', 'stvnumber'],
   firstname: ['firstname', 'vorname'],
   lastname: ['lastname', 'nachname', 'name'],
-  birthYear: ['birthyear', 'jahrgang', 'geburtsjahr', 'jg'],
+  birthYear: ['birthyear', 'yearofbirth', 'jahrgang', 'geburtsjahr', 'jg'],
   sex: ['geschlecht', 'biogeschlecht', 'biologischesgeschlecht', 'gender', 'sex'],
   category: ['category', 'kategorie', 'cat', 'kat'],
   divisionNumber: ['division', 'abteilung', 'div', 'abt'],
@@ -138,7 +138,8 @@ function parseCategory(text: string, sex: Sex | undefined) {
   if (['h', 'herren', 'men'].includes(key)) return categoryForSex('KH', sex ?? 'MALE');
   // v2 called the open category 8.
   if (key === '8' && sex) return categoryForSex('KD', sex);
-  return undefined;
+  // Not dropped, so the user sees what to correct.
+  return text || undefined;
 }
 
 function parseDivisionNumber(text: string) {

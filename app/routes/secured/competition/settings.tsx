@@ -9,12 +9,14 @@ import { PageHeader } from '~/components/PageHeader';
 import { SubmitButton } from '~/components/SubmitButton';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
+import { useActionErrors } from '~/hooks/useActionFetcher';
 import { useCompetition } from '~/hooks/useCompetition';
 import { removeLogo, setLogo } from '~/lib/assets.server';
 import { competitionSchema, readLogo } from '~/lib/competitionForm.server';
 import { deleteCompetition, updateCompetition } from '~/lib/competitions.server';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { parseForm } from '~/lib/forms.server';
+import { safeClientAction } from '~/lib/safeClientAction';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
@@ -70,10 +72,12 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
+export const clientAction = safeClientAction;
+
 export default function Settings({ actionData }: Route.ComponentProps) {
   const { t } = useTranslation(['settings', 'competition', 'common']);
   const { competition, canEdit, isOwner } = useCompetition();
-  const errors: Record<string, string | undefined> = actionData?.errors ?? {};
+  const errors = useActionErrors(actionData);
 
   return (
     <>

@@ -90,7 +90,7 @@ describe.each([
     publish(id, 'grades');
     expect((await reader.read()).done).toBe(false);
     const old = await request();
-    await resetToken(id, link.id);
+    await resetToken(id, link.kind, link.id);
     expect((await reader.read()).done).toBe(true);
     expect(await status(events({ request: old, params } as any) as Promise<unknown>)).toBe(403);
   });
