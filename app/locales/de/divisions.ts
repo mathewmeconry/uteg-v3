@@ -22,8 +22,11 @@ export default {
     label: 'Abteilungen filtern und sortieren',
     all: 'Alle',
     sort: 'Sortierung',
+    search: 'Suche',
     sortKeys: {
       category: 'Kategorie',
+      number: 'Nummer',
+      sex: 'Geschlecht',
       ground: 'Wettkampfplatz',
       state: 'Status',
       starters: 'Anzahl Teilnehmende',
@@ -47,12 +50,16 @@ export default {
     done: 'Wettkampfplatz geändert',
   },
   remove: {
-    title: 'Abteilung löschen?',
+    title_one: 'Abteilung löschen?',
+    title_other: '{{count}} Abteilungen löschen?',
+    endedText:
+      'Ihre Teilnehmenden verschwinden aus der Rangliste, auch wenn die Noten erhalten bleiben:',
     text_one:
       '{{count}} Person verliert Abteilung und Startgerät. Noten bleiben erhalten. Die Nummern danach rücken nach.',
     text_other:
       '{{count}} Teilnehmende verlieren Abteilung und Startgerät. Noten bleiben erhalten. Die Nummern danach rücken nach.',
-    done: 'Abteilung gelöscht',
+    done_one: 'Abteilung gelöscht',
+    done_other: '{{count}} Abteilungen gelöscht',
   },
   start: {
     title_one: 'Abteilung starten?',
@@ -105,12 +112,13 @@ export default {
     up: '{{name}} nach oben',
     down: '{{name}} nach unten',
     select: '{{name}} auswählen',
+    edit: '{{name}} bearbeiten',
     selectAll: 'Alle auswählen: {{list}}',
     moveTo: 'Verschieben nach',
     selection: 'Auswahl verschieben',
     dnd: {
       instructions:
-        'Mit der Leertaste aufnehmen, mit den Pfeiltasten verschieben, mit der Leertaste ablegen. Escape bricht ab.',
+        'Mit der Leertaste aufnehmen, mit Pfeil auf und ab in der Liste und mit Pfeil links und rechts in die nächste Liste verschieben, mit der Leertaste ablegen. Escape bricht ab.',
       start: '{{name}} aufgenommen.',
       over: '{{name}} ist in {{list}}, Platz {{position}} von {{count}}.',
       end: '{{name}} abgelegt in {{list}}, Platz {{position}} von {{count}}.',

@@ -96,7 +96,7 @@ async function assertInDivision(
   entryIds: string[],
 ) {
   const count = await tx.entry.count({ where: { id: { in: entryIds }, divisionId } });
-  if (count !== entryIds.length) throw new DomainError('DIVISION_MISMATCH');
+  if (count !== entryIds.length) throw new DomainError('ENTRY_NOT_IN_DIVISION');
 }
 
 async function savePositions(tx: Prisma.TransactionClient, lineupId: string, entryIds: string[]) {

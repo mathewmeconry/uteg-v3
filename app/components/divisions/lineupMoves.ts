@@ -23,6 +23,29 @@ export function findColumn(columns: readonly Column[], entryId: string) {
   return columns.find(({ entryIds }) => entryIds.includes(entryId));
 }
 
+/**
+ * Where an arrow key takes a dragged entry that is at `overId`: up and down within the list, left
+ * and right to the same place in the list before or after. The id of an entry, or of a column to
+ * go to its end.
+ */
+export function keyboardTarget(columns: readonly Column[], overId: string, key: string) {
+  const columnIndex = columns.findIndex(({ entryIds }) => entryIds.includes(overId));
+  if (columnIndex < 0) return undefined;
+  const { entryIds } = columns[columnIndex];
+  const index = entryIds.indexOf(overId);
+  switch (key) {
+    case 'ArrowUp':
+      return entryIds[index - 1];
+    case 'ArrowDown':
+      return entryIds[index + 1];
+    case 'ArrowLeft':
+    case 'ArrowRight': {
+      const target = columns[columnIndex + (key === 'ArrowLeft' ? -1 : 1)];
+      return target?.entryIds[index] ?? target?.id;
+    }
+  }
+}
+
 /** Moves an entry past its neighbour. `visible` are the column's entries the filter shows. */
 export function stepMove(
   columnId: string,

@@ -6,7 +6,7 @@ export default {
   screenTitle: 'Display',
   links: {
     intro: 'A display shows the latest grades of a ground on a screen.',
-    name: 'Display {{number}}',
+    name: 'Display {{code}}',
     empty: 'No displays yet',
     create: 'New display',
     createDone: 'Display created',

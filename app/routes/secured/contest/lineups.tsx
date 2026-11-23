@@ -2,7 +2,6 @@ import { ArrowLeftIcon, InfoIcon, TriangleAlertIcon, UsersIcon } from 'lucide-re
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data, Link } from 'react-router';
-import { z } from 'zod';
 import type { Route } from './+types/lineups';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
 import { DivisionStateBadge } from '~/components/DivisionStateBadge';
@@ -25,12 +24,8 @@ import {
 import { competitionContext, contestContext, type Context } from '~/context';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
-import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { DomainError } from '~/lib/errors';
-import { getDivisionLineups, moveEntriesToLineup, unassignEntries } from '~/lib/lineups.server';
-import { requireRole } from '~/middlewares/competition.server';
-import { getT } from '~/middlewares/i18n.server';
-import { enqueueToast } from '~/middlewares/toast.server';
+import { getDivisionLineups } from '~/lib/lineups.server';
 
 type Apparatus = keyof (typeof import('~/locales/de/common'))['default']['apparatus'];
 
@@ -53,53 +48,6 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   };
 }
 
-const entry = z.array(z.string().min(1)).min(1);
-
-const schema = z.discriminatedUnion('intent', [
-  z.object({
-    intent: z.literal('move'),
-    entry,
-    lineup: z.string().min(1),
-    before: z.string().optional(),
-  }),
-  z.object({ intent: z.literal('unassign'), entry }),
-]);
-
-export async function action({ request, context, params }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
-  const t = getT(context);
-  const formData = await request.formData();
-  const { data: values } = schema.safeParse({
-    ...Object.fromEntries(formData),
-    entry: [...new Set(formData.getAll('entry'))],
-  });
-  if (!values) {
-    enqueueToast(context, { type: 'error', message: t('common:errors.invalid') });
-    return data(null, 400);
-  }
-
-  const { division, lineups } = await loadDivision(context, params.divisionId);
-  try {
-    if (values.intent === 'unassign') {
-      await unassignEntries(id, division.id, values.entry);
-    } else {
-      const lineup = lineups.find((item) => item.id === values.lineup);
-      if (!lineup) throw data(null, 404);
-      await moveEntriesToLineup(id, lineup.id, values.entry, values.before);
-    }
-    return data(null);
-  } catch (error) {
-    if (!(error instanceof DomainError)) throw error;
-    enqueueToast(context, { type: 'error', message: domainErrorMessage(error, t) });
-    return data(null, 400);
-  }
-}
-
-/** Also after a refused move, so that it is no longer shown. */
-export function shouldRevalidate() {
-  return true;
-}
-
 /** The division of the URL, if it belongs to the contest. */
 async function loadDivision(context: Context, divisionId: string) {
   const { id } = context.get(competitionContext);
@@ -117,6 +65,7 @@ function toEntryData({ id, starter, withdrawnAt }: LoadedEntry): LineupEntryData
   const { firstname, lastname, club } = starter;
   return {
     id,
+    starterId: starter.id,
     firstname,
     lastname,
     clubId: club.id,
@@ -136,6 +85,7 @@ export default function Lineups({ loaderData }: Route.ComponentProps) {
   const name = useDivisionName()(division);
   const [club, setClub] = useState(ALL_CLUBS);
   const { columns, move } = useLineupMoves(
+    `/api/competitions/${competition.id}/contests/${division.contestId}/divisions/${division.id}/lineup-moves`,
     [
       { id: UNASSIGNED, entryIds: unassigned.map(({ id }) => id) },
       ...lineups.map((lineup) => ({ id: lineup.id, entryIds: lineup.entries.map(({ id }) => id) })),
@@ -227,6 +177,7 @@ export default function Lineups({ loaderData }: Route.ComponentProps) {
             columnName={columnName}
             clubId={clubId}
             canEdit={canEdit}
+            editUrl={(starterId) => `/competitions/${competition.id}/starters?edit=${starterId}`}
             onMove={move}
           />
         </>

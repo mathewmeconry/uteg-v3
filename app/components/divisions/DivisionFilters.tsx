@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
+import { Input } from '~/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -15,9 +16,13 @@ const ALL = 'all';
 export function DivisionFilters({
   divisions,
   grounds,
+  search,
+  onSearch,
 }: {
   divisions: Division[];
   grounds: number;
+  search: string;
+  onSearch: (search: string) => void;
 }) {
   const { t } = useTranslation(['divisions', 'common']);
   const [params, setParams] = useSearchParams();
@@ -68,8 +73,20 @@ export function DivisionFilters({
     <div
       role="group"
       aria-label={t('filters.label')}
-      className="mb-4 grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-3 lg:grid-cols-5"
+      className="mb-4 grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-3 xl:grid-cols-6"
     >
+      <div className="grid min-w-0 gap-1">
+        <span aria-hidden className="text-xs text-muted-foreground">
+          {t('filters.search')}
+        </span>
+        <Input
+          type="search"
+          aria-label={t('filters.search')}
+          value={search}
+          onChange={(event) => onSearch(event.target.value)}
+          className="bg-card"
+        />
+      </div>
       {filters.map(({ key, label, options }) => (
         <FilterSelect
           key={key}

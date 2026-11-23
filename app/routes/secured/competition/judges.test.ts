@@ -52,6 +52,17 @@ describe('action', () => {
     expect(all.some(({ token }) => after.some((link) => link.token === token))).toBe(false);
   });
 
+  it('resets all links of a ground', async () => {
+    const { post } = await setup();
+    const before = await prisma.accessLink.findMany();
+    expect((await post({ intent: 'resetAll', ground: '2' })).status).toBe(200);
+    for (const { id, ground, token } of before) {
+      const after = await prisma.accessLink.findUniqueOrThrow({ where: { id } });
+      expect(after.token === token).toBe(ground === 1);
+    }
+    expect((await post({ intent: 'resetAll', ground: 'x' })).status).toBe(400);
+  });
+
   it('is denied to viewers', async () => {
     const { links, post } = await setup('VIEWER');
     const before = await tokens();
@@ -66,7 +77,8 @@ describe('action', () => {
     const display = await createDisplay(competition.id, 1);
     const before = await tokens();
     for (const link of [foreign.id, display.id, 'nope']) {
-      expect((await post({ intent: 'reset', link })).status).toBe(404);
+      const result = await post({ intent: 'reset', link });
+      expect(result).toMatchObject({ status: 404, error: 'Nicht gefunden.' });
     }
     expect((await post({ intent: 'reset' })).status).toBe(400);
     expect(await tokens()).toEqual(before);

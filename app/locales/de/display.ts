@@ -3,7 +3,7 @@ export default {
   screenTitle: 'Notenanzeige',
   links: {
     intro: 'Eine Notenanzeige zeigt auf einem Bildschirm die neusten Noten eines Wettkampfplatzes.',
-    name: 'Anzeige {{number}}',
+    name: 'Anzeige {{code}}',
     empty: 'Noch keine Notenanzeigen',
     create: 'Neue Notenanzeige',
     createDone: 'Notenanzeige erstellt',

@@ -1,10 +1,10 @@
 import { PlusIcon, QrCodeIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useFetcher } from 'react-router';
 import { CopyButton } from '~/components/CopyButton';
 import { FormField } from '~/components/FormField';
 import { QrCode } from '~/components/QrCode';
+import { SubmitButton } from '~/components/SubmitButton';
 import { Button } from '~/components/ui/button';
 import {
   Dialog,
@@ -22,14 +22,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { useActionFetcher } from '~/hooks/useActionFetcher';
 
 export function CreateDisplayDialog({ grounds }: { grounds: number }) {
   const { t } = useTranslation(['display', 'common']);
-  const fetcher = useFetcher();
   const [open, setOpen] = useState(false);
+  const { Form, pending } = useActionFetcher(() => setOpen(false));
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
       <DialogTrigger asChild>
         <Button>
           <PlusIcon aria-hidden />
@@ -37,7 +38,7 @@ export function CreateDisplayDialog({ grounds }: { grounds: number }) {
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <fetcher.Form method="post" onSubmit={() => setOpen(false)} className="grid gap-4">
+        <Form method="post" className="grid gap-4">
           <input type="hidden" name="intent" value="create" />
           <DialogHeader>
             <DialogTitle>{t('links.create')}</DialogTitle>
@@ -60,9 +61,9 @@ export function CreateDisplayDialog({ grounds }: { grounds: number }) {
             )}
           </FormField>
           <DialogFooter>
-            <Button type="submit">{t('common:actions.create')}</Button>
+            <SubmitButton pending={pending}>{t('common:actions.create')}</SubmitButton>
           </DialogFooter>
-        </fetcher.Form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

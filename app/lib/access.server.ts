@@ -86,9 +86,10 @@ export async function resetToken(competitionId: string, kind: AccessKind, linkId
   return link;
 }
 
-export async function resetAllTokens(competitionId: string, kind: AccessKind) {
+/** Of one ground or all. */
+export async function resetAllTokens(competitionId: string, kind: AccessKind, ground?: number) {
   await prisma.$transaction(async (tx) => {
-    const links = await tx.accessLink.findMany({ where: { competitionId, kind } });
+    const links = await tx.accessLink.findMany({ where: { competitionId, kind, ground } });
     for (const { id } of links) {
       await tx.accessLink.updateMany({ where: { id }, data: { token: createToken() } });
     }

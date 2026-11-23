@@ -1,59 +1,80 @@
 import { useEffect, useRef, useState } from 'react';
-import { useFetcher } from 'react-router';
+import { useTranslation } from 'react-i18next';
+import { useRevalidator } from 'react-router';
+import { toast } from 'sonner';
+import { isServerReachable } from '~/lib/reachable';
 import { applyMove, UNASSIGNED, type Column, type Move } from './lineupMoves';
 
-type PendingMove = {
-  move: Move;
-  /** The data on the page when the server was done with the move. */
-  doneWith?: object;
-};
+const TIMEOUT_MS = 15_000;
+
+/** `savedWith` is the data the page showed when the server had saved the move. */
+type PendingMove = { move: Move; savedWith?: object };
 
 /**
- * Shows moves at once and sends them one after the other, so the server applies them in the order
- * they were made. `loaderData` is what `serverColumns` was made from: the next one after a move
- * shows its result, also when it failed.
+ * Shows moves at once and sends them to `url` one after the other, so the server applies them in
+ * the order they were made, also after the page was left. `loaderData` is what `serverColumns` was
+ * made from.
  */
-export function useLineupMoves(serverColumns: Column[], loaderData: object) {
-  const fetcher = useFetcher();
+export function useLineupMoves(url: string, serverColumns: Column[], loaderData: object) {
+  const { t } = useTranslation();
+  const { revalidate } = useRevalidator();
   const [pending, setPending] = useState<PendingMove[]>([]);
-  const queue = useRef<Promise<unknown>>(Promise.resolve());
-  const latestData = useRef(loaderData);
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const shownData = useRef(loaderData);
   useEffect(() => {
-    latestData.current = loaderData;
+    shownData.current = loaderData;
   }, [loaderData]);
 
   function move(next: Move) {
     setPending((current) => [...current, { move: next }]);
-    queue.current = queue.current
-      .then(() => fetcher.submit(toFormData(next), { method: 'post' }))
-      .catch(() => undefined)
-      .then(() => {
-        // The router is done before the page shows the new data. Dropping the move here would make
-        // the entry jump back for a moment.
-        const doneWith = latestData.current;
-        setPending((current) =>
-          current
-            .filter((item) => !item.doneWith || item.doneWith === doneWith)
-            .map((item) => (item.move === next ? { ...item, doneWith } : item)),
-        );
-      });
+    queue.current = queue.current.then(() => send(next));
+  }
+
+  async function send(next: Move) {
+    const result = await post(url, next);
+    const savedWith = shownData.current;
+    setPending((current) =>
+      current
+        .filter((item) => item.move !== next || result.ok)
+        .filter((item) => !item.savedWith || item.savedWith === savedWith)
+        .map((item) => (item.move === next ? { ...item, savedWith } : item)),
+    );
+    if (result.ok) return void revalidate();
+
+    const message = result.forbidden ? t('domainErrors.FORBIDDEN') : result.error;
+    // One toast, also when several moves fail in a row.
+    toast.error(message ?? t('errors.connection'), { id: 'lineup-move' });
+    if (await isServerReachable()) void revalidate();
   }
 
   const columns = pending
-    .filter(
-      ({ move, doneWith }) =>
-        !doneWith || (doneWith === loaderData && !isApplied(serverColumns, move)),
-    )
+    // A saved move stays until the next data, which contains it. Otherwise it would jump back.
+    .filter(({ savedWith }) => !savedWith || savedWith === loaderData)
     .reduce((current, item) => applyMove(current, item.move), serverColumns);
   return { columns, move };
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function isApplied(columns: Column[], move: Move) {
-  return applyMove(columns, move).every(({ entryIds }, index) =>
-    entryIds.every((id, position) => id === columns[index].entryIds[position]),
-  );
+type PostResult = { ok: boolean; error?: string; forbidden?: boolean };
+
+async function post(url: string, move: Move): Promise<PostResult> {
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      body: toFormData(move),
+      // To the login page.
+      redirect: 'manual',
+      // Moves wait for the one before.
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (response.status === 403) return { ok: false, forbidden: true };
+    const body = (await response.json()) as { ok?: boolean; error?: string } | null;
+    return { ok: response.ok && body?.ok === true, error: body?.error };
+  } catch {
+    // No connection, or a proxy answered instead of the server.
+    return { ok: false };
+  }
 }
 
 function toFormData({ entryIds, columnId, beforeId }: Move) {

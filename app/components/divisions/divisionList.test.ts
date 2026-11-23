@@ -1,4 +1,10 @@
-import { filterDivisions, getStartWarnings, sortDivisions, type Division } from './divisionList';
+import {
+  filterDivisions,
+  getStartWarnings,
+  matchesSearch,
+  sortDivisions,
+  type Division,
+} from './divisionList';
 
 function division(id: string, data: Partial<Division> = {}) {
   return {
@@ -36,16 +42,31 @@ describe('filterDivisions', () => {
   });
 });
 
+describe('matchesSearch', () => {
+  it.each([
+    ['', true],
+    ['k5 weib', true],
+    ['1 K5', true],
+    ['  ', true],
+    ['k6', false],
+    ['k5 männlich', false],
+  ])('%s', (search, expected) => {
+    expect(matchesSearch('K5 Weiblich, Abteilung 1', search)).toBe(expected);
+  });
+});
+
 describe('sortDivisions', () => {
   const list = [
-    division('a', { ground: 2, state: 'ENDED', starterCount: 3 }),
-    division('b', { ground: 1, state: 'PENDING', starterCount: 9 }),
-    division('c', { ground: 2, state: 'RUNNING', starterCount: 3 }),
+    division('a', { number: 2, sex: 'MALE', ground: 2, state: 'ENDED', starterCount: 3 }),
+    division('b', { number: 3, ground: 1, state: 'PENDING', starterCount: 9 }),
+    division('c', { number: 1, ground: 2, state: 'RUNNING', starterCount: 3 }),
   ];
 
   it.each([
     [null, 'abc'],
     ['category', 'abc'],
+    ['number', 'cab'],
+    ['sex', 'bca'],
     ['ground', 'bac'],
     ['state', 'cba'],
     ['starters', 'bac'],

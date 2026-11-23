@@ -137,11 +137,17 @@
   [data-slot$='-trigger'][data-size],
   [data-slot='input'],
   [data-slot='select-trigger'],
+  [data-slot='tabs-trigger'],
   [data-slot='toggle-group-item'],
   [data-slot='dropdown-menu-item'],
   [data-slot='command-item'],
   [data-slot='sidebar-menu-button'] {
     min-height: 2.75rem;
+  }
+
+  /* Its fixed height would let the taller tabs overflow. */
+  [data-slot='tabs-list'] {
+    height: auto;
   }
 
   [data-slot='button'],

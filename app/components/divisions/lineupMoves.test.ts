@@ -1,4 +1,4 @@
-import { applyMove, findColumn, stepMove, UNASSIGNED } from './lineupMoves';
+import { applyMove, findColumn, keyboardTarget, stepMove, UNASSIGNED } from './lineupMoves';
 
 const columns = [
   { id: UNASSIGNED, entryIds: ['x', 'y'] },
@@ -27,6 +27,30 @@ describe('findColumn', () => {
   it('finds the column of an entry', () => {
     expect(findColumn(columns, 'b')?.id).toBe('reck');
     expect(findColumn(columns, 'nope')).toBeUndefined();
+  });
+});
+
+describe('keyboardTarget', () => {
+  const lists = [
+    { id: UNASSIGNED, entryIds: ['x', 'y'] },
+    { id: 'reck', entryIds: ['a', 'b', 'c'] },
+    { id: 'boden', entryIds: [] },
+  ];
+
+  it.each([
+    ['a', 'ArrowDown', 'b'],
+    ['a', 'ArrowUp', undefined],
+    ['c', 'ArrowDown', undefined],
+    ['c', 'ArrowUp', 'b'],
+    ['b', 'ArrowLeft', 'y'],
+    // The place does not exist there, so the list itself.
+    ['c', 'ArrowLeft', UNASSIGNED],
+    ['b', 'ArrowRight', 'boden'],
+    ['x', 'ArrowRight', 'a'],
+    ['x', 'ArrowLeft', undefined],
+    ['a', 'Enter', undefined],
+  ])('%s %s', (overId, key, expected) => {
+    expect(keyboardTarget(lists, overId, key)).toBe(expected);
   });
 });
 

@@ -64,9 +64,8 @@ describe('action', () => {
     { intent: 'nope' },
   ])('rejects %j', async (fields) => {
     const { post } = await setup();
-    const { status, toasts } = await post(fields as any);
-    expect(status).toBe(400);
-    expect(toasts).toMatchObject([{ type: 'error' }]);
+    const result = await post(fields as any);
+    expect(result).toMatchObject({ status: 400, error: expect.any(String), toasts: [] });
     expect(await prisma.division.count()).toBe(1);
   });
 
@@ -76,6 +75,16 @@ describe('action', () => {
     expect(await prisma.division.findFirst()).toMatchObject({ ground: 2 });
     await post({ intent: 'delete', division: division.id });
     expect(await prisma.division.count()).toBe(0);
+  });
+
+  it('deletes several or none', async () => {
+    const { competition, division, post } = await setup();
+    const second = await createDivision(competition.contest.id, { number: 2 });
+    const third = await createDivision(competition.contest.id, { number: 3, state: 'RUNNING' });
+    expect((await post({ intent: 'delete', division: [second.id, third.id] })).status).toBe(400);
+    expect(await prisma.division.count()).toBe(3);
+    expect((await post({ intent: 'delete', division: [division.id, second.id] })).status).toBe(200);
+    expect(await prisma.division.findMany()).toMatchObject([{ id: third.id, number: 1 }]);
   });
 
   it('starts and stops several', async () => {
@@ -111,7 +120,8 @@ describe('action', () => {
     for (const id of [foreign.id, final.id, 'nope']) {
       const before = await prisma.division.findMany({ orderBy: { id: 'asc' } });
       for (const intent of ['ground', 'delete', 'start', 'stop']) {
-        expect((await post({ intent, division: id, ground: '1' })).status).toBe(404);
+        const result = await post({ intent, division: id, ground: '1' });
+        expect(result).toMatchObject({ status: 404, error: 'Nicht gefunden.' });
       }
       expect(await prisma.division.findMany({ orderBy: { id: 'asc' } })).toEqual(before);
     }

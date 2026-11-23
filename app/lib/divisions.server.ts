@@ -90,26 +90,30 @@ export async function updateDivision(
   publish(competitionId, 'divisions');
 }
 
-/** Deletes the division and closes the gap in the numbers. Its starters become unassigned. */
-export async function deleteDivision(competitionId: string, divisionId: string) {
+/** Deletes all or none and closes the gaps in the numbers. Their starters become unassigned. */
+export async function deleteDivisions(competitionId: string, ids: string[]) {
   await prisma.$transaction(async (tx) => {
     await lockCompetition(tx, competitionId);
     await lockDivisions(tx, competitionId);
-    const division = await tx.division.findFirst({
-      where: { id: divisionId, contest: { competitionId } },
-    });
-    if (!division) throw new DomainError('NOT_FOUND');
-    if (division.state === 'RUNNING') throw new DomainError('DIVISION_RUNNING');
+    const states = await lockAndGetStates(tx, competitionId, ids);
+    if (states.includes('RUNNING')) throw new DomainError('DIVISION_RUNNING');
 
-    const { contestId, category, sex } = division;
-    await tx.division.delete({ where: { id: divisionId } });
-    const following = await tx.division.findMany({
-      where: { contestId, category, sex, number: { gt: division.number } },
-      orderBy: { number: 'asc' },
+    // The highest number first, so the gaps of the others stay where they are.
+    const divisions = await tx.division.findMany({
+      where: { id: { in: ids } },
+      orderBy: { number: 'desc' },
     });
-    // One by one: the number must be unique after every step.
-    for (const { id, number } of following) {
-      await tx.division.update({ where: { id }, data: { number: number - 1 } });
+    for (const { id: divisionId, contestId, category, sex, number } of divisions) {
+      await tx.division.delete({ where: { id: divisionId } });
+      const following = await tx.division.findMany({
+        where: { contestId, category, sex, number: { gt: number } },
+        orderBy: { number: 'asc' },
+      });
+      // One by one: the number must be unique after every step.
+      for (const division of following) {
+        const data = { number: division.number - 1 };
+        await tx.division.update({ where: { id: division.id }, data });
+      }
     }
   });
   publish(competitionId, 'divisions');

@@ -27,6 +27,10 @@ export default {
     resetAllTitle: 'Reset all links?',
     resetAllText:
       'All tablets on all grounds are locked out at once and have to scan the new QR codes. Printed manuals become invalid.',
-    resetAllDone: 'All links reset',
+    resetAllDone: 'Links reset',
+    resetGround: 'Reset ground {{number}}',
+    resetGroundTitle: 'Reset all links of ground {{number}}?',
+    resetGroundText:
+      'All tablets of this ground are locked out at once and have to scan the new QR codes. Printed manuals become invalid.',
   },
 } satisfies Translation<typeof de>;

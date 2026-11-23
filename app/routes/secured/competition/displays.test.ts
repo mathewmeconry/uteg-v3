@@ -68,8 +68,9 @@ describe('action', () => {
     const [judge] = await getOrCreateJudgeLinks(competition.id);
     const before = await links();
     for (const link of [foreign.id, judge.id, 'nope']) {
-      expect((await post({ intent: 'reset', link })).status).toBe(404);
-      expect((await post({ intent: 'delete', link })).status).toBe(404);
+      const error = 'Nicht gefunden.';
+      expect(await post({ intent: 'reset', link })).toMatchObject({ status: 404, error });
+      expect(await post({ intent: 'delete', link })).toMatchObject({ status: 404, error });
     }
     expect(await links()).toEqual(before);
   });

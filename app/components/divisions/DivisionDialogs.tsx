@@ -1,8 +1,8 @@
 import { InfoIcon, TriangleAlertIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useFetcher } from 'react-router';
 import { FormField } from '~/components/FormField';
+import { SubmitButton } from '~/components/SubmitButton';
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
 import {
   AlertDialog,
@@ -13,7 +13,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '~/components/ui/alert-dialog';
-import { Button } from '~/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -30,13 +29,21 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import type { Sex } from '~/generated/prisma/enums';
+import type { useActionFetcher } from '~/hooks/useActionFetcher';
 import { cn } from '~/lib/utils';
 import { getStartWarnings, type Division } from './divisionList';
 import { useDivisionName } from './useDivisionName';
 
-type DialogProps = { onClose: () => void };
+/** The dialogs stay open until the action worked, see useActionFetcher. */
+type DialogProps = {
+  Form: ReturnType<typeof useActionFetcher>['Form'];
+  pending: boolean;
+  onSubmit: () => void;
+  onClose: () => void;
+  onCloseAutoFocus: (event: Event) => void;
+};
 
-/** Confirms an action on divisions. Closes at once, the result is shown as a toast. */
+/** Confirms an action on divisions. */
 function DivisionConfirm({
   title,
   text,
@@ -44,7 +51,11 @@ function DivisionConfirm({
   destructive,
   fields,
   divisions,
+  Form,
+  pending,
+  onSubmit,
   onClose,
+  onCloseAutoFocus,
   children,
 }: DialogProps & {
   title: string;
@@ -56,18 +67,20 @@ function DivisionConfirm({
   children?: ReactNode;
 }) {
   const { t } = useTranslation(['divisions', 'common']);
-  const fetcher = useFetcher();
   const isEmpty = divisions.length === 0;
 
   return (
-    <AlertDialog open onOpenChange={(open) => !open && onClose()}>
-      <AlertDialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
+    <AlertDialog open onOpenChange={(open) => !open && !pending && onClose()}>
+      <AlertDialogContent
+        onCloseAutoFocus={onCloseAutoFocus}
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{isEmpty ? t('nothingLeft') : text}</AlertDialogDescription>
         </AlertDialogHeader>
         {children}
-        <fetcher.Form method="post" onSubmit={onClose}>
+        <Form method="post" onSubmit={onSubmit}>
           {Object.entries(fields).map(([name, value]) => (
             <input key={name} type="hidden" name={name} value={value} />
           ))}
@@ -75,16 +88,18 @@ function DivisionConfirm({
             <input key={id} type="hidden" name="division" value={id} />
           ))}
           <AlertDialogFooter>
-            <AlertDialogCancel type="button">{t('common:actions.cancel')}</AlertDialogCancel>
-            <Button
-              type="submit"
+            <AlertDialogCancel type="button" disabled={pending}>
+              {t('common:actions.cancel')}
+            </AlertDialogCancel>
+            <SubmitButton
+              pending={pending}
               variant={destructive ? 'destructive' : 'default'}
               disabled={isEmpty}
             >
               {confirmLabel}
-            </Button>
+            </SubmitButton>
           </AlertDialogFooter>
-        </fetcher.Form>
+        </Form>
       </AlertDialogContent>
     </AlertDialog>
   );
@@ -144,7 +159,7 @@ function Warning({
 export function StartDialog({
   divisions: selected,
   running,
-  onClose,
+  ...dialog
 }: DialogProps & { divisions: Division[]; running: Division[] }) {
   const { t } = useTranslation(['divisions', 'common']);
   const divisions = selected.filter(({ state }) => state !== 'RUNNING');
@@ -165,7 +180,7 @@ export function StartDialog({
       destructive={ended.length > 0}
       fields={{ intent: 'start', ...(ended.length > 0 && { restart: 'true' }) }}
       divisions={divisions}
-      onClose={onClose}
+      {...dialog}
     >
       {pending.length > 0 && <DivisionNames divisions={pending} detail={ground} />}
       {ended.length > 0 && (
@@ -197,7 +212,7 @@ export function StartDialog({
 
 export function StopDialog({
   divisions: selected,
-  onClose,
+  ...dialog
 }: DialogProps & { divisions: Division[] }) {
   const { t } = useTranslation(['divisions', 'common']);
   const divisions = selected.filter(({ state }) => state === 'RUNNING');
@@ -209,7 +224,7 @@ export function StopDialog({
       destructive
       fields={{ intent: 'stop' }}
       divisions={divisions}
-      onClose={onClose}
+      {...dialog}
     >
       <DivisionNames
         divisions={divisions}
@@ -219,55 +234,102 @@ export function StopDialog({
   );
 }
 
-export function DeleteDialog({ division, onClose }: DialogProps & { division: Division }) {
+/** Deletes the given divisions that are not running. */
+export function DeleteDialog({
+  divisions: selected,
+  ...dialog
+}: DialogProps & { divisions: Division[] }) {
   const { t } = useTranslation(['divisions', 'common']);
+  const divisions = selected.filter(({ state }) => state !== 'RUNNING');
+  const pending = divisions.filter(({ state }) => state === 'PENDING');
+  const ended = divisions.filter(({ state }) => state === 'ENDED');
+  const starterCount = divisions.reduce((sum, division) => sum + division.starterCount, 0);
+  const starters = (division: Division) =>
+    t('common:starterCount', { count: division.starterCount });
+
   return (
     <DivisionConfirm
-      title={t('remove.title')}
-      text={t('remove.text', { count: division.starterCount })}
+      title={t('remove.title', { count: divisions.length })}
+      text={t('remove.text', { count: starterCount })}
       confirmLabel={t('common:actions.delete')}
       destructive
       fields={{ intent: 'delete' }}
-      divisions={division.state === 'RUNNING' ? [] : [division]}
-      onClose={onClose}
+      divisions={divisions}
+      {...dialog}
     >
-      <DivisionNames divisions={[division]} />
+      {pending.length > 0 && <DivisionNames divisions={pending} detail={starters} />}
+      {ended.length > 0 && (
+        <Warning severe title={t('start.ended')} text={t('remove.endedText')}>
+          <DivisionNames divisions={ended} detail={starters} />
+        </Warning>
+      )}
     </DivisionConfirm>
+  );
+}
+
+/** A form in a dialog that stays open, with its values, until it was saved. */
+function FormDialog({
+  intent,
+  title,
+  text,
+  submitLabel,
+  Form,
+  pending,
+  onSubmit,
+  onClose,
+  onCloseAutoFocus,
+  children,
+}: DialogProps & {
+  intent: string;
+  title: string;
+  text: string;
+  submitLabel: string;
+  children: ReactNode;
+}) {
+  return (
+    <Dialog open onOpenChange={(open) => !open && !pending && onClose()}>
+      <DialogContent onCloseAutoFocus={onCloseAutoFocus}>
+        <Form method="post" onSubmit={onSubmit} className="grid gap-4">
+          <input type="hidden" name="intent" value={intent} />
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{text}</DialogDescription>
+          </DialogHeader>
+          {children}
+          <DialogFooter>
+            <SubmitButton pending={pending}>{submitLabel}</SubmitButton>
+          </DialogFooter>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 export function GroundDialog({
   division,
   grounds,
-  onClose,
+  ...dialog
 }: DialogProps & { division: Division; grounds: number }) {
   const { t } = useTranslation(['divisions', 'common']);
-  const fetcher = useFetcher();
   const name = useDivisionName();
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <fetcher.Form method="post" onSubmit={onClose} className="grid gap-4">
-          <input type="hidden" name="intent" value="ground" />
-          <input type="hidden" name="division" value={division.id} />
-          <DialogHeader>
-            <DialogTitle>{t('ground.title')}</DialogTitle>
-            <DialogDescription>{name(division)}</DialogDescription>
-          </DialogHeader>
-          <GroundField grounds={grounds} defaultValue={division.ground} />
-          {division.state === 'RUNNING' && (
-            <Alert role="note">
-              <InfoIcon aria-hidden />
-              <AlertDescription>{t('ground.running')}</AlertDescription>
-            </Alert>
-          )}
-          <DialogFooter>
-            <Button type="submit">{t('common:actions.save')}</Button>
-          </DialogFooter>
-        </fetcher.Form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      intent="ground"
+      title={t('ground.title')}
+      text={name(division)}
+      submitLabel={t('common:actions.save')}
+      {...dialog}
+    >
+      <input type="hidden" name="division" value={division.id} />
+      <GroundField grounds={grounds} defaultValue={division.ground} />
+      {division.state === 'RUNNING' && (
+        <Alert role="note">
+          <InfoIcon aria-hidden />
+          <AlertDescription>{t('ground.running')}</AlertDescription>
+        </Alert>
+      )}
+    </FormDialog>
   );
 }
 
@@ -276,64 +338,57 @@ const SEXES: Sex[] = ['FEMALE', 'MALE'];
 export function CreateDialog({
   categories,
   grounds,
-  onClose,
+  ...dialog
 }: DialogProps & { categories: Record<Sex, readonly string[]>; grounds: number }) {
   const { t } = useTranslation(['divisions', 'common']);
-  const fetcher = useFetcher();
   const [sex, setSex] = useState<Sex>('FEMALE');
   const [chosen, setCategory] = useState(categories.FEMALE[0]);
   // KD and KH exist for one sex only.
   const category = categories[sex].includes(chosen) ? chosen : categories[sex][0];
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <fetcher.Form method="post" onSubmit={onClose} className="grid gap-4">
-          <input type="hidden" name="intent" value="create" />
-          <DialogHeader>
-            <DialogTitle>{t('create.title')}</DialogTitle>
-            <DialogDescription>{t('create.text')}</DialogDescription>
-          </DialogHeader>
-          <FormField label={t('common:fields.sex')}>
-            {(props) => (
-              <Select name="sex" value={sex} onValueChange={(value) => setSex(value as Sex)}>
-                <SelectTrigger {...props} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SEXES.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {t(`common:sex.${value}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </FormField>
-          <FormField label={t('common:fields.category')}>
-            {(props) => (
-              // Remounted for its options to match, Radix would reset the value otherwise.
-              <Select key={sex} name="category" value={category} onValueChange={setCategory}>
-                <SelectTrigger {...props} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories[sex].map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </FormField>
-          <GroundField grounds={grounds} defaultValue={1} />
-          <DialogFooter>
-            <Button type="submit">{t('common:actions.create')}</Button>
-          </DialogFooter>
-        </fetcher.Form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      intent="create"
+      title={t('create.title')}
+      text={t('create.text')}
+      submitLabel={t('common:actions.create')}
+      {...dialog}
+    >
+      <FormField label={t('common:fields.sex')}>
+        {(props) => (
+          <Select name="sex" value={sex} onValueChange={(value) => setSex(value as Sex)}>
+            <SelectTrigger {...props} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SEXES.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {t(`common:sex.${value}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </FormField>
+      <FormField label={t('common:fields.category')}>
+        {(props) => (
+          // Remounted for its options to match, Radix would reset the value otherwise.
+          <Select key={sex} name="category" value={category} onValueChange={setCategory}>
+            <SelectTrigger {...props} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {categories[sex].map((value) => (
+                <SelectItem key={value} value={value}>
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </FormField>
+      <GroundField grounds={grounds} defaultValue={1} />
+    </FormDialog>
   );
 }
 

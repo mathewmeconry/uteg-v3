@@ -25,8 +25,11 @@ export default {
     label: 'Filter and sort divisions',
     all: 'All',
     sort: 'Sort by',
+    search: 'Search',
     sortKeys: {
       category: 'Category',
+      number: 'Number',
+      sex: 'Sex',
       ground: 'Ground',
       state: 'State',
       starters: 'Number of starters',
@@ -50,12 +53,15 @@ export default {
     done: 'Ground changed',
   },
   remove: {
-    title: 'Delete division?',
+    title_one: 'Delete division?',
+    title_other: 'Delete {{count}} divisions?',
+    endedText: 'Their starters disappear from the ranking, even though the grades are kept:',
     text_one:
       '{{count}} starter loses the division and start apparatus. Grades are kept. The following numbers move up.',
     text_other:
       '{{count}} starters lose the division and start apparatus. Grades are kept. The following numbers move up.',
-    done: 'Division deleted',
+    done_one: 'Division deleted',
+    done_other: '{{count}} divisions deleted',
   },
   start: {
     title_one: 'Start division?',
@@ -108,12 +114,13 @@ export default {
     up: 'Move {{name}} up',
     down: 'Move {{name}} down',
     select: 'Select {{name}}',
+    edit: 'Edit {{name}}',
     selectAll: 'Select all: {{list}}',
     moveTo: 'Move to',
     selection: 'Move selection',
     dnd: {
       instructions:
-        'Press space to pick up, the arrow keys to move and space to drop. Escape cancels.',
+        'Press space to pick up, up and down to move within the list, left and right to move to the next list, and space to drop. Escape cancels.',
       start: 'Picked up {{name}}.',
       over: '{{name}} is in {{list}}, place {{position}} of {{count}}.',
       end: '{{name}} dropped in {{list}}, place {{position}} of {{count}}.',

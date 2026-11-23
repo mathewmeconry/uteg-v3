@@ -24,6 +24,10 @@ export default {
     resetAllTitle: 'Alle Links zurücksetzen?',
     resetAllText:
       'Alle Tablets auf allen Wettkampfplätzen werden sofort gesperrt und müssen die neuen QR-Codes scannen. Ausgedruckte Anleitungen werden ungültig.',
-    resetAllDone: 'Alle Links zurückgesetzt',
+    resetAllDone: 'Links zurückgesetzt',
+    resetGround: 'Wettkampfplatz {{number}} zurücksetzen',
+    resetGroundTitle: 'Alle Links von Wettkampfplatz {{number}} zurücksetzen?',
+    resetGroundText:
+      'Alle Tablets dieses Wettkampfplatzes werden sofort gesperrt und müssen die neuen QR-Codes scannen. Ausgedruckte Anleitungen werden ungültig.',
   },
 };

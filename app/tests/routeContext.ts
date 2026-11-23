@@ -26,18 +26,28 @@ export async function callAction(
     Object.entries(fields).flatMap(([name, value]) => [value].flat().map((item) => [name, item])),
   );
   const request = new Request('http://localhost/', { method: 'POST', body });
-  const status = await statusOf(async () => action({ request, context, params }));
-  return { status, toasts: context.get(toastContext) };
+  const toasts = () => context.get(toastContext);
+  try {
+    const result: any = await action({ request, context, params });
+    return { status: result?.init?.status ?? 200, error: result?.data?.error, toasts: toasts() };
+  } catch (error) {
+    // Thrown ones replace the page.
+    return { status: statusOfThrown(error), thrown: true, toasts: toasts() };
+  }
 }
 
-/** The status of what a loader or action returns or throws. */
+/** The status of what a loader returns or throws. */
 export async function statusOf(run: () => Promise<unknown>) {
   try {
-    const result = await run();
-    return (result as { init?: { status?: number } } | null)?.init?.status ?? 200;
+    await run();
+    return 200;
   } catch (error) {
-    const status = (error as { init?: { status?: number } }).init?.status;
-    if (status === undefined) throw error;
-    return status;
+    return statusOfThrown(error);
   }
+}
+
+function statusOfThrown(error: unknown) {
+  const status = (error as { init?: { status?: number } }).init?.status;
+  if (status === undefined) throw error;
+  return status;
 }

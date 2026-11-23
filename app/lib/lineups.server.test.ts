@@ -75,7 +75,7 @@ describe('moveEntriesToLineup', () => {
     const { competition, reck } = await setup();
     const other = await createStarter(competition.id);
     const move = moveEntriesToLineup(competition.id, reck, [other.entry.id]);
-    expect(await errorCode(move)).toBe('DIVISION_MISMATCH');
+    expect(await errorCode(move)).toBe('ENTRY_NOT_IN_DIVISION');
   });
 
   it('stays within the competition', async () => {
@@ -129,7 +129,7 @@ describe('unassignEntries', () => {
     expect(await errorCode(foreign)).toBe('NOT_FOUND');
     const second = await createDivision(competition.contest.id, { number: 2 });
     const mismatch = unassignEntries(competition.id, second.id, pick('a'));
-    expect(await errorCode(mismatch)).toBe('DIVISION_MISMATCH');
+    expect(await errorCode(mismatch)).toBe('ENTRY_NOT_IN_DIVISION');
   });
 });
 

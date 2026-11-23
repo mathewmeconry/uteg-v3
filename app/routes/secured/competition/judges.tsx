@@ -12,8 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { accessUrl, getOrCreateJudgeLinks, resetAllTokens, resetToken } from '~/lib/access.server';
-import { domainErrorMessage } from '~/lib/domainErrors.server';
+import { actionError } from '~/lib/domainErrors.server';
 import { parseForm } from '~/lib/forms.server';
+import { safeClientAction } from '~/lib/safeClientAction';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
@@ -34,32 +35,30 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 const schema = z.discriminatedUnion('intent', [
   z.object({ intent: z.literal('reset'), link: z.string().min(1) }),
-  z.object({ intent: z.literal('resetAll') }),
+  z.object({ intent: z.literal('resetAll'), ground: z.coerce.number().int().optional() }),
 ]);
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { id } = requireRole(context, 'EDITOR');
   const t = getT(context);
   const { data: values } = parseForm(await request.formData(), schema);
-  if (!values) {
-    enqueueToast(context, { type: 'error', message: t('common:errors.invalid') });
-    return data(null, 400);
-  }
+  if (!values) return data({ error: t('common:errors.invalid') }, 400);
 
   try {
     if (values.intent === 'resetAll') {
-      await resetAllTokens(id, 'JUDGE');
+      await resetAllTokens(id, 'JUDGE', values.ground);
       enqueueToast(context, { type: 'success', message: t('judging:links.resetAllDone') });
     } else {
       await resetToken(id, 'JUDGE', values.link);
       enqueueToast(context, { type: 'success', message: t('judging:links.resetDone') });
     }
-    return data(null);
+    return null;
   } catch (error) {
-    enqueueToast(context, { type: 'error', message: domainErrorMessage(error, t) });
-    return data(null, 400);
+    return actionError(error, t);
   }
 }
+
+export const clientAction = safeClientAction;
 
 export default function Judges({ loaderData: { links } }: Route.ComponentProps) {
   const { t } = useTranslation(['judging', 'common']);
@@ -108,13 +107,30 @@ export default function Judges({ loaderData: { links } }: Route.ComponentProps) 
         )}
         {grounds.map((ground) => (
           <TabsContent key={ground} value={String(ground)} className="grid gap-4">
-            <Button asChild variant="outline" className="justify-self-start">
-              <a href={`${manualUrl}?ground=${ground}`} target="_blank" rel="noreferrer">
-                <FileTextIcon aria-hidden />
-                {t('links.manualGround', { number: ground })}
-                <ExternalLinkIcon aria-hidden />
-              </a>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline">
+                <a href={`${manualUrl}?ground=${ground}`} target="_blank" rel="noreferrer">
+                  <FileTextIcon aria-hidden />
+                  {t('links.manualGround', { number: ground })}
+                  <ExternalLinkIcon aria-hidden />
+                </a>
+              </Button>
+              {grounds.length > 1 && (
+                <ConfirmDialog
+                  trigger={
+                    <Button variant="outline">
+                      <RotateCcwIcon aria-hidden />
+                      {t('links.resetGround', { number: ground })}
+                    </Button>
+                  }
+                  title={t('links.resetGroundTitle', { number: ground })}
+                  description={t('links.resetGroundText')}
+                  confirmLabel={t('common:actions.reset')}
+                  destructive
+                  fields={{ intent: 'resetAll', ground: String(ground) }}
+                />
+              )}
+            </div>
             <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-4">
               {links
                 .filter((link) => link.ground === ground)

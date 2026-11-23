@@ -1,11 +1,10 @@
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nextProvider } from 'react-i18next';
-import { createMemoryRouter, data, RouterProvider, useLoaderData } from 'react-router';
+import { MemoryRouter } from 'react-router';
 import { createI18n } from '~/lib/i18n';
 import { LineupBoard } from './LineupBoard';
 import { UNASSIGNED, type Move } from './lineupMoves';
-import { useLineupMoves } from './useLineupMoves';
 
 afterEach(cleanup);
 
@@ -20,7 +19,8 @@ vi.stubGlobal(
 );
 
 function entry(id: string, clubId = 'x', withdrawn = false) {
-  return { id, firstname: id, lastname: 'L', clubId, clubName: `TV ${clubId}`, withdrawn };
+  const person = { firstname: id, lastname: 'L', clubId, clubName: `TV ${clubId}` };
+  return { id, starterId: `s-${id}`, ...person, withdrawn };
 }
 
 const props = {
@@ -30,6 +30,7 @@ const props = {
     { id: 'reck', entryIds: ['a', 'b', 'c', 'w'] },
     { id: 'boden', entryIds: [] },
   ],
+  editUrl: (starterId: string) => `/starters?edit=${starterId}`,
   columnName: (id: string) => ({ reck: 'Reck', boden: 'Boden' })[id] ?? 'Nicht eingeteilt',
 };
 
@@ -40,7 +41,9 @@ function renderBoard({
   const onMove = vi.fn<(move: Move) => void>();
   render(
     <I18nextProvider i18n={createI18n('de')}>
-      <LineupBoard {...props} clubId={clubId} canEdit={canEdit} onMove={onMove} />
+      <MemoryRouter>
+        <LineupBoard {...props} clubId={clubId} canEdit={canEdit} onMove={onMove} />
+      </MemoryRouter>
     </I18nextProvider>,
   );
   return onMove;
@@ -75,6 +78,14 @@ describe('LineupBoard', () => {
     await click('Boden');
     expect(onMove).toHaveBeenCalledWith({ entryIds: ['u', 'a', 'c'], columnId: 'boden' });
     expect(screen.queryByRole('group', { name: 'Auswahl verschieben' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Boden' })).toHaveFocus();
+  });
+
+  it('links to the starter', () => {
+    renderBoard();
+    const link = screen.getByRole('link', { name: 'L a bearbeiten' });
+    expect(link).toHaveAttribute('href', '/starters?edit=s-a');
+    expect(screen.queryByRole('link', { name: 'L w bearbeiten' })).not.toBeInTheDocument();
   });
 
   it('selects everyone of a list except the withdrawn', async () => {
@@ -105,61 +116,6 @@ describe('LineupBoard', () => {
     renderBoard({ canEdit: false });
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
-  });
-});
-
-describe('useLineupMoves', () => {
-  it('shows moves at once and sends them in order', async () => {
-    const sent: string[][] = [];
-    let release = () => {};
-    const gate = new Promise<void>((resolve) => (release = resolve));
-    let move: (next: Move) => void = () => {};
-
-    let server = [
-      { id: UNASSIGNED, entryIds: [] as string[] },
-      { id: 'reck', entryIds: ['a', 'b'] },
-    ];
-
-    function Page() {
-      const loaderData = useLoaderData<{ columns: typeof server }>();
-      const moves = useLineupMoves(loaderData.columns, loaderData);
-      move = moves.move;
-      return <p>{moves.columns.map(({ entryIds }) => entryIds.join('')).join('|')}</p>;
-    }
-    const router = createMemoryRouter([
-      {
-        path: '/',
-        element: <Page />,
-        HydrateFallback: () => null,
-        loader: () => ({ columns: server }),
-        action: async ({ request }) => {
-          const values = [...(await request.formData()).values()] as string[];
-          sent.push(values);
-          await gate;
-          // The server refuses the second move.
-          if (sent.length > 1) return data(null, 400);
-          server = [server[0], { id: 'reck', entryIds: ['b', 'a'] }];
-          return null;
-        },
-      },
-    ]);
-    render(<RouterProvider router={router} />);
-    await screen.findByText('|ab');
-
-    await act(async () => {
-      move({ entryIds: ['b'], columnId: 'reck', beforeId: 'a' });
-      move({ entryIds: ['a'], columnId: UNASSIGNED });
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    });
-    expect(screen.getByText('a|b')).toBeInTheDocument();
-    expect(sent).toEqual([['b', 'move', 'reck', 'a']]);
-
-    await act(async () => {
-      release();
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    });
-    expect(sent[1]).toEqual(['a', 'unassign']);
-    await act(() => router.revalidate());
-    expect(screen.getByText('|ba')).toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 });

@@ -2,12 +2,14 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ArrowDownIcon, ArrowUpIcon, GripVerticalIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import { cn } from '~/lib/utils';
 
 export type LineupEntryData = {
   id: string;
+  starterId: string;
   firstname: string;
   lastname: string;
   clubId: string;
@@ -25,6 +27,7 @@ export function entryName({
 export function LineupEntry({
   entry,
   position,
+  editUrl,
   canEdit,
   selected,
   onSelect,
@@ -35,6 +38,7 @@ export function LineupEntry({
   entry: LineupEntryData;
   /** 1-based, also counting entries the filter hides. Not known while something is dragged. */
   position?: number;
+  editUrl: string;
   canEdit: boolean;
   selected: boolean;
   /** Unassigned starters have no order. */
@@ -56,6 +60,17 @@ export function LineupEntry({
     transition,
     isDragging,
   } = useSortable({ id: entry.id, disabled: { draggable: !canMove, droppable: !canEdit } });
+
+  const text = (
+    <>
+      <span className={cn('block truncate font-medium', entry.withdrawn && 'line-through')}>
+        {name}
+      </span>
+      <span className="block truncate text-xs text-muted-foreground">
+        {entry.withdrawn ? t('lineups.withdrawn') : entry.clubName}
+      </span>
+    </>
+  );
 
   return (
     <li
@@ -95,12 +110,17 @@ export function LineupEntry({
         </span>
       )}
       <span className={cn('min-w-0 flex-1 px-1 text-sm', !canMove && !ordered && 'pl-2')}>
-        <span className={cn('block truncate font-medium', entry.withdrawn && 'line-through')}>
-          {name}
-        </span>
-        <span className="block truncate text-xs text-muted-foreground">
-          {entry.withdrawn ? t('lineups.withdrawn') : entry.clubName}
-        </span>
+        {canMove ? (
+          <Link
+            to={editUrl}
+            aria-label={t('lineups.edit', { name })}
+            className="flex flex-col justify-center rounded-sm hover:underline pointer-coarse:min-h-11"
+          >
+            {text}
+          </Link>
+        ) : (
+          text
+        )}
       </span>
       {canMove && ordered && (
         <span className="flex shrink-0">

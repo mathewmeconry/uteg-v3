@@ -1,7 +1,8 @@
 import { prisma } from '~/lib/prisma.server';
 import { createCompetition, createDivision, createStarter, truncateTables } from '~/tests/helpers';
+import { action } from '~/routes/api/competition/lineupMoves';
 import { callAction, contextFor, statusOf } from '~/tests/routeContext';
-import { action, loader } from './lineups';
+import { loader } from './lineups';
 
 beforeEach(truncateTables);
 
@@ -89,11 +90,15 @@ describe('action', () => {
     const entryBefore = await prisma.entry.findMany({ orderBy: { id: 'asc' } });
 
     for (const lineup of [other.lineup('reck'), foreign.lineup('reck'), 'nope']) {
-      expect((await post({ intent: 'move', lineup, entry: unassigned })).status).toBe(404);
+      const result = await post({ intent: 'move', lineup, entry: unassigned });
+      expect(result).toMatchObject({ status: 404, error: 'Nicht gefunden.' });
     }
     for (const id of [otherEntry, entry.id, 'nope']) {
-      expect((await post({ intent: 'move', lineup: reck, entry: id })).status).toBe(400);
-      expect((await post({ intent: 'unassign', entry: id })).status).toBe(400);
+      const error = 'Diese Person ist nicht mehr in dieser Abteilung.';
+      const move = await post({ intent: 'move', lineup: reck, entry: id });
+      expect(move).toMatchObject({ status: 400, error });
+      const unassign = await post({ intent: 'unassign', entry: id });
+      expect(unassign).toMatchObject({ status: 400, error });
     }
     expect(await prisma.entry.findMany({ orderBy: { id: 'asc' } })).toEqual(entryBefore);
     expect(await order()).toEqual(entries);
@@ -103,12 +108,12 @@ describe('action', () => {
     const { competition, entries } = await setup();
     const foreign = await createDivision((await createCompetition()).contest.id);
     const context = await contextFor(competition, 'EDITOR');
-    const { status } = await callAction(
+    const result = await callAction(
       action,
       context,
       { intent: 'unassign', entry: entries },
       { divisionId: foreign.id },
     );
-    expect(status).toBe(404);
+    expect(result).toMatchObject({ status: 404, error: 'Nicht gefunden.' });
   });
 });

@@ -27,8 +27,9 @@ import {
   listDisplays,
   resetToken,
 } from '~/lib/access.server';
-import { domainErrorMessage } from '~/lib/domainErrors.server';
+import { actionError } from '~/lib/domainErrors.server';
 import { parseForm } from '~/lib/forms.server';
+import { safeClientAction } from '~/lib/safeClientAction';
 import type { ServerT } from '~/locales';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
@@ -54,20 +55,18 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { id } = requireRole(context, 'EDITOR');
   const t = getT(context);
   const { data: values } = parseForm(await request.formData(), schema);
-  if (!values) {
-    enqueueToast(context, { type: 'error', message: t('common:errors.invalid') });
-    return data(null, 400);
-  }
+  if (!values) return data({ error: t('common:errors.invalid') }, 400);
 
   try {
     const message = await run(id, values, t);
     enqueueToast(context, { type: 'success', message });
-    return data(null);
+    return null;
   } catch (error) {
-    enqueueToast(context, { type: 'error', message: domainErrorMessage(error, t) });
-    return data(null, 400);
+    return actionError(error, t);
   }
 }
+
+export const clientAction = safeClientAction;
 
 /** Returns what to tell the user. */
 async function run(
@@ -119,8 +118,9 @@ export default function Displays({ loaderData: { displays } }: Route.ComponentPr
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displays.map(({ id, ground, url }, index) => {
-                const label = t('links.name', { number: index + 1 });
+              {displays.map(({ id, ground, url }) => {
+                // Not the position in the list, which changes when others are deleted.
+                const label = t('links.name', { code: id.slice(-4) });
                 const groundLabel = t('common:ground', { number: ground });
                 const name = `${label}, ${groundLabel}`;
                 return (

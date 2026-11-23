@@ -119,6 +119,8 @@ export default {
     lost: 'Keine Verbindung',
   },
   errors: {
+    connection:
+      'Keine Verbindung zum Server oder ein Fehler. Prüfe, ob die Änderung gespeichert ist, und versuche es nochmals.',
     generic: 'Etwas ist schiefgelaufen. Versuche es nochmals.',
     required: 'Bitte ausfüllen',
     invalid: 'Ungültiger Wert',
@@ -138,6 +140,7 @@ export default {
     DIVISION_MISMATCH: 'Die Abteilung passt nicht zu Kategorie oder Geschlecht.',
     DIVISION_NOT_RUNNING: 'Die Abteilung läuft nicht.',
     DIVISION_RUNNING: 'Das geht nicht, solange die Abteilung läuft.',
+    ENTRY_NOT_IN_DIVISION: 'Diese Person ist nicht mehr in dieser Abteilung.',
     ENTRY_NOT_JUDGEABLE: 'Diese Person ist an diesem Gerät nicht an der Reihe.',
     ENTRY_WITHDRAWN: 'Diese Person wurde abgemeldet.',
     FILE_TOO_LARGE: 'Die Datei ist zu gross.',

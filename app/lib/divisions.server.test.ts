@@ -7,7 +7,7 @@ import {
 } from '~/tests/helpers';
 import {
   createDivision,
-  deleteDivision,
+  deleteDivisions,
   listDivisions,
   startDivisions,
   stopDivisions,
@@ -113,7 +113,22 @@ describe('updateDivision', () => {
   });
 });
 
-describe('deleteDivision', () => {
+describe('deleteDivisions', () => {
+  it('closes several gaps', async () => {
+    const { id, contest } = await createCompetition();
+    const list = [];
+    for (const number of [1, 2, 3, 4, 5]) {
+      list.push(await createTestDivision(contest.id, { number }));
+    }
+    await deleteDivisions(id, [list[0].id, list[3].id]);
+    const rest = await listDivisions(id);
+    expect(rest.map((division) => [division.id, division.number])).toEqual([
+      [list[1].id, 1],
+      [list[2].id, 2],
+      [list[4].id, 3],
+    ]);
+  });
+
   it('renumbers the others and unassigns the starters', async () => {
     const { id, contest } = await createCompetition();
     const [first, second, third] = await Promise.all(
@@ -125,7 +140,7 @@ describe('deleteDivision', () => {
       lineupId: first.lineup('reck'),
       grades: { reck: 9000 },
     });
-    await deleteDivision(id, first.id);
+    await deleteDivisions(id, [first.id]);
 
     const numbers = Object.fromEntries((await listDivisions(id)).map((d) => [d.id, d.number]));
     expect(numbers).toEqual({ [second.id]: 1, [third.id]: 2, [men.id]: 2 });
@@ -139,9 +154,12 @@ describe('deleteDivision', () => {
   it('does not delete a running division or one of another competition', async () => {
     const { id, contest } = await createCompetition();
     const division = await createTestDivision(contest.id, { state: 'RUNNING' });
-    expect(await errorCode(deleteDivision(id, division.id))).toBe('DIVISION_RUNNING');
+    const pending = await createTestDivision(contest.id, { number: 2 });
+    const both = deleteDivisions(id, [pending.id, division.id]);
+    expect(await errorCode(both)).toBe('DIVISION_RUNNING');
+    expect(await prisma.division.count()).toBe(2);
     const other = await createCompetition();
-    expect(await errorCode(deleteDivision(other.id, division.id))).toBe('NOT_FOUND');
+    expect(await errorCode(deleteDivisions(other.id, [pending.id]))).toBe('NOT_FOUND');
   });
 });
 

@@ -13,13 +13,9 @@ import {
   type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { GripVerticalIcon, XIcon } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,16 +23,23 @@ import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import { cn } from '~/lib/utils';
 import { entryName, LineupEntry, type LineupEntryData } from './LineupEntry';
-import { applyMove, findColumn, stepMove, UNASSIGNED, type Column, type Move } from './lineupMoves';
+import {
+  applyMove,
+  findColumn,
+  keyboardTarget,
+  stepMove,
+  UNASSIGNED,
+  type Column,
+  type Move,
+} from './lineupMoves';
 
 /** Prefers the entry next to the pointer over the column around it. */
-const collisionDetection: CollisionDetection = (args) => {
+const pointerCollisions: CollisionDetection = (args) => {
   const isColumn = (id: unknown) =>
     args.droppableContainers.some(
       (container) => container.id === id && container.data.current?.isColumn,
     );
   const hits = pointerWithin(args);
-  // Without a pointer, i.e. with the keyboard.
   if (hits.length === 0) return closestCorners(args);
   const column = hits.find(({ id }) => isColumn(id));
   if (!column) return hits;
@@ -52,6 +55,7 @@ export function LineupBoard({
   columnName,
   clubId,
   canEdit,
+  editUrl,
   onMove,
 }: {
   entries: LineupEntryData[];
@@ -60,6 +64,7 @@ export function LineupBoard({
   /** Only show entries of this club. */
   clubId: string | null;
   canEdit: boolean;
+  editUrl: (starterId: string) => string;
   onMove: (move: Move) => void;
 }) {
   const { t } = useTranslation(['divisions', 'common']);
@@ -68,6 +73,11 @@ export function LineupBoard({
   // Where the dragged entry currently is, to show the gap in other columns.
   const [dragMove, setDragMove] = useState<Move | null>(null);
   const [selection, setSelection] = useState<ReadonlySet<string>>(new Set());
+  // The list it comes from keeps its height, so that the lists below do not jump.
+  const [source, setSource] = useState<{ columnId: string; height: number } | null>(null);
+  // What the arrow keys chose. Null while dragging with a pointer.
+  const keyboardOver = useRef<string | null>(null);
+  const shownColumns = useRef<Column[]>([]);
   const focusAfterDrop = useRef<string | null>(null);
   useEffect(() => {
     // In another column it is a new element, which dnd-kit does not focus.
@@ -77,14 +87,35 @@ export function LineupBoard({
   }, [activeId]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    // Uses refs: the sensor keeps the getter it was started with.
+    useSensor(KeyboardSensor, {
+      coordinateGetter(event, { active, context }) {
+        const overId = keyboardOver.current ?? String(active);
+        const target = keyboardTarget(shownColumns.current, overId, event.code);
+        const rect = target === undefined ? undefined : context.droppableRects.get(target);
+        if (!event.code.startsWith('Arrow')) return undefined;
+        event.preventDefault();
+        if (target === undefined || !rect) return undefined;
+        keyboardOver.current = target;
+        return { x: rect.left, y: rect.top };
+      },
+    }),
   );
+
+  function detectCollisions(args: Parameters<CollisionDetection>[0]) {
+    if (args.pointerCoordinates) return pointerCollisions(args);
+    return [{ id: keyboardOver.current ?? args.active.id }];
+  }
 
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const columns = dragMove ? applyMove(savedColumns, dragMove) : savedColumns;
   const selected = entries
     .filter((entry) => selection.has(entry.id) && !entry.withdrawn && isShown(entry.id))
     .map(({ id }) => id);
+
+  useEffect(() => {
+    shownColumns.current = columns.map((column) => ({ ...column, entryIds: shownIds(column) }));
+  });
 
   function isShown(id: string) {
     const entry = byId.get(id);
@@ -112,13 +143,24 @@ export function LineupBoard({
     const entryIds = columns.flatMap(shownIds).filter((id) => selected.includes(id));
     onMove({ entryIds, columnId });
     setSelection(new Set());
+    // The buttons disappear with the selection.
+    document.querySelector<HTMLElement>(`[data-column="${columnId}"] h2`)?.focus();
   }
 
   function columnAt(id: string) {
     return columns.find((column) => column.id === id) ?? findColumn(columns, id);
   }
 
-  function onDragOver({ active, over }: DragOverEvent) {
+  function onDragStart({ active }: DragStartEvent) {
+    const id = String(active.id);
+    const column = findColumn(columns, id);
+    const element = column && document.querySelector<HTMLElement>(`[data-column="${column.id}"]`);
+    keyboardOver.current = null;
+    setActiveId(id);
+    if (element) setSource({ columnId: column.id, height: element.offsetHeight });
+  }
+
+  function onDragOver({ active, over, activatorEvent }: DragOverEvent) {
     if (!over) return;
     const id = String(active.id);
     const target = columnAt(String(over.id));
@@ -127,7 +169,11 @@ export function LineupBoard({
     const shown = shownIds(target);
     const overIndex = shown.indexOf(String(over.id));
     const rect = active.rect.current.translated;
-    const isBelow = rect && rect.top + rect.height / 2 > over.rect.top + over.rect.height / 2;
+    const isKeyboard = activatorEvent instanceof KeyboardEvent;
+    const isBelow =
+      !isKeyboard && rect && rect.top + rect.height / 2 > over.rect.top + over.rect.height / 2;
+    // It takes the place of the entry that was chosen.
+    if (isKeyboard) keyboardOver.current = id;
     setDragMove({
       entryIds: [id],
       columnId: target.id,
@@ -141,7 +187,7 @@ export function LineupBoard({
     const column = findColumn(columns, id);
     if (over && column) {
       const shown = shownIds(column);
-      const overIndex = shown.indexOf(String(over.id));
+      const overIndex = shown.indexOf(keyboardOver.current ?? String(over.id));
       const order = overIndex < 0 ? shown : arrayMove(shown, shown.indexOf(id), overIndex);
       const beforeId = order[order.indexOf(id) + 1];
       const before = findColumn(savedColumns, id);
@@ -157,6 +203,7 @@ export function LineupBoard({
   function stopDragging() {
     setActiveId(null);
     setDragMove(null);
+    setSource(null);
   }
 
   /** For screen readers, e.g. "Anna is in Reck, place 2 of 5". */
@@ -201,6 +248,7 @@ export function LineupBoard({
         id={column.id}
         shownIds={shown}
         name={columnName(column.id)}
+        minHeight={source?.columnId === column.id ? source.height : undefined}
         count={
           shown.length === column.entryIds.length ? `${total}` : `${selectable.length} / ${total}`
         }
@@ -233,6 +281,7 @@ export function LineupBoard({
               entry={byId.get(id)!}
               position={activeId === null ? column.entryIds.indexOf(id) + 1 : undefined}
               ordered={!isUnassigned}
+              editUrl={editUrl(byId.get(id)!.starterId)}
               canEdit={canEdit}
               selected={selected.includes(id)}
               onSelect={(isSelected) => select([id], isSelected)}
@@ -251,12 +300,12 @@ export function LineupBoard({
     <DndContext
       id={dndId}
       sensors={sensors}
-      collisionDetection={collisionDetection}
+      collisionDetection={detectCollisions}
       accessibility={{
         announcements,
         screenReaderInstructions: { draggable: t('lineups.dnd.instructions') },
       }}
-      onDragStart={({ active }) => setActiveId(String(active.id))}
+      onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
       onDragCancel={stopDragging}
@@ -314,6 +363,7 @@ function LineupColumn({
   id,
   shownIds,
   name,
+  minHeight,
   count,
   emptyText,
   checkbox,
@@ -322,6 +372,7 @@ function LineupColumn({
   id: string;
   shownIds: string[];
   name: string;
+  minHeight?: number;
   count: string;
   emptyText: string;
   checkbox: ReactNode;
@@ -335,11 +386,17 @@ function LineupColumn({
       ref={setNodeRef}
       aria-labelledby={headingId}
       data-column={id}
+      style={{ minHeight }}
       className={cn('rounded-xl border bg-card', isOver && 'border-primary')}
     >
       <header className="flex min-h-11 items-center gap-2 border-b px-4 py-1">
         {checkbox}
-        <h2 id={headingId} className="min-w-0 flex-1 truncate font-semibold">
+        <h2
+          id={headingId}
+          // Gets the focus after a move.
+          tabIndex={-1}
+          className="min-w-0 flex-1 truncate rounded-sm font-semibold"
+        >
           {name}
         </h2>
         <span className="text-sm text-muted-foreground tabular-nums">{count}</span>

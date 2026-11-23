@@ -51,6 +51,10 @@ export default [
       route('pdf/starters', 'routes/api/competition/startersPdf.ts'),
       route('pdf/judging-sheets', 'routes/api/competition/judgingSheetsPdf.ts'),
       route('pdf/judging-manual', 'routes/api/competition/judgingManualPdf.ts'),
+      route(
+        'contests/:contestId/divisions/:divisionId/lineup-moves',
+        'routes/api/competition/lineupMoves.ts',
+      ),
     ]),
   ]),
   route('healthz', 'routes/healthz.ts'),
