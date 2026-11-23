@@ -13,6 +13,7 @@ import { createI18n } from './i18n';
 import {
   confirmRound,
   deleteGrade,
+  getDisplayState,
   getGradingState,
   getJudgingState,
   saveGrades,
@@ -70,9 +71,11 @@ describe('getJudgingState', () => {
   it('waits without running divisions', async () => {
     const { id, contest } = await createCompetition();
     await createDivision(contest.id);
+    const ended = await createDivision(contest.id, { number: 2, state: 'ENDED' });
     expect(await getJudgingState(id, 1, 'reck')).toEqual({
       ground: 1,
       divisions: [],
+      endedIds: [ended.id],
       apparatus: [
         { apparatus: 'reck', status: 'WAITING', currentRound: null, divisionIds: [], rounds: [] },
       ],
@@ -233,6 +236,50 @@ describe('getJudgingState', () => {
   });
 });
 
+describe('getDisplayState', () => {
+  const MINUTE = 60_000;
+
+  it('shows the running divisions in the round of the slowest apparatus', async () => {
+    const { id, contest } = await createCompetition();
+    const division = await createDivision(contest.id, { state: 'RUNNING' });
+    await addStarter(id, division, 'reck', { firstname: 'A' });
+    await setProgress(division.id, 2);
+    await setProgress(division.id, 1, 'boden');
+    const state = await getDisplayState(id, 1);
+    expect(state).toMatchObject({ divisionIds: [division.id], round: 1, hidesInMs: null });
+    expect(state.apparatus.map(({ apparatus }) => apparatus)).toEqual(WOMEN);
+    expect(names(state.apparatus[1].rounds[1])).toBe('A');
+    expect(state.apparatus[0].rounds[0].slots[0].precision).toBe(2);
+  });
+
+  it('keeps the last round for five minutes', async () => {
+    const { id, contest } = await createCompetition({ grounds: 2 });
+    const { endedAt, ...division } = await createDivision(contest.id, { state: 'ENDED' });
+    const after = (ms: number) => getDisplayState(id, 1, new Date(Number(endedAt) + ms));
+    expect(await after(4 * MINUTE)).toMatchObject({
+      divisionIds: [division.id],
+      round: 3,
+      hidesInMs: MINUTE,
+      apparatus: WOMEN.map((apparatus) => ({ apparatus, currentRound: null })),
+    });
+    expect(await after(5 * MINUTE)).toEqual({
+      divisionIds: [],
+      round: 0,
+      hidesInMs: null,
+      apparatus: [],
+    });
+    expect((await getDisplayState(id, 2)).divisionIds).toEqual([]);
+  });
+
+  it('only shows the running ones once the next division started', async () => {
+    const { id, contest } = await createCompetition();
+    await createDivision(contest.id, { state: 'ENDED' });
+    const next = await createDivision(contest.id, { number: 2, state: 'RUNNING' });
+    const { divisionIds, round } = await getDisplayState(id, 1);
+    expect({ divisionIds, round }).toEqual({ divisionIds: [next.id], round: 0 });
+  });
+});
+
 describe('getGradingState', () => {
   it('shows a division in any state', async () => {
     const { id, contest } = await createCompetition();
@@ -361,6 +408,88 @@ describe('saveGrades', () => {
     const other = await createCompetition();
     const foreign = await createStarter(other.id);
     expect(await errorCode(save({ entryId: foreign.entry.id }))).toBe('NOT_FOUND');
+  });
+
+  describe('with the grade the input was based on', () => {
+    const previousOf = ({ id, version }: { id: string; version: number }) => ({ id, version });
+
+    it('does not overwrite what someone else saved', async () => {
+      const { save, grade } = await setup();
+      const [first] = await save({});
+      expect(await errorCode(save({ value: 9500, previous: null }))).toBe('GRADE_CHANGED');
+      const other = { id: 'other', version: first.version };
+      expect(await errorCode(save({ value: 9500, previous: other }))).toBe('GRADE_CHANGED');
+      expect(await grade()).toMatchObject({ value: 9000, version: 1 });
+      await save({ value: 9500, previous: previousOf(first) });
+      expect(await grade()).toMatchObject({ value: 9500, version: 2 });
+    });
+
+    it('notices a deleted grade, also when it was entered again', async () => {
+      const { id, entry, save, grade } = await setup();
+      const [first] = await save({});
+      await deleteGrade(id, { entryId: entry.id, apparatus: 'reck' }, EDITOR);
+      const late = () => errorCode(save({ value: 9500, previous: previousOf(first) }));
+      expect(await late()).toBe('GRADE_CHANGED');
+      await save({ value: 8700 });
+      expect(await late()).toBe('GRADE_CHANGED');
+      expect(await grade()).toMatchObject({ value: 8700 });
+    });
+
+    it('can be repeated after a lost response', async () => {
+      const { save, grade } = await setup();
+      const request = { previous: null, requestId: 'a' };
+      await save(request);
+      await save(request);
+      expect(await grade()).toMatchObject({ version: 1 });
+      // Someone else typed the same.
+      await save({ previous: null, requestId: 'b' });
+      expect(await grade()).toMatchObject({ version: 1, requestId: 'a' });
+    });
+
+    it('does not repeat a request after a newer one', async () => {
+      const { save, grade } = await setup();
+      const [first] = await save({});
+      const late = { value: 9500, previous: previousOf(first), requestId: 'late' };
+      // The judge went back to the saved value, which counts as a change.
+      await save({ value: 9000, previous: previousOf(first), requestId: 'b' });
+      expect(await errorCode(save(late))).toBe('GRADE_CHANGED');
+      expect(await grade()).toMatchObject({ value: 9000, version: 2 });
+    });
+
+    it('replaces an own request whose response got lost', async () => {
+      const { save, grade } = await setup();
+      const [first] = await save({});
+      const previous = previousOf(first);
+      await save({ value: 9500, previous, requestId: 'lost' });
+      await save({ value: 9000, previous, requestId: 'b', supersedes: ['lost'] });
+      expect(await grade()).toMatchObject({ value: 9000 });
+      // Not when someone else saved in between.
+      await save({ value: 8000 });
+      const own = save({ value: 9100, previous, requestId: 'c', supersedes: ['lost', 'b'] });
+      expect(await errorCode(own)).toBe('GRADE_CHANGED');
+    });
+
+    it('does not delete a grade that was changed', async () => {
+      const { id, entry, save, grade } = await setup();
+      const key = { entryId: entry.id, apparatus: 'reck' };
+      const [first] = await save({});
+      const [second] = await save({ value: 9100 });
+      const remove = (shown: typeof first) =>
+        errorCode(deleteGrade(id, { ...key, previous: previousOf(shown) }, EDITOR));
+      expect(await remove(first)).toBe('GRADE_CHANGED');
+      expect(await grade()).toMatchObject({ value: 9100 });
+      expect(await remove(second)).toBeNull();
+      expect(await remove(second)).toBeNull();
+      expect(await grade()).toBeNull();
+    });
+
+    it('lets one of two devices win', async () => {
+      const { save } = await setup();
+      const codes = await Promise.all(
+        [9100, 9200].map((value) => errorCode(save({ value, previous: null }))),
+      );
+      expect(codes.toSorted()).toEqual(['GRADE_CHANGED', null]);
+    });
   });
 
   describe('as a judge', () => {

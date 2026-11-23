@@ -4,6 +4,10 @@ import type de from '../de/display';
 export default {
   title: 'Displays',
   screenTitle: 'Display',
+  waitingTitle: 'Starting soon',
+  waitingText: 'The grades appear as soon as a division starts.',
+  next: 'Next',
+  pause: 'Pause',
   links: {
     intro: 'A display shows the latest grades of a ground on a screen.',
     name: 'Display {{code}}',

@@ -2,6 +2,8 @@ import { act, render, screen } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { createMemoryRouter, data, RouterProvider } from 'react-router';
+import { Toaster } from 'sonner';
+import { WRONG_KEY_HEADER } from '~/lib/access';
 import { createI18n } from '~/lib/i18n';
 import { AccessGate } from './AccessGate';
 import { TokenErrorBoundary } from './TokenErrorBoundary';
@@ -16,7 +18,9 @@ const login = vi.fn(async (_url: string, init: RequestInit) => {
   if (outage) return outage();
   const isValid = (init.body as URLSearchParams).get('token') === KEY;
   if (isValid) isAllowed = true;
-  return new Response(null, { status: isValid ? 204 : 403 });
+  return isValid
+    ? new Response(null, { status: 204 })
+    : new Response(null, { status: 403, headers: { [WRONG_KEY_HEADER]: '1' } });
 });
 
 beforeEach(() => {
@@ -56,6 +60,7 @@ async function open(url: string) {
     <StrictMode>
       <I18nextProvider i18n={createI18n('de')}>
         <RouterProvider router={router} />
+        <Toaster />
       </I18nextProvider>
     </StrictMode>,
   );
@@ -87,11 +92,21 @@ it('says that the link is invalid without a key', async () => {
   expect(login).not.toHaveBeenCalled();
 });
 
-it('says that the link is invalid with a wrong key, also with access', async () => {
-  isAllowed = true;
+it('says that the link is invalid with a wrong key', async () => {
   await open(`/judge/1#${WRONG}`);
   expectInvalid();
   expect(window.location.hash).toBe('');
+});
+
+it('keeps a working page with a wrong key and says so', async () => {
+  isAllowed = true;
+  await open(`/judge/1#${WRONG}`);
+  expectTablet();
+  expect(window.location.hash).toBe('');
+  await advance(500);
+  expect(screen.getByText(/nicht mehr gültig/)).toBeInTheDocument();
+  await changeHash(`#${WRONG}`);
+  expectTablet();
 });
 
 it('needs no key with access', async () => {
@@ -121,6 +136,7 @@ it('leaves hashes alone that are no key, like the one of the skip link', async (
 describe.each([
   ['the network', () => Promise.reject(new TypeError('offline')) as never],
   ['the server', () => new Response(null, { status: 502 })],
+  ['the app behind a proxy', () => new Response('<html>', { status: 403 })],
 ])('when %s is down', (_, failure) => {
   beforeEach(() => {
     outage = failure;
@@ -128,12 +144,14 @@ describe.each([
 
   it('keeps trying with the key', async () => {
     await open(`/judge/1#${KEY}`);
-    expect(window.location.hash).toBe('');
     await advance(20_000);
     expect(screen.getByRole('status')).toBeInTheDocument();
+    // Still there after a reload.
+    expect(window.location.hash).toBe(`#${KEY}`);
     outage = null;
     await advance(5_000);
     expectTablet();
+    expect(window.location.hash).toBe('');
     login.mockClear();
     await advance(60_000);
     expect(login).not.toHaveBeenCalled();

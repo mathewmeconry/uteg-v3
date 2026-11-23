@@ -204,9 +204,10 @@ async function recomputeGrades(
     values.push(newValue);
   }
   if (ids.length === 0) return 0;
-  // Keeps updatedAt: dashboard and displays show who was graded last, which does not change.
+  // Keeps updatedAt: dashboard and displays show who was graded last, which does not change. The
+  // version changes, so nobody replaces a value they have not seen.
   return tx.$executeRaw`
-    UPDATE grade SET value = changed.value
+    UPDATE grade SET value = changed.value, version = version + 1
     FROM unnest(${ids}::text[], ${values}::int[]) AS changed(id, value)
     WHERE grade.id = changed.id`;
 }

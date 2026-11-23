@@ -1,0 +1,214 @@
+import { ArrowLeftIcon, ArrowRightIcon, LoaderCircleIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { draftKey } from '~/components/grading/draftStore';
+import { GradeInputs } from '~/components/grading/GradeInputs';
+import { ConflictNotice, RejectedNotice, SaveState, Warning } from '~/components/grading/SaveState';
+import type { GradeDrafts } from '~/components/grading/useGradeDrafts';
+import { Badge } from '~/components/ui/badge';
+import { Button } from '~/components/ui/button';
+import { Progress } from '~/components/ui/progress';
+import type { GradeResult } from '~/lib/gradeRequests';
+import { cn } from '~/lib/utils';
+import { findNeighbour } from './judgeState';
+import { fullName, type TabletSlot } from './types';
+
+/** One starter: who it is, the grade and the way to the next one. */
+export function StarterForm({
+  slot,
+  slots,
+  drafts,
+  fromReview = false,
+  isPast = false,
+  takeFocus,
+  onMove,
+}: {
+  slot: TabletSlot;
+  /** The round, only the starter itself when `isPast`. */
+  slots: readonly TabletSlot[];
+  drafts: GradeDrafts;
+  fromReview?: boolean;
+  /** A single grade of a confirmed round. */
+  isPast?: boolean;
+  /** Not when it appears by itself: the judge may be typing for someone else. */
+  takeFocus: boolean;
+  onMove: (view: 'review' | string) => void;
+}) {
+  const { t } = useTranslation(['judging', 'common']);
+  const [showRequired, setShowRequired] = useState(false);
+  const firstInput = useRef<HTMLInputElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+
+  const state = drafts.get(slot);
+  const key = draftKey(slot);
+  const index = slots.findIndex(({ entryId }) => entryId === slot.entryId);
+  const next = findNeighbour(slots, slot.entryId, 1);
+  const previous = findNeighbour(slots, slot.entryId, -1);
+
+  const isShown = useRef(false);
+  const initial = useRef({ takeFocus, isDirty: state.isDirty });
+
+  useEffect(() => {
+    isShown.current = true;
+    const input = firstInput.current;
+    if (initial.current.takeFocus) {
+      if (!input) heading.current?.focus();
+      input?.focus();
+      // What is being typed goes on, a saved grade is replaced.
+      input?.setSelectionRange(
+        initial.current.isDirty ? input.value.length : 0,
+        input.value.length,
+      );
+    }
+    return () => {
+      isShown.current = false;
+    };
+  }, []);
+
+  function moveOn() {
+    onMove(fromReview ? 'review' : (next?.entryId ?? 'review'));
+  }
+
+  async function finish(answer: Promise<GradeResult>) {
+    const { ok } = await answer;
+    // The judge may have opened someone else meanwhile and be typing there.
+    if (ok && isShown.current) moveOn();
+  }
+
+  function submit() {
+    if (slot.withdrawn) return moveOn();
+    if (state.isSaving || state.isConflict) return;
+    if (!state.evaluated.grade) {
+      setShowRequired(true);
+      firstInput.current?.focus();
+      return;
+    }
+    if (!state.isDirty) return moveOn();
+    void finish(drafts.submit(key));
+  }
+
+  return (
+    <form
+      noValidate
+      className="grid grid-cols-1 gap-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+    >
+      {isPast ? (
+        <p className="font-medium text-destructive">{t('pastRound')}</p>
+      ) : (
+        <div className="grid gap-2">
+          <p className="font-medium text-muted-foreground">
+            {t('position', { position: index + 1, total: slots.length })}
+          </p>
+          <Progress
+            aria-label={t('position', { position: index + 1, total: slots.length })}
+            value={((index + 1) / slots.length) * 100}
+          />
+        </div>
+      )}
+
+      <div className="grid gap-2 text-center">
+        <h2
+          ref={heading}
+          tabIndex={-1}
+          className={cn(
+            'text-4xl font-black wrap-anywhere outline-none @2xl:text-6xl',
+            slot.withdrawn && 'text-muted-foreground line-through',
+          )}
+        >
+          {fullName(slot)}
+        </h2>
+        <p className="text-xl wrap-anywhere @2xl:text-2xl">
+          {slot.clubName} ·{' '}
+          <span className="font-bold">
+            {slot.category} {t(`sexShort.${slot.sex}`)}
+          </span>
+        </p>
+      </div>
+
+      {slot.withdrawn ? (
+        <div className="grid justify-items-center gap-2 text-center">
+          <Badge variant="destructive" className="text-base">
+            {t('withdrawn')}
+          </Badge>
+          <p>{t('withdrawnText')}</p>
+        </div>
+      ) : (
+        <div className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4">
+          <GradeInputs
+            large
+            fields={state.fields}
+            evaluated={state.evaluated}
+            rule={slot.inputRule}
+            name={fullName(slot)}
+            showRequired={showRequired}
+            disabled={state.isSaving}
+            firstInput={firstInput}
+            onChange={(fields) => drafts.change(slot, state.saved, fields)}
+            onSubmit={submit}
+          />
+          {!state.isConflict && !state.rejected && !(state.isFailed && !state.isSaving) && (
+            <SaveState state={state} className="justify-center text-lg" />
+          )}
+          {state.isConflict && (
+            <ConflictNotice
+              state={state}
+              onUseSaved={() => drafts.discard(key)}
+              onUseOwn={() => void finish(drafts.overwrite(key, state.saved))}
+            />
+          )}
+          {state.rejected && <RejectedNotice code={state.rejected} />}
+          {state.isFailed && !state.isSaving && (
+            <Warning title={t('save.failedTitle')}>
+              <p>{t('save.failedText')}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={() => void finish(drafts.submit(key))}>
+                  {t('save.retry')}
+                </Button>
+                <Button type="button" variant="outline" onClick={moveOn}>
+                  {t('save.continue')}
+                </Button>
+              </div>
+            </Warning>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-wrap justify-between gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-16 px-6 text-xl"
+          disabled={!(previous || isPast) || state.isSaving}
+          onClick={() => onMove(previous?.entryId ?? 'review')}
+        >
+          <ArrowLeftIcon aria-hidden className="size-6" />
+          {t('common:actions.back')}
+        </Button>
+        <Button
+          type="submit"
+          className="h-auto min-h-16 grow px-6 py-2 text-xl whitespace-normal @2xl:max-w-80"
+          disabled={state.isSaving || state.isConflict}
+        >
+          {state.isSaving && <LoaderCircleIcon aria-hidden className="size-6 animate-spin" />}
+          {isPast
+            ? t('common:actions.save')
+            : fromReview
+              ? t('toReviewAgain')
+              : next
+                ? t('common:actions.next')
+                : t('toReview')}
+          <ArrowRightIcon aria-hidden className="size-6" />
+        </Button>
+      </div>
+      {!isPast && (
+        <p className="truncate text-center text-lg text-muted-foreground">
+          {next ? t('nextUp', { name: fullName(next) }) : t('lastOfRound')}
+        </p>
+      )}
+    </form>
+  );
+}

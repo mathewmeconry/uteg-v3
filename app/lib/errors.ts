@@ -12,6 +12,7 @@ export type DomainErrorCode =
   | 'FILE_TOO_LARGE'
   | 'FORBIDDEN'
   | 'GRADES_MISSING'
+  | 'GRADE_CHANGED'
   | 'GROUND_IN_USE'
   | 'IMAGE_TOO_LARGE'
   | 'INVALID_APPARATUS'
