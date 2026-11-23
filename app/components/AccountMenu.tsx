@@ -1,6 +1,7 @@
 import { ChevronsUpDownIcon, CircleUserIcon, LogOutIcon, UserIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSubmit } from 'react-router';
+import { ThemeItems } from '~/components/ThemeItems';
 import { Button } from '~/components/ui/button';
 import {
   DropdownMenu,
@@ -58,6 +59,8 @@ export function AccountMenu({
           <span className="block truncate">{email}</span>
           {detail && <span className="block truncate text-muted-foreground">{detail}</span>}
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <ThemeItems />
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link to="/profile">

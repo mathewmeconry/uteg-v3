@@ -6,7 +6,7 @@ import { AccessGate } from '~/components/AccessGate';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
 import { ApparatusPanel } from '~/components/display/ApparatusPanel';
 import { getColumns } from '~/components/display/displayState';
-import { useDelayedRound, useIsExpired } from '~/components/display/useDisplayTimers';
+import { useIsExpired, useShown } from '~/components/display/useDisplayTimers';
 import { ScreenControls } from '~/components/judging/ScreenControls';
 import { Rings } from '~/components/Rings';
 import { TokenErrorBoundary } from '~/components/TokenErrorBoundary';
@@ -51,14 +51,14 @@ export function clientLoader({ params: { linkId }, serverLoader }: Route.ClientL
 }
 
 export default function Display({ loaderData, params: { linkId } }: Route.ComponentProps) {
-  const { competitionName, ground, round, divisionIds, hidesInMs, apparatus } = loaderData;
+  const { competitionName, ground, hidesInMs, apparatus } = loaderData;
   useEffect(() => lastData.remember(linkId, loaderData), [linkId, loaderData]);
 
   const { t } = useTranslation(['display', 'common']);
   const stream = useLiveUpdates(`/api/display/${linkId}/events`);
   const status = useIsOnline() ? stream : 'lost';
   const { scale, change } = useFontScale('display-font-scale');
-  const shownRound = useDelayedRound(round, divisionIds);
+  const shown = useShown(loaderData);
   const isExpired = useIsExpired(hidesInMs);
   useWakeLock();
 
@@ -79,7 +79,7 @@ export default function Display({ loaderData, params: { linkId } }: Route.Compon
               {t('common:ground', { number: ground })}
             </span>{' '}
             {!isWaiting && (
-              <span className="shrink-0">{t('common:round', { number: shownRound + 1 })}</span>
+              <span className="shrink-0">{t('common:round', { number: shown.round + 1 })}</span>
             )}
           </h1>
           <div className="flex shrink-0 items-center gap-2">
@@ -107,7 +107,12 @@ export default function Display({ loaderData, params: { linkId } }: Route.Compon
             </div>
           ) : (
             apparatus.map(({ apparatus: key, rounds }) => (
-              <ApparatusPanel key={key} apparatus={key} slots={rounds[shownRound] ?? []} />
+              <ApparatusPanel
+                key={key}
+                apparatus={key}
+                slots={rounds[shown.round] ?? []}
+                count={shown.steps[key]?.count ?? 0}
+              />
             ))
           )}
         </main>

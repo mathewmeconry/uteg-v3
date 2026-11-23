@@ -28,6 +28,12 @@ export default {
     stop: 'Stoppen',
     upload: 'Hochladen',
   },
+  theme: {
+    label: 'Darstellung',
+    system: 'Wie das Gerät',
+    light: 'Hell',
+    dark: 'Dunkel',
+  },
   nav: {
     menu: 'Menü',
     account: 'Konto',

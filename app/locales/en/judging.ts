@@ -9,6 +9,7 @@ export default {
   linkInvalidText: 'The link was reset. Scan the current QR code.',
   linkIgnored: 'The link you opened is no longer valid. This page still works.',
   screen: {
+    menu: 'Text size, language and appearance',
     smaller: 'Smaller text',
     larger: 'Larger text',
     switchLanguage: 'Auf Deutsch wechseln',

@@ -8,6 +8,7 @@ import {
   Scripts,
   ScrollRestoration,
   useNavigation,
+  useRouteLoaderData,
   type ShouldRevalidateFunctionArgs,
 } from 'react-router';
 import font from '@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2?url';
@@ -18,6 +19,7 @@ import { TooltipProvider } from '~/components/ui/tooltip';
 import { languageContext } from '~/context';
 import { useToasts } from '~/hooks/useToasts';
 import { APP_ORIGIN } from '~/lib/env.server';
+import { readTheme } from '~/lib/theme';
 import { sessionMiddleware } from '~/middlewares/auth.server';
 import { bodyLimitMiddleware } from '~/middlewares/bodyLimit.server';
 import { i18nMiddleware } from '~/middlewares/i18n.server';
@@ -37,8 +39,11 @@ export const middleware: Route.MiddlewareFunction[] = [
   toastMiddleware,
 ];
 
-export function loader({ context }: Route.LoaderArgs) {
-  return { language: context.get(languageContext) };
+export function loader({ context, request }: Route.LoaderArgs) {
+  return {
+    language: context.get(languageContext),
+    theme: readTheme(request.headers.get('Cookie')),
+  };
 }
 
 // Judges and displays stay on one page. A refresh that fails, e.g. offline, must not replace it.
@@ -66,10 +71,12 @@ function NavigationProgress() {
 
 export function Layout({ children }: { children: ReactNode }) {
   const { i18n, t } = useTranslation();
+  // Missing on error pages.
+  const theme = useRouteLoaderData<typeof loader>('root')?.theme ?? 'system';
   useToasts();
 
   return (
-    <html lang={i18n.language}>
+    <html lang={i18n.language} data-theme={theme}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

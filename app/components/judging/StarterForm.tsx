@@ -142,13 +142,13 @@ export function StarterForm({
           ref={heading}
           tabIndex={-1}
           className={cn(
-            'font-display text-5xl leading-[1.05] wrap-anywhere outline-none @2xl:text-7xl',
+            'font-display text-4xl leading-[1.05] wrap-anywhere outline-none @md:text-5xl @2xl:text-7xl',
             slot.withdrawn && 'text-muted-foreground line-through',
           )}
         >
           {fullName(slot)}
         </h2>
-        <p className="text-xl wrap-anywhere @2xl:text-2xl">
+        <p className="text-lg wrap-anywhere @md:text-xl @2xl:text-2xl">
           {slot.clubName} ·{' '}
           <span className="font-bold">
             {slot.category} {t(`sexShort.${slot.sex}`)}
@@ -167,7 +167,7 @@ export function StarterForm({
         // Attempts and the grade they give are in one line, so the buttons need no scrolling.
         <div
           ref={fields}
-          className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4 @2xl:[&_div:has(>input)]:flex-1 @2xl:[&_div:has(>input)]:basis-32 [&_input]:h-24 [&_input]:rounded-xl [&_input]:border-2 [&_input]:text-6xl [&_input]:[font-stretch:85%] md:[&_input]:text-6xl"
+          className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4 @2xl:[&_div:has(>input)]:flex-1 @2xl:[&_div:has(>input)]:basis-32 [&_input]:h-18 [&_input]:rounded-xl [&_input]:border-2 [&_input]:text-5xl [&_input]:[font-stretch:85%] @md:[&_input]:h-24 @md:[&_input]:text-6xl"
         >
           <GradeInputs
             large
@@ -227,7 +227,7 @@ export function StarterForm({
         <Button
           type="button"
           variant="outline"
-          className="h-20 rounded-xl px-6 text-xl"
+          className="h-16 rounded-xl px-5 text-lg @md:h-20 @md:px-6 @md:text-xl"
           disabled={!(previous || isPast) || state.isSaving}
           onClick={() => onMove(previous?.entryId ?? 'review')}
         >
@@ -236,7 +236,7 @@ export function StarterForm({
         </Button>
         <Button
           type="submit"
-          className="h-auto grow rounded-xl px-6 py-6 text-2xl whitespace-normal @2xl:max-w-xl"
+          className="h-auto grow rounded-xl px-6 py-4 text-xl whitespace-normal @md:py-6 @md:text-2xl @2xl:max-w-xl"
           disabled={state.isSaving || state.isConflict}
         >
           {state.isSaving && <LoaderCircleIcon aria-hidden className="size-6 animate-spin" />}

@@ -6,6 +6,7 @@ export default {
   linkInvalidText: 'Der Link wurde zurückgesetzt. Scanne den aktuellen QR-Code.',
   linkIgnored: 'Der geöffnete Link ist nicht mehr gültig. Diese Seite funktioniert weiterhin.',
   screen: {
+    menu: 'Schrift, Sprache und Darstellung',
     smaller: 'Schrift kleiner',
     larger: 'Schrift grösser',
     switchLanguage: 'Switch to English',

@@ -31,6 +31,12 @@ export default {
     stop: 'Stop',
     upload: 'Upload',
   },
+  theme: {
+    label: 'Appearance',
+    system: 'Like the device',
+    light: 'Light',
+    dark: 'Dark',
+  },
   nav: {
     menu: 'Menu',
     account: 'Account',

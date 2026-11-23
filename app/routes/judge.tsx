@@ -74,11 +74,13 @@ export default function Judge({ loaderData, params: { linkId } }: Route.Componen
       <div className="min-h-svh">
         <title>{`${apparatus} · UTEG`}</title>
         <header className="@container sticky top-0 z-20 bg-ink px-4 py-2 text-ink-foreground sm:px-6">
-          {/* In one line, so nothing jumps when the connection is lost. Phones have two. */}
-          <div className="flex items-center gap-x-4 gap-y-1 @max-md:flex-wrap">
-            <div className="min-w-0 flex-1 @max-md:basis-full">
-              <h1 className="truncate font-display text-4xl leading-none">{apparatus}</h1>
-              <p className="mt-1 truncate text-ink-muted">
+          {/* In one line, so nothing jumps when the connection is lost. */}
+          <div className="flex items-center gap-x-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate font-display text-2xl leading-none @md:text-4xl">
+                {apparatus}
+              </h1>
+              <p className="mt-1 truncate text-sm text-ink-muted @md:text-base">
                 {t('common:ground', { number: ground })} · {competitionName}
               </p>
             </div>
