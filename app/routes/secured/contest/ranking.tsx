@@ -15,9 +15,9 @@ import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
 import { Label } from '~/components/ui/label';
 import { Switch } from '~/components/ui/switch';
 import { competitionContext, contestContext } from '~/context';
-import type { Sex } from '~/generated/prisma/enums';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
+import { useSexes } from '~/hooks/useSexes';
 import { patchContestConfig } from '~/lib/contests.server';
 import { findBrokenCovers } from '~/lib/covers.server';
 import { getHonourQuota } from '~/lib/domain/ranking';
@@ -31,8 +31,7 @@ import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 import { egtModule, type EgtConfig } from '~/modules/egt/module';
-
-const SEXES = ['FEMALE', 'MALE'] as const satisfies Sex[];
+import { SEXES } from '~/modules/types';
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const competition = context.get(competitionContext);
@@ -44,7 +43,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const groups = started.filter(({ hasEnded }) => hasEnded || provisional);
   // Without a choice the first ranking that shows something.
   const sex =
-    SEXES.find((item) => item === params.get('sex')) ?? (groups[0] ?? started[0])?.sex ?? 'FEMALE';
+    competition.sexes.find((item) => item === params.get('sex')) ??
+    (groups[0] ?? started[0])?.sex ??
+    competition.sexes[0];
   const categories = module.categories(sex);
   const category =
     categories.find((item) => item === params.get('category')) ??
@@ -166,6 +167,7 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
     loaderData;
   const { t, i18n } = useTranslation(['ranking', 'common']);
   const { competition, canEdit } = useCompetition();
+  const sexes = useSexes();
   const status = useLiveUpdates(`/api/events/${competition.id}`);
   const [searchParams, setSearchParams] = useSearchParams();
   const provisionalId = useId();
@@ -206,13 +208,15 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
       />
 
       <Toolbar className="mb-2 gap-x-3">
-        <ChoiceNav label={t('common:fields.sex')} className="max-sm:w-full max-sm:*:flex-1">
-          {SEXES.map((item) => (
-            <ChoiceLink key={item} params={{ sex: item, category }} selected={item === sex}>
-              {t(`common:sex.${item}`)}
-            </ChoiceLink>
-          ))}
-        </ChoiceNav>
+        {sexes.length > 1 && (
+          <ChoiceNav label={t('common:fields.sex')} className="max-sm:w-full max-sm:*:flex-1">
+            {sexes.map((item) => (
+              <ChoiceLink key={item} params={{ sex: item, category }} selected={item === sex}>
+                {t(`common:sex.${item}`)}
+              </ChoiceLink>
+            ))}
+          </ChoiceNav>
+        )}
         <ChoiceNav
           label={t('common:fields.category')}
           className="max-sm:grid max-sm:w-full max-sm:grid-cols-4"

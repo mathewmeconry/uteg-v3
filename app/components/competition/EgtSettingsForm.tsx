@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { useSexes } from '~/hooks/useSexes';
 import type { EgtConfig } from '~/modules/egt/module';
 import { isSameConfig } from './egtConfig';
 import { HonourPercentFields } from './HonourPercentFields';
@@ -37,6 +38,7 @@ export function EgtSettingsForm({
   error?: string;
 }) {
   const { t } = useTranslation(['settings', 'common']);
+  const sexes = useSexes();
   const { revalidate } = useRevalidator();
   const isSaving = useNavigation().formData !== undefined;
   const [config, setConfig] = useState(savedConfig);
@@ -67,6 +69,7 @@ export function EgtSettingsForm({
           <Section title={t('honour.title')} description={t('honour.text')}>
             <div className="grid grid-cols-1 gap-5">
               <HonourPercentFields
+                sexes={sexes}
                 value={config.honourPercent}
                 onChange={(honourPercent) => setConfig({ ...config, honourPercent })}
                 disabled={!canEdit}

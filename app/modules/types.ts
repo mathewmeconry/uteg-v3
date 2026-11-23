@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 
-export type Sex = 'FEMALE' | 'MALE';
+export const SEXES = ['FEMALE', 'MALE'] as const;
+export type Sex = (typeof SEXES)[number];
 
 export type Aggregation = 'NONE' | 'MAX' | 'MIN' | 'AVG';
 

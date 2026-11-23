@@ -23,8 +23,10 @@ import {
   updateCompetition,
 } from './competitions.server';
 import { getOrCreateJudgeLinks, createDisplay } from './access.server';
+import { createDivision as addDivision } from './divisions.server';
 import { subscribe } from './events.server';
 import { prisma } from './prisma.server';
+import { createStarter as addStarter } from './starters.server';
 
 const INPUT = {
   name: ' Gerätecup ',
@@ -120,6 +122,43 @@ describe('getCompetitionForUser and listCompetitions', () => {
     const user = await createUser();
     await addTestMember(competition.id, user.id, role);
     expect(await errorCode(getCompetitionForUser(user.id, competition.id, minRole))).toBe(code);
+  });
+});
+
+describe('a competition of one sex', () => {
+  it('only has its apparatus, in its order', async () => {
+    const { id } = await createTestCompetition();
+    await updateCompetition(id, { ...INPUT, grounds: 1, sexes: ['FEMALE'] });
+    const keys = async () => (await getOrCreateJudgeLinks(id)).map(({ apparatus }) => apparatus);
+    expect(await keys()).toEqual(['reck', 'boden', 'schaukelringe', 'sprung']);
+    await updateCompetition(id, { ...INPUT, grounds: 1, sexes: ['MALE'] });
+    expect(await keys()).toEqual(['boden', 'schaukelringe', 'sprung', 'barren', 'reck']);
+  });
+
+  it('takes no starters and divisions of the other one', async () => {
+    const { id, contest } = await createTestCompetition();
+    await updateCompetition(id, { ...INPUT, sexes: ['FEMALE'] });
+    const division = { category: 'K5', sex: 'MALE', ground: 1 } as const;
+    expect(await errorCode(addDivision(id, contest.id, division))).toBe('SEX_NOT_ALLOWED');
+    const club = await createClub();
+    const person = { firstname: 'Noah', lastname: 'Frei', birthYear: 2010 };
+    const add = (sex: 'FEMALE' | 'MALE') => addStarter(id, { ...person, sex, clubId: club.id });
+    expect(await errorCode(add('MALE'))).toBe('SEX_NOT_ALLOWED');
+    await add('FEMALE');
+  });
+
+  it('cannot leave out someone who takes part', async () => {
+    const { id, contest } = await createTestCompetition();
+    await createDivision(contest.id, { sex: 'MALE' });
+    const update = (sexes: ('FEMALE' | 'MALE')[]) => updateCompetition(id, { ...INPUT, sexes });
+    expect(await errorCode(update(['FEMALE']))).toBe('SEX_IN_USE');
+    expect(await errorCode(update([]))).toBe('INVALID_INPUT');
+    await update(['MALE']);
+    // Without a choice it stays.
+    await updateCompetition(id, INPUT);
+    expect(await prisma.competition.findUnique({ where: { id } })).toMatchObject({
+      sexes: ['MALE'],
+    });
   });
 });
 

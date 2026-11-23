@@ -5,7 +5,8 @@ import { Button } from '~/components/ui/button';
 import { FieldLabel } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
 import { DEFAULT_HONOUR_PERCENT, type EgtConfig } from '~/modules/egt/module';
-import { getCategories, setAllHonour, SEXES } from './egtConfig';
+import type { Sex } from '~/modules/types';
+import { getCategories, setAllHonour } from './egtConfig';
 
 type HonourPercent = EgtConfig['honourPercent'];
 
@@ -19,10 +20,12 @@ const PERCENT_INPUT = {
 
 /** The percentage per category. Empty inputs are NaN, so they cannot be saved. */
 export function HonourPercentFields({
+  sexes,
   value,
   onChange,
   disabled,
 }: {
+  sexes: readonly Sex[];
   value: HonourPercent;
   onChange: (value: HonourPercent) => void;
   disabled?: boolean;
@@ -61,7 +64,7 @@ export function HonourPercentFields({
           </div>
         </div>
       )}
-      {SEXES.map((sex) => (
+      {sexes.map((sex) => (
         <fieldset key={sex} disabled={disabled}>
           <legend className="mb-2 font-semibold">{t(`common:sex.${sex}`)}</legend>
           <div className="grid grid-cols-4 gap-x-2 gap-y-3 sm:grid-cols-8 [&_label]:font-normal [&_label]:text-muted-foreground">

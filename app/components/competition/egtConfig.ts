@@ -1,7 +1,5 @@
 import { egtModule, type EgtConfig } from '~/modules/egt/module';
-import type { InputRule, Sex } from '~/modules/types';
-
-export const SEXES: Sex[] = ['FEMALE', 'MALE'];
+import { SEXES, type InputRule, type Sex } from '~/modules/types';
 
 export function getCategories(sex: Sex) {
   return egtModule.categories(egtModule.defaultConfig, sex);

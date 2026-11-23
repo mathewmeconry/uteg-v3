@@ -171,6 +171,8 @@ export default {
     GRADES_MISSING: 'Es fehlen noch Noten.',
     GRADE_CHANGED: 'Die Note wurde inzwischen anderswo geändert.',
     GROUND_IN_USE: 'Der Wettkampfplatz wird noch verwendet.',
+    SEX_IN_USE: 'Es gibt noch Teilnehmende oder Abteilungen des anderen Geschlechts.',
+    SEX_NOT_ALLOWED: 'Dieses Geschlecht nimmt am Wettkampf nicht teil.',
     IMAGE_TOO_LARGE: 'Das Bild darf höchstens 4000 × 4000 Pixel gross sein.',
     INVALID_APPARATUS: 'Ungültiges Gerät.',
     INVALID_CATEGORY: 'Ungültige Kategorie.',

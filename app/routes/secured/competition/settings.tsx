@@ -1,7 +1,13 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data, Form, redirect } from 'react-router';
 import type { Route } from './+types/settings';
-import { CompetitionFields, GroundsField } from '~/components/competition/CompetitionFields';
+import {
+  CompetitionFields,
+  GroundsField,
+  SexesField,
+  type Sexes,
+} from '~/components/competition/CompetitionFields';
 import { DeleteCompetitionDialog } from '~/components/competition/DeleteCompetitionDialog';
 import { LogoField } from '~/components/competition/LogoField';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
@@ -15,6 +21,7 @@ import { removeLogo, setLogo } from '~/lib/assets.server';
 import { competitionSchema, readLogo } from '~/lib/competitionForm.server';
 import { deleteCompetition, updateCompetition } from '~/lib/competitions.server';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
+import { DomainError } from '~/lib/errors';
 import { parseForm } from '~/lib/forms.server';
 import { safeClientAction } from '~/lib/safeClientAction';
 import { requireRole } from '~/middlewares/competition.server';
@@ -33,7 +40,12 @@ export async function action({ request, context }: Route.ActionArgs) {
       try {
         await updateCompetition(id, values);
       } catch (error) {
-        return data({ errors: { grounds: domainErrorMessage(error, t) } }, 400);
+        const field =
+          error instanceof DomainError && error.code === 'SEX_IN_USE' ? 'sexes' : 'grounds';
+        return data(
+          { errors: { [field]: domainErrorMessage(error, t) } as Record<string, string> },
+          400,
+        );
       }
       enqueueToast(context, { type: 'success', message: t('settings:saved') });
       return redirect('.');
@@ -78,6 +90,9 @@ export default function Settings({ actionData }: Route.ComponentProps) {
   const { t } = useTranslation(['settings', 'competition', 'common']);
   const { competition, canEdit, isOwner } = useCompetition();
   const errors = useActionErrors(actionData);
+  const [sexes, setSexes] = useState<Sexes>(
+    competition.sexes.length > 1 ? 'BOTH' : competition.sexes[0],
+  );
 
   return (
     <>
@@ -89,6 +104,7 @@ export default function Settings({ actionData }: Route.ComponentProps) {
             <fieldset disabled={!canEdit} className="grid gap-5">
               <CompetitionFields errors={errors} defaults={competition} />
               <GroundsField error={errors.grounds} defaultValue={competition.grounds} />
+              <SexesField error={errors.sexes} value={sexes} onChange={setSexes} />
               {canEdit && (
                 <SubmitButton name="intent" value="details" className="justify-self-start">
                   {t('common:actions.save')}

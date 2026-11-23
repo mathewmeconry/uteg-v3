@@ -88,7 +88,9 @@ model Competition {
   startDate DateTime @db.Date
   endDate   DateTime @db.Date
   grounds   Int      @default(1)
-  logoId    String?  @unique
+  // Who takes part. At least one.
+  sexes     Sex[]    @default([FEMALE, MALE])
+  logoId   String?  @unique
   logo      Asset?   @relation("CompetitionLogo", fields: [logoId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

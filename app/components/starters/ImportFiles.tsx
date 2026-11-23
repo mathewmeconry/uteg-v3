@@ -8,6 +8,7 @@ import {
 import { useState, type DragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
+import { useSexes } from '~/hooks/useSexes';
 import type { ImportedStarter } from '~/lib/domain/starterImport';
 import { cn } from '~/lib/utils';
 import { MAX_FILE_MB, MAX_IMPORT_ROWS, readStarterFile, type FileError } from './importFile';
@@ -32,6 +33,7 @@ export function ImportFiles({
   onRemove: (id: string) => void;
 }) {
   const { t } = useTranslation(['starters', 'common']);
+  const sexes = useSexes();
   const [isReading, setIsReading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -42,7 +44,7 @@ export function ImportFiles({
     setIsReading(true);
     const added: ImportFile[] = [];
     for (const file of chosen) {
-      const result = await readStarterFile(file);
+      const result = await readStarterFile(file, sexes.length === 1 ? sexes[0] : undefined);
       added.push({
         id: crypto.randomUUID(),
         name: file.name,

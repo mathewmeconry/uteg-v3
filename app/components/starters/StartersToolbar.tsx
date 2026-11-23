@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { Input } from '~/components/ui/input';
+import { useSexes } from '~/hooks/useSexes';
 import type { EgtApparatus } from '~/modules/egt/module';
 import { MultiSelectFilter } from './MultiSelectFilter';
 import { NativeSelect } from './NativeSelect';
@@ -49,6 +50,7 @@ export function StartersToolbar({
   onColumns: (columns: Column[]) => void;
 }) {
   const { t } = useTranslation(['starters', 'common']);
+  const sexes = useSexes();
   const withoutDivision = rows.filter(({ divisionId }) => !divisionId).length;
   const isWithoutDivision = filters.division.length === 1 && filters.division[0] === '';
   const isFiltered = search !== '' || FILTERS.some((key) => filters[key].length > 0);
@@ -124,7 +126,7 @@ export function StartersToolbar({
               {t('withoutDivision', { count: withoutDivision })}
             </Button>
           )}
-          {FILTERS.map((key) => (
+          {FILTERS.filter((key) => key !== 'sex' || sexes.length > 1).map((key) => (
             <MultiSelectFilter
               key={key}
               label={columnLabel(t, key)}

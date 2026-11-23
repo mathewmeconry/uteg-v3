@@ -27,6 +27,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       startDate: competition.startDate,
       endDate: competition.endDate,
       grounds: competition.grounds,
+      sexes: competition.sexes,
       logoId: competition.logoId,
     },
     // To switch to another one.

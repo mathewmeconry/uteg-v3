@@ -6,6 +6,7 @@ import { DomainError } from './errors';
 import { publish } from './events.server';
 import { lockCompetition } from './locks.server';
 import { prisma } from './prisma.server';
+import { SEXES } from '~/modules/types';
 
 const detailsSchema = z
   .object({
@@ -14,6 +15,7 @@ const detailsSchema = z
     startDate: z.date(),
     endDate: z.date(),
     grounds: z.number().int().min(1).max(20),
+    sexes: z.array(z.enum(SEXES)).min(1).optional(),
   })
   .refine(({ startDate, endDate }) => startDate <= endDate);
 
@@ -95,6 +97,13 @@ export async function updateCompetition(competitionId: string, input: Competitio
       where: { ...removedGround, competitionId, kind: 'DISPLAY' },
     });
     if (divisions + displays > 0) throw new DomainError('GROUND_IN_USE');
+    if (details.sexes) {
+      const sex = { notIn: details.sexes };
+      const others =
+        (await tx.starter.count({ where: { competitionId, deletedAt: null, sex } })) +
+        (await tx.division.count({ where: { contest: { competitionId }, sex } }));
+      if (others > 0) throw new DomainError('SEX_IN_USE');
+    }
 
     // Judge links exist for every ground as soon as the page is opened, they cannot block this.
     await tx.accessLink.deleteMany({ where: { ...removedGround, competitionId } });

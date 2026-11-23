@@ -51,6 +51,7 @@ export async function createDivision(
   const division = await prisma.$transaction(async (tx) => {
     const competition = await lockCompetition(tx, competitionId);
     assertGround(ground, competition.grounds);
+    if (!competition.sexes.includes(sex)) throw new DomainError('SEX_NOT_ALLOWED');
     const { module } = await getContest(competitionId, contestId, tx);
     if (!module.categories(sex).includes(category)) throw new DomainError('INVALID_CATEGORY');
 

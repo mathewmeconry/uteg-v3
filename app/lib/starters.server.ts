@@ -220,6 +220,7 @@ export async function updateStarter(
     }
     await lockDivisions(tx, competitionId);
     if (clubId !== undefined) await assertClub(tx, clubId);
+    if (person.sex !== undefined) await assertSex(tx, competitionId, person.sex);
 
     const after = { ...before, ...withoutUndefined(person) };
     const athlete = changesStvId ? await changeStvId(tx, after, stvId) : before.athlete;
@@ -374,6 +375,11 @@ async function assertClub(tx: Prisma.TransactionClient, clubId: string) {
   if (!club) throw new DomainError('NOT_FOUND');
 }
 
+async function assertSex(tx: Prisma.TransactionClient, competitionId: string, sex: Sex) {
+  const { sexes } = await tx.competition.findUniqueOrThrow({ where: { id: competitionId } });
+  if (!sexes.includes(sex)) throw new DomainError('SEX_NOT_ALLOWED');
+}
+
 async function assertNotStarting(
   tx: Prisma.TransactionClient,
   competitionId: string,
@@ -394,6 +400,7 @@ async function addStarter(
   changesClub: (starterId: string) => boolean,
 ): Promise<Added> {
   const { stvId, ...person } = parse(starterSchema, input);
+  await assertSex(tx, competitionId, person.sex);
   await assertClub(tx, clubId);
   const athlete = await resolveAthlete(tx, competitionId, { athleteId, stvId, ...person });
 

@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '~/components/ui/dialog';
 import { Label } from '~/components/ui/label';
+import { useSexes } from '~/hooks/useSexes';
 import type { ContestOptions } from '~/lib/contestOptions.server';
 import type { Sex } from '~/modules/types';
 import type { clientAction } from '~/routes/secured/competition/starters';
@@ -57,10 +58,11 @@ export function StarterDialog({
   const { t } = useTranslation(['starters', 'common']);
   const fetcher = useFetcher<typeof clientAction>();
   const returnFocus = useReturnFocus();
+  const sexes = useSexes();
   const [person, setPerson] = useState<Person>(
     starter
       ? { ...starter, stvId: starter.stvId ?? '', birthYear: `${starter.birthYear}` }
-      : NEW_PERSON,
+      : { ...NEW_PERSON, sex: sexes.length > 1 ? '' : sexes[0] },
   );
   const [club, setClub] = useState<ClubOption | null>(starter?.club ?? null);
   const [linked, setLinked] = useState<AthleteSuggestion | null>(null);
@@ -198,27 +200,32 @@ export function StarterDialog({
                 error={errors?.birthYear}
                 hint={difference('birthYear') ?? (starter ? undefined : t('form.birthYearHint'))}
               />
-              <FormField
-                label={t('common:fields.sex')}
-                error={errors?.sex}
-                hint={difference('sex')}
-              >
-                {(props) => (
-                  <NativeSelect
-                    {...props}
-                    name="sex"
-                    required
-                    value={person.sex}
-                    onChange={(event) => change('sex', event.target.value)}
-                  >
-                    <option value="" disabled>
-                      {t('choose')}
-                    </option>
-                    <option value="FEMALE">{t('common:sex.FEMALE')}</option>
-                    <option value="MALE">{t('common:sex.MALE')}</option>
-                  </NativeSelect>
-                )}
-              </FormField>
+              {/* The sex of a suggested person may be one that does not take part. */}
+              {sexes.length === 1 && person.sex === sexes[0] ? (
+                <input type="hidden" name="sex" value={person.sex} />
+              ) : (
+                <FormField
+                  label={t('common:fields.sex')}
+                  error={errors?.sex}
+                  hint={difference('sex')}
+                >
+                  {(props) => (
+                    <NativeSelect
+                      {...props}
+                      name="sex"
+                      required
+                      value={person.sex}
+                      onChange={(event) => change('sex', event.target.value)}
+                    >
+                      <option value="" disabled>
+                        {t('choose')}
+                      </option>
+                      <option value="FEMALE">{t('common:sex.FEMALE')}</option>
+                      <option value="MALE">{t('common:sex.MALE')}</option>
+                    </NativeSelect>
+                  )}
+                </FormField>
+              )}
             </Columns>
             {linked && (
               <p

@@ -52,19 +52,24 @@ export function parseSheets(sheets: readonly SheetCell[][][]): ImportedStarter[]
   return sheets.flatMap((rows) => parseSheet(rows) ?? []);
 }
 
-/** The starters of a sheet, null when its header row is not one of a starter list. */
-export function parseSheet(rows: readonly SheetCell[][]): ImportedStarter[] | null {
+/**
+ * The starters of a sheet, null when its header row is not one of a starter list. With `onlySex`
+ * the sex may be missing.
+ */
+export function parseSheet(rows: readonly SheetCell[][], onlySex?: Sex): ImportedStarter[] | null {
   const [header, ...data] = rows
     .map((row) => Array.from(row, cellText))
     .filter((row) => row.some((text) => text !== ''));
   if (!header) return null;
 
   const columns = getColumns(header);
-  if (REQUIRED_FIELDS.some((field) => columns[field] === undefined)) return null;
+  const isMissing = (field: Field) =>
+    columns[field] === undefined && !(field === 'sex' && onlySex !== undefined);
+  if (REQUIRED_FIELDS.some(isMissing)) return null;
 
   return data.map((row) => {
     const get = (field: Field) => row[columns[field] ?? -1] ?? '';
-    const sex = SEXES[get('sex').toLowerCase()];
+    const sex = get('sex') === '' ? onlySex : SEXES[get('sex').toLowerCase()];
     return {
       stvId: get('stvId') || null,
       firstname: capitalize(get('firstname')),

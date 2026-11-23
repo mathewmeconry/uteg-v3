@@ -92,7 +92,8 @@ export async function getDisplayState(competitionId: string, ground: number, now
     round: divisions.length ? Math.min(...divisions.map(lastRound)) : 0,
     /** Null while divisions run or nothing is shown. */
     hidesInMs: ended.length ? hidesAt - now.getTime() : null,
-    apparatus: (await getApparatusOrder(competitionId))
+    // In the order of the divisions, women and men have another one.
+    apparatus: [...new Set(divisions.flatMap(({ apparatus }) => apparatus))]
       .map((key) => toApparatusState(divisions, key))
       .filter(({ status }) => status !== 'WAITING'),
   };
@@ -112,8 +113,7 @@ export async function getGradingState(
       ? { id: { in: filter.divisionIds } }
       : { ground: filter.ground, state: 'RUNNING' },
   );
-  const order = await getApparatusOrder(competitionId);
-  const keys = order.filter((key) => divisions.some(({ apparatus }) => apparatus.includes(key)));
+  const keys = [...new Set(divisions.flatMap(({ apparatus }) => apparatus))];
 
   return {
     divisions: divisions.map(toSummary),
@@ -454,8 +454,9 @@ async function getApparatusOrder(competitionId: string) {
   const contests = await prisma.contest.findMany({
     where: { competitionId },
     orderBy: { position: 'asc' },
+    include: { competition: { select: { sexes: true } } },
   });
-  return getContestsApparatus(contests);
+  return getContestsApparatus(contests, contests[0]?.competition.sexes ?? []);
 }
 
 /** Returns how the grade of the entry is entered, if it may be graded at all. */

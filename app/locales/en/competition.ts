@@ -9,6 +9,10 @@ export default {
   fields: {
     startDate: 'First day',
     endDate: 'Last day',
+    sexes: 'Who takes part',
+    sexesBoth: 'Women and men',
+    sexesFEMALE: 'Only women',
+    sexesMALE: 'Only men',
     grounds: 'Number of grounds',
     groundsHint: 'Every ground has its own apparatus and its own judge links.',
     logo: 'Logo',

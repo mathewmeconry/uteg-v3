@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DateField } from '~/components/DateField';
 import { FormField } from '~/components/FormField';
+import { RadioChips } from '~/components/RadioChips';
+import { FieldError } from '~/components/ui/field';
+import { SEXES } from '~/modules/types';
 
 type Errors = Record<string, string | undefined>;
 
@@ -86,6 +89,37 @@ export function GroundsField({
       className="max-w-32"
       required
     />
+  );
+}
+
+const SEX_CHOICES = ['BOTH', ...SEXES] as const;
+export type Sexes = (typeof SEX_CHOICES)[number];
+
+/** Who takes part. */
+export function SexesField({
+  error,
+  value,
+  onChange,
+}: {
+  error?: string;
+  value: Sexes;
+  onChange: (value: Sexes) => void;
+}) {
+  const { t } = useTranslation('competition');
+  return (
+    <div className="grid gap-2">
+      <RadioChips
+        legend={t('fields.sexes')}
+        name="sexes"
+        value={value}
+        options={SEX_CHOICES.map((choice) => ({
+          value: choice,
+          label: t(choice === 'BOTH' ? 'fields.sexesBoth' : `fields.sexes${choice}`),
+        }))}
+        onChange={onChange}
+      />
+      {error && <FieldError>{error}</FieldError>}
+    </div>
   );
 }
 

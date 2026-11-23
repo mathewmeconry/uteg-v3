@@ -31,6 +31,7 @@ import {
 } from '~/components/ui/select';
 import type { Sex } from '~/generated/prisma/enums';
 import type { useActionFetcher } from '~/hooks/useActionFetcher';
+import { useSexes } from '~/hooks/useSexes';
 import { getStartWarnings, type Division } from './divisionList';
 import { useDivisionName } from './useDivisionName';
 
@@ -327,16 +328,15 @@ export function GroundDialog({
   );
 }
 
-const SEXES: Sex[] = ['FEMALE', 'MALE'];
-
 export function CreateDialog({
   categories,
   grounds,
   ...dialog
 }: DialogProps & { categories: Record<Sex, readonly string[]>; grounds: number }) {
   const { t } = useTranslation(['divisions', 'common']);
-  const [sex, setSex] = useState<Sex>('FEMALE');
-  const [chosen, setCategory] = useState(categories.FEMALE[0]);
+  const sexes = useSexes();
+  const [sex, setSex] = useState<Sex>(sexes[0]);
+  const [chosen, setCategory] = useState(categories[sexes[0]][0]);
   // KD and KH exist for one sex only.
   const category = categories[sex].includes(chosen) ? chosen : categories[sex][0];
 
@@ -348,13 +348,17 @@ export function CreateDialog({
       submitLabel={t('common:actions.create')}
       {...dialog}
     >
-      <RadioChips
-        legend={t('common:fields.sex')}
-        name="sex"
-        value={sex}
-        options={SEXES.map((value) => ({ value, label: t(`common:sex.${value}`) }))}
-        onChange={setSex}
-      />
+      {sexes.length > 1 ? (
+        <RadioChips
+          legend={t('common:fields.sex')}
+          name="sex"
+          value={sex}
+          options={sexes.map((value) => ({ value, label: t(`common:sex.${value}`) }))}
+          onChange={setSex}
+        />
+      ) : (
+        <input type="hidden" name="sex" value={sex} />
+      )}
       <RadioChips
         legend={t('common:fields.category')}
         name="category"

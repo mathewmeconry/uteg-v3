@@ -3,9 +3,8 @@ import { Checkbox } from '~/components/ui/checkbox';
 import { Label } from '~/components/ui/label';
 import type { Sex } from '~/generated/prisma/enums';
 import { useActionFetcher } from '~/hooks/useActionFetcher';
+import { useSexes } from '~/hooks/useSexes';
 import { Section } from './TemplateFields';
-
-const SEXES = ['FEMALE', 'MALE'] as const;
 
 type Assignment = { sex: Sex; category: string };
 type Template = { id: string; name: string; assignments: Assignment[] };
@@ -21,11 +20,12 @@ export function AssignmentSection({
   categories: Record<Sex, string[]>;
 }) {
   const { t } = useTranslation('pdf');
+  const sexes = useSexes();
   return (
     <Section title={t('assignments.title')}>
       <p className="text-sm text-muted-foreground">{t('assignments.hint')}</p>
       <div className="grid grid-cols-1 gap-4">
-        {SEXES.map((sex) => (
+        {sexes.map((sex) => (
           <div key={sex} role="group" aria-label={t(`sex.${sex}`)} className="min-w-0">
             <p aria-hidden className="mb-2 text-sm font-semibold">
               {t(`sex.${sex}`)}
