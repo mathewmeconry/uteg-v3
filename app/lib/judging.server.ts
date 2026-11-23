@@ -12,7 +12,7 @@ import {
 } from './domain/rotation';
 import { DomainError, type MissingGrade } from './errors';
 import { publish } from './events.server';
-import { lockDivisions } from './locks.server';
+import { lockContestConfigs, lockDivisions } from './locks.server';
 import { prisma } from './prisma.server';
 
 export type GradeInput = {
@@ -122,6 +122,7 @@ export async function saveGrades(
         : 1,
   );
   const saved = await prisma.$transaction(async (tx) => {
+    await lockContestConfigs(tx, competitionId);
     const entries = await lockGradedEntries(
       tx,
       competitionId,
