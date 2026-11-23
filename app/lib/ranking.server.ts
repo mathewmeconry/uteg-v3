@@ -6,6 +6,23 @@ import { prisma } from './prisma.server';
 
 export type RankingResult = Awaited<ReturnType<typeof getRanking>>;
 
+/** The categories that have started divisions, in the order of the module. */
+export async function listRankingGroups(competitionId: string, contestId: string) {
+  const { module } = await getContest(competitionId, contestId);
+  const divisions = await prisma.division.groupBy({
+    by: ['sex', 'category', 'state'],
+    where: { contestId, state: { not: 'PENDING' } },
+  });
+  return (['FEMALE', 'MALE'] as const).flatMap((sex) =>
+    module.categories(sex).flatMap((category) => {
+      const states = divisions
+        .filter((division) => division.sex === sex && division.category === category)
+        .map(({ state }) => state);
+      return states.length ? [{ sex, category, hasEnded: states.includes('ENDED') }] : [];
+    }),
+  );
+}
+
 /** The ranking of the ended divisions, `provisional` adds the running ones. */
 export async function getRanking(
   competitionId: string,

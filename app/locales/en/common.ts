@@ -149,6 +149,7 @@ export default {
     FORBIDDEN: 'You are not allowed to do this.',
     GRADES_MISSING: 'Some grades are missing.',
     GROUND_IN_USE: 'The ground is still in use.',
+    IMAGE_TOO_LARGE: 'The image may be at most 4000 × 4000 pixels.',
     INVALID_APPARATUS: 'Invalid apparatus.',
     INVALID_CATEGORY: 'Invalid category.',
     INVALID_CONFIG: 'Invalid settings.',
