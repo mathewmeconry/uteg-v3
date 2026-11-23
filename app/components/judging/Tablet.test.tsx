@@ -364,6 +364,18 @@ describe('a lost connection', () => {
     expect(heading()).toBe('Bea Frei');
   });
 
+  it('shows all attempts in the review, also a 0', async () => {
+    const saved = { version: 1, value: 4500, attempts: [9000, 0], updatedAt: new Date(0) };
+    setup(
+      createData([
+        createSlot('Anna', { grade: saved, inputRule: { attempts: 2, aggregation: 'AVG' } }),
+      ]),
+    );
+    if (heading() !== 'Kontrolle') await click('Kontrolle');
+    expect(screen.getByText('9.00 / 0.00')).toBeVisible();
+    expect(screen.getAllByText('4.50').length).toBeGreaterThan(0);
+  });
+
   it('shows what is not sent yet in the review', async () => {
     send.mockImplementation(unreachable);
     setup(createData([createSlot('Anna'), createSlot('Bea')]));

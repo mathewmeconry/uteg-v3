@@ -25,8 +25,13 @@ function ReviewGrade({ state }: { state: ReturnType<GradeDrafts['get']> }) {
   const grade = state.isDirty && !state.isConflict ? state.evaluated.grade : state.saved;
   if (!grade) return <Badge variant="destructive">{t('review.missing')}</Badge>;
   return (
-    <span className={cn('figure text-3xl', state.isDirty && 'text-destructive')}>
-      {formatEntered(grade.value)}
+    <span className={cn('grid text-right', state.isDirty && 'text-destructive')}>
+      <span className="figure text-3xl">{formatEntered(grade.value)}</span>
+      {grade.attempts.length > 0 && (
+        <span className="text-muted-foreground tabular-nums">
+          {grade.attempts.map(formatEntered).join(' / ')}
+        </span>
+      )}
     </span>
   );
 }
