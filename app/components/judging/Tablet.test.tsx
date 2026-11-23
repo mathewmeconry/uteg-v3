@@ -77,7 +77,11 @@ function setup(initial: TabletData) {
   function Page() {
     const [data, setData] = useState(initial);
     useEffect(() => void capture(setData), []);
-    return <Tablet linkId={LINK} url={URL} data={data} status="open" />;
+    return (
+      <main id="content">
+        <Tablet linkId={LINK} url={URL} data={data} status="open" />
+      </main>
+    );
   }
 
   const Stub = createRoutesStub([{ path: '/', Component: Page }]);
@@ -223,6 +227,40 @@ describe('one starter at a time', () => {
     expect(heading()).toBe('Anna Frei');
     expect(screen.getByText('Dieser Durchgang ist schon bestätigt.')).toBeVisible();
     expect(input()).toBe(field);
+  });
+
+  it('does not rewrite a value on the way to another one', async () => {
+    const anna = createSlot('Anna', { grade: grade(9000) });
+    setup(createData([anna, createSlot('Bea')]));
+    fireEvent.click(screen.getAllByRole('button', { name: /Anna Frei/ })[0]);
+    type('9');
+    expect(input()).toHaveValue('9');
+    show(createData([anna, createSlot('Bea')]));
+    expect(input()).toHaveValue('9');
+    // The same grade needs no saving.
+    await click('Weiter');
+    expect(heading()).toBe('Bea Frei');
+    expect(bodies()).toEqual([]);
+  });
+
+  it('takes the focus with the starter that follows a save of a confirmed round', async () => {
+    const before = createData([createSlot('Anna')]);
+    before.rounds[1].slots = [createSlot('Bea')];
+    setup(before);
+    type('9.2');
+    show({ ...before, currentRound: 1 });
+    await click('Speichern');
+    expect(heading()).toBe('Bea Frei');
+    expect(input()).toHaveFocus();
+  });
+
+  it('puts the focus into the grade of a starter picked from all rounds', async () => {
+    setup(createData([createSlot('Anna'), createSlot('Bea')]));
+    await click('Alle Durchgänge');
+    fireEvent.click(screen.getByRole('button', { name: /Bea Frei/ }));
+    await act(() => vi.advanceTimersByTimeAsync(1_000));
+    expect(heading()).toBe('Bea Frei');
+    expect(input()).toHaveFocus();
   });
 
   it('does not take the focus when another starter is shown by itself', () => {

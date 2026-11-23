@@ -65,6 +65,9 @@ export function StarterForm({
     };
   }, []);
 
+  const { leave } = drafts;
+  useEffect(() => () => leave(key), [leave, key]);
+
   function moveOn() {
     onMove(fromReview ? 'review' : (next?.entryId ?? 'review'));
   }

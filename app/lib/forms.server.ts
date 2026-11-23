@@ -19,13 +19,13 @@ export async function readForm(request: Request, { allowFiles = false } = {}) {
 }
 
 /** The first message per field, keyed by its path joined with dots. */
-export function fieldErrors(error: z.ZodError): FieldErrors {
+function fieldErrors(error: z.ZodError): FieldErrors {
   const errors: FieldErrors = {};
   for (const issue of error.issues) errors[issue.path.join('.')] ??= issue.message;
   return errors;
 }
 
-/** Validates a form whose fields appear once. Use schema.safeParse and fieldErrors for lists. */
+/** Validates a form whose fields appear once. Use schema.safeParse for lists. */
 export function parseForm<Schema extends z.ZodType>(
   formData: FormData,
   schema: Schema,

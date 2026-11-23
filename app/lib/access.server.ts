@@ -112,7 +112,8 @@ export async function logIn(request: Request, linkId: string, kind: AccessKind) 
   if (!cookie) throw new Response(null, { status: 403, headers: { [WRONG_KEY_HEADER]: '1' } });
 
   const headers = new Headers({ 'Set-Cookie': cookie });
-  // Too many would exceed the header size that servers accept. Browsers send the oldest first.
+  // Too many would exceed the header size that servers accept. Browsers send the ones that were
+  // created first at the beginning. Logging in again does not make a cookie newer.
   const others = getCookieLinkIds(request).filter((id) => id !== linkId);
   for (const id of others.slice(0, -(MAX_COOKIES - 1))) {
     headers.append('Set-Cookie', await accessCookie(id).serialize('', { maxAge: 0 }));

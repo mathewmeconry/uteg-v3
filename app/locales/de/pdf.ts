@@ -148,19 +148,17 @@ export default {
       'Du siehst die erste Person des Durchgangs. Gib die Note ein und tippe auf «{{next}}»: Die Note wird gespeichert und die nächste Person erscheint.',
     grading2: 'Mit «{{back}}» kannst du frühere Noten des Durchgangs korrigieren.',
     grading3:
-      'Werden mehrere Versuche gewertet (Sprung), gib jeden Versuch ein. Die Endnote wird berechnet. Auch 0 ist eine Note.',
+      'Werden mehrere Versuche gewertet (Sprung), gib jeden Versuch mit höchstens zwei Nachkommastellen ein. Die Endnote wird berechnet, du kannst sie auch direkt eingeben. Auch 0 ist eine Note.',
     grading4:
-      'Am Ende des Durchgangs siehst du alle Noten. Prüfe sie und bestätige den Durchgang. Danach erscheint die Liste des nächsten Durchgangs.',
-    pause: 'Pause',
+      'Nach der letzten Person tippst du auf «{{review}}» und siehst alle Noten. Tippe auf eine Person, um ihre Note zu ändern. Stimmt alles, tippe auf «{{confirm}}». Danach erscheint die Liste des nächsten Durchgangs.',
     pause1:
-      'Ist in einem Durchgang niemand an deinem Gerät, bestätige die Pause, damit es weitergehen kann.',
-    overview: 'Alle Durchgänge',
+      'Ist in einem Durchgang niemand an deinem Gerät, tippe auf «{{confirm}}», damit es weitergehen kann.',
     overview1:
-      'In der Übersicht siehst du die Listen aller Durchgänge an deinem Gerät und wer gerade an der Reihe ist.',
+      'Mit diesem Knopf siehst du, wer in welchem Durchgang an deinem Gerät startet, und kannst auch eine Note eines bestätigten Durchgangs korrigieren.',
     changes: 'Änderungen',
     changes1:
       'Kommt jemand dazu oder wird jemand abgemeldet, erscheint ein Hinweis. Abgemeldete bleiben durchgestrichen in der Liste und brauchen keine Note.',
     changes2:
-      'Bei einem Unterbruch der Verbindung bleibt deine Eingabe erhalten. Lade die Seite einfach neu.',
+      'Bei einem Unterbruch der Verbindung bleibt deine Eingabe auf dem Gerät gesichert und wird automatisch gesendet, sobald die Verbindung zurück ist. Mit «{{continue}}» kannst du weiterwerten. Lade die Seite ohne Verbindung nicht neu.',
   },
 };

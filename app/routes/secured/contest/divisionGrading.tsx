@@ -4,6 +4,7 @@ import { data } from 'react-router';
 import type { Route } from './+types/divisionGrading';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
 import { DivisionStateBadge } from '~/components/DivisionStateBadge';
+import { GradingSaveStatus } from '~/components/grading/GradingSaveStatus';
 import { GradingTable } from '~/components/grading/GradingTable';
 import { useGradeDrafts } from '~/components/grading/useGradeDrafts';
 import { PageHeader } from '~/components/PageHeader';
@@ -76,12 +77,16 @@ export default function DivisionGrading({ loaderData }: Route.ComponentProps) {
         description={t('grading.divisionText')}
         actions={
           <>
+            <GradingSaveStatus drafts={drafts} />
             <DivisionStateBadge state={division.state} />
             <ConnectionBadge status={status} />
           </>
         }
       />
       <div className="grid gap-6">
+        {canEdit && (
+          <p className="text-sm text-muted-foreground pointer-coarse:hidden">{t('grading.keys')}</p>
+        )}
         {apparatus.map(({ apparatus: key, rounds }) => (
           <GradingTable
             key={`${division.id}-${key}`}

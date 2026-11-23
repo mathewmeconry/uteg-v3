@@ -18,7 +18,7 @@ const inputRuleSchema = z
   // No grade could be saved with several attempts that are not combined.
   .refine(({ attempts, aggregation }) => attempts === 1 || aggregation !== 'NONE');
 
-export const egtConfigSchema = z.object({
+const egtConfigSchema = z.object({
   /** Auszeichnung in percent, keyed by sex and category. */
   honourPercent: z.object({
     FEMALE: z.record(z.string(), z.number().min(0).max(100)),

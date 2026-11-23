@@ -50,6 +50,10 @@ export default {
     groupAccess: 'Zugänge',
     groupAdmin: 'Verwaltung',
   },
+  saveStatus: {
+    error: 'Nicht gespeichert',
+    retry: 'Nochmals versuchen',
+  },
   fields: {
     birthYear: 'Jahrgang',
     category: 'Kategorie',

@@ -1,4 +1,4 @@
-export type DivisionState = 'PENDING' | 'RUNNING' | 'ENDED';
+type DivisionState = 'PENDING' | 'RUNNING' | 'ENDED';
 
 type RotationEntry = { withdrawnAt: Date | null };
 

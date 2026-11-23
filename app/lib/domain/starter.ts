@@ -31,7 +31,7 @@ export const starterUpdateSchema = starterSchema.partial().extend({
     .optional(),
 });
 
-export const PERSON_FIELDS = ['firstname', 'lastname', 'birthYear', 'sex'] as const;
+const PERSON_FIELDS = ['firstname', 'lastname', 'birthYear', 'sex'] as const;
 export type Person = Pick<StarterData, (typeof PERSON_FIELDS)[number]>;
 
 export function isSamePerson(a: Person, b: Person) {
