@@ -14,11 +14,16 @@ export function getLogo(competitionId: string) {
   return prisma.asset.findFirst({ where: { competitionId, logoOf: { id: competitionId } } });
 }
 
-export async function setLogo(competitionId: string, data: Uint8Array<ArrayBuffer>) {
+/** Throws unless the image can be a logo. Returns its type. */
+export function checkLogo(data: Uint8Array) {
   if (data.byteLength > MAX_LOGO_BYTES) throw new DomainError('FILE_TOO_LARGE');
   const mimeType = detectMimeType(data);
   if (!mimeType) throw new DomainError('INVALID_IMAGE');
+  return mimeType;
+}
 
+export async function setLogo(competitionId: string, data: Uint8Array<ArrayBuffer>) {
+  const mimeType = checkLogo(data);
   const asset = await prisma.$transaction(async (tx) => {
     await lockCompetition(tx, competitionId);
     await tx.asset.deleteMany({ where: { logoOf: { id: competitionId } } });

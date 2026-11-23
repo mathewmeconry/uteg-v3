@@ -9,8 +9,14 @@ import {
   errorCode,
   truncateTables,
 } from '~/tests/helpers';
-import { createContestFromRanking, getContest, updateContestConfig } from './contests.server';
+import {
+  countAttemptGrades,
+  createContestFromRanking,
+  getContest,
+  updateContestConfig,
+} from './contests.server';
 import { createDivision as createDivisionService, startDivisions } from './divisions.server';
+import { subscribe } from './events.server';
 import { confirmRound, getJudgingState, saveGrades } from './judging.server';
 import { moveEntriesToLineup } from './lineups.server';
 import { prisma } from './prisma.server';
@@ -40,7 +46,111 @@ describe('getContest and updateContestConfig', () => {
     const update = updateContestConfig(id, contest.id, egtModule.defaultConfig);
     expect(await errorCode(update)).toBe('NOT_FOUND');
   });
+
+  it('rejects several attempts that are not combined', async () => {
+    const { id, contest } = await createCompetition();
+    const config = withVault({ K5: { attempts: 2, aggregation: 'NONE' } });
+    expect(await errorCode(updateContestConfig(id, contest.id, config))).toBe('INVALID_CONFIG');
+  });
 });
+
+describe('changed vault rules', () => {
+  async function setup(category = 'K5') {
+    const competition = await createCompetition();
+    const { entry } = await createStarter(competition.id, { category });
+    return { ...competition, entry };
+  }
+
+  function addVault(entryId: string, value: number, attempts: number[]) {
+    return prisma.grade.create({ data: { entryId, apparatus: 'sprung', value, attempts } });
+  }
+
+  async function vaultOf(entryId: string) {
+    return prisma.grade.findFirstOrThrow({
+      where: { entryId, apparatus: 'sprung' },
+      select: { value: true, attempts: true },
+    });
+  }
+
+  const AVERAGE = withVault({ K5: { attempts: 2, aggregation: 'AVG' } });
+
+  it('recompute the stored grades of the category', async () => {
+    const { id, contest, entry } = await setup();
+    const { id: gradeId, updatedAt } = await addVault(entry.id, 9000, [8000, 9000]);
+    expect(await updateContestConfig(id, contest.id, AVERAGE)).toEqual({ recomputed: 1 });
+    expect(await vaultOf(entry.id)).toEqual({ value: 8500, attempts: [8000, 9000] });
+    // It must not look like the latest grade.
+    expect(await prisma.grade.findUnique({ where: { id: gradeId } })).toMatchObject({ updatedAt });
+  });
+
+  it('use the category of the division when the entry has none', async () => {
+    const { id, contest, entry } = await setup();
+    const division = await createDivision(contest.id, { category: 'K5' });
+    await prisma.entry.update({
+      where: { id: entry.id },
+      data: { category: null, divisionId: division.id },
+    });
+    await addVault(entry.id, 9000, [8000, 9000]);
+    expect(await updateContestConfig(id, contest.id, AVERAGE)).toEqual({ recomputed: 1 });
+  });
+
+  it('leave other categories, directly entered grades and other numbers of attempts', async () => {
+    const { id, contest, entry } = await setup();
+    const { entry: k4 } = await createStarter(id, { category: 'K4' });
+    const { entry: direct } = await createStarter(id, { grades: { sprung: 9100 } });
+    await addVault(k4.id, 9000, [8000, 9000]);
+    await addVault(entry.id, 9000, [8000, 8500, 9000]);
+    expect(await updateContestConfig(id, contest.id, AVERAGE)).toEqual({ recomputed: 0 });
+    expect((await vaultOf(k4.id)).value).toBe(9000);
+    expect((await vaultOf(entry.id)).value).toBe(9000);
+    expect((await vaultOf(direct.id)).value).toBe(9100);
+  });
+
+  it('recompute grades that were kept when the number of attempts comes back', async () => {
+    const { id, contest, entry } = await setup();
+    await addVault(entry.id, 9000, [8000, 9000]);
+    const three = withVault({ K5: { attempts: 3, aggregation: 'AVG' } });
+    expect(await updateContestConfig(id, contest.id, three)).toEqual({ recomputed: 0 });
+    expect(await updateContestConfig(id, contest.id, AVERAGE)).toEqual({ recomputed: 1 });
+    expect((await vaultOf(entry.id)).value).toBe(8500);
+  });
+
+  it('leave grades of other contests', async () => {
+    const { id, contest } = await setup();
+    const other = await setup();
+    await addVault(other.entry.id, 9000, [8000, 9000]);
+    expect(await updateContestConfig(id, contest.id, AVERAGE)).toEqual({ recomputed: 0 });
+    expect((await vaultOf(other.entry.id)).value).toBe(9000);
+  });
+
+  it('are announced to the viewers of grades', async () => {
+    const { id, contest, entry } = await setup();
+    await addVault(entry.id, 9000, [8000, 9000]);
+    const listener = vi.fn();
+    const stop = subscribe(id, listener);
+    await updateContestConfig(id, contest.id, AVERAGE);
+    stop();
+    expect(listener.mock.calls.flat()).toEqual(['settings', 'grades']);
+  });
+
+  it('lists how many grades have attempts', async () => {
+    const { id, contest, entry } = await setup();
+    const { entry: second } = await createStarter(id);
+    await createStarter(id, { grades: { sprung: 9000 } });
+    await addVault(entry.id, 9000, [8000, 9000]);
+    await addVault(second.id, 9000, [7000, 9000]);
+    expect(await countAttemptGrades(id, contest.id)).toEqual([
+      { apparatus: 'sprung', category: 'K5', attempts: 2, count: 2 },
+    ]);
+    const other = await createCompetition();
+    expect(await errorCode(countAttemptGrades(other.id, contest.id))).toBe('NOT_FOUND');
+  });
+});
+
+function withVault(categories: Record<string, { attempts: number; aggregation: string }>) {
+  const { inputs } = egtModule.defaultConfig;
+  return { ...egtModule.defaultConfig, inputs: { sprung: { ...inputs.sprung, categories } } };
+}
 
 describe('createContestFromRanking', () => {
   // A final on two apparatus, different from EGT in everything a module decides.
