@@ -13,13 +13,13 @@ Paths in brackets point into `uteg-v2/frontend/src` unless prefixed `BE:` (`uteg
 
 ## Competitions
 
-- [ ] P-10 Home: competitions I am a member of
-- [ ] P-11 Create wizard: general + logo, grounds + modules, module settings (honour %), **members** ("TODO" in v2), review
-- [ ] P-12 Dashboard: starters, clubs, grades, **live results and progress per ground and apparatus**
-- [ ] P-13 Settings: name, location, dates (not saved in v2), grounds, logo upload/delete
-- [ ] P-14 **Contest settings**: honour %, quota rounding, precision, tie-break, vault inputs per category
-- [ ] P-15 **Members**: add by email, role owner/editor/viewer, remove
-- [ ] P-16 **Delete competition**
+- [x] P-10 Home: competitions I am a member of
+- [x] P-11 Create wizard: general + logo, grounds + modules, module settings (honour %), **members** ("TODO" in v2), review
+- [x] P-12 Dashboard: starters, clubs, grades, **live results and progress per ground and apparatus**
+- [x] P-13 Settings: name, location, dates (not saved in v2), grounds, logo upload/delete
+- [x] P-14 **Contest settings**: honour %, quota rounding, precision, tie-break, vault inputs per category
+- [x] P-15 **Members**: add by email, role owner/editor/viewer, remove
+- [x] P-16 **Delete competition**
 
 ## Starters
 
