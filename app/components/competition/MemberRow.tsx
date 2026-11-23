@@ -1,7 +1,6 @@
 import { LogOutIcon, Trash2Icon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useFetcher } from 'react-router';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
 import {
   AlertDialog,
@@ -16,6 +15,7 @@ import {
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import type { Role } from '~/generated/prisma/enums';
+import { useActionFetcher } from '~/hooks/useActionFetcher';
 import { RoleSelect } from './RoleSelect';
 
 export function MemberRow({
@@ -30,13 +30,13 @@ export function MemberRow({
   canManage: boolean;
 }) {
   const { t } = useTranslation(['settings', 'common']);
-  const fetcher = useFetcher();
-  const pendingRole = fetcher.formData?.get('role') as Role | undefined;
+  const { submit, formData } = useActionFetcher();
+  const pendingRole = formData?.get('role') as Role | undefined;
   const roleSelect = useRef<HTMLButtonElement>(null);
   const [ownNewRole, setOwnNewRole] = useState<Role>();
 
   function changeRole(newRole: Role) {
-    void fetcher.submit({ intent: 'role', userId, role: newRole }, { method: 'post' });
+    void submit({ intent: 'role', userId, role: newRole }, { method: 'post' });
   }
 
   return (

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useFetcher } from 'react-router';
+import { SubmitButton } from '~/components/SubmitButton';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -11,11 +11,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '~/components/ui/alert-dialog';
-import { Button } from '~/components/ui/button';
+import { useActionFetcher } from '~/hooks/useActionFetcher';
 
 /**
- * Asks before posting `fields` to `action` (default: the current route). Redirects of the action
- * are followed. An array value is sent as repeated fields.
+ * Asks before posting `fields` to `action` (default: the current route). Closes when it worked,
+ * see useActionFetcher for failures. Redirects of the action are followed. An array value is sent
+ * as repeated fields.
  */
 export function ConfirmDialog({
   trigger,
@@ -35,16 +36,14 @@ export function ConfirmDialog({
   fields?: Record<string, string | string[]>;
 }) {
   const { t } = useTranslation();
-  const fetcher = useFetcher();
   const [open, setOpen] = useState(false);
+  const { Form, pending } = useActionFetcher(() => setOpen(false));
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild disabled={fetcher.state !== 'idle'}>
-        {trigger}
-      </AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
+      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
       <AlertDialogContent>
-        <fetcher.Form method="post" action={action} onSubmit={() => setOpen(false)}>
+        <Form method="post" action={action}>
           <AlertDialogHeader>
             <AlertDialogTitle>{title}</AlertDialogTitle>
             <AlertDialogDescription className={description ? undefined : 'sr-only'}>
@@ -59,12 +58,14 @@ export function ConfirmDialog({
               )),
           )}
           <AlertDialogFooter className="mt-6">
-            <AlertDialogCancel type="button">{t('actions.cancel')}</AlertDialogCancel>
-            <Button type="submit" variant={destructive ? 'destructive' : 'default'}>
+            <AlertDialogCancel type="button" disabled={pending}>
+              {t('actions.cancel')}
+            </AlertDialogCancel>
+            <SubmitButton pending={pending} variant={destructive ? 'destructive' : 'default'}>
               {confirmLabel}
-            </Button>
+            </SubmitButton>
           </AlertDialogFooter>
-        </fetcher.Form>
+        </Form>
       </AlertDialogContent>
     </AlertDialog>
   );

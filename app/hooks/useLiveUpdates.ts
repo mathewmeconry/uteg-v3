@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRevalidator } from 'react-router';
+import { isServerReachable } from '~/lib/reachable';
 
 export type ConnectionStatus = 'connecting' | 'open' | 'lost';
 
@@ -26,14 +27,9 @@ export function useLiveUpdates(url: string): ConnectionStatus {
       debounce = setTimeout(() => void revalidate(), DEBOUNCE_MS);
     }
 
-    // A failing loader would replace the page, and what was typed on it, with the error page.
+    // While offline the next attempt or the reconnect catches up.
     async function refreshIfReachable() {
-      try {
-        const response = await fetch('/healthz', { cache: 'no-store' });
-        if (response.ok && !disposed) refresh();
-      } catch {
-        // Offline. The next attempt or the reconnect catches up.
-      }
+      if ((await isServerReachable()) && !disposed) refresh();
     }
 
     function connect() {

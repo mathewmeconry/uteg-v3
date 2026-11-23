@@ -87,7 +87,7 @@ describe('members', () => {
     for (const form of [{ intent: 'remove' }, { intent: 'role', role: 'EDITOR' }]) {
       const result = await post({ ...form, userId: user.id } as Record<string, string>);
       expect(result.status).toBe(400);
-      expect(result.toasts).toMatchObject([{ type: 'error' }]);
+      expect(result.data).toEqual({ error: expect.stringContaining('Inhaber') });
     }
     expect(await roleOf(competition.id, user.id)).toBe('OWNER');
   });

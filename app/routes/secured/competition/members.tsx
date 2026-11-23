@@ -9,11 +9,13 @@ import { PageHeader } from '~/components/PageHeader';
 import { SubmitButton } from '~/components/SubmitButton';
 import { competitionContext } from '~/context';
 import { Role } from '~/generated/prisma/enums';
+import { useActionErrors } from '~/hooks/useActionFetcher';
 import { useCompetition } from '~/hooks/useCompetition';
 import { getUser } from '~/lib/auth/auth.server';
 import { addMember, changeMemberRole, listMembers, removeMember } from '~/lib/competitions.server';
-import { domainErrorMessage } from '~/lib/domainErrors.server';
+import { actionError, domainErrorMessage } from '~/lib/domainErrors.server';
 import { parseForm } from '~/lib/forms.server';
+import { safeClientAction } from '~/lib/safeClientAction';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
@@ -62,8 +64,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       try {
         await changeMemberRole(id, values.userId, values.role);
       } catch (error) {
-        enqueueToast(context, { type: 'error', message: domainErrorMessage(error, t) });
-        return data(null, 400);
+        return actionError(error, t);
       }
       enqueueToast(context, { type: 'success', message: t('settings:members.roleChanged') });
       return redirect('.');
@@ -74,8 +75,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       try {
         await removeMember(id, userId);
       } catch (error) {
-        enqueueToast(context, { type: 'error', message: domainErrorMessage(error, t) });
-        return data(null, 400);
+        return actionError(error, t);
       }
       const left = userId === getUser(context).id;
       const message = t(left ? 'settings:members.left' : 'settings:members.removed');
@@ -88,13 +88,15 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
+export const clientAction = safeClientAction;
+
 export default function Members({
   loaderData: { members, ownId },
   actionData,
 }: Route.ComponentProps) {
   const { t } = useTranslation(['settings', 'common']);
   const { isOwner } = useCompetition();
-  const errors: Record<string, string | undefined> = actionData?.errors ?? {};
+  const errors = useActionErrors(actionData);
   const owners = members.filter(({ role }) => role === 'OWNER').length;
 
   return (

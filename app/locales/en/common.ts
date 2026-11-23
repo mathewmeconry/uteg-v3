@@ -132,6 +132,8 @@ export default {
     lost: 'No connection',
   },
   errors: {
+    connection:
+      'No connection to the server, or an error. Check whether the change was saved and try again.',
     generic: 'Something went wrong. Please try again.',
     required: 'Please fill in',
     invalid: 'Invalid value',
@@ -153,6 +155,7 @@ export default {
     DIVISION_NOT_ENDED: 'Not all divisions have ended yet.',
     DIVISION_NOT_RUNNING: 'The division is not running.',
     DIVISION_RUNNING: 'This is not possible while the division is running.',
+    ENTRY_NOT_IN_DIVISION: 'This person is no longer in this division.',
     ENTRY_NOT_JUDGEABLE: 'It is not this person’s turn on this apparatus.',
     ENTRY_WITHDRAWN: 'This person was withdrawn.',
     FILE_TOO_LARGE: 'The file is too large.',

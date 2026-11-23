@@ -14,6 +14,7 @@ import { getRanking } from './ranking.server';
 import {
   assignEntries,
   createStarter,
+  findClubConflicts,
   getStarter,
   importStarters,
   listStarters,
@@ -693,6 +694,31 @@ describe('assignEntries', () => {
     });
   });
 
+  it('keeps the lineup unless it is cleared', async () => {
+    const { id, contest } = await createCompetition();
+    const division = await createDivision(contest.id);
+    const lineupId = division.lineup('boden');
+    const { entry } = await createTestStarter(id, { divisionId: division.id, lineupId });
+    const assignment = { entryIds: [entry.id], divisionId: division.id };
+    const find = () => prisma.entry.findUnique({ where: { id: entry.id } });
+    await assignEntries(id, [assignment]);
+    expect(await find()).toMatchObject({ lineupId, position: entry.position });
+    // Someone from another division does not change that.
+    const old = await createDivision(contest.id, { number: 2 });
+    const mover = await createTestStarter(id, {
+      divisionId: old.id,
+      lineupId: old.lineup('boden'),
+    });
+    await assignEntries(id, [{ ...assignment, entryIds: [mover.entry.id, entry.id] }]);
+    expect(await find()).toMatchObject({ lineupId });
+    expect(await prisma.entry.findUnique({ where: { id: mover.entry.id } })).toMatchObject({
+      divisionId: division.id,
+      lineupId: null,
+    });
+    await assignEntries(id, [{ ...assignment, lineupId: null }]);
+    expect(await find()).toMatchObject({ lineupId: null });
+  });
+
   it('assigns all or none', async () => {
     const { id, contest } = await createCompetition();
     const women = await createDivision(contest.id);
@@ -738,7 +764,7 @@ describe('importStarters', () => {
       { firstname: 'Bea', stvId: '5', category: 'K6' },
       { firstname: 'Carla' },
     ]);
-    expect(result).toEqual({ created: 3, restored: 0, existing: 0, failures: [] });
+    expect(result).toMatchObject({ created: 3, restored: 0, existing: 0, failures: [] });
     const starters = await listStarters(id);
     const entry = (firstname: string) =>
       starters.find((starter) => starter.firstname === firstname)!.entries[0];
@@ -767,7 +793,7 @@ describe('importStarters', () => {
       { firstname: 'Eva', sex: undefined },
       { firstname: 'Fay' },
     ]);
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       created: 2,
       restored: 0,
       existing: 0,
@@ -790,8 +816,165 @@ describe('importStarters', () => {
     const bea = (await listStarters(id)).find(({ firstname }) => firstname === 'Bea')!;
     await withdrawStarters(id, [bea.id]);
     const result = await run([{}, { firstname: 'Bea' }, { firstname: 'Bea' }]);
-    expect(result).toEqual({ created: 0, restored: 1, existing: 2, failures: [] });
+    expect(result).toMatchObject({ created: 0, restored: 1, existing: 2, failures: [] });
     expect((await listStarters(id))[0].entries[0]).toMatchObject({ divisionId: division.id });
+  });
+
+  describe('of starters with another club', () => {
+    async function setupClubs() {
+      const competition = await setupImport();
+      const { id, contestId, club, run } = competition;
+      await run([{}, { firstname: 'Bea' }, { firstname: 'Carla' }]);
+      const starters = await listStarters(id);
+      const idOf = (firstname: string) =>
+        starters.find((starter) => starter.firstname === firstname)!.id;
+      await withdrawStarters(id, [idOf('Carla')]);
+      const other = await createClub();
+      const input = {
+        contestId,
+        clubId: other.id,
+        rows: [
+          { ...ANNA, category: 'K6' },
+          { ...ANNA, firstname: 'bea' },
+          { ...ANNA, firstname: 'Carla' },
+          { ...ANNA, firstname: 'Dora' },
+        ],
+      };
+      const clubs = async () =>
+        Object.fromEntries(
+          (await listStarters(id)).map(({ firstname, clubId }) => [
+            firstname,
+            clubId === club.id ? 'old' : clubId === other.id ? 'new' : clubId,
+          ]),
+        );
+      return { ...competition, other, idOf, input, clubs };
+    }
+
+    const change = (starterId: string, fromClubId: string) => ({
+      starterId,
+      fromClubId,
+      change: true,
+    });
+
+    it('keeps the club by default, but not of restored starters', async () => {
+      const { id, input, clubs } = await setupClubs();
+      expect(await importStarters(id, input)).toMatchObject({
+        created: 1,
+        restored: 1,
+        existing: 2,
+        clubsChanged: 0,
+        clubsKept: 2,
+      });
+      expect(await clubs()).toEqual({ Anna: 'old', Bea: 'old', Carla: 'new', Dora: 'new' });
+      expect((await listStarters(id))[0].entries[0]).toMatchObject({ category: 'K6' });
+    });
+
+    it('changes the club of the given starters', async () => {
+      const { id, club, idOf, input, clubs } = await setupClubs();
+      const rows = [...input.rows, ...input.rows];
+      expect(
+        await importStarters(id, { ...input, rows, clubAnswers: [change(idOf('Bea'), club.id)] }),
+      ).toMatchObject({ clubsChanged: 1, clubsKept: 1, clubsOutdated: [] });
+      expect(await clubs()).toEqual({ Anna: 'old', Bea: 'new', Carla: 'new', Dora: 'new' });
+    });
+
+    it('ignores ids of starters that no row matches', async () => {
+      const { id, club, idOf, input } = await setupClubs();
+      const foreign = await (await setup()).add();
+      await importStarters(id, {
+        ...input,
+        rows: [input.rows[1]],
+        clubAnswers: [idOf('Anna'), foreign.starterId, 'unknown'].map((starterId) =>
+          change(starterId, club.id),
+        ),
+      });
+      const all = await prisma.starter.findMany({ where: { clubId: input.clubId } });
+      expect(all).toEqual([]);
+      expect(await getStarter(id, idOf('Anna'))).toMatchObject({ clubId: club.id });
+    });
+
+    it('lists who is affected without changing anything', async () => {
+      const { id, club, idOf, input } = await setupClubs();
+      const snapshot = async () => [await athletes(), await prisma.starter.findMany()];
+      const before = await snapshot();
+      const rows = [...input.rows, { ...ANNA, stvId: '9' }, { firstname: '' }];
+      const person = { lastname: 'Muster', birthYear: 2010 };
+      const current = { id: club.id, name: club.name, location: club.location };
+      expect(await findClubConflicts(id, { ...input, rows })).toEqual([
+        { starterId: idOf('Anna'), firstname: 'Anna', ...person, club: current },
+        { starterId: idOf('Bea'), firstname: 'Bea', ...person, club: current },
+      ]);
+      expect(await snapshot()).toEqual(before);
+    });
+
+    it('finds nobody when the clubs are the same or only start elsewhere', async () => {
+      const { id, club, input } = await setupClubs();
+      expect(await findClubConflicts(id, { ...input, clubId: club.id })).toEqual([]);
+      const other = await createCompetition();
+      expect(await findClubConflicts(other.id, input)).toEqual([]);
+    });
+
+    it('matches like the import', async () => {
+      const { id, input, idOf } = await setupClubs();
+      const [anna] = await athletes();
+      await prisma.athlete.update({ where: { id: anna.id }, data: { stvId: '1' } });
+      const rows = [
+        { ...ANNA, stvId: '1' },
+        { ...ANNA, stvId: '2' },
+        { ...ANNA, firstname: 'Bea', birthYear: 2011 },
+      ];
+      const conflicts = await findClubConflicts(id, { ...input, rows });
+      expect(conflicts.map(({ starterId }) => starterId)).toEqual([idOf('Anna')]);
+      expect(await importStarters(id, { ...input, rows })).toMatchObject({ existing: 1 });
+    });
+
+    it('follows the answer about someone who was removed after the check', async () => {
+      const { id, club, idOf, input, clubs } = await setupClubs();
+      await withdrawStarters(id, [idOf('Anna'), idOf('Bea')]);
+      const keep = { ...change(idOf('Anna'), club.id), change: false };
+      expect(
+        await importStarters(id, {
+          ...input,
+          clubAnswers: [keep, change(idOf('Bea'), club.id)],
+        }),
+      ).toMatchObject({ restored: 3, clubsKept: 1, clubsChanged: 1 });
+      // Restored with the values of the row.
+      expect(await clubs()).toEqual({ Anna: 'old', bea: 'new', Carla: 'new', Dora: 'new' });
+    });
+
+    it('keeps and reports a club that changed after the check', async () => {
+      const { id, club, idOf, input } = await setupClubs();
+      const third = await createClub();
+      await updateStarter(id, idOf('Anna'), { clubId: third.id });
+      await updateStarter(id, idOf('Bea'), { clubId: third.id });
+      await withdrawStarters(id, [idOf('Bea')]);
+      expect(
+        await importStarters(id, {
+          ...input,
+          clubAnswers: [change(idOf('Anna'), club.id), change(idOf('Bea'), club.id)],
+        }),
+      ).toMatchObject({
+        clubsChanged: 0,
+        clubsKept: 2,
+        clubsOutdated: [
+          { firstname: 'Anna', lastname: 'Muster' },
+          { firstname: 'bea', lastname: 'Muster' },
+        ],
+      });
+      expect(await getStarter(id, idOf('Anna'))).toMatchObject({ clubId: third.id });
+      expect(await getStarter(id, idOf('Bea'))).toMatchObject({ clubId: third.id });
+    });
+
+    it('keeps the club of someone who was added after the check', async () => {
+      const { id, club, add, input } = await setupClubs();
+      const conflicts = await findClubConflicts(id, input);
+      const { starterId } = await add({ firstname: 'Dora' });
+      await importStarters(id, {
+        ...input,
+        clubAnswers: conflicts.map((conflict) => change(conflict.starterId, conflict.club.id)),
+      });
+      expect(await getStarter(id, starterId)).toMatchObject({ clubId: club.id });
+    });
   });
 
   it('never changes existing athletes except for a missing STV-ID', async () => {
@@ -849,7 +1032,7 @@ describe('importStarters', () => {
       firstname: i === 270 ? '' : `A${i}`,
       category: 'K5',
     }));
-    expect(await run(rows)).toEqual({
+    expect(await run(rows)).toMatchObject({
       created: 299,
       restored: 0,
       existing: 0,
