@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { createRoutesStub } from 'react-router';
 import { useGradeDrafts, type GradeDrafts } from './useGradeDrafts';
 
@@ -16,8 +16,10 @@ const SLOTS = [SLOT];
 
 let drafts: GradeDrafts;
 const load = vi.fn(() => null);
+const send = vi.fn<typeof fetch>();
+const unreachable = () => Promise.reject(new TypeError('Failed to fetch'));
 
-async function setup(survivesOffline: boolean) {
+async function setup() {
   const capture = (value: GradeDrafts) => {
     drafts = value;
   };
@@ -28,7 +30,6 @@ async function setup(survivesOffline: boolean) {
       slots: SLOTS,
       loadedAt: 0,
       status: 'lost',
-      survivesOffline,
     });
     capture(value);
     return <p>page</p>;
@@ -42,7 +43,7 @@ async function setup(survivesOffline: boolean) {
 
 beforeEach(() => {
   localStorage.clear();
-  vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')));
+  vi.stubGlobal('fetch', send);
 });
 
 afterEach(() => {
@@ -50,17 +51,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('without a connection', () => {
-  it('does not reload a page that an error page would replace', async () => {
-    await setup(false);
+describe('a grade that was not answered', () => {
+  it('does not reload the page without a connection, an error page would replace it', async () => {
+    send.mockImplementation(unreachable);
+    await setup();
     await act(() => drafts.submit(KEY));
     act(() => drafts.discard(KEY));
+    await act(() => Promise.resolve());
     expect(load).not.toHaveBeenCalled();
   });
 
-  it('reloads a page that keeps its data', async () => {
-    await setup(true);
+  it('reloads the page when the server is there, the grade may be saved', async () => {
+    send.mockImplementation((url) => (url === '/healthz' ? fetched() : unreachable()));
+    await setup();
     await act(() => drafts.submit(KEY));
-    expect(load).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
   });
 });
+
+function fetched() {
+  return Promise.resolve(new Response('ok'));
+}

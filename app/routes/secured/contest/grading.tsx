@@ -14,8 +14,10 @@ import { competitionContext } from '~/context';
 import { useApparatusName } from '~/hooks/useApparatusName';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
+import { readForm } from '~/lib/forms.server';
 import { runConfirmRound, runDeleteGrade } from '~/lib/gradingActions.server';
 import { getJudgingState } from '~/lib/judging.server';
+import { safeClientAction } from '~/lib/safeClientAction';
 import { requireRole } from '~/middlewares/competition.server';
 
 export async function loader({ request, context }: Route.LoaderArgs) {
@@ -44,7 +46,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { id } = requireRole(context, 'EDITOR');
-  const formData = await request.formData();
+  const formData = await readForm(request);
   switch (formData.get('intent')) {
     case 'delete':
       return runDeleteGrade(context, id, formData);
@@ -54,6 +56,8 @@ export async function action({ request, context }: Route.ActionArgs) {
       throw data(null, 400);
   }
 }
+
+export const clientAction = safeClientAction;
 
 export default function Grading({ loaderData }: Route.ComponentProps) {
   const { t } = useTranslation(['judging', 'common']);

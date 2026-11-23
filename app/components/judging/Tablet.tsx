@@ -54,7 +54,6 @@ export function Tablet({
     slots: allSlots,
     loadedAt: data.loadedAt,
     status,
-    survivesOffline: true,
   });
 
   const [changes, setChanges] = useState({ data, notices: [] as Notice[], hasEnded: false });

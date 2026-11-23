@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Context } from '~/context';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
-import { domainErrorMessage } from './domainErrors.server';
+import { actionError } from './domainErrors.server';
 import { DomainError } from './errors';
 import { parseForm } from './forms.server';
 import { confirmRound, deleteGrade } from './judging.server';
@@ -45,12 +45,11 @@ export async function runConfirmRound(context: Context, competitionId: string, f
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Errors become a toast, typed grades stay on the page. */
 async function run(context: Context, change: () => Promise<void>) {
   try {
     await change();
+    return null;
   } catch (error) {
-    enqueueToast(context, { type: 'error', message: domainErrorMessage(error, getT(context)) });
+    return actionError(error, getT(context));
   }
-  return null;
 }

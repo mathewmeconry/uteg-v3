@@ -3,6 +3,7 @@ import { useRevalidator } from 'react-router';
 import type { ConnectionStatus } from '~/hooks/useLiveUpdates';
 import { toFields } from '~/lib/domain/gradeInput';
 import { sendGradeRequest, type GradeResult, type SavedGrade } from '~/lib/gradeRequests';
+import { isServerReachable } from '~/lib/reachable';
 import {
   createDraftStore,
   draftKey,
@@ -26,15 +27,12 @@ export function useGradeDrafts({
   slots,
   loadedAt,
   status,
-  survivesOffline = false,
 }: {
   url: string;
   prefix: string;
   slots: readonly GradedSlot[];
   loadedAt: number;
   status: ConnectionStatus;
-  /** The page keeps its data when loading fails. Others would be replaced by an error page. */
-  survivesOffline?: boolean;
 }) {
   const { revalidate } = useRevalidator();
   const [store] = useState(() =>
@@ -67,11 +65,15 @@ export function useGradeDrafts({
     if (status === 'open') retry();
   }, [status, retry]);
 
+  async function refresh() {
+    if (await isServerReachable()) await revalidate();
+  }
+
   // Whatever the answer was, the newest data belongs on the screen: without an answer the grade may
   // be saved as well. Not awaited, because a saved draft is shown until the data has arrived.
   async function afterAnswer(answer: Promise<GradeResult>) {
     const result = await answer;
-    if (survivesOffline || result.ok || result.code !== 'OFFLINE') void revalidate();
+    void refresh();
     return result;
   }
 
@@ -90,7 +92,7 @@ export function useGradeDrafts({
     overwrite: (key: string, saved: SavedGrade | null) => afterAnswer(store.overwrite(key, saved)),
     discard(key: string) {
       store.discard(key);
-      if (survivesOffline || status === 'open') void revalidate();
+      void refresh();
     },
     retry,
   };

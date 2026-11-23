@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Prisma, Sex } from '~/generated/prisma/client';
-import { changeStvId, resolveAthlete } from './athletes.server';
+import { changeStvId, matchAthlete, resolveAthlete } from './athletes.server';
 import { getContest } from './contests.server';
 import {
   isSamePerson,
@@ -44,6 +44,13 @@ export type ImportRow = Partial<StarterInput> & {
 };
 
 type Outcome = 'created' | 'restored' | 'existing';
+/** What to do with a starter that has another club. Outdated: not the one that was asked about. */
+type ClubDecision = 'change' | 'keep' | 'outdated';
+type Added = { starterId: string; outcome: Outcome; club?: ClubDecision };
+type DecideClub = (starter: { id: string; clubId: string; isRemoved: boolean }) => ClubDecision;
+
+/** Whether a starter found by findClubConflicts changes the club. */
+export type ClubAnswer = { starterId: string; fromClubId: string; change: boolean };
 
 const IMPORT_CHUNK_SIZE = 25;
 const ASSIGN_TIMEOUT_MS = 60_000;
@@ -89,24 +96,84 @@ export async function getStarter(competitionId: string, starterId: string) {
 export async function createStarter(competitionId: string, input: NewStarter) {
   const result = await prisma.$transaction(async (tx) => {
     await lockAll(tx, competitionId);
-    return addStarter(tx, competitionId, input);
+    const { starterId, outcome } = await addStarter(tx, competitionId, input, () => 'change');
+    return { starterId, outcome };
   });
   publish(competitionId, 'starters');
   return result;
 }
 
 /**
+ * The starters that take part with another club and match a row. Their club only changes when
+ * importStarters is told to. Changes nothing.
+ */
+export async function findClubConflicts(
+  competitionId: string,
+  { clubId, rows }: { clubId: string; rows: readonly ImportRow[] },
+) {
+  await assertClub(prisma, clubId);
+  const athleteIds = new Set<string>();
+  for (const row of rows) {
+    try {
+      const { category: _, divisionNumber: __, ...data } = parse(importRowSchema, row);
+      const athlete = await matchAthlete(prisma, competitionId, data);
+      if (athlete) athleteIds.add(athlete.id);
+    } catch (error) {
+      // The import reports these rows.
+      if (!(error instanceof DomainError)) throw error;
+    }
+  }
+  const starters = await prisma.starter.findMany({
+    where: {
+      competitionId,
+      athleteId: { in: [...athleteIds] },
+      deletedAt: null,
+      clubId: { not: clubId },
+    },
+    include: { club: true },
+    orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }, { id: 'asc' }],
+  });
+  return starters.map(({ id, firstname, lastname, birthYear, club }) => ({
+    starterId: id,
+    firstname,
+    lastname,
+    birthYear,
+    club: { id: club.id, name: club.name, location: club.location },
+  }));
+}
+
+/**
  * Adds the rows that are valid and reports the others by their index. Rows are committed in chunks,
  * so judges and other competitions never wait for a whole file. Importing a file again finds the
- * starters of the first time.
+ * starters of the first time. Those that already take part keep their club, unless an answer
+ * changes it. An answer is void when the club is not the one that was asked about any more.
  */
 export async function importStarters(
   competitionId: string,
-  { contestId, clubId, rows }: { contestId: string; clubId: string; rows: readonly ImportRow[] },
+  {
+    contestId,
+    clubId,
+    rows,
+    clubAnswers = [],
+  }: {
+    contestId: string;
+    clubId: string;
+    rows: readonly ImportRow[];
+    clubAnswers?: readonly ClubAnswer[];
+  },
 ) {
   await getContest(competitionId, contestId);
   await assertClub(prisma, clubId);
 
+  const answers = new Map(clubAnswers.map((answer) => [answer.starterId, answer]));
+  const decideClub: DecideClub = ({ id, clubId: current, isRemoved }) => {
+    const answer = answers.get(id);
+    if (!answer) return isRemoved ? 'change' : 'keep';
+    if (!answer.change) return 'keep';
+    return current === answer.fromClubId ? 'change' : 'outdated';
+  };
+  const clubs = { change: new Set<string>(), keep: new Set<string>() };
+  const clubsOutdated = new Map<string, { firstname: string; lastname: string }>();
   const counts: Record<Outcome, number> = { created: 0, restored: 0, existing: 0 };
   const failures: { index: number; code: DomainErrorCode }[] = [];
   try {
@@ -115,19 +182,36 @@ export async function importStarters(
         await lockAll(tx, competitionId);
         const chunk = [];
         for (const row of rows.slice(start, start + IMPORT_CHUNK_SIZE)) {
-          chunk.push(await importRow(tx, competitionId, { contestId, clubId, row }));
+          chunk.push(await importRow(tx, competitionId, { contestId, clubId, row, decideClub }));
         }
         return chunk;
       });
       for (const [offset, result] of results.entries()) {
-        if ('code' in result) failures.push({ index: start + offset, code: result.code });
-        else counts[result.outcome]++;
+        if ('code' in result) {
+          failures.push({ index: start + offset, code: result.code });
+          continue;
+        }
+        const { starterId, outcome, club } = result;
+        counts[outcome]++;
+        // Who comes back is not asked about, unless they were removed after the question.
+        const isCounted = outcome === 'existing' || answers.has(starterId);
+        if (club && isCounted) clubs[club === 'change' ? 'change' : 'keep'].add(starterId);
+        if (club === 'outdated') {
+          const { firstname = '', lastname = '' } = rows[start + offset];
+          clubsOutdated.set(starterId, { firstname, lastname });
+        }
       }
     }
   } finally {
     publish(competitionId, 'starters');
   }
-  return { ...counts, failures };
+  return {
+    ...counts,
+    clubsChanged: clubs.change.size,
+    clubsKept: clubs.keep.size,
+    clubsOutdated: [...clubsOutdated.values()],
+    failures,
+  };
 }
 
 // ── Changing ─────────────────────────────────────────────────────────────────
@@ -205,13 +289,16 @@ export async function withdrawStarters(competitionId: string, starterIds: string
 
 export type Assignment = { entryIds: string[]; divisionId: string; lineupId?: string | null };
 
-/** Puts groups of entries into a division, and at the end of a lineup if given. All or none. */
+/**
+ * Puts groups of entries into a division, and at the end of a lineup if given. Without a lineup they
+ * keep theirs as far as it belongs to the division, null clears it. All or none.
+ */
 export async function assignEntries(competitionId: string, assignments: readonly Assignment[]) {
   await prisma.$transaction(
     async (tx) => {
       await lockCompetition(tx, competitionId);
       await lockDivisions(tx, competitionId);
-      for (const { entryIds, divisionId, lineupId = null } of assignments) {
+      for (const { entryIds, divisionId, lineupId } of assignments) {
         for (const id of entryIds) {
           const entry = await tx.entry.findFirst({
             where: { id, contest: { competitionId } },
@@ -263,8 +350,13 @@ function withoutUndefined<T extends object>(object: T) {
 async function importRow(
   tx: Prisma.TransactionClient,
   competitionId: string,
-  { contestId, clubId, row }: { contestId: string; clubId: string; row: ImportRow },
-): Promise<{ outcome: Outcome } | { code: DomainErrorCode }> {
+  {
+    contestId,
+    clubId,
+    row,
+    decideClub,
+  }: { contestId: string; clubId: string; row: ImportRow; decideClub: DecideClub },
+): Promise<Added | { code: DomainErrorCode }> {
   // A failing row must not undo the others, nor leave a part of itself.
   await tx.$executeRaw`SAVEPOINT import_row`;
   try {
@@ -275,13 +367,18 @@ async function importRow(
       sex: starter.sex,
       number: divisionNumber,
     });
-    const { outcome } = await addStarter(tx, competitionId, {
-      ...starter,
-      clubId,
-      entries: [{ contestId, category: category || undefined, divisionId }],
-    });
+    const added = await addStarter(
+      tx,
+      competitionId,
+      {
+        ...starter,
+        clubId,
+        entries: [{ contestId, category: category || undefined, divisionId }],
+      },
+      decideClub,
+    );
     await tx.$executeRaw`RELEASE SAVEPOINT import_row`;
-    return { outcome };
+    return added;
   } catch (error) {
     if (!(error instanceof DomainError)) throw error;
     await tx.$executeRaw`ROLLBACK TO SAVEPOINT import_row`;
@@ -310,7 +407,8 @@ async function addStarter(
   tx: Prisma.TransactionClient,
   competitionId: string,
   { clubId, athleteId, entries = [], ...input }: NewStarter,
-): Promise<{ starterId: string; outcome: Outcome }> {
+  decideClub: DecideClub,
+): Promise<Added> {
   const { stvId, ...person } = parse(starterSchema, input);
   await assertClub(tx, clubId);
   const athlete = await resolveAthlete(tx, competitionId, { athleteId, stvId, ...person });
@@ -321,10 +419,15 @@ async function addStarter(
     include: { entries: true },
   });
   const isRemoved = existing?.deletedAt != null;
+  const club =
+    existing && existing.clubId !== clubId
+      ? decideClub({ id: existing.id, clubId: existing.clubId, isRemoved })
+      : undefined;
+  const newClubId = club === 'change' ? clubId : undefined;
   const starter = existing
     ? await tx.starter.update({
         where: { id: existing.id },
-        data: isRemoved ? { ...person, clubId, deletedAt: null } : { clubId },
+        data: isRemoved ? { ...person, clubId: newClubId, deletedAt: null } : { clubId: newClubId },
       })
     : await tx.starter.create({ data: { ...key, ...person, clubId } });
 
@@ -345,6 +448,7 @@ async function addStarter(
   return {
     starterId: starter.id,
     outcome: !existing ? 'created' : isRemoved ? 'restored' : 'existing',
+    club,
   };
 }
 

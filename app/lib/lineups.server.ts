@@ -36,47 +36,41 @@ export async function getDivisionLineups(competitionId: string, divisionId: stri
 }
 
 /**
- * Appends entries of the division to a lineup. Also while it runs, e.g. for somebody who came late:
- * what they miss on an apparatus that has already passed is asked for when the division ends, see
- * confirmRound.
+ * Moves entries of the division into a lineup, in this order: before the entry `beforeId`, or to
+ * the end. Not the whole order, so that several people can arrange the same lineup. Also while it
+ * runs, e.g. for somebody who came late: what they miss on an apparatus that has already passed is
+ * asked for when the division ends, see confirmRound.
  */
 export async function moveEntriesToLineup(
   competitionId: string,
   lineupId: string,
   entryIds: string[],
+  beforeId?: string,
 ) {
   await prisma.$transaction(async (tx) => {
     const lineup = await lockLineup(tx, competitionId, lineupId);
     await assertInDivision(tx, lineup.divisionId, entryIds);
-    const present = new Set(lineup.entries.map(({ id }) => id));
-    const added = entryIds.filter((id) => !present.has(id));
-    await savePositions(tx, lineupId, added, nextPosition(lineup.entries));
+    const others = lineup.entries.map(({ id }) => id).filter((id) => !entryIds.includes(id));
+    const index = others.findIndex((id) => id === beforeId);
+    await savePositions(
+      tx,
+      lineupId,
+      others.toSpliced(index < 0 ? Infinity : index, 0, ...entryIds),
+    );
   });
   publish(competitionId, 'divisions');
 }
 
-/**
- * Puts a lineup in this order. Entries from elsewhere in the division are moved here, entries that
- * are not listed stay at the end.
- */
-export async function setLineupOrder(competitionId: string, lineupId: string, entryIds: string[]) {
+/** Takes entries of the division out of their lineups. */
+export async function unassignEntries(
+  competitionId: string,
+  divisionId: string,
+  entryIds: string[],
+) {
   await prisma.$transaction(async (tx) => {
-    const lineup = await lockLineup(tx, competitionId, lineupId);
-    await assertInDivision(tx, lineup.divisionId, entryIds);
-    const rest = lineup.entries.map(({ id }) => id).filter((id) => !entryIds.includes(id));
-    await savePositions(tx, lineupId, [...entryIds, ...rest], 0);
-  });
-  publish(competitionId, 'divisions');
-}
-
-export async function unassignEntries(competitionId: string, entryIds: string[]) {
-  await prisma.$transaction(async (tx) => {
-    const where = { id: { in: entryIds }, contest: { competitionId } };
-    const entries = await tx.entry.findMany({ where });
-    if (entries.length !== new Set(entryIds).size) throw new DomainError('NOT_FOUND');
-    const divisionIds = entries.flatMap(({ divisionId }) => divisionId ?? []);
-    await lockDivisions(tx, competitionId, divisionIds);
-    await tx.entry.updateMany({ where, data: { lineupId: null } });
+    await lockDivisions(tx, competitionId, [divisionId]);
+    await assertInDivision(tx, divisionId, entryIds);
+    await tx.entry.updateMany({ where: { id: { in: entryIds } }, data: { lineupId: null } });
   });
   publish(competitionId, 'divisions');
 }
@@ -104,16 +98,11 @@ async function assertInDivision(
   entryIds: string[],
 ) {
   const count = await tx.entry.count({ where: { id: { in: entryIds }, divisionId } });
-  if (count !== entryIds.length) throw new DomainError('DIVISION_MISMATCH');
+  if (count !== entryIds.length) throw new DomainError('ENTRY_NOT_IN_DIVISION');
 }
 
-async function savePositions(
-  tx: Prisma.TransactionClient,
-  lineupId: string,
-  entryIds: string[],
-  start: number,
-) {
-  for (const [index, id] of entryIds.entries()) {
-    await tx.entry.update({ where: { id }, data: { lineupId, position: start + index } });
+async function savePositions(tx: Prisma.TransactionClient, lineupId: string, entryIds: string[]) {
+  for (const [position, id] of entryIds.entries()) {
+    await tx.entry.update({ where: { id }, data: { lineupId, position } });
   }
 }

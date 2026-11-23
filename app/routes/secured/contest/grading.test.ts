@@ -122,9 +122,9 @@ describe('editing', () => {
           : []),
       ]);
     await save();
-    await remove();
-    await remove(1);
-    expect(toasts(context)).toEqual(['error', 'error']);
+    const refused = { data: { error: expect.any(String) }, init: { status: 400 } };
+    expect(await remove()).toMatchObject(refused);
+    expect(await remove(1)).toMatchObject(refused);
     expect(await prisma.grade.findFirst()).toMatchObject({ value: 9500 });
     await remove(2);
     expect(await prisma.grade.count()).toBe(0);
@@ -140,10 +140,9 @@ describe('editing', () => {
         ['round', round],
         ['divisionIds', division.id],
       ]);
-    await confirm('2');
-    expect(toasts(context)).toEqual(['error']);
-    await confirm('0');
-    expect(toasts(context)).toEqual(['error', 'success']);
+    expect(await confirm('2')).toMatchObject({ data: { error: expect.any(String) } });
+    expect(await confirm('0')).toBeNull();
+    expect(toasts(context)).toEqual(['success']);
     const progress = await prisma.divisionProgress.findMany({ where: { completedRounds: 1 } });
     expect(progress.map(({ apparatus }) => apparatus)).toEqual(['reck']);
   });

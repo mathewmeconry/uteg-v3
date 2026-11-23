@@ -67,7 +67,7 @@ function Items({ items }: { items: Item[] }) {
 
 export function CompetitionSidebar() {
   const { t } = useTranslation();
-  const { competition, contests, role } = useCompetition();
+  const { competition, contests, role, canEdit } = useCompetition();
   const params = useParams();
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -142,17 +142,19 @@ export function CompetitionSidebar() {
           </SidebarGroup>
         )}
 
-        <SidebarGroup>
-          <SidebarGroupLabel>{t('nav.groupAccess')}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <Items
-              items={[
-                { to: `${base}/judges`, label: t('nav.judges'), icon: GavelIcon },
-                { to: `${base}/displays`, label: t('nav.displays'), icon: MonitorIcon },
-              ]}
-            />
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {canEdit && (
+          <SidebarGroup>
+            <SidebarGroupLabel>{t('nav.groupAccess')}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <Items
+                items={[
+                  { to: `${base}/judges`, label: t('nav.judges'), icon: GavelIcon },
+                  { to: `${base}/displays`, label: t('nav.displays'), icon: MonitorIcon },
+                ]}
+              />
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <SidebarGroup>
           <SidebarGroupLabel>{t('nav.groupAdmin')}</SidebarGroupLabel>

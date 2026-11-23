@@ -138,7 +138,7 @@ describe('saving a grade', () => {
     expect(await post(reck, save(entry.id), { cookie: '' })).toBe(403);
     expect(await post(reck, save(entry.id), { linkId: link('boden').id })).toBe(403);
     expect(await post(display, save(entry.id))).toBe(403);
-    await resetToken(id, reck.id);
+    await resetToken(id, 'JUDGE', reck.id);
     expect(await post(reck, save(entry.id), { cookie })).toBe(403);
     expect(await prisma.grade.count()).toBe(0);
   });
@@ -201,7 +201,7 @@ describe('loading the pages', () => {
     await expect(loader((await open(reck, '')) as any)).rejects.toMatchObject(denied);
     await expect(loader((await open(display)) as any)).rejects.toMatchObject(denied);
     await expect(displayLoader((await open(reck)) as any)).rejects.toMatchObject(denied);
-    await resetToken(id, reck.id);
+    await resetToken(id, 'JUDGE', reck.id);
     await expect(loader((await open(reck, cookie)) as any)).rejects.toMatchObject(denied);
   });
 });

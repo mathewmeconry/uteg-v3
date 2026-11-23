@@ -10,8 +10,10 @@ import { PageHeader } from '~/components/PageHeader';
 import { competitionContext, contestContext } from '~/context';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
+import { readForm } from '~/lib/forms.server';
 import { runDeleteGrade } from '~/lib/gradingActions.server';
 import { getGradingState } from '~/lib/judging.server';
+import { safeClientAction } from '~/lib/safeClientAction';
 import { requireRole } from '~/middlewares/competition.server';
 
 export async function loader({ context, params: { divisionId } }: Route.LoaderArgs) {
@@ -36,10 +38,12 @@ export async function loader({ context, params: { divisionId } }: Route.LoaderAr
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { id } = requireRole(context, 'EDITOR');
-  const formData = await request.formData();
+  const formData = await readForm(request);
   if (formData.get('intent') !== 'delete') throw data(null, 400);
   return runDeleteGrade(context, id, formData);
 }
+
+export const clientAction = safeClientAction;
 
 export default function DivisionGrading({ loaderData }: Route.ComponentProps) {
   const { t } = useTranslation(['judging', 'common']);

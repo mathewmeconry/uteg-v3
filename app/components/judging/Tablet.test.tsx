@@ -91,7 +91,10 @@ function setup(initial: TabletData) {
 
 const send = vi.fn<typeof fetch>();
 const reply = (body: object) => Promise.resolve(Response.json(body));
-const bodies = () => send.mock.calls.map(([, init]) => JSON.parse(init!.body as string));
+const bodies = () =>
+  send.mock.calls
+    .filter(([url]) => url === URL)
+    .map(([, init]) => JSON.parse(init!.body as string));
 const unreachable = () => Promise.reject(new TypeError('Failed to fetch'));
 /** The server saves everything. */
 const saves: typeof fetch = (_, init) => {
@@ -133,7 +136,7 @@ describe('one starter at a time', () => {
     expect(heading()).toBe('Anna Frei');
     await act(async () => answer(Response.json({ ok: true, savedAt: 1 })));
     expect(heading()).toBe('Bea Frei');
-    expect(JSON.parse(send.mock.calls[0][1]!.body as string)).toEqual({
+    expect(bodies()[0]).toEqual({
       intent: 'save',
       entryId: 'Anna',
       apparatus: 'reck',
@@ -262,7 +265,7 @@ describe('changes from elsewhere', () => {
     expect(screen.getByRole('button', { name: 'Kontrolle' })).toBeDisabled();
     await click('Gespeicherte übernehmen');
     expect(input()).toHaveValue('9.50');
-    expect(send).not.toHaveBeenCalled();
+    expect(bodies()).toEqual([]);
   });
 
   it('keeps the input when the division is stopped', () => {
@@ -353,7 +356,7 @@ describe('the end of a round', () => {
     expect(screen.getByRole('button', { name: 'Durchgang bestätigen' })).toBeDisabled();
     await act(() => vi.advanceTimersByTimeAsync(1_000));
     await click('Durchgang bestätigen');
-    expect(JSON.parse(send.mock.calls.at(-1)![1]!.body as string)).toEqual({
+    expect(bodies().at(-1)).toEqual({
       intent: 'confirm',
       round: 0,
       divisionIds: ['d1'],

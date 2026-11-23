@@ -66,9 +66,9 @@ export async function deleteDisplay(competitionId: string, linkId: string) {
 }
 
 /** Replaces the token. The old link stops working at once. */
-export async function resetToken(competitionId: string, linkId: string) {
+export async function resetToken(competitionId: string, kind: AccessKind, linkId: string) {
   const [link] = await prisma.accessLink.updateManyAndReturn({
-    where: { id: linkId, competitionId },
+    where: { id: linkId, competitionId, kind },
     data: { token: createToken() },
   });
   if (!link) throw new DomainError('NOT_FOUND');
@@ -76,9 +76,10 @@ export async function resetToken(competitionId: string, linkId: string) {
   return link;
 }
 
-export async function resetAllTokens(competitionId: string, kind: AccessKind) {
+/** Of one ground or all. */
+export async function resetAllTokens(competitionId: string, kind: AccessKind, ground?: number) {
   await prisma.$transaction(async (tx) => {
-    const links = await tx.accessLink.findMany({ where: { competitionId, kind } });
+    const links = await tx.accessLink.findMany({ where: { competitionId, kind, ground } });
     for (const { id } of links) {
       await tx.accessLink.updateMany({ where: { id }, data: { token: createToken() } });
     }

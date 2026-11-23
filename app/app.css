@@ -133,8 +133,11 @@
 /* Tablets and phones: fingers need at least 44px. */
 @media (pointer: coarse) {
   [data-slot='button'],
+  /* Buttons that open something have the slot of their trigger. */
+  [data-slot$='-trigger'][data-size],
   [data-slot='input'],
   [data-slot='select-trigger'],
+  [data-slot='tabs-trigger'],
   [data-slot='toggle-group-item'],
   [data-slot='dropdown-menu-item'],
   [data-slot='command-item'],
@@ -142,7 +145,13 @@
     min-height: 2.75rem;
   }
 
-  [data-slot='button'] {
+  /* Its fixed height would let the taller tabs overflow. */
+  [data-slot='tabs-list'] {
+    height: auto;
+  }
+
+  [data-slot='button'],
+  [data-slot$='-trigger'][data-size] {
     min-width: 2.75rem;
   }
 }
