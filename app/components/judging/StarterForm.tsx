@@ -158,7 +158,8 @@ export function StarterForm({
           <p className="text-lg">{t('withdrawnText')}</p>
         </div>
       ) : (
-        <div className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4 [&_input]:h-24 [&_input]:rounded-xl [&_input]:border-2 [&_input]:text-6xl [&_input]:[font-stretch:85%] md:[&_input]:text-6xl">
+        // Attempts and the grade they give are in one line, so the buttons need no scrolling.
+        <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4 @2xl:[&_div:has(>input)]:flex-1 @2xl:[&_div:has(>input)]:basis-32 [&_input]:h-24 [&_input]:rounded-xl [&_input]:border-2 [&_input]:text-6xl [&_input]:[font-stretch:85%] md:[&_input]:text-6xl">
           <GradeInputs
             large
             fields={state.fields}
@@ -175,7 +176,13 @@ export function StarterForm({
             // As high as it gets, so that the buttons stay where they are.
             <SaveState
               state={state}
-              className="min-h-13 justify-center rounded-xl bg-muted px-4 text-xl font-semibold empty:bg-transparent [&>svg]:size-6"
+              className={cn(
+                'min-h-13 justify-center rounded-xl px-4 text-xl font-semibold [&>svg]:size-6',
+                !state.isSaving &&
+                  (state.isDirty
+                    ? 'bg-warning text-warning-foreground dark:text-warning-foreground'
+                    : state.saved && 'bg-success text-success-foreground'),
+              )}
             />
           )}
           {state.isConflict && (
@@ -215,7 +222,7 @@ export function StarterForm({
         </Button>
         <Button
           type="submit"
-          className="h-auto min-h-20 grow rounded-xl px-6 py-2 text-2xl whitespace-normal @2xl:max-w-xl"
+          className="h-auto grow rounded-xl px-6 py-6 text-2xl whitespace-normal @2xl:max-w-xl"
           disabled={state.isSaving || state.isConflict}
         >
           {state.isSaving && <LoaderCircleIcon aria-hidden className="size-6 animate-spin" />}

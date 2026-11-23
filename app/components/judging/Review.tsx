@@ -142,7 +142,7 @@ export function Review({
           </p>
         )}
         <Button
-          className="h-auto min-h-20 grow rounded-xl px-8 py-2 text-2xl whitespace-normal"
+          className="h-auto grow rounded-xl px-8 py-6 text-2xl whitespace-normal"
           disabled={missing + unsent > 0 || confirmation.isConfirming || !isReady}
           onClick={confirmation.confirm}
         >

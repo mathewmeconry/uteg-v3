@@ -73,7 +73,7 @@ export default function Display({ loaderData, params: { linkId } }: Route.Compon
       >
         <title>{`${t('screenTitle')} · UTEG`}</title>
         <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 px-2">
-          <h1 className="min-w-0 truncate font-display text-2xl">
+          <h1 className="min-w-0 truncate font-display text-[clamp(1.25rem,2vw,2.5rem)] leading-tight">
             {competitionName}
             <span className="ml-4 text-ink-muted">{t('common:ground', { number: ground })}</span>
             {!isWaiting && (

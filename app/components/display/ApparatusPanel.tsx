@@ -27,6 +27,8 @@ export function ApparatusPanel({
   const { t } = useTranslation('display');
   const name = useApparatusName()(apparatus);
   const { current, next } = selectStarters(slots);
+  // Two lines next to the grade hold about this much.
+  const isLongName = current && `${current.firstname} ${current.lastname}`.length > 22;
 
   return (
     <section
@@ -45,13 +47,13 @@ export function ApparatusPanel({
             <div className="min-w-0 flex-1">
               <p
                 className="line-clamp-2 pl-[0.05em] font-display leading-[1.13] wrap-anywhere"
-                style={{ fontSize: size(26, 8) }}
+                style={{ fontSize: size(26, isLongName ? 6.5 : 10) }}
               >
                 {current.firstname} {current.lastname}
               </p>
               <p
                 className="truncate leading-[1.25] text-ink-muted"
-                style={{ fontSize: size(9, 4) }}
+                style={{ fontSize: size(9, 4.5) }}
               >
                 {current.clubName}
               </p>
@@ -60,7 +62,7 @@ export function ApparatusPanel({
               // A new element for every grade, so that it lights up.
               key={`${current.entryId} ${current.grade?.value}`}
               className="new-grade shrink-0 figure leading-none text-brand"
-              style={{ fontSize: size(50, 16) }}
+              style={{ fontSize: size(50, 18) }}
             >
               {current.grade && formatGrade(current.grade.value, current.precision)}
             </p>
@@ -71,7 +73,7 @@ export function ApparatusPanel({
           </p>
         )}
         {next && (
-          <p className="truncate leading-[1.2]" style={{ fontSize: size(10, 3.8) }}>
+          <p className="truncate leading-[1.2]" style={{ fontSize: size(10, 4.5) }}>
             <span className="text-ink-muted">{t('next')}: </span>
             <span className="font-semibold">
               {next.firstname} {next.lastname}
