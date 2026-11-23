@@ -10,7 +10,8 @@ const STYLES: Record<StatusTone, string> = {
   // Brand yellow-green is only for what is happening right now.
   live: 'bg-brand text-brand-foreground',
   done: 'bg-[color-mix(in_oklab,var(--success)_13%,var(--card))] text-success',
-  warning: 'bg-warning text-warning-foreground',
+  warning:
+    'border-warning bg-[color-mix(in_oklab,var(--warning)_14%,var(--card))] text-foreground [&>svg]:text-warning-foreground dark:[&>svg]:text-warning',
   danger: 'bg-[color-mix(in_oklab,var(--destructive)_12%,var(--card))] text-destructive',
 };
 

@@ -154,7 +154,7 @@ function FilterSelect({
         aria-label={label}
         className={cn(
           'gap-1.5 max-sm:w-full',
-          isActive ? 'border-primary bg-accent font-semibold' : 'border-foreground/20',
+          isActive ? 'border-primary bg-accent font-semibold' : undefined,
         )}
       >
         <span className="flex min-w-0 items-center gap-1.5">

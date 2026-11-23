@@ -44,7 +44,7 @@ export function StepBar<Step extends string>({
             </>
           );
           const className = cn(
-            'block w-full text-left text-sm max-sm:py-3',
+            'block w-full text-left text-sm max-sm:py-3 pointer-coarse:min-h-11',
             position > index && 'text-muted-foreground',
             position === index && 'font-semibold',
           );

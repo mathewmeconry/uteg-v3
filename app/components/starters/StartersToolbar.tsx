@@ -67,22 +67,53 @@ export function StartersToolbar({
   return (
     <div className="@container mb-4">
       <div className="grid grid-cols-1 gap-2 @4xl:flex @4xl:items-start">
-        <div className="relative @4xl:w-60 @4xl:shrink-0">
-          <SearchIcon
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            type="search"
-            value={search}
-            onChange={(event) => onSearch(event.target.value)}
-            placeholder={t('searchPlaceholder')}
-            aria-label={t('common:actions.search')}
-            className="bg-card pl-9"
-          />
+        <div className="flex flex-wrap gap-2 @4xl:w-60 @4xl:shrink-0">
+          <div className="relative min-w-40 flex-1">
+            <SearchIcon
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              type="search"
+              value={search}
+              onChange={(event) => onSearch(event.target.value)}
+              placeholder={t('searchPlaceholder')}
+              aria-label={t('common:actions.search')}
+              className="bg-card pl-9"
+            />
+          </div>
+          {/* Sorting happens in the header of the table, columns only exist there. */}
+          <div className="flex gap-1 @4xl:hidden">
+            <NativeSelect
+              aria-label={t('sortBy')}
+              className="w-28"
+              value={sort.column}
+              onChange={(event) => onSort({ ...sort, column: event.target.value as Column })}
+            >
+              {COLUMNS.map((column) => (
+                <option key={column} value={column}>
+                  {columnLabel(t, column)}
+                </option>
+              ))}
+            </NativeSelect>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={sort.direction === 'asc' ? t('sortDescending') : t('sortAscending')}
+              onClick={() =>
+                onSort({ ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' })
+              }
+            >
+              {sort.direction === 'asc' ? (
+                <ArrowDownIcon aria-hidden />
+              ) : (
+                <ArrowUpIcon aria-hidden />
+              )}
+            </Button>
+          </div>
         </div>
-        {/* On phones one line to swipe through, the list matters more. */}
-        <div className="-mx-4 flex scrollbar-none items-center gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:py-0 @4xl:min-w-0 @4xl:flex-1">
+        {/* On phones one line to swipe through, which fades out where it goes on. */}
+        <div className="-mx-4 flex scrollbar-none items-center gap-2 overflow-x-auto px-4 py-1 max-sm:pr-16 max-sm:[mask-image:linear-gradient(to_right,black_calc(100%-4.5rem),transparent)] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:py-0 @4xl:min-w-0 @4xl:flex-1">
           {withoutDivision > 0 && (
             <Button
               variant="outline"
@@ -117,36 +148,6 @@ export function StartersToolbar({
               {t('resetFilters')}
             </Button>
           )}
-
-          {/* Sorting happens in the header of the table, columns only exist there. */}
-          <div className="flex gap-2 @4xl:hidden">
-            <NativeSelect
-              aria-label={t('sortBy')}
-              className="w-36"
-              value={sort.column}
-              onChange={(event) => onSort({ ...sort, column: event.target.value as Column })}
-            >
-              {COLUMNS.map((column) => (
-                <option key={column} value={column}>
-                  {columnLabel(t, column)}
-                </option>
-              ))}
-            </NativeSelect>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={sort.direction === 'asc' ? t('sortDescending') : t('sortAscending')}
-              onClick={() =>
-                onSort({ ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' })
-              }
-            >
-              {sort.direction === 'asc' ? (
-                <ArrowDownIcon aria-hidden />
-              ) : (
-                <ArrowUpIcon aria-hidden />
-              )}
-            </Button>
-          </div>
         </div>
         <div className="hidden @4xl:block">
           <DropdownMenu>

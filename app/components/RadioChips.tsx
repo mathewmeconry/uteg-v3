@@ -21,7 +21,7 @@ export function RadioChips<Value extends string>({
         {options.map((option) => (
           <label
             key={option.value}
-            className="relative flex h-10 min-w-12 cursor-pointer items-center justify-center rounded-md border border-foreground/20 bg-card px-3 text-sm font-semibold hover:bg-accent has-checked:border-ink has-checked:bg-ink has-checked:text-ink-foreground has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50 pointer-coarse:h-11 dark:has-checked:border-primary dark:has-checked:bg-primary dark:has-checked:text-primary-foreground"
+            className="relative flex h-10 min-w-12 cursor-pointer items-center justify-center rounded-md border border-input bg-card px-3 text-sm font-semibold hover:bg-accent has-checked:border-ink has-checked:bg-ink has-checked:text-ink-foreground has-focus-visible:ring-[3px] has-focus-visible:ring-ring pointer-coarse:h-11 dark:has-checked:border-primary dark:has-checked:bg-primary dark:has-checked:text-primary-foreground"
           >
             <input
               type="radio"

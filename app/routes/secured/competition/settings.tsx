@@ -99,7 +99,7 @@ export default function Settings({ actionData }: Route.ComponentProps) {
         </Section>
 
         <Section title={t('competition:fields.logo')} description={t('logo.text')}>
-          <div className="grid gap-5">
+          <div className="grid grid-cols-1 gap-5">
             {competition.logoId ? (
               <div className="flex flex-wrap items-center gap-4">
                 <img
@@ -127,7 +127,7 @@ export default function Settings({ actionData }: Route.ComponentProps) {
                 key={competition.logoId}
                 method="post"
                 encType="multipart/form-data"
-                className="grid gap-4"
+                className="grid grid-cols-1 gap-4"
               >
                 <LogoField error={errors.logo} required />
                 <SubmitButton

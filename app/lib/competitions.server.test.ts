@@ -103,7 +103,9 @@ describe('getCompetitionForUser and listCompetitions', () => {
     });
     expect(await errorCode(getCompetitionForUser(stranger.id, competition.id))).toBe('NOT_FOUND');
     expect(await errorCode(getCompetitionForUser(viewer.id, 'nope'))).toBe('NOT_FOUND');
-    expect(await listCompetitions(viewer.id)).toMatchObject([{ id: competition.id }]);
+    expect(await listCompetitions(viewer.id)).toMatchObject([
+      { id: competition.id, role: 'VIEWER' },
+    ]);
     expect(await listCompetitions(stranger.id)).toEqual([]);
   });
 

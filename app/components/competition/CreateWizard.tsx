@@ -298,7 +298,7 @@ export function CreateWizard({
             </div>
           )}
         </div>
-        <div className="sticky bottom-0 flex items-center justify-between gap-3 rounded-b-xl border-t bg-card px-5 py-4 sm:px-7">
+        <div className="flex items-center justify-between gap-3 rounded-b-xl border-t bg-card px-5 py-4 sm:px-7">
           <Button
             type="button"
             variant="ghost"

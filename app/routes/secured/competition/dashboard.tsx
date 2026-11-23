@@ -1,5 +1,6 @@
-import { ClockIcon } from 'lucide-react';
+import { ClockIcon, TrophyIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { Route } from './+types/dashboard';
 import { LiveGroundCard } from '~/components/competition/LiveGroundCard';
 import { NextSteps } from '~/components/competition/NextSteps';
@@ -7,10 +8,12 @@ import { ConnectionBadge } from '~/components/ConnectionBadge';
 import { EmptyState } from '~/components/EmptyState';
 import { PageHeader } from '~/components/PageHeader';
 import { Stats, StatTile } from '~/components/StatTile';
+import { Button } from '~/components/ui/button';
 import { competitionContext } from '~/context';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { getStats } from '~/lib/competitions.server';
+import { listDivisions } from '~/lib/divisions.server';
 import { getPhase } from '~/lib/domain/competitionPhase';
 import { formatDateRange } from '~/lib/format';
 import { getLatestGrades, getLiveGrounds, type LatestGrade } from '~/lib/liveResults.server';
@@ -20,12 +23,19 @@ const LATEST_GRADES = 12;
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { id, grounds } = context.get(competitionContext);
-  const [stats, liveGrounds, latestGrades] = await Promise.all([
+  const [stats, liveGrounds, latestGrades, pending] = await Promise.all([
     getStats(id),
     getLiveGrounds(id, grounds),
     getLatestGrades(id, LATEST_GRADES),
+    listDivisions(id, { state: 'PENDING' }),
   ]);
-  return { stats, grounds: liveGrounds, latestGrades };
+  return {
+    stats,
+    grounds: liveGrounds,
+    latestGrades,
+    /** Not started yet, by category. */
+    next: pending.map(({ ground, category, sex, number }) => ({ ground, category, sex, number })),
+  };
 }
 
 function LatestGrades({ grades }: { grades: LatestGrade[] }) {
@@ -54,7 +64,7 @@ function LatestGrades({ grades }: { grades: LatestGrade[] }) {
 }
 
 export default function Dashboard({
-  loaderData: { stats, grounds, latestGrades },
+  loaderData: { stats, grounds, latestGrades, next },
 }: Route.ComponentProps) {
   const { t, i18n } = useTranslation(['competition', 'common']);
   const { competition, contests, canEdit } = useCompetition();
@@ -62,6 +72,8 @@ export default function Dashboard({
   const { starters, clubs, grades, divisions } = stats;
   const phase = getPhase(stats);
   const dates = formatDateRange(competition.startDate, competition.endDate, i18n.language);
+  const contestBase =
+    contests.length > 0 && `/competitions/${competition.id}/contests/${contests[0].id}`;
   const hasGrades = latestGrades.length > 0;
 
   return (
@@ -93,12 +105,17 @@ export default function Dashboard({
         >
           <section aria-labelledby="now-title">
             <h2 id="now-title" className="mb-3 font-display text-lg">
-              {t(`dashboard.title.${phase}`)}
+              {t(canEdit ? `dashboard.title.${phase}` : `home.status.${phase}`)}
             </h2>
             {phase === 'running' ? (
               <div className="grid gap-4">
                 {grounds.map((ground) => (
-                  <LiveGroundCard key={ground.ground} ground={ground} />
+                  <LiveGroundCard
+                    key={ground.ground}
+                    ground={ground}
+                    next={next.find((division) => division.ground === ground.ground)}
+                    divisionsUrl={canEdit && contestBase ? `${contestBase}/divisions` : undefined}
+                  />
                 ))}
               </div>
             ) : canEdit ? (
@@ -106,6 +123,18 @@ export default function Dashboard({
                 phase={phase}
                 base={`/competitions/${competition.id}`}
                 contestId={contests[0]?.id}
+              />
+            ) : phase === 'ended' ? (
+              <EmptyState
+                icon={TrophyIcon}
+                title={t('dashboard.resultsReady')}
+                action={
+                  contestBase && (
+                    <Button asChild>
+                      <Link to={`${contestBase}/ranking`}>{t('dashboard.toRanking')}</Link>
+                    </Button>
+                  )
+                }
               />
             ) : (
               <EmptyState

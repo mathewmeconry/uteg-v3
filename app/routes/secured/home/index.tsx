@@ -11,17 +11,19 @@ import { getUser } from '~/lib/auth/auth.server';
 import { getStats, listCompetitions } from '~/lib/competitions.server';
 import { getPhase, getTiming } from '~/lib/domain/competitionPhase';
 import { formatDateRange } from '~/lib/format';
+import { hasRole } from '~/lib/roles';
 
 export async function loader({ context }: Route.LoaderArgs) {
   const now = new Date();
   const competitions = await listCompetitions(getUser(context).id);
   return {
     competitions: await Promise.all(
-      competitions.map(async ({ id, name, location, startDate, endDate, logoId }) => {
+      competitions.map(async ({ id, name, location, startDate, endDate, logoId, role }) => {
         const timing = getTiming({ startDate, endDate }, now);
         // The past ones have nothing left to do.
         const phase = timing === 'past' ? null : getPhase(await getStats(id));
-        return { id, name, location, startDate, endDate, logoId, timing, phase };
+        const canEdit = hasRole(role, 'EDITOR');
+        return { id, name, location, startDate, endDate, logoId, timing, phase, canEdit };
       }),
     ),
   };
@@ -96,7 +98,7 @@ export default function Home({ loaderData: { competitions } }: Route.ComponentPr
 
 function TodayCard({ competition }: { competition: Competition }) {
   const { t, i18n } = useTranslation('competition');
-  const { id, name, location, startDate, endDate, logoId, phase } = competition;
+  const { id, name, location, startDate, endDate, logoId, phase, canEdit } = competition;
 
   return (
     <Link
@@ -130,7 +132,8 @@ function TodayCard({ competition }: { competition: Competition }) {
           />
         )}
         <span className="inline-flex h-11 items-center gap-2 rounded-md bg-brand px-4 text-sm font-semibold text-brand-foreground group-hover:bg-brand/90">
-          {t(`home.next.${phase ?? 'ended'}`)}
+          {/* Viewers have nothing to do. */}
+          {t(canEdit ? `home.next.${phase ?? 'ended'}` : 'home.next.running')}
           <ArrowRightIcon aria-hidden className="size-4" />
         </span>
       </div>
@@ -140,7 +143,7 @@ function TodayCard({ competition }: { competition: Competition }) {
 
 function CompetitionRow({ competition }: { competition: Competition }) {
   const { t, i18n } = useTranslation('competition');
-  const { id, name, location, startDate, endDate, logoId, phase } = competition;
+  const { id, name, location, startDate, endDate, logoId, phase, canEdit } = competition;
 
   return (
     <Link
@@ -156,7 +159,7 @@ function CompetitionRow({ competition }: { competition: Competition }) {
         <p className="text-sm text-muted-foreground">
           {location}, {formatDateRange(startDate, endDate, i18n.language)}
         </p>
-        {phase && (
+        {phase && canEdit && (
           <p className="mt-1 text-sm">
             <span className="text-muted-foreground">{t('home.nextStep')}</span>{' '}
             <span className="font-semibold text-primary">{t(`home.next.${phase}`)}</span>

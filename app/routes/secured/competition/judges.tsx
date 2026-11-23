@@ -134,7 +134,7 @@ export default function Judges({ loaderData: { links } }: Route.ComponentProps) 
           trigger={
             <Button
               variant="outline"
-              className="border-destructive/50 text-destructive hover:border-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="border-destructive text-destructive hover:border-destructive hover:bg-destructive/10 hover:text-destructive"
             >
               <RotateCcwIcon aria-hidden />
               {t('links.resetAll')}

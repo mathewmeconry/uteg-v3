@@ -24,22 +24,24 @@ export function AssignmentSection({
   return (
     <Section title={t('assignments.title')}>
       <p className="text-sm text-muted-foreground">{t('assignments.hint')}</p>
-      <div className="grid grid-cols-2 gap-x-4">
+      <div className="grid grid-cols-1 gap-4">
         {SEXES.map((sex) => (
           <div key={sex} role="group" aria-label={t(`sex.${sex}`)} className="min-w-0">
-            <p aria-hidden className="mb-1 text-sm font-medium">
+            <p aria-hidden className="mb-2 text-sm font-semibold">
               {t(`sex.${sex}`)}
             </p>
-            {categories[sex].map((category) => (
-              <AssignmentField
-                key={category}
-                templateId={templateId}
-                assignment={{ sex, category }}
-                owner={templates.find(({ assignments }) =>
-                  assignments.some((item) => item.sex === sex && item.category === category),
-                )}
-              />
-            ))}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {categories[sex].map((category) => (
+                <AssignmentField
+                  key={category}
+                  templateId={templateId}
+                  assignment={{ sex, category }}
+                  owner={templates.find(({ assignments }) =>
+                    assignments.some((item) => item.sex === sex && item.category === category),
+                  )}
+                />
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -63,7 +65,7 @@ function AssignmentField({
   const checked = formData ? formData.get('intent') === 'assign' : owner?.id === templateId;
 
   return (
-    <Label className="min-h-9 leading-normal pointer-coarse:min-h-11">
+    <Label className="min-h-11 min-w-0 cursor-pointer rounded-md border border-input bg-card px-3 py-1 leading-tight hover:bg-accent has-data-[state=checked]:border-primary has-data-[state=checked]:bg-accent">
       <Checkbox
         checked={checked}
         disabled={pending}
@@ -78,12 +80,14 @@ function AssignmentField({
           )
         }
       />
-      {category}
-      {owner && owner.id !== templateId && (
-        <span className="min-w-0 truncate text-xs font-normal text-muted-foreground">
-          {t('assignments.of', { name: owner.name })}
-        </span>
-      )}
+      <span className="min-w-0">
+        {category}
+        {owner && owner.id !== templateId && (
+          <span className="block truncate text-xs font-normal text-muted-foreground">
+            {t('assignments.of', { name: owner.name })}
+          </span>
+        )}
+      </span>
     </Label>
   );
 }

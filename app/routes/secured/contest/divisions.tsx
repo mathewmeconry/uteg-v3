@@ -311,8 +311,8 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
                     selected.length > 0 ? 'bg-ink text-ink-foreground' : 'bg-muted',
                   )}
                 >
-                  <label className="flex min-h-10 items-center pr-2 text-sm font-semibold">
-                    <span className="flex size-11 items-center justify-center lg:size-9">
+                  <label className="flex min-h-10 items-center pr-2 text-sm font-semibold max-sm:w-full pointer-coarse:min-h-11">
+                    <span className="flex size-11 items-center justify-center pointer-fine:lg:size-9">
                       <Checkbox
                         checked={
                           selected.length === visible.length ||
@@ -349,25 +349,32 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
                           onClick={() => openDialog('stop', selectedIds)}
                         >
                           <SquareIcon aria-hidden />
-                          <span className="max-sm:sr-only">{t('common:actions.stop')}</span>
+                          {t('common:actions.stop')}
                         </Button>
                       )}
+                      <Button asChild size="sm" variant="onInk">
+                        <a
+                          href={sheetsHref(selectedIds)}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={t('sheets.selected')}
+                        >
+                          <FileTextIcon aria-hidden />
+                          {t('sheets.title')}
+                        </a>
+                      </Button>
+                      {/* Away from the others. */}
                       {canEdit && selected.some(({ state }) => state !== 'RUNNING') && (
                         <Button
                           size="sm"
                           variant="onInk"
+                          className="ml-auto"
                           onClick={() => openDialog('delete', selectedIds)}
                         >
                           <TrashIcon aria-hidden />
-                          <span className="max-sm:sr-only">{t('common:actions.delete')}</span>
+                          {t('common:actions.delete')}
                         </Button>
                       )}
-                      <Button asChild size="sm" variant="onInk">
-                        <a href={sheetsHref(selectedIds)} target="_blank" rel="noreferrer">
-                          <FileTextIcon aria-hidden />
-                          <span className="max-sm:sr-only">{t('sheets.selected')}</span>
-                        </a>
-                      </Button>
                       <Button
                         size="icon-sm"
                         variant="onInk"

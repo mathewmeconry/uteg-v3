@@ -89,6 +89,7 @@ export default {
   cover: {
     title: 'Cover page',
     file: 'Upload a file',
+    choose: 'Choose a file or drop it here',
     replace: 'Replace with another file',
     hint: 'PDF with at most {{count}} pages, PNG or JPEG. Saved at once as a picture.',
     saveFirst: 'Create the template first. Then you can upload a cover page.',

@@ -65,7 +65,7 @@ export function LineupEntry({
     <>
       <span
         className={cn(
-          'block truncate leading-snug font-semibold',
+          'line-clamp-2 leading-snug font-semibold wrap-anywhere',
           entry.withdrawn && 'line-through',
         )}
       >
@@ -105,7 +105,7 @@ export function LineupEntry({
             checked={selected}
             onCheckedChange={(checked) => onSelect(checked === true)}
             aria-label={t('lineups.select', { name })}
-            className="relative mx-1.5 after:absolute after:-inset-x-2 after:-inset-y-3.5"
+            className="relative mx-1.5 after:absolute after:-inset-x-2 after:-inset-y-3.5 pointer-coarse:mx-3 pointer-coarse:after:-inset-x-3.5"
           />
         </>
       )}

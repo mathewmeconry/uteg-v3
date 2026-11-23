@@ -53,7 +53,7 @@ export function DivisionRow({
       data-state={selected ? 'selected' : undefined}
       className="flex items-start gap-1 px-2 py-2.5 data-[state=selected]:bg-accent lg:items-center"
     >
-      <span className="flex size-11 shrink-0 items-center justify-center lg:size-9">
+      <span className="flex size-11 shrink-0 items-center justify-center pointer-fine:lg:size-9">
         <Checkbox
           checked={selected}
           onCheckedChange={(checked) => onSelect(checked === true)}

@@ -25,11 +25,14 @@ const ROLE_LEVEL: Record<Role, number> = { VIEWER: 0, EDITOR: 1, OWNER: 2 };
 // ── Competitions ─────────────────────────────────────────────────────────────
 
 /** The competitions the user is a member of, newest first. */
-export function listCompetitions(userId: string) {
-  return prisma.competition.findMany({
+/** The competitions of the user, with their role. */
+export async function listCompetitions(userId: string) {
+  const competitions = await prisma.competition.findMany({
     where: { members: { some: { userId } } },
+    include: { members: { where: { userId }, select: { role: true } } },
     orderBy: [{ startDate: 'desc' }, { name: 'asc' }],
   });
+  return competitions.map(({ members: [{ role }], ...competition }) => ({ ...competition, role }));
 }
 
 /** The competition with the user's role. Strangers cannot tell whether it exists. */

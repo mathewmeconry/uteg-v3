@@ -22,7 +22,7 @@ export function ConnectionBadge({
         status === 'lost' &&
           (onInk
             ? 'bg-warning px-2.5 font-semibold text-warning-foreground'
-            : 'bg-destructive px-2 font-semibold text-white dark:bg-destructive/60'),
+            : 'bg-destructive px-2 font-semibold text-destructive-foreground'),
       )}
     >
       {status === 'open' && (

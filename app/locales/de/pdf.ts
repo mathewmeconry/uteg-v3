@@ -86,6 +86,7 @@ export default {
   cover: {
     title: 'Titelseite',
     file: 'Datei hochladen',
+    choose: 'Datei auswählen oder hierher ziehen',
     replace: 'Durch andere Datei ersetzen',
     hint: 'PDF mit höchstens {{count}} Seiten, PNG oder JPEG. Wird sofort als Bild gespeichert.',
     saveFirst: 'Erstelle zuerst die Vorlage. Danach kannst du eine Titelseite hochladen.',

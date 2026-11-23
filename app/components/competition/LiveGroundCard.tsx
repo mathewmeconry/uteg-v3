@@ -1,7 +1,10 @@
 import { CheckIcon } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import { StatusBadge } from '~/components/StatusBadge';
+import { Button } from '~/components/ui/button';
+import type { Sex } from '~/generated/prisma/enums';
 import type { LiveGround } from '~/lib/liveResults.server';
 import { cn } from '~/lib/utils';
 import { RoundMeter } from './RoundMeter';
@@ -9,8 +12,14 @@ import { RoundMeter } from './RoundMeter';
 /** The running divisions of a ground, and the round and last grades of each apparatus. */
 export function LiveGroundCard({
   ground: { ground, divisions, apparatus },
+  next,
+  divisionsUrl,
 }: {
   ground: LiveGround;
+  /** The first division of this ground that is not started yet. */
+  next?: { category: string; sex: Sex; number: number };
+  /** For those who can start it. */
+  divisionsUrl?: string;
 }) {
   const { t } = useTranslation(['competition', 'common']);
 
@@ -28,7 +37,25 @@ export function LiveGroundCard({
           )}
         </div>
         {divisions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('dashboard.groundIdle')}</p>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <p className="text-muted-foreground">
+              {next ? (
+                <>
+                  {t('dashboard.nextDivision')}{' '}
+                  <span className="font-semibold text-foreground">
+                    {`${next.category} ${t(`common:sex.${next.sex}`)}, ${t('dashboard.division', { number: next.number })}`}
+                  </span>
+                </>
+              ) : (
+                t('dashboard.groundIdle')
+              )}
+            </p>
+            {next && divisionsUrl && (
+              <Button asChild variant="outline">
+                <Link to={divisionsUrl}>{t('dashboard.toDivisions')}</Link>
+              </Button>
+            )}
+          </div>
         ) : (
           <ul className="grid content-center gap-3">
             {divisions.map(({ id, category, sex, number, round, rounds, percent }) => {

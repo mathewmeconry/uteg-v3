@@ -25,6 +25,7 @@
   --accent: oklch(0.932 0.02 208);
   --accent-foreground: oklch(0.27 0.045 210);
   --destructive: oklch(0.52 0.2 25);
+  --destructive-foreground: oklch(0.99 0 0);
   --success: oklch(0.47 0.12 150);
   --success-foreground: oklch(0.99 0 0);
   --warning: oklch(0.82 0.16 82);
@@ -68,6 +69,7 @@
     --accent: oklch(0.325 0.034 210);
     --accent-foreground: oklch(0.975 0.006 200);
     --destructive: oklch(0.7 0.18 25);
+    --destructive-foreground: oklch(0.19 0.04 25);
     --success: oklch(0.77 0.15 150);
     --success-foreground: oklch(0.2 0.035 160);
     --warning: oklch(0.84 0.15 85);
@@ -117,6 +119,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
@@ -160,7 +163,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
 
   body {
@@ -178,6 +181,10 @@
 
   html:has([data-slot='selection-bar']) {
     scroll-padding-bottom: 12rem;
+  }
+
+  html:has([data-slot='form-actions']) {
+    scroll-padding-bottom: 7rem;
   }
 
   h1,
@@ -232,6 +239,17 @@
   to {
     transform: scaleX(0.95);
   }
+}
+
+/* The focus is always in full colour, the half of it in components/ui is too faint. */
+:focus-visible {
+  --tw-ring-color: var(--ring);
+}
+
+/* On ink a white line with a gap, also around lime buttons. */
+[class~='bg-ink'] :focus-visible {
+  outline: 3px solid var(--ink-foreground);
+  outline-offset: 2px;
 }
 
 /* Tablets and phones: fingers need at least 44px. */

@@ -134,7 +134,7 @@ function ChoiceLink({
       preventScrollReset
       aria-current={selected ? 'true' : undefined}
       className={cn(
-        'inline-flex h-8 items-center justify-center rounded-md px-3 text-sm font-semibold outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 pointer-coarse:h-11',
+        'inline-flex h-8 items-center justify-center rounded-md px-3 text-sm font-semibold outline-none hover:bg-accent focus-visible:ring-[3px] pointer-coarse:h-11 pointer-coarse:min-w-11',
         isEmpty && 'font-normal text-muted-foreground',
         selected &&
           'bg-ink text-ink-foreground hover:bg-ink dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary',
@@ -184,7 +184,7 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
   }
 
   return (
-    <>
+    <div className="flex flex-col">
       <title>{`${t('title')} ${category} · UTEG`}</title>
       <PageHeader
         title={t('title')}
@@ -230,7 +230,8 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
         </ChoiceNav>
       </Toolbar>
 
-      <Toolbar>
+      {/* On phones the results come first. */}
+      <Toolbar className="max-sm:order-last max-sm:mt-6 max-sm:mb-0 max-sm:border-t max-sm:pt-4">
         <Label htmlFor={provisionalId} className="min-h-11 leading-normal font-normal">
           <Switch id={provisionalId} checked={provisional} onCheckedChange={toggleProvisional} />
           {t('provisional')}
@@ -270,6 +271,6 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
       ) : (
         <RankingList {...ranking} />
       )}
-    </>
+    </div>
   );
 }

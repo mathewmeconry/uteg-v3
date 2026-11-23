@@ -1,9 +1,12 @@
-import { LoaderCircleIcon } from 'lucide-react';
+import { TriangleAlertIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
+import { FileDrop } from '~/components/FileDrop';
 import { FormField } from '~/components/FormField';
+import { SaveStatus } from '~/components/SaveStatus';
+import { Alert, AlertDescription } from '~/components/ui/alert';
 import { Button } from '~/components/ui/button';
 import { useActionFetcher } from '~/hooks/useActionFetcher';
 import { MAX_COVER_PAGES } from '~/lib/domain/cover';
@@ -87,14 +90,14 @@ function Cover({
   return (
     <>
       {coverPages.length > 0 && (
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <ul className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-muted p-4">
+          <ul className="flex flex-wrap gap-3">
             {coverPages.map((assetId, index) => (
               <li key={assetId}>
                 <img
                   src={`/api/assets/${assetId}`}
                   alt={t('cover.page', { number: index + 1 })}
-                  className="h-32 max-w-full rounded-sm border bg-white object-contain"
+                  className="h-36 max-w-full rounded-sm bg-white object-contain shadow-md"
                 />
               </li>
             ))}
@@ -113,31 +116,33 @@ function Cover({
         </div>
       )}
       {isCoverBroken && (
-        <p role="alert" className="text-sm text-destructive">
-          {t('cover.broken')}
-        </p>
+        <Alert variant="destructive">
+          <TriangleAlertIcon aria-hidden />
+          <AlertDescription>{t('cover.broken')}</AlertDescription>
+        </Alert>
       )}
       <FormField
         label={coverPages.length > 0 ? t('cover.replace') : t('cover.file')}
         hint={t('cover.hint', { count: MAX_COVER_PAGES })}
         error={fileError ?? (isBusy ? undefined : errors?.cover)}
-        ref={input}
-        type="file"
-        accept="application/pdf,image/png,image/jpeg"
-        disabled={isBusy}
-        onChange={(event) => {
-          const [file] = event.target.files ?? [];
-          // The same file can be picked again.
-          event.target.value = '';
-          if (file) void upload(file);
-        }}
-      />
-      {isBusy && (
-        <p role="status" className="flex items-center gap-2 text-sm">
-          <LoaderCircleIcon aria-hidden className="size-4 animate-spin" />
-          {t('common:saving')}
-        </p>
-      )}
+      >
+        {(props) => (
+          <FileDrop
+            {...props}
+            text={t('cover.choose')}
+            ref={input}
+            accept="application/pdf,image/png,image/jpeg"
+            disabled={isBusy}
+            onChange={(event) => {
+              const [file] = event.target.files ?? [];
+              // The same file can be picked again.
+              event.target.value = '';
+              if (file) void upload(file);
+            }}
+          />
+        )}
+      </FormField>
+      {isBusy && <SaveStatus state="saving" />}
       {coverPages.length > 0 && options.newPagePerCategory && (
         <SelectField
           label={t('cover.position')}

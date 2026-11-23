@@ -110,7 +110,7 @@ export function StartersTable({
             <span aria-hidden>{t('selectAllFiltered', { count: rows.length })}</span>
           </div>
         )}
-        <ul className="grid gap-px overflow-hidden rounded-xl border bg-border @2xl:grid-cols-2 @2xl:*:last:odd:col-span-2">
+        <ul className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border bg-border @2xl:grid-cols-2 @2xl:*:last:odd:col-span-2">
           {shown.map((row) => {
             const { key, ...rest } = props(row);
             return <StarterCard key={key} {...rest} />;
@@ -198,7 +198,7 @@ const StarterCard = memo(function StarterCard({
       className="flex items-start bg-card data-[state=selected]:bg-accent"
     >
       {canEdit && <SelectBox row={row} isSelected={isSelected} onToggle={onToggle} />}
-      <div className={cn('min-w-0 flex-1 py-2 text-sm', !canEdit && 'pl-4')}>
+      <div className={cn('min-w-0 flex-1 py-2 text-sm wrap-anywhere', !canEdit && 'pl-4')}>
         <p className="text-base leading-snug font-semibold">
           {fullName(row)}
           {row.differs && <DiffersMark />}

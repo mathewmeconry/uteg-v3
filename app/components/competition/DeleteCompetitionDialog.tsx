@@ -26,7 +26,7 @@ export function DeleteCompetitionDialog({ name }: { name: string }) {
       <AlertDialogTrigger asChild>
         <Button
           variant="outline"
-          className="border-destructive/50 text-destructive hover:border-destructive hover:bg-destructive/10 hover:text-destructive"
+          className="border-destructive text-destructive hover:border-destructive hover:bg-destructive/10 hover:text-destructive"
         >
           {t('delete.title')}
         </Button>
