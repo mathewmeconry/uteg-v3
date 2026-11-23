@@ -214,17 +214,29 @@ function createStore(storageKey: string) {
   let drafts = NO_DRAFTS;
   const listeners = new Set<() => void>();
 
-  function update(change: (next: Map<string, Draft>) => void) {
-    const next = new Map(drafts);
-    change(next);
+  function show(next: ReadonlyMap<string, Draft>) {
     drafts = next;
+    for (const listener of listeners) listener();
+  }
+
+  function readStored() {
+    return new Map(JSON.parse(localStorage.getItem(storageKey) ?? '[]') as [string, Draft][]);
+  }
+
+  function set(key: string, draft: Draft | null) {
     try {
-      const unsaved = [...drafts].filter(([, draft]) => !isUntouched(draft));
-      localStorage.setItem(storageKey, JSON.stringify(unsaved));
+      // Only this one, another tab may have stored others.
+      const stored = readStored();
+      if (draft && !isUntouched(draft)) stored.set(key, draft);
+      else stored.delete(key);
+      localStorage.setItem(storageKey, JSON.stringify([...stored]));
     } catch {
       // Full or blocked. The drafts still live as long as the page.
     }
-    for (const listener of listeners) listener();
+    const next = new Map(drafts);
+    if (draft) next.set(key, draft);
+    else next.delete(key);
+    show(next);
   }
 
   return {
@@ -233,20 +245,23 @@ function createStore(storageKey: string) {
       listeners.add(listener);
       return () => void listeners.delete(listener);
     },
-    set: (key: string, draft: Draft) => update((next) => next.set(key, draft)),
+    set,
     patch(key: string, changes: Partial<Draft>) {
       const draft = drafts.get(key);
-      if (draft) update((next) => next.set(key, { ...draft, ...changes }));
+      if (draft) set(key, { ...draft, ...changes });
     },
-    remove: (key: string) => update((next) => next.delete(key)),
+    remove: (key: string) => set(key, null),
     /** After a reload. */
     restore() {
       try {
-        const stored = JSON.parse(localStorage.getItem(storageKey) ?? '[]') as [string, Draft][];
+        const stored = [...readStored()];
         if (stored.length === 0) return;
-        update((next) => {
-          for (const [key, draft] of stored) next.set(key, { ...draft, saving: false });
-        });
+        show(
+          new Map([
+            ...drafts,
+            ...stored.map(([key, draft]) => [key, { ...draft, saving: false }] as const),
+          ]),
+        );
       } catch {
         // Blocked, or written by another version of the app.
       }

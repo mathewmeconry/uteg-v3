@@ -62,6 +62,18 @@ describe('a grade that was not answered', () => {
   });
 });
 
+it('keeps the grades that another tab stored', async () => {
+  send.mockImplementation(unreachable);
+  await setup();
+  const [[, draft]] = JSON.parse(localStorage.getItem('test')!);
+  localStorage.setItem('test', JSON.stringify([['reck:e2', draft]]));
+  act(() => drafts.change(SLOT, { attempts: [], final: '9.2' }));
+  const keys = () => JSON.parse(localStorage.getItem('test')!).map(([key]: [string]) => key);
+  expect(keys()).toEqual(['reck:e2', KEY]);
+  act(() => drafts.discard(KEY));
+  expect(keys()).toEqual(['reck:e2']);
+});
+
 function fetched() {
   return Promise.resolve(new Response('ok'));
 }

@@ -92,9 +92,12 @@ export function Tablet({
 
   const past = pastSlots.find(({ entryId }) => entryId === pastEntryId);
   const current = past ?? slots.find(({ entryId }) => entryId === resolved?.view);
-  const unsaved = [...drafts.drafts.values()].filter(
-    (draft) => !isUntouched(draft) && draft.entryId !== current?.entryId,
-  );
+  const unsaved = [...drafts.drafts.values()].filter((draft) => {
+    if (draft.entryId === current?.entryId) return false;
+    // Another tablet may have saved the same grade.
+    const slot = allSlots.find(({ entryId }) => entryId === draft.entryId);
+    return slot ? drafts.get(slot).isDirty : !isUntouched(draft);
+  });
 
   function moveTo(view: string, fromReview = false) {
     setPastEntryId(null);
