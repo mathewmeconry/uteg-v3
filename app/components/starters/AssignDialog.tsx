@@ -73,9 +73,11 @@ export function AssignDialog({
           <input type="hidden" name="assignments" value={JSON.stringify(assignments)} />
           <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 sm:px-6">
             {error && fetcher.state === 'idle' && <FormAlert message={error} />}
-            {groups.map(({ key, category, sex, entryIds }) => {
+            {groups.map(({ key, category, sex, entryIds, divisionIds, hasLineups }) => {
               const divisions = fittingDivisions(options, { category, sex });
               const choice = choices[key] ?? { divisionId: '', lineupId: KEEP };
+              // An apparatus belongs to a division, nobody can keep it in another one.
+              const canKeep = (id: string) => divisionIds.size === 1 && divisionIds.has(id);
               const division = divisions.find(({ id }) => id === choice.divisionId);
               return (
                 <fieldset key={key} className="grid gap-3 rounded-md border p-4">
@@ -94,7 +96,11 @@ export function AssignDialog({
                             onChange={(event) =>
                               setChoices({
                                 ...choices,
-                                [key]: { divisionId: event.target.value, lineupId: KEEP },
+                                [key]: {
+                                  divisionId: event.target.value,
+                                  lineupId:
+                                    !event.target.value || canKeep(event.target.value) ? KEEP : '',
+                                },
                               })
                             }
                           >
@@ -103,7 +109,12 @@ export function AssignDialog({
                           </NativeSelect>
                         )}
                       </FormField>
-                      <FormField label={t('common:fields.startApparatus')}>
+                      <FormField
+                        label={t('common:fields.startApparatus')}
+                        hint={
+                          division && choice.lineupId === '' && hasLineups && t('assign.cleared')
+                        }
+                      >
                         {(props) => (
                           <NativeSelect
                             {...props}
@@ -116,7 +127,9 @@ export function AssignDialog({
                               })
                             }
                           >
-                            <option value={KEEP}>{t('assign.keep')}</option>
+                            {(!division || canKeep(division.id)) && (
+                              <option value={KEEP}>{t('assign.keep')}</option>
+                            )}
                             <option value="">{t('noApparatus')}</option>
                             <LineupOptions division={division} />
                           </NativeSelect>

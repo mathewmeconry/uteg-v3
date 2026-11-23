@@ -28,7 +28,12 @@ import { listClubs } from '~/lib/clubs.server';
 import { getContestOptions } from '~/lib/contestOptions.server';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { withoutNul } from '~/lib/domain/starter';
-import { findClubConflicts, importStarters, type ImportRow } from '~/lib/starters.server';
+import {
+  findClubConflicts,
+  importStarters,
+  type ClubAnswer,
+  type ImportRow,
+} from '~/lib/starters.server';
 import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
@@ -48,7 +53,10 @@ const importSchema = z.object({
   contestId: id,
   clubId: id,
   /** The answer to the conflicts. They are checked before, so the first request has none. */
-  overwriteClubOf: z.array(id).max(MAX_IMPORT_ROWS).optional(),
+  clubAnswers: z
+    .array(z.object({ starterId: id, fromClubId: id, change: z.boolean() }))
+    .max(MAX_IMPORT_ROWS)
+    .optional(),
   rows: z
     .array(
       z.object({
@@ -74,7 +82,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   const rows = values.rows as ImportRow[];
   try {
-    if (!values.overwriteClubOf) {
+    if (!values.clubAnswers) {
       const conflicts = await findClubConflicts(id, { clubId: values.clubId, rows });
       if (conflicts.length > 0) return { conflicts };
     }
@@ -123,25 +131,26 @@ function Wizard({
   const checker = useFetcher<typeof clientAction>();
   /** Imports with the answer about the clubs. */
   const importer = useFetcher<typeof clientAction>();
-  const [isAnswered, setIsAnswered] = useState(false);
+  /** Responses that were handled. Fetchers keep them until the next one arrives. */
+  const [handled, setHandled] = useState<unknown[]>([]);
 
   const [club, setClub] = useState<ClubOption | null>(null);
   const [files, setFiles] = useState<ImportFile[]>([]);
   const [isReviewing, setIsReviewing] = useState(false);
   const [rows, dispatch] = useReducer(reviewReducer, []);
   const [loadedFiles, setLoadedFiles] = useState<ImportFile[]>();
-  /** The response that was left to change rows. */
-  const [seenResponse, setSeenResponse] = useState<unknown>();
   const submitRef = useRef<HTMLButtonElement>(null);
   const resultRef = useRef<HTMLHeadingElement>(null);
 
-  const fetcher = isAnswered ? importer : checker;
-  const isPending = fetcher.state !== 'idle';
-  const response = fetcher.data === seenResponse ? undefined : fetcher.data;
+  const isPending = checker.state !== 'idle' || importer.state !== 'idle';
+  const responseOf = ({ state, data: response }: typeof checker) =>
+    state === 'idle' && !handled.includes(response) ? response : undefined;
+  const checked = responseOf(checker);
+  const imported = responseOf(importer);
+  const response = imported ?? checked;
   const result = response && 'failures' in response ? response : undefined;
-  const error = useActionError(isPending ? undefined : response);
-  const checked = checker.data === seenResponse ? undefined : checker.data;
   const conflicts = !result && checked && 'conflicts' in checked ? checked.conflicts : undefined;
+  const error = useActionError(response);
   const step = result ? 'result' : isReviewing ? 'review' : 'files';
 
   const found = files.reduce((sum, { starters }) => sum + starters.length, 0);
@@ -166,24 +175,24 @@ function Wizard({
     if (result) resultRef.current?.focus();
   }, [result]);
 
-  function submit(overwriteClubOf?: string[]) {
+  function submit(clubAnswers?: ClubAnswer[]) {
     if (!club) return;
-    setIsAnswered(overwriteClubOf !== undefined);
-    void (overwriteClubOf ? importer : checker).submit(
+    // The question stays open while its answer is sent.
+    setHandled(clubAnswers ? [importer.data] : [importer.data, checker.data]);
+    void (clubAnswers ? importer : checker).submit(
       {
         contestId: contest.id,
         clubId: club.id,
         rows: rows.map(toImportRow),
-        ...(overwriteClubOf && { overwriteClubOf }),
+        ...(clubAnswers && { clubAnswers }),
       },
       { method: 'post', encType: 'application/json' },
     );
   }
 
-  /** Back from the question about the clubs. */
-  function goBack() {
-    setIsAnswered(false);
-    setSeenResponse(checker.data);
+  /** From the question about the clubs, or from the result. */
+  function backToReview() {
+    setHandled([importer.data, checker.data]);
   }
 
   return (
@@ -307,10 +316,10 @@ function Wizard({
             <ClubConflictDialog
               conflicts={conflicts}
               club={club}
-              error={isAnswered ? error : undefined}
+              error={error}
               isPending={isPending}
               onImport={submit}
-              onBack={goBack}
+              onBack={backToReview}
               focusAfterwards={() => (submitRef.current ?? resultRef.current)?.focus()}
             />
           )}
@@ -332,6 +341,13 @@ function Wizard({
                 <Count label={t('import.clubsKept')} value={result.clubsKept} />
                 <Count label={t('import.failures')} value={result.failures.length} />
               </dl>
+              {result.clubsOutdated.length > 0 && (
+                <p className="text-sm">
+                  {t('import.clubsOutdated', {
+                    names: result.clubsOutdated.map(fullName).join(', '),
+                  })}
+                </p>
+              )}
             </CardContent>
           </Card>
           {result.failures.length > 0 && (
@@ -360,9 +376,7 @@ function Wizard({
                     type: 'keep',
                     keys: result.failures.map(({ index }) => rows[index].key),
                   });
-                  // The check that led to an answered import is over as well.
-                  setIsAnswered(false);
-                  setSeenResponse(checker.data);
+                  backToReview();
                 }}
               >
                 {t('import.fixFailures')}

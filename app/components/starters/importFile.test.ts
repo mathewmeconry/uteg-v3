@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import ExcelJS from 'exceljs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MAX_FILE_MB, readStarterFile } from './importFile';
 
 const HEADER = [
@@ -71,6 +71,14 @@ describe('readStarterFile', () => {
     for (const content of ['', 'Vorname;Nachname', 'PK\u0003\u0004broken']) {
       expect(await readStarterFile(new File([content], 'a.xlsx'))).toEqual({ error: 'UNREADABLE' });
     }
+  });
+
+  it('tells when the reader could not be loaded', async () => {
+    vi.doMock('exceljs', () => Promise.reject(new TypeError('Failed to fetch')));
+    const valid = await file({ A: [HEADER] });
+    expect(await readStarterFile(valid)).toEqual({ error: 'NOT_LOADED' });
+    vi.doUnmock('exceljs');
+    expect(await readStarterFile(valid)).toEqual({ starters: [], skippedSheets: [] });
   });
 
   it('rejects large files without reading them', async () => {

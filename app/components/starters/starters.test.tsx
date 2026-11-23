@@ -367,6 +367,25 @@ it.each([
   ]);
 });
 
+it('AssignDialog clears the start apparatus of groups that change the division, and says so', async () => {
+  const user = userEvent.setup();
+  const moving = { ...ANNA, id: 'lea', entryId: 'lea', divisionId: 'f2', lineupId: 'f2-boden' };
+  const { submitted, fields } = renderPage(
+    <AssignDialog starters={[ANNA, moving]} options={OPTIONS} onClose={() => {}} />,
+  );
+  await user.selectOptions(screen.getByLabelText('Abteilung'), 'f1');
+  const apparatus = screen.getByLabelText('Startgerät');
+  expect(within(apparatus).queryByRole('option', { name: 'Nicht ändern' })).toBeNull();
+  expect(apparatus).toHaveDisplayValue('Kein Startgerät');
+  expect(apparatus).toHaveAccessibleDescription(/bisherige Startgerät wird entfernt/);
+  await user.selectOptions(apparatus, 'Reck');
+  expect(apparatus).not.toHaveAccessibleDescription();
+  await user.selectOptions(apparatus, 'Kein Startgerät');
+  await user.click(screen.getByRole('button', { name: 'Einteilen' }));
+  await waitFor(() => expect(submitted).toHaveBeenCalled());
+  expect(JSON.parse(fields().assignments)).toMatchObject([{ lineupId: null }]);
+});
+
 it('RemoveDialog shows errors and stays open', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();

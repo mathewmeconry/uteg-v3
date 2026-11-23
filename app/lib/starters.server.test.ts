@@ -838,6 +838,12 @@ describe('importStarters', () => {
       return { ...competition, other, idOf, input, clubs };
     }
 
+    const change = (starterId: string, fromClubId: string) => ({
+      starterId,
+      fromClubId,
+      change: true,
+    });
+
     it('keeps the club by default, but not of restored starters', async () => {
       const { id, input, clubs } = await setupClubs();
       expect(await importStarters(id, input)).toMatchObject({
@@ -852,11 +858,11 @@ describe('importStarters', () => {
     });
 
     it('changes the club of the given starters', async () => {
-      const { id, idOf, input, clubs } = await setupClubs();
+      const { id, club, idOf, input, clubs } = await setupClubs();
       const rows = [...input.rows, ...input.rows];
       expect(
-        await importStarters(id, { ...input, rows, overwriteClubOf: [idOf('Bea')] }),
-      ).toMatchObject({ clubsChanged: 1, clubsKept: 1 });
+        await importStarters(id, { ...input, rows, clubAnswers: [change(idOf('Bea'), club.id)] }),
+      ).toMatchObject({ clubsChanged: 1, clubsKept: 1, clubsOutdated: [] });
       expect(await clubs()).toEqual({ Anna: 'old', Bea: 'new', Carla: 'new', Dora: 'new' });
     });
 
@@ -866,7 +872,9 @@ describe('importStarters', () => {
       await importStarters(id, {
         ...input,
         rows: [input.rows[1]],
-        overwriteClubOf: [idOf('Anna'), foreign.starterId, 'unknown'],
+        clubAnswers: [idOf('Anna'), foreign.starterId, 'unknown'].map((starterId) =>
+          change(starterId, club.id),
+        ),
       });
       const all = await prisma.starter.findMany({ where: { clubId: input.clubId } });
       expect(all).toEqual([]);
@@ -879,7 +887,7 @@ describe('importStarters', () => {
       const before = await snapshot();
       const rows = [...input.rows, { ...ANNA, stvId: '9' }, { firstname: '' }];
       const person = { lastname: 'Muster', birthYear: 2010 };
-      const current = { name: club.name, location: club.location };
+      const current = { id: club.id, name: club.name, location: club.location };
       expect(await findClubConflicts(id, { ...input, rows })).toEqual([
         { starterId: idOf('Anna'), firstname: 'Anna', ...person, club: current },
         { starterId: idOf('Bea'), firstname: 'Bea', ...person, club: current },
@@ -908,13 +916,49 @@ describe('importStarters', () => {
       expect(await importStarters(id, { ...input, rows })).toMatchObject({ existing: 1 });
     });
 
+    it('follows the answer about someone who was removed after the check', async () => {
+      const { id, club, idOf, input, clubs } = await setupClubs();
+      await withdrawStarters(id, [idOf('Anna'), idOf('Bea')]);
+      const keep = { ...change(idOf('Anna'), club.id), change: false };
+      expect(
+        await importStarters(id, {
+          ...input,
+          clubAnswers: [keep, change(idOf('Bea'), club.id)],
+        }),
+      ).toMatchObject({ restored: 3, clubsKept: 1, clubsChanged: 1 });
+      expect(await clubs()).toEqual({ Anna: 'old', Bea: 'new', Carla: 'new', Dora: 'new' });
+    });
+
+    it('keeps and reports a club that changed after the check', async () => {
+      const { id, club, idOf, input } = await setupClubs();
+      const third = await createClub();
+      await updateStarter(id, idOf('Anna'), { clubId: third.id });
+      await updateStarter(id, idOf('Bea'), { clubId: third.id });
+      await withdrawStarters(id, [idOf('Bea')]);
+      expect(
+        await importStarters(id, {
+          ...input,
+          clubAnswers: [change(idOf('Anna'), club.id), change(idOf('Bea'), club.id)],
+        }),
+      ).toMatchObject({
+        clubsChanged: 0,
+        clubsKept: 2,
+        clubsOutdated: [
+          { firstname: 'Anna', lastname: 'Muster' },
+          { firstname: 'bea', lastname: 'Muster' },
+        ],
+      });
+      expect(await getStarter(id, idOf('Anna'))).toMatchObject({ clubId: third.id });
+      expect(await getStarter(id, idOf('Bea'))).toMatchObject({ clubId: third.id });
+    });
+
     it('keeps the club of someone who was added after the check', async () => {
       const { id, club, add, input } = await setupClubs();
       const conflicts = await findClubConflicts(id, input);
       const { starterId } = await add({ firstname: 'Dora' });
       await importStarters(id, {
         ...input,
-        overwriteClubOf: conflicts.map((conflict) => conflict.starterId),
+        clubAnswers: conflicts.map((conflict) => change(conflict.starterId, conflict.club.id)),
       });
       expect(await getStarter(id, starterId)).toMatchObject({ clubId: club.id });
     });

@@ -221,7 +221,8 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
     COLUMNS.filter((column) => column !== 'location'),
   );
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  // Other pages link to a starter with ?edit=<id>.
+  // Other pages link to a starter with ?edit=<id>, and with the state { returnBack: true } when
+  // closing the dialog should return to them.
   const editId = searchParams.get('edit');
   const [dialog, setDialog] = useState<OpenDialog | null>(() => {
     const starter = canEdit && starters.find(({ id }) => id === editId);
@@ -232,8 +233,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
   function closeDialog() {
     setDialog(null);
     if (dialog?.type !== 'edit' || dialog.starter.id !== editId) return;
-    // The first page of a tab has this key, there is nothing to return to.
-    if (location.key !== 'default') return void navigate(-1);
+    if (location.state?.returnBack) return void navigate(-1);
     setSearchParams(
       (params) => {
         params.delete('edit');

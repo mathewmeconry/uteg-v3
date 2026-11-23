@@ -68,7 +68,12 @@ function Address() {
   return <p data-testid="address">{pathname + search}</p>;
 }
 
-async function renderPage({ canEdit = true, entries = ['/'] } = {}) {
+async function renderPage({
+  canEdit = true,
+  entries = ['/'],
+  link = 'returnBack',
+}: { canEdit?: boolean; entries?: string[]; link?: 'returnBack' | 'plain' } = {}) {
+  const linkState = link === 'returnBack' ? { returnBack: true } : undefined;
   const Stub = createRoutesStub([
     {
       id: 'routes/secured/competition/layout',
@@ -102,7 +107,14 @@ async function renderPage({ canEdit = true, entries = ['/'] } = {}) {
           // The props are typed for the real route.
           Component: Starters as never,
         },
-        { path: 'lineups', Component: () => <Link to="/?edit=003">Anna003</Link> },
+        {
+          path: 'lineups',
+          Component: () => (
+            <Link to="/?edit=003" state={linkState}>
+              Anna003
+            </Link>
+          ),
+        },
       ],
     },
   ]);
@@ -214,7 +226,13 @@ it('gives the focus back after assigning', async () => {
 });
 
 it('opens the starter of a link and drops it from the address', async () => {
-  const { user } = await renderPage({ entries: ['/?contest=contest&edit=003'] });
+  // Like a page opened from a bookmark: browsers give every page a key.
+  const { user } = await renderPage({
+    entries: [
+      '/elsewhere',
+      { pathname: '/', search: '?contest=contest&edit=003', key: 'k3y' } as never,
+    ],
+  });
   expect(screen.getByRole('dialog', { name: 'Anna003 Muster bearbeiten' })).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Abbrechen' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -222,10 +240,16 @@ it('opens the starter of a link and drops it from the address', async () => {
   await waitFor(() => expect(screen.getByTestId('address')).not.toHaveTextContent('edit'));
 });
 
-it('returns to the page with the link', async () => {
+it('returns to the page with the link, when the link asks for it', async () => {
   const { user } = await renderPage({ entries: ['/lineups'] });
   await user.click(screen.getByRole('button', { name: 'Abbrechen' }));
   await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent('/lineups'));
+});
+
+it('stays after a plain link', async () => {
+  const { user } = await renderPage({ entries: ['/lineups'], link: 'plain' });
+  await user.click(screen.getByRole('button', { name: 'Abbrechen' }));
+  await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent(/^\/$/));
 });
 
 it.each([

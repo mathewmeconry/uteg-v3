@@ -82,6 +82,7 @@ export default {
     description_one: 'Assign {{count}} selected person.',
     description_other: 'Assign {{count}} selected people.',
     keep: 'Do not change',
+    cleared: 'The current starting apparatus will be removed.',
     noDivisions: 'There is no division for this group yet.',
     withoutCategory_one: '{{count}} person without a category is not assigned.',
     withoutCategory_other: '{{count}} people without a category are not assigned.',
@@ -110,6 +111,8 @@ export default {
     fileErrors: {
       UNREADABLE: 'The file could not be read. Save it as XLSX.',
       NO_STARTERS: 'No sheet with the required columns found.',
+      NOT_LOADED:
+        'No connection to the server, the reader for Excel files could not be loaded. Choose the file again once the connection is back.',
       TOO_LARGE: 'The file is too large.',
     },
     toReview: 'Review',
@@ -133,6 +136,8 @@ export default {
     existing: 'Already there',
     clubsChanged: 'Club changed',
     clubsKept: 'Club kept',
+    clubsOutdated:
+      'The club of these people was changed in the meantime and therefore kept: {{names}}',
     skippedSheets: 'Skipped sheets: {{names}}',
     conflicts: {
       title_one: '{{count}} person already starts for another club',

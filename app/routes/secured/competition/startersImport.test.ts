@@ -113,7 +113,7 @@ it('asks before it changes clubs', async () => {
         firstname: 'Anna',
         lastname: 'Muster',
         birthYear: 2010,
-        club: { name: club.name, location: club.location },
+        club: { id: club.id, name: club.name, location: club.location },
       },
     ],
   });
@@ -122,11 +122,13 @@ it('asks before it changes clubs', async () => {
 
   const viewer = await createUser();
   await addMember(competition.id, viewer.id, 'VIEWER');
-  const answer = { ...body, overwriteClubOf: [starter.id] };
+  const change = { starterId: starter.id, fromClubId: club.id, change: true };
+  const answer = { ...body, clubAnswers: [change] };
   expect((await call(answer, viewer.id)).status).toBe(403);
-  expect((await call({ ...body, overwriteClubOf: ['\0'] })).status).toBe(400);
+  const nul = { ...change, starterId: '\0' };
+  expect((await call({ ...body, clubAnswers: [nul] })).status).toBe(400);
 
-  const kept = await call({ ...body, overwriteClubOf: [] });
+  const kept = await call({ ...body, clubAnswers: [{ ...change, change: false }] });
   expect(kept.data).toMatchObject({ created: 1, existing: 1, clubsKept: 1, clubsChanged: 0 });
   const find = () => prisma.starter.findUniqueOrThrow({ where: { id: starter.id } });
   expect(await find()).toMatchObject({ clubId: club.id });

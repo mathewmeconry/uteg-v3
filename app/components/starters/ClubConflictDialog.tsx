@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from '~/components/ui/alert-dialog';
 import { Button } from '~/components/ui/button';
+import type { ClubAnswer } from '~/lib/starters.server';
 import type { ClubOption } from './ClubCombobox';
 import { FormAlert } from './FormAlert';
 import { fullName } from './starterRow';
@@ -20,7 +21,7 @@ export type ClubConflict = {
   firstname: string;
   lastname: string;
   birthYear: number;
-  club: { name: string; location: string };
+  club: ClubOption;
 };
 
 /** Asks whose club an import may change. Nobody's by default. Render it while it is open. */
@@ -37,8 +38,7 @@ export function ClubConflictDialog({
   club: ClubOption;
   error?: string;
   isPending: boolean;
-  /** Gets the starters whose club may change. */
-  onImport: (starterIds: string[]) => void;
+  onImport: (answers: ClubAnswer[]) => void;
   onBack: () => void;
   focusAfterwards: () => void;
 }) {
@@ -120,7 +120,19 @@ export function ClubConflictDialog({
           <AlertDialogCancel type="button" className="pointer-coarse:min-h-11" disabled={isPending}>
             {t('common:actions.back')}
           </AlertDialogCancel>
-          <SubmitButton type="button" pending={isPending} onClick={() => onImport([...selected])}>
+          <SubmitButton
+            type="button"
+            pending={isPending}
+            onClick={() =>
+              onImport(
+                conflicts.map(({ starterId, club: { id: fromClubId } }) => ({
+                  starterId,
+                  fromClubId,
+                  change: selected.has(starterId),
+                })),
+              )
+            }
+          >
             {t('common:actions.import')}
           </SubmitButton>
         </div>

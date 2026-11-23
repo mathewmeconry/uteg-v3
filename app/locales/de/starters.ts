@@ -80,6 +80,7 @@ export default {
     description_one: 'Teile {{count}} ausgewählte Person ein.',
     description_other: 'Teile {{count}} ausgewählte Personen ein.',
     keep: 'Nicht ändern',
+    cleared: 'Das bisherige Startgerät wird entfernt.',
     noDivisions: 'Für diese Gruppe gibt es noch keine Abteilung.',
     withoutCategory_one: '{{count}} Person ohne Kategorie wird nicht eingeteilt.',
     withoutCategory_other: '{{count}} Personen ohne Kategorie werden nicht eingeteilt.',
@@ -108,6 +109,8 @@ export default {
     fileErrors: {
       UNREADABLE: 'Die Datei konnte nicht gelesen werden. Speichere sie als XLSX.',
       NO_STARTERS: 'Kein Tabellenblatt mit den nötigen Spalten gefunden.',
+      NOT_LOADED:
+        'Keine Verbindung zum Server, das Lesen von Excel-Dateien konnte nicht geladen werden. Wähle die Datei nochmals, sobald die Verbindung steht.',
       TOO_LARGE: 'Die Datei ist zu gross.',
     },
     toReview: 'Prüfen',
@@ -131,6 +134,8 @@ export default {
     existing: 'Bereits dabei',
     clubsChanged: 'Verein geändert',
     clubsKept: 'Verein behalten',
+    clubsOutdated:
+      'Der Verein dieser Personen wurde inzwischen geändert und deshalb behalten: {{names}}',
     skippedSheets: 'Übersprungene Tabellenblätter: {{names}}',
     conflicts: {
       title_one: '{{count}} Person startet bereits für einen anderen Verein',
