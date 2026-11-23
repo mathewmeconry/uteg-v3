@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '~/components/ui/table';
+import { cn } from '~/lib/utils';
 import type { EgtApparatus } from '~/modules/egt/module';
 import { columnText, type Column, type Sort } from './starterList';
 import { fullName, type StarterRow } from './starterRow';
@@ -65,7 +66,7 @@ export function StartersTable({
 
   return (
     <div className="@container">
-      <div className="hidden rounded-xl border bg-card @4xl:block">
+      <div className="hidden overflow-hidden rounded-xl border bg-card @4xl:block">
         <Table aria-rowcount={rows.length + 1}>
           <TableHeader>
             <TableRow>
@@ -109,7 +110,7 @@ export function StartersTable({
             <span aria-hidden>{t('selectAllFiltered', { count: rows.length })}</span>
           </div>
         )}
-        <ul className="grid gap-2 @xl:grid-cols-2">
+        <ul className="grid gap-px overflow-hidden rounded-xl border bg-border @2xl:grid-cols-2 @2xl:odd:*:last:col-span-2">
           {shown.map((row) => {
             const { key, ...rest } = props(row);
             return <StarterCard key={key} {...rest} />;
@@ -136,7 +137,15 @@ const StarterTableRow = memo(function StarterTableRow({
   const { t } = useTranslation(['starters', 'common']);
 
   return (
-    <TableRow data-state={isSelected ? 'selected' : undefined}>
+    <TableRow
+      data-state={isSelected ? 'selected' : undefined}
+      className={canEdit ? 'cursor-pointer data-[state=selected]:bg-accent' : undefined}
+      // A shortcut for the mouse, the pencil does the same.
+      onClick={({ target }) => {
+        if (!canEdit || (target as Element).closest('a, button, input, label')) return;
+        if (!window.getSelection()?.toString()) onEdit(row);
+      }}
+    >
       {canEdit && (
         <TableCell className="p-0">
           <SelectBox row={row} isSelected={isSelected} onToggle={onToggle} />
@@ -145,7 +154,11 @@ const StarterTableRow = memo(function StarterTableRow({
       {columns.map((column, index) => (
         <TableCell
           key={column}
-          className={column === 'club' || column === 'location' ? 'max-w-52 truncate' : undefined}
+          className={cn(
+            'py-1',
+            (column === 'club' || column === 'location') && 'max-w-52 truncate',
+            (column === 'lastname' || column === 'firstname') && 'font-semibold',
+          )}
         >
           {column === 'sex'
             ? t(`common:sex.${row.sex}`)
@@ -182,18 +195,18 @@ const StarterCard = memo(function StarterCard({
   return (
     <li
       data-state={isSelected ? 'selected' : undefined}
-      className="flex items-start rounded-xl border bg-card py-1 data-[state=selected]:border-primary data-[state=selected]:bg-accent"
+      className="flex items-start bg-card data-[state=selected]:bg-accent"
     >
       {canEdit && <SelectBox row={row} isSelected={isSelected} onToggle={onToggle} />}
-      <div className="min-w-0 flex-1 px-2 py-2 text-sm">
-        <p className="text-base font-semibold">
+      <div className={cn('min-w-0 flex-1 py-2 text-sm', !canEdit && 'pl-4')}>
+        <p className="text-base leading-snug font-semibold">
           {fullName(row)}
           {row.differs && <DiffersMark />}
         </p>
+        <p>{entry.filter(Boolean).join(', ')}</p>
         <p className="text-muted-foreground">
-          {row.club.name} · {row.birthYear} · {t(`common:sex.${row.sex}`)}
+          {row.club.name}, {row.birthYear}, {t(`common:sex.${row.sex}`)}
         </p>
-        <p>{entry.filter(Boolean).join(' · ')}</p>
       </div>
       {canEdit && <RowActions row={row} onEdit={onEdit} onRemove={onRemove} />}
     </li>
@@ -221,7 +234,7 @@ function SelectAll({
         checked={selectedCount === count}
         onChange={onToggle}
         aria-label={t('selectAllFiltered', { count })}
-        className="size-4 accent-primary"
+        className="size-4.5 accent-primary"
       />
     </label>
   );
@@ -241,7 +254,7 @@ function SelectBox({
         checked={isSelected}
         onChange={() => onToggle(row.id)}
         aria-label={t('selectRow', { name: fullName(row) })}
-        className="size-4 accent-primary"
+        className="size-4.5 accent-primary"
       />
     </label>
   );
@@ -256,7 +269,7 @@ const RowActions = memo(function RowActions({
   const { t } = useTranslation('starters');
   const name = fullName(row);
   return (
-    <span className="inline-flex shrink-0">
+    <span className="inline-flex shrink-0 text-muted-foreground">
       <Button
         variant="ghost"
         size="icon"
@@ -302,9 +315,14 @@ function SortableHead({
       aria-sort={!direction ? 'none' : direction === 'asc' ? 'ascending' : 'descending'}
       className="px-0"
     >
-      <Button variant="ghost" size="sm" className="px-2" onClick={onSort}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className={cn('gap-1 text-xs has-[>svg]:px-3', direction && 'text-foreground')}
+        onClick={onSort}
+      >
         {label}
-        <Icon aria-hidden className={direction ? undefined : 'opacity-40'} />
+        <Icon aria-hidden className={cn('size-3.5', !direction && 'opacity-40')} />
       </Button>
     </TableHead>
   );

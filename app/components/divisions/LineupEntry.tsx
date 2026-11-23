@@ -63,7 +63,12 @@ export function LineupEntry({
 
   const text = (
     <>
-      <span className={cn('block truncate font-medium', entry.withdrawn && 'line-through')}>
+      <span
+        className={cn(
+          'block truncate leading-snug font-semibold',
+          entry.withdrawn && 'line-through',
+        )}
+      >
         {name}
       </span>
       <span className="block truncate text-xs text-muted-foreground">
@@ -78,8 +83,8 @@ export function LineupEntry({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       data-entry={entry.id}
       className={cn(
-        'flex min-h-11 items-center gap-1 rounded-md border bg-background px-1 py-1',
-        selected && 'border-primary bg-accent',
+        'mx-1 flex min-h-11 items-center gap-0.5 rounded-md bg-card py-0.5 hover:bg-muted',
+        selected && 'bg-accent hover:bg-accent',
         isDragging && 'opacity-40',
       )}
     >
@@ -89,7 +94,7 @@ export function LineupEntry({
             ref={setActivatorNodeRef}
             variant="ghost"
             size="icon-sm"
-            className="cursor-grab touch-none px-0"
+            className="w-7 cursor-grab touch-none px-0 text-muted-foreground"
             {...attributes}
             {...listeners}
             aria-label={t('lineups.drag', { name })}
@@ -105,7 +110,7 @@ export function LineupEntry({
         </>
       )}
       {ordered && (
-        <span className="w-6 shrink-0 text-right text-sm text-muted-foreground tabular-nums">
+        <span className="figure w-6 shrink-0 text-right text-sm text-muted-foreground">
           {position && `${position}.`}
         </span>
       )}
@@ -124,7 +129,7 @@ export function LineupEntry({
         )}
       </span>
       {canMove && ordered && (
-        <span className="flex shrink-0">
+        <span className="flex shrink-0 text-muted-foreground *:w-7">
           <Button
             variant="ghost"
             size="icon-sm"

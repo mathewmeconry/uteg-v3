@@ -101,10 +101,7 @@ function ApparatusCell({ item }: { item: LiveGround['apparatus'][number] }) {
               <li
                 key={`${item.entryId} ${item.round}`}
                 // The one before is only interesting where there is room.
-                className={cn(
-                  'flex items-end justify-between gap-3',
-                  index > 0 && 'max-sm:hidden',
-                )}
+                className={cn('flex items-end justify-between gap-3', index > 0 && 'max-sm:hidden')}
               >
                 <div className="min-w-0 leading-snug">
                   {isEarlier && (

@@ -14,11 +14,15 @@ export function JudgeLinkCard({ link, manualUrl }: { link: JudgeLink; manualUrl:
   const name = `${apparatus}, ${t('common:ground', { number: link.ground })}`;
 
   return (
-    <li className="flex flex-col items-center gap-3 rounded-xl border bg-card p-4">
-      <h2 className="text-lg font-semibold">{apparatus}</h2>
-      <QrCode value={link.url} label={t('links.qr', { name })} className="size-52" />
-      <div className="grid w-full grid-cols-2 gap-2">
-        <Button asChild>
+    <li className="flex gap-3 bg-card p-4 sm:gap-4">
+      <QrCode
+        value={link.url}
+        label={t('links.qr', { name })}
+        className="size-36 shrink-0 sm:size-48"
+      />
+      <div className="grid min-w-0 flex-1 content-start gap-1.5">
+        <h2 className="mb-1 font-display text-xl leading-tight">{apparatus}</h2>
+        <Button asChild variant="outline" size="sm">
           <a
             href={link.url}
             target="_blank"
@@ -29,8 +33,8 @@ export function JudgeLinkCard({ link, manualUrl }: { link: JudgeLink; manualUrl:
             {t('common:actions.open')}
           </a>
         </Button>
-        <CopyButton value={link.url} aria-label={t('links.copyFor', { name })} />
-        <Button asChild variant="outline" className="col-span-2">
+        <CopyButton value={link.url} size="sm" aria-label={t('links.copyFor', { name })} />
+        <Button asChild variant="outline" size="sm">
           <a
             href={manualUrl}
             target="_blank"
@@ -45,7 +49,8 @@ export function JudgeLinkCard({ link, manualUrl }: { link: JudgeLink; manualUrl:
           trigger={
             <Button
               variant="ghost"
-              className="col-span-2"
+              size="sm"
+              className="text-muted-foreground"
               aria-label={t('links.resetFor', { name })}
             >
               <RotateCcwIcon aria-hidden />

@@ -91,7 +91,6 @@ export default {
   nothingLeft: 'Der Status hat sich inzwischen geändert. Es gibt nichts mehr zu tun.',
   lineups: {
     short: 'Riegen',
-    back: 'Zu den Abteilungen',
     order:
       'Die Reihenfolge gilt am Startgerät. An jedem weiteren Gerät rückt die Liste um einen Platz: Wer zuerst gestartet ist, kommt danach als Letztes.',
     running: 'Die Abteilung läuft',

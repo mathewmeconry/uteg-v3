@@ -15,6 +15,9 @@ const buttonVariants = cva(
           'border border-foreground/20 bg-card hover:border-foreground/30 hover:bg-accent hover:text-accent-foreground dark:border-foreground/25',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
+        // On ink surfaces.
+        brand: 'bg-brand text-brand-foreground hover:bg-brand/85',
+        onInk: 'bg-ink-accent text-ink-foreground hover:bg-ink-foreground/25',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {

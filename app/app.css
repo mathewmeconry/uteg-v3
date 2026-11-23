@@ -190,6 +190,10 @@
   }
 }
 
+@utility scrollbar-none {
+  scrollbar-width: none;
+}
+
 /* Under the top edge while a page loads. Waits a moment, most pages are faster. */
 @utility navigation-progress {
   animation: navigation-progress 8s cubic-bezier(0.1, 0.7, 0.1, 1) 150ms both;

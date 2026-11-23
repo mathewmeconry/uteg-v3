@@ -57,6 +57,7 @@ export default {
     expand: 'Navigation ausklappen',
   },
   chooseDate: 'Datum wählen',
+  stepOf: 'Schritt {{step}} von {{count}}',
   saveStatus: {
     error: 'Nicht gespeichert',
     retry: 'Nochmals versuchen',

@@ -16,9 +16,10 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { GripVerticalIcon, XIcon } from 'lucide-react';
+import { GripVerticalIcon } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SelectionBar } from '~/components/SelectionBar';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import { cn } from '~/lib/utils';
@@ -310,11 +311,11 @@ export function LineupBoard({
       onDragEnd={onDragEnd}
       onDragCancel={stopDragging}
     >
-      <div className="grid items-start gap-4 grid-cols-[minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]">
-        <div className="xl:sticky xl:top-18">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-[16.5rem_minmax(0,1fr)]">
+        <div className="xl:sticky xl:top-4">
           {columns.filter(({ id }) => id === UNASSIGNED).map(renderColumn)}
         </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] items-start gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16.5rem),1fr))] items-start gap-4">
           {columns.filter(({ id }) => id !== UNASSIGNED).map(renderColumn)}
         </div>
       </div>
@@ -329,31 +330,29 @@ export function LineupBoard({
       </DragOverlay>
 
       {selected.length > 0 && (
-        <div
+        <SelectionBar
           role="group"
           aria-label={t('lineups.selection')}
-          className="sticky bottom-3 z-[5] mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-primary bg-card p-2 shadow-lg"
+          clearLabel={t('clearSelection')}
+          onClear={() => setSelection(new Set())}
+          text={
+            <>
+              <strong aria-live="polite">{t('selected', { count: selected.length })}</strong>
+              <span className="block text-ink-muted">{t('lineups.moveTo')}</span>
+            </>
+          }
         >
-          <span className="px-2 text-sm font-medium" aria-live="polite">
-            {t('selected', { count: selected.length })}
-          </span>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-label={t('clearSelection')}
-            onClick={() => setSelection(new Set())}
-          >
-            <XIcon aria-hidden />
-          </Button>
-          <span className="w-full px-2 text-sm text-muted-foreground sm:w-auto">
-            {t('lineups.moveTo')}
-          </span>
           {columns.map(({ id }) => (
-            <Button key={id} size="sm" variant="outline" onClick={() => moveSelection(id)}>
+            <Button
+              key={id}
+              variant={id === UNASSIGNED ? 'onInk' : 'brand'}
+              className="px-3"
+              onClick={() => moveSelection(id)}
+            >
               {columnName(id)}
             </Button>
           ))}
-        </div>
+        </SelectionBar>
       )}
     </DndContext>
   );
@@ -387,24 +386,24 @@ function LineupColumn({
       aria-labelledby={headingId}
       data-column={id}
       style={{ minHeight }}
-      className={cn('rounded-xl border bg-card', isOver && 'border-primary')}
+      className={cn('rounded-xl border bg-card', isOver && 'border-primary ring-2 ring-primary/30')}
     >
-      <header className="flex min-h-11 items-center gap-2 border-b px-4 py-1">
+      <header className="flex min-h-11 items-center gap-2.5 rounded-t-xl border-b bg-muted px-3 py-1">
         {checkbox}
         <h2
           id={headingId}
           // Gets the focus after a move.
           tabIndex={-1}
-          className="min-w-0 flex-1 truncate rounded-sm font-semibold"
+          className="min-w-0 flex-1 truncate rounded-sm font-display text-lg"
         >
           {name}
         </h2>
-        <span className="text-sm text-muted-foreground tabular-nums">{count}</span>
+        <span className="figure text-lg">{count}</span>
       </header>
       <SortableContext id={id} items={shownIds} strategy={verticalListSortingStrategy}>
         <ol
           className={cn(
-            'grid min-h-16 grid-cols-[minmax(0,1fr)] content-start gap-1 p-2',
+            'grid min-h-14 grid-cols-[minmax(0,1fr)] content-start gap-px py-1',
             id === UNASSIGNED && 'max-h-[45dvh] overflow-y-auto xl:max-h-[calc(100dvh-9rem)]',
           )}
         >

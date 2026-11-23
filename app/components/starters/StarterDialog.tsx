@@ -76,15 +76,21 @@ export function StarterDialog({
   const formError = useActionError(result);
   const isDone = Boolean(result && 'ok' in result);
   const formRef = useRef<HTMLFormElement>(null);
+  const addsAnother = useRef(false);
 
   useEffect(() => {
     if (errors) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
   }, [errors]);
 
   useEffect(() => {
-    if (isDone) onClose();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only once
-  }, [isDone]);
+    if (!isDone) return;
+    if (!addsAnother.current) return onClose();
+    // Most come from a list of one club and category.
+    setPerson(({ sex }) => ({ ...NEW_PERSON, sex }));
+    setLinked(null);
+    formRef.current?.querySelector<HTMLElement>('[name="firstname"]')?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per answer
+  }, [result]);
 
   function change(field: keyof Person, value: string) {
     setPerson((previous) => ({ ...previous, [field]: value }) as Person);
@@ -240,14 +246,14 @@ export function StarterDialog({
               }}
             />
             {starter && (
-              <Label className="flex items-start gap-3 rounded-md border p-3 leading-normal font-normal">
+              <Label className="flex items-start gap-3 rounded-lg bg-muted p-3 leading-normal font-normal">
                 <Checkbox
                   name="updateAthlete"
                   className="mt-1"
                   aria-describedby="update-athlete-hint"
                 />
                 <span>
-                  <span className="font-medium">{t('form.updateAthlete')}</span>
+                  <span className="font-semibold">{t('form.updateAthlete')}</span>
                   <span id="update-athlete-hint" className="block text-muted-foreground">
                     {t('form.updateAthleteHint')}
                   </span>
@@ -256,13 +262,28 @@ export function StarterDialog({
             )}
           </div>
 
-          <DialogFooter className="flex-row justify-end border-t p-4 sm:px-6">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <DialogFooter className="flex-row flex-wrap justify-end border-t p-4 sm:px-6">
+            <Button type="button" variant="outline" onClick={onClose} className="max-sm:px-3">
               {t('common:actions.cancel')}
             </Button>
-            <SubmitButton pending={fetcher.state !== 'idle'}>
+            {/* Before the other one, the first is what Enter presses. */}
+            <SubmitButton
+              pending={fetcher.state !== 'idle'}
+              className="order-last"
+              onClick={() => (addsAnother.current = false)}
+            >
               {starter ? t('common:actions.save') : t('common:actions.add')}
             </SubmitButton>
+            {!starter && (
+              <SubmitButton
+                pending={fetcher.state !== 'idle'}
+                variant="outline"
+                className="max-sm:px-3"
+                onClick={() => (addsAnother.current = true)}
+              >
+                {t('addAnother')}
+              </SubmitButton>
+            )}
           </DialogFooter>
         </fetcher.Form>
       </DialogContent>

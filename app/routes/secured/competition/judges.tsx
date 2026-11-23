@@ -73,24 +73,7 @@ export default function Judges({ loaderData: { links } }: Route.ComponentProps) 
       <PageHeader
         title={t('judgesTitle')}
         description={t('links.intro')}
-        actions={
-          <>
-            <ConnectionBadge status={status} />
-            <ConfirmDialog
-              trigger={
-                <Button variant="outline">
-                  <RotateCcwIcon aria-hidden />
-                  {t('links.resetAll')}
-                </Button>
-              }
-              title={t('links.resetAllTitle')}
-              description={t('links.resetAllText')}
-              confirmLabel={t('links.resetAll')}
-              destructive
-              fields={{ intent: 'resetAll' }}
-            />
-          </>
-        }
+        status={<ConnectionBadge status={status} />}
       />
       <Tabs defaultValue="1" className="gap-4">
         {grounds.length > 1 && (
@@ -107,8 +90,8 @@ export default function Judges({ loaderData: { links } }: Route.ComponentProps) 
         )}
         {grounds.map((ground) => (
           <TabsContent key={ground} value={String(ground)} className="grid gap-4">
-            <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Button asChild>
                 <a href={`${manualUrl}?ground=${ground}`} target="_blank" rel="noreferrer">
                   <FileTextIcon aria-hidden />
                   {t('links.manualGround', { number: ground })}
@@ -118,7 +101,7 @@ export default function Judges({ loaderData: { links } }: Route.ComponentProps) 
               {grounds.length > 1 && (
                 <ConfirmDialog
                   trigger={
-                    <Button variant="outline">
+                    <Button variant="ghost" className="text-muted-foreground">
                       <RotateCcwIcon aria-hidden />
                       {t('links.resetGround', { number: ground })}
                     </Button>
@@ -131,7 +114,7 @@ export default function Judges({ loaderData: { links } }: Route.ComponentProps) 
                 />
               )}
             </div>
-            <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-4">
+            <ul className="grid gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-2 md:last:*:odd:col-span-2">
               {links
                 .filter((link) => link.ground === ground)
                 .map((link) => (
@@ -145,6 +128,25 @@ export default function Judges({ loaderData: { links } }: Route.ComponentProps) 
           </TabsContent>
         ))}
       </Tabs>
+      {/* Locks every tablet, so it is out of the way. */}
+      <div className="mt-8 border-t pt-5">
+        <ConfirmDialog
+          trigger={
+            <Button
+              variant="outline"
+              className="border-destructive/50 text-destructive hover:border-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <RotateCcwIcon aria-hidden />
+              {t('links.resetAll')}
+            </Button>
+          }
+          title={t('links.resetAllTitle')}
+          description={t('links.resetAllText')}
+          confirmLabel={t('links.resetAll')}
+          destructive
+          fields={{ intent: 'resetAll' }}
+        />
+      </div>
     </>
   );
 }

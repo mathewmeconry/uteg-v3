@@ -60,6 +60,7 @@ export default {
     expand: 'Expand navigation',
   },
   chooseDate: 'Choose a date',
+  stepOf: 'Step {{step}} of {{count}}',
   saveStatus: {
     error: 'Not saved',
     retry: 'Try again',

@@ -91,8 +91,11 @@ export function AssignDialog({
                     : [];
               const lostCount = losers.filter(({ lineupId }) => lineupId).length;
               return (
-                <fieldset key={key} className="grid gap-3 rounded-md border p-4">
-                  <legend className="px-1 font-semibold">
+                <fieldset
+                  key={key}
+                  className="grid gap-3 border-t pt-4 first-of-type:border-t-0 first-of-type:pt-0"
+                >
+                  <legend className="float-left mb-3 font-display text-lg">
                     {category} · {t(`common:sex.${sex}`)} ({entryIds.length})
                   </legend>
                   {divisions.length === 0 ? (

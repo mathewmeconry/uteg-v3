@@ -30,7 +30,6 @@ export default {
     egtText: 'Kategorien K1 bis K7, KD und KH mit Rangliste und Auszeichnungen',
   },
   wizard: {
-    progress: 'Schritt {{step}} von {{count}}',
     steps: {
       general: 'Allgemein',
       setup: 'Aufbau',

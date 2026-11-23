@@ -1,16 +1,16 @@
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, Trash2Icon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, Trash2Icon } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Form } from 'react-router';
 import { z } from 'zod';
 import { FormField } from '~/components/FormField';
+import { StepBar } from '~/components/StepBar';
 import { SubmitButton } from '~/components/SubmitButton';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import { FieldError, FieldLabel } from '~/components/ui/field';
 import type { MemberInput } from '~/lib/competitions.server';
 import { formatDateRange } from '~/lib/format';
-import { cn } from '~/lib/utils';
 import { egtModule } from '~/modules/egt/module';
 import { CompetitionFields, GroundsField } from './CompetitionFields';
 import { HonourPercentFields } from './HonourPercentFields';
@@ -130,7 +130,11 @@ export function CreateWizard({
 
   return (
     <Form ref={form} method="post" encType="multipart/form-data" noValidate onSubmit={onSubmit}>
-      <StepList current={step} onSelect={goTo} />
+      <StepBar
+        steps={STEPS.map((key) => ({ key, label: t(`wizard.steps.${key}`) }))}
+        current={step}
+        onSelect={goTo}
+      />
       {modules.map((module) => (
         <input key={module} type="hidden" name="modules" value={module} />
       ))}
@@ -316,50 +320,6 @@ export function CreateWizard({
         </div>
       </div>
     </Form>
-  );
-}
-
-function StepList({ current, onSelect }: { current: Step; onSelect: (step: Step) => void }) {
-  const { t } = useTranslation('competition');
-  const index = STEPS.indexOf(current);
-
-  return (
-    <div className="mb-5 grid gap-2">
-      <p className="text-sm text-muted-foreground sm:sr-only" aria-live="polite">
-        {t('wizard.progress', { step: index + 1, count: STEPS.length })}
-      </p>
-      <ol className="grid grid-cols-5 gap-1.5 sm:gap-3">
-        {STEPS.map((step, position) => (
-          <li key={step} aria-current={step === current ? 'step' : undefined}>
-            <button
-              type="button"
-              disabled={position >= index}
-              onClick={() => onSelect(step)}
-              className={cn(
-                'group w-full rounded-sm text-left text-sm enabled:cursor-pointer enabled:hover:text-primary max-sm:py-3',
-                position > index && 'text-muted-foreground',
-                step === current && 'font-semibold',
-              )}
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  'block h-1.5 rounded-sm bg-primary/15',
-                  position < index && 'bg-primary',
-                  step === current && 'bg-primary',
-                )}
-              />
-              <span className="sr-only sm:not-sr-only sm:mt-2 sm:flex sm:items-center sm:gap-1.5">
-                {position < index && (
-                  <CheckIcon aria-hidden className="size-4 shrink-0 text-success" />
-                )}
-                <span className="truncate">{`${position + 1}. ${t(`wizard.steps.${step}`)}`}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ol>
-    </div>
   );
 }
 

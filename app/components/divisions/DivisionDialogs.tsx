@@ -2,6 +2,7 @@ import { InfoIcon, TriangleAlertIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormField } from '~/components/FormField';
+import { RadioChips } from '~/components/RadioChips';
 import { SubmitButton } from '~/components/SubmitButton';
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
 import {
@@ -30,7 +31,6 @@ import {
 } from '~/components/ui/select';
 import type { Sex } from '~/generated/prisma/enums';
 import type { useActionFetcher } from '~/hooks/useActionFetcher';
-import { cn } from '~/lib/utils';
 import { getStartWarnings, type Division } from './divisionList';
 import { useDivisionName } from './useDivisionName';
 
@@ -138,16 +138,10 @@ function Warning({
 }) {
   return (
     // Part of the dialog's content, which is announced anyway.
-    <Alert
-      role="group"
-      className={cn(severe ? 'border-destructive' : 'border-warning bg-warning/10')}
-    >
-      <TriangleAlertIcon
-        aria-hidden
-        className={severe ? 'text-destructive' : 'dark:text-warning'}
-      />
-      <AlertTitle className="line-clamp-none">{title}</AlertTitle>
-      <AlertDescription className="text-foreground">
+    <Alert role="group" variant={severe ? 'destructive' : 'warning'}>
+      <TriangleAlertIcon aria-hidden />
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription>
         <p>{text}</p>
         {children}
       </AlertDescription>
@@ -354,39 +348,20 @@ export function CreateDialog({
       submitLabel={t('common:actions.create')}
       {...dialog}
     >
-      <FormField label={t('common:fields.sex')}>
-        {(props) => (
-          <Select name="sex" value={sex} onValueChange={(value) => setSex(value as Sex)}>
-            <SelectTrigger {...props} className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SEXES.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {t(`common:sex.${value}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </FormField>
-      <FormField label={t('common:fields.category')}>
-        {(props) => (
-          // Remounted for its options to match, Radix would reset the value otherwise.
-          <Select key={sex} name="category" value={category} onValueChange={setCategory}>
-            <SelectTrigger {...props} className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {categories[sex].map((value) => (
-                <SelectItem key={value} value={value}>
-                  {value}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </FormField>
+      <RadioChips
+        legend={t('common:fields.sex')}
+        name="sex"
+        value={sex}
+        options={SEXES.map((value) => ({ value, label: t(`common:sex.${value}`) }))}
+        onChange={setSex}
+      />
+      <RadioChips
+        legend={t('common:fields.category')}
+        name="category"
+        value={category}
+        options={categories[sex].map((value) => ({ value, label: value }))}
+        onChange={setCategory}
+      />
       <GroundField grounds={grounds} defaultValue={1} />
     </FormDialog>
   );

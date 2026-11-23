@@ -93,7 +93,6 @@ export default {
   nothingLeft: 'The state has changed in the meantime. There is nothing left to do.',
   lineups: {
     short: 'Lineups',
-    back: 'Back to divisions',
     order:
       'The order applies to the start apparatus. On each following apparatus the list moves by one place: whoever started first goes last.',
     running: 'The division is running',
