@@ -72,15 +72,17 @@ export default function Display({ loaderData, params: { linkId } }: Route.Compon
         style={{ '--scale': scale } as CSSProperties}
       >
         <title>{`${t('screenTitle')} · UTEG`}</title>
-        <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 px-2">
-          <h1 className="min-w-0 truncate font-display text-[clamp(1.25rem,2vw,2.5rem)] leading-tight">
-            {competitionName}
-            <span className="ml-4 text-ink-muted">{t('common:ground', { number: ground })}</span>
+        <header className="flex shrink-0 items-center justify-between gap-x-4 gap-y-1 px-2 max-sm:flex-wrap">
+          <h1 className="flex min-w-0 gap-x-4 font-display text-[clamp(1.25rem,2vw,2.5rem)] leading-tight max-sm:w-full">
+            <span className="truncate">{competitionName}</span>{' '}
+            <span className="shrink-0 text-ink-muted">
+              {t('common:ground', { number: ground })}
+            </span>{' '}
             {!isWaiting && (
-              <span className="ml-4">{t('common:round', { number: shownRound + 1 })}</span>
+              <span className="shrink-0">{t('common:round', { number: shownRound + 1 })}</span>
             )}
           </h1>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <ConnectionBadge status={status} onInk />
             <ScreenControls scale={scale} onScale={change} />
           </div>

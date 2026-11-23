@@ -151,7 +151,7 @@ export function Tablet({
       }
     />
   );
-  const unsavedGrades = (
+  const unsavedGrades = unsaved.length > 0 && (
     <UnsavedGrades
       items={unsaved}
       slots={allSlots}

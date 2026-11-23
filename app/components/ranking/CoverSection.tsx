@@ -132,12 +132,14 @@ function Cover({
             text={t('cover.choose')}
             ref={input}
             accept="application/pdf,image/png,image/jpeg"
-            disabled={isBusy}
+            // Not disabled, that would drop the focus.
+            aria-disabled={isBusy}
+            onClick={(event) => isBusy && event.preventDefault()}
             onChange={(event) => {
               const [file] = event.target.files ?? [];
               // The same file can be picked again.
               event.target.value = '';
-              if (file) void upload(file);
+              if (file && !isBusy) void upload(file);
             }}
           />
         )}

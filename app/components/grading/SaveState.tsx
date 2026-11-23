@@ -58,18 +58,20 @@ export function ConflictNotice({
 
   return (
     <Warning title={t('save.conflictTitle')}>
-      <p>
-        {state.saved
-          ? t('save.conflictText', { saved: formatEntered(state.saved.value), own })
-          : t('save.conflictDeleted', { own })}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" onClick={onUseSaved}>
-          {t('save.useSaved')}
-        </Button>
-        <Button type="button" disabled={!grade} onClick={onUseOwn}>
-          {t('save.useOwn')}
-        </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="flex-1 basis-48">
+          {state.saved
+            ? t('save.conflictText', { saved: formatEntered(state.saved.value), own })
+            : t('save.conflictDeleted', { own })}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={onUseSaved}>
+            {t('save.useSaved')}
+          </Button>
+          <Button type="button" disabled={!grade} onClick={onUseOwn}>
+            {t('save.useOwn')}
+          </Button>
+        </div>
       </div>
     </Warning>
   );

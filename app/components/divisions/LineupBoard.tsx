@@ -40,6 +40,21 @@ const pointerCollisions: CollisionDetection = (args) => {
     args.droppableContainers.some(
       (container) => container.id === id && container.data.current?.isColumn,
     );
+  // This list is sticky, dnd-kit would expect it to scroll with the page.
+  const unassigned = args.droppableContainers.find(({ id }) => id === UNASSIGNED);
+  const rect = unassigned?.node.current?.getBoundingClientRect();
+  const pointer = args.pointerCoordinates;
+  if (
+    rect &&
+    pointer &&
+    pointer.x >= rect.left &&
+    pointer.x <= rect.right &&
+    pointer.y >= rect.top &&
+    pointer.y <= rect.bottom
+  ) {
+    return [{ id: UNASSIGNED }];
+  }
+
   const hits = pointerWithin(args);
   if (hits.length === 0) return closestCorners(args);
   const column = hits.find(({ id }) => isColumn(id));
@@ -295,6 +310,8 @@ export function LineupBoard({
     );
   }
 
+  const unassigned = columns.filter(({ id }) => id === UNASSIGNED);
+  const targets = columns.filter(({ id }) => id !== UNASSIGNED);
   const activeEntry = activeId === null ? undefined : byId.get(activeId);
 
   return (
@@ -311,18 +328,29 @@ export function LineupBoard({
       onDragEnd={onDragEnd}
       onDragCancel={stopDragging}
     >
-      {/* All in one row, or without a gap: 5 lists as 1 + 2 × 2, 6 as 2 × 3. */}
+      {/* The unassigned stay next to the lists they are moved to, which are in as many columns as
+          have room. */}
       <div className="@container">
         <div
           className={cn(
-            'grid grid-cols-[minmax(0,1fr)] items-start gap-3 @2xl:grid-cols-2',
+            'grid grid-cols-[minmax(0,1fr)] gap-3 @2xl:grid-cols-2 @3xl:grid-cols-3',
             columns.length % 2 === 1
-              ? '@2xl:*:first:col-span-2 @min-[66rem]:grid-cols-[repeat(var(--lists),minmax(0,1fr))] @min-[66rem]:*:first:col-span-1'
-              : '@4xl:grid-cols-3 @min-[80rem]:grid-cols-[repeat(var(--lists),minmax(0,1fr))]',
+              ? '@min-[66rem]:grid-cols-[repeat(var(--lists),minmax(0,1fr))]'
+              : '@min-[80rem]:grid-cols-[repeat(var(--lists),minmax(0,1fr))]',
           )}
-          style={{ '--lists': columns.length } as CSSProperties}
+          style={{ '--lists': columns.length, '--targets': targets.length } as CSSProperties}
         >
-          {columns.map(renderColumn)}
+          {unassigned.map(renderColumn)}
+          <div
+            className={cn(
+              'grid grid-cols-[minmax(0,1fr)] content-start items-start gap-3 @2xl:col-[2/-1] @3xl:grid-cols-2',
+              columns.length % 2 === 1
+                ? '@min-[66rem]:grid-cols-[repeat(var(--targets),minmax(0,1fr))]'
+                : '@min-[80rem]:grid-cols-[repeat(var(--targets),minmax(0,1fr))]',
+            )}
+          >
+            {targets.map(renderColumn)}
+          </div>
         </div>
       </div>
 
@@ -340,7 +368,13 @@ export function LineupBoard({
           role="group"
           aria-label={t('lineups.selection')}
           clearLabel={t('clearSelection')}
-          onClear={() => setSelection(new Set())}
+          onClear={() => {
+            setSelection(new Set());
+            const column = findColumn(columns, selected[0]);
+            document
+              .querySelector<HTMLElement>(`[data-column="${column?.id}"] h2`)
+              ?.focus({ preventScroll: true });
+          }}
           text={
             <>
               <strong aria-live="polite">{t('selected', { count: selected.length })}</strong>
@@ -387,7 +421,11 @@ function LineupColumn({
       aria-labelledby={headingId}
       data-column={id}
       style={{ minHeight }}
-      className={cn('rounded-xl border bg-card', isOver && 'border-primary ring-2 ring-primary/30')}
+      className={cn(
+        'rounded-xl border bg-card',
+        id === UNASSIGNED && '@2xl:sticky @2xl:top-17 @2xl:self-start lg:@2xl:top-3',
+        isOver && 'border-primary ring-2 ring-primary/30',
+      )}
     >
       <header className="flex min-h-11 items-center gap-2.5 rounded-t-xl border-b bg-muted px-3 py-1">
         {checkbox}
@@ -405,7 +443,7 @@ function LineupColumn({
         <ol
           className={cn(
             'grid min-h-14 grid-cols-[minmax(0,1fr)] content-start gap-px py-1',
-            id === UNASSIGNED && 'max-h-[45dvh] overflow-y-auto @min-[66rem]:max-h-none',
+            id === UNASSIGNED && 'max-h-[45dvh] overflow-y-auto @2xl:max-h-[calc(100dvh-13rem)]',
           )}
         >
           {children}

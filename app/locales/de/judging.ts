@@ -68,6 +68,8 @@ export default {
   unsavedTitle_one: '{{count}} Note ist noch nicht gespeichert',
   unsavedTitle_other: '{{count}} Noten sind noch nicht gespeichert',
   unsavedText: 'Die Eingaben sind auf diesem Gerät gesichert.',
+  unsavedShow: 'Anzeigen',
+  unsavedHide: 'Ausblenden',
   discard: 'Verwerfen',
   discardConfirm: 'Eingabe für {{name}} verwerfen?',
   discardSent:

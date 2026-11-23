@@ -280,6 +280,7 @@
 
 /* The judging tablet, used at arm's length and in a hurry. */
 [data-touch='large'] [data-slot='button'],
+[data-touch='large'] [data-slot$='-close'],
 [data-touch='large'] [data-slot$='-trigger'][data-size] {
   min-width: 3.5rem;
   min-height: 3.5rem;

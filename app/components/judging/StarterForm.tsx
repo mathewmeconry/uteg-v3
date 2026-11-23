@@ -70,6 +70,13 @@ export function StarterForm({
     };
   }, []);
 
+  const fields = useRef<HTMLDivElement>(null);
+  const needsAnswer = state.isConflict || (state.isFailed && !state.isSaving);
+  useEffect(() => {
+    // In large type the question would appear behind the buttons.
+    if (needsAnswer) fields.current?.lastElementChild?.scrollIntoView?.({ block: 'nearest' });
+  }, [needsAnswer]);
+
   function moveOn() {
     onMove(fromReview ? 'review' : (next?.entryId ?? 'review'));
   }
@@ -95,7 +102,7 @@ export function StarterForm({
   return (
     <form
       noValidate
-      className="grid grid-cols-1 gap-5 @2xl:gap-7"
+      className="grid grid-cols-1 gap-5"
       onSubmit={(event) => {
         event.preventDefault();
         submit();
@@ -106,8 +113,8 @@ export function StarterForm({
           {t('pastRound')}
         </p>
       ) : (
-        <div className="grid gap-2">
-          <p className="text-lg text-muted-foreground">
+        <div className="flex items-center gap-4">
+          <p className="shrink-0 text-lg text-muted-foreground">
             {t('position', { position: index + 1, total: slots.length })}
           </p>
           <div
@@ -116,7 +123,7 @@ export function StarterForm({
             aria-valuenow={index + 1}
             aria-valuemin={1}
             aria-valuemax={slots.length}
-            className="flex gap-1"
+            className="flex flex-1 gap-1"
           >
             {slots.map((item) => (
               <span
@@ -159,7 +166,10 @@ export function StarterForm({
         </div>
       ) : (
         // Attempts and the grade they give are in one line, so the buttons need no scrolling.
-        <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4 @2xl:[&_div:has(>input)]:flex-1 @2xl:[&_div:has(>input)]:basis-32 [&_input]:h-24 [&_input]:rounded-xl [&_input]:border-2 [&_input]:text-6xl [&_input]:[font-stretch:85%] md:[&_input]:text-6xl">
+        <div
+          ref={fields}
+          className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4 @2xl:[&_div:has(>input)]:flex-1 @2xl:[&_div:has(>input)]:basis-32 [&_input]:h-24 [&_input]:rounded-xl [&_input]:border-2 [&_input]:text-6xl [&_input]:[font-stretch:85%] md:[&_input]:text-6xl"
+        >
           <GradeInputs
             large
             fields={state.fields}
@@ -195,21 +205,26 @@ export function StarterForm({
           {state.rejected && <RejectedNotice code={state.rejected} />}
           {state.isFailed && !state.isSaving && (
             <Warning title={t('save.failedTitle')}>
-              <p>{t('save.failedText')}</p>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" onClick={() => void finish(drafts.submit(key))}>
-                  {t('save.retry')}
-                </Button>
-                <Button type="button" variant="outline" onClick={moveOn}>
-                  {t('save.continue')}
-                </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="flex-1 basis-72 leading-snug">{t('save.failedText')}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" onClick={() => void finish(drafts.submit(key))}>
+                    {t('save.retry')}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={moveOn}>
+                    {t('save.continue')}
+                  </Button>
+                </div>
               </div>
             </Warning>
           )}
         </div>
       )}
 
-      <div className="flex flex-wrap justify-between gap-3">
+      <div
+        data-slot="form-actions"
+        className="sticky bottom-0 z-10 -mx-4 flex flex-wrap justify-between gap-3 bg-background px-4 py-2 sm:-mx-6 sm:px-6"
+      >
         <Button
           type="button"
           variant="outline"

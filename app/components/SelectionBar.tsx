@@ -15,6 +15,7 @@ export function SelectionBar({
 }: {
   text: ReactNode;
   clearLabel: string;
+  /** The bar disappears, so the focus has to go somewhere else. */
   onClear: () => void;
 } & ComponentProps<'div'>) {
   return (

@@ -48,7 +48,11 @@ export function PageHeader({
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="min-w-0 font-display text-[1.75rem] leading-tight wrap-anywhere md:text-[2rem]">
+            <h1
+              // Gets the focus when what had it was deleted, see ConfirmDialog.
+              tabIndex={-1}
+              className="min-w-0 font-display text-[1.75rem] leading-tight wrap-anywhere outline-none md:text-[2rem]"
+            >
               {title}
             </h1>
             {status}

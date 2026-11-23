@@ -70,6 +70,8 @@ export default {
   unsavedTitle_one: '{{count}} grade is not saved yet',
   unsavedTitle_other: '{{count}} grades are not saved yet',
   unsavedText: 'The input is kept on this device.',
+  unsavedShow: 'Show',
+  unsavedHide: 'Hide',
   discard: 'Discard',
   discardConfirm: 'Discard the input for {{name}}?',
   discardSent:

@@ -68,8 +68,11 @@ function AssignmentField({
     <Label className="min-h-11 min-w-0 cursor-pointer rounded-md border border-input bg-card px-3 py-1 leading-tight hover:bg-accent has-data-[state=checked]:border-primary has-data-[state=checked]:bg-accent">
       <Checkbox
         checked={checked}
-        disabled={pending}
-        onCheckedChange={(next) =>
+        // Not disabled, that would drop the focus.
+        aria-disabled={pending}
+        className="aria-disabled:opacity-50"
+        onCheckedChange={(next) => {
+          if (pending) return;
           void submit(
             {
               intent: next === true ? 'assign' : 'unassign',
@@ -77,8 +80,8 @@ function AssignmentField({
               group: `${sex}:${category}`,
             },
             { method: 'post' },
-          )
-        }
+          );
+        }}
       />
       <span className="min-w-0">
         {category}

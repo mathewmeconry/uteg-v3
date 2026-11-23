@@ -354,7 +354,7 @@ describe('changes from elsewhere', () => {
     expect(bodies()).toEqual([]);
   });
 
-  it('keeps the input when the division is stopped', () => {
+  it('keeps the input when the division is stopped', async () => {
     const data = createData([createSlot('Anna')]);
     setup(data);
     type('9.1');
@@ -368,6 +368,8 @@ describe('changes from elsewhere', () => {
       }),
     );
     expect(screen.getByText(/Abteilung 1 wurde gestoppt/)).toBeVisible();
+    expect(screen.queryByText(/Anna Frei:/)).toBeNull();
+    await click('Anzeigen');
     expect(screen.getByText(/Anna Frei:/)).toHaveTextContent('Anna Frei: 9.10');
     show(data);
     expect(input()).toHaveValue('9.1');

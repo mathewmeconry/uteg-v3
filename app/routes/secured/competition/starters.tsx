@@ -418,7 +418,10 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
           role="toolbar"
           aria-label={t('actions')}
           clearLabel={t('clearSelection')}
-          onClear={() => setSelected(new Set())}
+          onClear={() => {
+            setSelected(new Set());
+            listRef.current?.focus({ preventScroll: true });
+          }}
           text={
             <p role="status">
               <strong>{t('selected', { count: selectedRows.length })}</strong>

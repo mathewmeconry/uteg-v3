@@ -9,7 +9,7 @@ export function ConnectionBadge({
   onInk = false,
 }: {
   status: ConnectionStatus;
-  /** On an ink surface. */
+  /** On an ink surface. In a narrow container only the icon is visible. */
   onInk?: boolean;
 }) {
   const { t } = useTranslation();
@@ -33,7 +33,7 @@ export function ConnectionBadge({
       )}
       {status === 'connecting' && <LoaderCircleIcon aria-hidden className="animate-spin" />}
       {status === 'lost' && <WifiOffIcon aria-hidden />}
-      {t(`connection.${status}`)}
+      <span className={cn(onInk && '@max-2xl:sr-only')}>{t(`connection.${status}`)}</span>
     </span>
   );
 }

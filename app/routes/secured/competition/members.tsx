@@ -1,5 +1,6 @@
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { data, Form, redirect } from 'react-router';
+import { data, Form, redirect, useNavigation } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/members';
 import { MemberRow } from '~/components/competition/MemberRow';
@@ -99,6 +100,16 @@ export default function Members({
   const errors = useActionErrors(actionData);
   const owners = members.filter(({ role }) => role === 'OWNER').length;
 
+  const { state } = useNavigation();
+  const emailInput = useRef<HTMLInputElement>(null);
+  const isAdding = useRef(false);
+  useEffect(() => {
+    // The button was disabled meanwhile. To correct the address or to add the next member.
+    if (state !== 'idle' || !isAdding.current) return;
+    isAdding.current = false;
+    emailInput.current?.focus();
+  }, [state]);
+
   return (
     <>
       <title>{`${t('membersTitle')} · UTEG`}</title>
@@ -126,12 +137,16 @@ export default function Members({
               <Form
                 key={members.length}
                 method="post"
+                onSubmit={() => {
+                  isAdding.current = true;
+                }}
                 className="grid items-start gap-4 sm:grid-cols-[minmax(0,1fr)_9rem_auto]"
               >
                 <FormField
                   label={t('common:fields.email')}
                   hint={t('members.addHint')}
                   error={errors.email}
+                  ref={emailInput}
                   name="email"
                   type="email"
                   autoComplete="off"

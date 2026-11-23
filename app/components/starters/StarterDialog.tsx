@@ -144,7 +144,7 @@ export function StarterDialog({
         // A stray tap must not discard what was typed.
         onInteractOutside={(event) => event.preventDefault()}
       >
-        <DialogHeader className="border-b p-4 pr-12 text-left sm:px-6">
+        <DialogHeader className="border-b p-4 pr-14 text-left sm:pl-6">
           <DialogTitle>
             {starter ? t('editTitle', { name: fullName(starter) }) : t('createTitle')}
           </DialogTitle>

@@ -129,8 +129,8 @@ export function LineupEntry({
         )}
       </span>
       {canMove && ordered && (
-        // With a mouse only while pointing at the entry, the lists are narrow.
-        <span className="flex shrink-0 rounded-md bg-inherit text-muted-foreground *:w-7 max-[359px]:pointer-coarse:w-full max-[359px]:pointer-coarse:justify-end pointer-fine:absolute pointer-fine:inset-y-0 pointer-fine:right-0 pointer-fine:items-center pointer-fine:opacity-0 group-hover/entry:opacity-100 group-focus-within/entry:opacity-100">
+        // Without touch only while pointing at the entry, the lists are narrow.
+        <span className="flex shrink-0 rounded-md bg-inherit text-muted-foreground group-focus-within/entry:pointer-events-auto group-focus-within/entry:opacity-100 group-hover/entry:pointer-events-auto group-hover/entry:opacity-100 *:w-7 max-[359px]:pointer-coarse:w-full max-[359px]:pointer-coarse:justify-end not-any-pointer-coarse:absolute not-any-pointer-coarse:inset-y-0 not-any-pointer-coarse:right-0 not-any-pointer-coarse:items-center not-any-pointer-coarse:not-group-hover/entry:not-group-focus-within/entry:pointer-events-none not-any-pointer-coarse:not-group-hover/entry:not-group-focus-within/entry:opacity-0">
           <Button
             variant="ghost"
             size="icon-sm"

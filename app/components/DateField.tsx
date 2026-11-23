@@ -6,8 +6,8 @@ import { formatDay } from '~/lib/format';
 import { cn } from '~/lib/utils';
 
 /**
- * The browser's date input, which writes dates in the language of the browser. Until it is used it
- * shows them in the one of the app, with the weekday.
+ * The browser's date input, which writes dates in the language of the browser. Without the
+ * focus it shows them in the one of the app, with the weekday.
  */
 export function DateField({
   label,

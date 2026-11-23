@@ -42,8 +42,8 @@ export function RoundsSheet({
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full gap-0 sm:max-w-md">
-        <SheetHeader className="border-b">
-          <SheetTitle className="pr-6 font-display text-2xl font-bold">{t('list.all')}</SheetTitle>
+        <SheetHeader className="border-b pr-18">
+          <SheetTitle className="font-display text-2xl font-bold">{t('list.all')}</SheetTitle>
           <SheetDescription>{t('list.allText')}</SheetDescription>
         </SheetHeader>
         <div className="grid grid-cols-1 gap-6 overflow-y-auto p-4">

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SubmitButton } from '~/components/SubmitButton';
 import {
@@ -37,12 +37,22 @@ export function ConfirmDialog({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const { Form, pending } = useActionFetcher(() => setOpen(false));
 
   return (
     <AlertDialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
-      <AlertDialogContent>
+      <AlertDialogTrigger asChild ref={triggerRef}>
+        {trigger}
+      </AlertDialogTrigger>
+      <AlertDialogContent
+        onCloseAutoFocus={(event) => {
+          if (triggerRef.current) return;
+          // It was deleted together with its trigger.
+          event.preventDefault();
+          document.querySelector<HTMLElement>('#content h1')?.focus();
+        }}
+      >
         <Form method="post" action={action}>
           <AlertDialogHeader>
             <AlertDialogTitle>{title}</AlertDialogTitle>

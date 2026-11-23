@@ -26,7 +26,7 @@ export function ScreenControls({
   }
 
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex gap-1">
       <Button
         variant="onInk"
         aria-label={t('screen.smaller')}
