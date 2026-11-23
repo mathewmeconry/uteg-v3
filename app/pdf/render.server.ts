@@ -20,8 +20,8 @@ const CHILDREN = 2;
 const MAX_QUEUE = 20;
 const TIMEOUT_MS = 20_000;
 /**
- * Of the JavaScript heap. Buffers, e.g. of decompressed images, are not included, so images are
- * checked before, see png.server.ts and domain/jpeg.ts.
+ * Of the JavaScript heap. Buffers, e.g. of decompressed PNGs, are not included, so those are
+ * checked before, see png.server.ts. JPEGs are not decompressed.
  */
 const MAX_HEAP_MB = 512;
 

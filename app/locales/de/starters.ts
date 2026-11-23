@@ -138,8 +138,6 @@ export default {
     existing: 'Bereits dabei',
     clubsChanged: 'Verein geändert',
     clubsKept: 'Verein behalten',
-    clubsOutdated:
-      'Der Verein dieser Personen wurde inzwischen geändert und deshalb behalten: {{names}}',
     skippedSheets: 'Übersprungene Tabellenblätter: {{names}}',
     conflicts: {
       title_one: '{{count}} Person startet bereits für einen anderen Verein',

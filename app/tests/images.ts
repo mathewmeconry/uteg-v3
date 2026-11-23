@@ -2,45 +2,24 @@ import { crc32, deflateSync } from 'node:zlib';
 
 const u16 = (value: number) => [value >> 8, value & 255];
 
-/** The structure of a JPEG, its image data is made up. `segments` come before the frame. */
-export function createJpeg(
-  width = 200,
-  height = 100,
-  {
-    frame = 0xc0,
-    precision = 8,
-    components = 3,
-    scans = 1,
-    segments = [] as number[],
-    /** Too much in the header of the scan. */
-    scanHeader = [] as number[],
-    trailing = [0xff, 0xd9],
-    scanBytes = (Math.ceil(width / 8) * Math.ceil(height / 8)) / 4,
-  } = {},
-) {
+/** The structure of a JPEG, its image data is made up. */
+export function createJpeg(width = 200, height = 100, { scanBytes = 100 } = {}) {
   const segment = (marker: number, content: number[]) => [
     0xff,
     marker,
     ...u16(content.length + 2),
     ...content,
   ];
+  const components = [1, 2, 3].flatMap((id) => [id, 0x11, 0]);
   const head = [
     ...[0xff, 0xd8],
-    ...segments,
     ...segment(0xdb, [0, ...Array<number>(64).fill(1)]),
-    ...segment(frame, [
-      precision,
-      ...u16(height),
-      ...u16(width),
-      components,
-      ...Array.from({ length: components }, (_, index) => [index + 1, 0x11, 0]).flat(),
-    ]),
+    ...segment(0xc0, [8, ...u16(height), ...u16(width), 3, ...components]),
     ...segment(0xc4, [0, 1, ...Array<number>(15).fill(0), 0]),
+    ...segment(0xda, [1, 1, 0, 0, 63, 0]),
   ];
-  const scan = segment(0xda, [1, 1, 0, 0, 63, 0, ...scanHeader]);
-  const data = Buffer.alloc(Math.ceil(scanBytes), 0x55);
-  const parts = Array.from({ length: scans }, () => [Buffer.from(scan), data]).flat();
-  return new Uint8Array(Buffer.concat([Buffer.from(head), ...parts, Buffer.from(trailing)]));
+  const data = Buffer.alloc(scanBytes, 0x55);
+  return new Uint8Array(Buffer.concat([Buffer.from(head), data, Buffer.from([0xff, 0xd9])]));
 }
 
 /** A PNG, with the image data or made up ones that fit the header. */

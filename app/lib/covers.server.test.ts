@@ -24,10 +24,9 @@ async function setup() {
 }
 
 describe('setCover', () => {
-  it('stores the pages in order, without metadata', async () => {
+  it('stores the pages in order', async () => {
     const { id, set, read } = await setup();
-    const comment = [0xff, 0xfe, 0, 6, 0x45, 0x76, 0x69, 0x6c];
-    await set(createJpeg(200, 100, { segments: comment }), HIGH, WIDE, HIGH);
+    await set(WIDE, HIGH, WIDE, HIGH);
     const size = (cover: { width: number; height: number }[]) =>
       cover.map(({ width, height }) => [width, height]);
     expect(size(await read())).toEqual([

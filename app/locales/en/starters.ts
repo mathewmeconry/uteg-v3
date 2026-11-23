@@ -140,8 +140,6 @@ export default {
     existing: 'Already there',
     clubsChanged: 'Club changed',
     clubsKept: 'Club kept',
-    clubsOutdated:
-      'The club of these people was changed in the meantime and therefore kept: {{names}}',
     skippedSheets: 'Skipped sheets: {{names}}',
     conflicts: {
       title_one: '{{count}} person already starts for another club',

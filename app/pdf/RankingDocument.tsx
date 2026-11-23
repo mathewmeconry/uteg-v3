@@ -2,7 +2,7 @@ import { Circle, Document, Image, Page, Svg, Text, View } from '@react-pdf/rende
 import { Fragment } from 'react';
 import type { Sex } from '~/generated/prisma/client';
 import { formatGrade } from '~/lib/domain/grade';
-import type { Jpeg } from '~/lib/domain/jpeg';
+import type { CoverImage } from '~/lib/domain/cover';
 import type { Award } from '~/lib/domain/ranking';
 import {
   fillPlaceholders,
@@ -57,7 +57,7 @@ export type RankingSection = {
   groups: RankingGroup[];
   options: RankingTemplateOptions;
   /** Pages in front, which are not numbered. */
-  cover: Jpeg[];
+  cover: CoverImage[];
 };
 
 export type RankingDocumentProps = {
@@ -114,7 +114,7 @@ export function RankingDocument(props: RankingDocumentProps) {
 }
 
 /** Filled by the picture, without changing its proportions. */
-function CoverPage({ page: { data, width, height } }: { page: Jpeg }) {
+function CoverPage({ page: { data, width, height } }: { page: CoverImage }) {
   return (
     <Page size="A4" orientation={width > height ? 'landscape' : 'portrait'}>
       <Image
