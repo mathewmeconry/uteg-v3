@@ -1,7 +1,7 @@
 import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from 'lucide-react';
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useFetcher } from 'react-router';
+import { useRevalidator } from 'react-router';
 import { FormField, type FieldControlProps } from '~/components/FormField';
 import { Button } from '~/components/ui/button';
 import {
@@ -13,7 +13,9 @@ import {
   CommandList,
 } from '~/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover';
-import type { action } from '~/routes/api/competition/clubs';
+import { FormAlert } from './FormAlert';
+import { useActionError } from './keepPage';
+import { commandFilter } from './starterList';
 
 export type ClubOption = { id: string; name: string; location: string };
 
@@ -75,31 +77,34 @@ export function ClubCombobox({
           {creating ? (
             <NewClub competitionId={competitionId} defaultName={search} onCreated={choose} />
           ) : (
-            <Command>
-              <CommandInput
-                placeholder={t('club.search')}
-                value={search}
-                onValueChange={setSearch}
-              />
-              <CommandList className="max-h-60">
-                <CommandEmpty>{t('club.empty')}</CommandEmpty>
-                <CommandGroup>
-                  {clubs.map((club) => (
-                    <CommandItem
-                      key={club.id}
-                      value={club.id}
-                      keywords={[club.name, club.location]}
-                      onSelect={() => choose(club)}
-                    >
-                      <span className="min-w-0 flex-1 truncate">
-                        {club.name}
-                        <span className="text-muted-foreground">, {club.location}</span>
-                      </span>
-                      {club.id === value?.id && <CheckIcon aria-hidden />}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
+            <>
+              <Command filter={commandFilter} label={t('club.search')}>
+                <CommandInput
+                  placeholder={t('club.search')}
+                  value={search}
+                  onValueChange={setSearch}
+                />
+                <CommandList label={t('common:fields.club')} className="max-h-60">
+                  <CommandEmpty>{t('club.empty')}</CommandEmpty>
+                  <CommandGroup>
+                    {clubs.map((club) => (
+                      <CommandItem
+                        key={club.id}
+                        value={club.id}
+                        keywords={[club.name, club.location]}
+                        onSelect={() => choose(club)}
+                      >
+                        <span className="min-w-0 flex-1 truncate">
+                          {club.name}
+                          <span className="text-muted-foreground">, {club.location}</span>
+                        </span>
+                        {club.id === value?.id && <CheckIcon aria-hidden />}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+              {/* Outside of the menu, which picks its marked item on every Enter. */}
               <div className="border-t p-1">
                 <Button
                   type="button"
@@ -113,12 +118,33 @@ export function ClubCombobox({
                   </span>
                 </Button>
               </div>
-            </Command>
+            </>
           )}
         </PopoverContent>
       </Popover>
     </>
   );
+}
+
+type Result = {
+  club?: ClubOption;
+  errors?: Record<string, string>;
+  failed?: 'network' | 'server';
+};
+
+async function createClub(
+  competitionId: string,
+  fields: { name: string; location: string },
+): Promise<Result> {
+  try {
+    const response = await fetch(`/api/competitions/${competitionId}/clubs`, {
+      method: 'POST',
+      body: new URLSearchParams(fields),
+    });
+    return (await response.json()) as Result;
+  } catch (error) {
+    return { failed: error instanceof TypeError ? 'network' : 'server' };
+  }
 }
 
 function NewClub({
@@ -131,40 +157,43 @@ function NewClub({
   onCreated: (club: ClubOption) => void;
 }) {
   const { t } = useTranslation(['starters', 'common']);
-  const fetcher = useFetcher<typeof action>();
+  const { revalidate } = useRevalidator();
   const [name, setName] = useState(defaultName.trim());
   const [location, setLocation] = useState('');
-  const created = fetcher.data?.club;
+  const [isPending, setIsPending] = useState(false);
+  const [result, setResult] = useState<Result>();
+  const failure = useActionError(result);
 
-  useEffect(() => {
-    if (created) onCreated(created);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only once per created club
-  }, [created]);
-
-  // Not a form: this is rendered inside the form the club is picked for.
-  function submit() {
-    if (fetcher.state !== 'idle') return;
-    void fetcher.submit(
-      { name, location },
-      { method: 'post', action: `/api/competitions/${competitionId}/clubs` },
-    );
+  // Not a form: this is rendered inside the form the club is picked for. Not a fetcher: when it
+  // can't reach the server, it replaces the page with the error page.
+  async function submit() {
+    if (isPending) return;
+    setIsPending(true);
+    setResult(undefined);
+    const response = await createClub(competitionId, { name, location });
+    setIsPending(false);
+    setResult(response);
+    if (!response.club) return;
+    onCreated(response.club);
+    void revalidate();
   }
 
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key !== 'Enter') return;
     event.preventDefault();
-    submit();
+    void submit();
   }
 
   return (
     <div className="grid gap-4 p-4">
+      {failure && <FormAlert message={failure} />}
       <FormField
         label={t('club.name')}
         value={name}
         maxLength={200}
         onChange={(event) => setName(event.target.value)}
         onKeyDown={handleKeyDown}
-        error={fetcher.data?.errors?.name}
+        error={result?.errors?.name}
       />
       <FormField
         label={t('common:fields.location')}
@@ -172,9 +201,9 @@ function NewClub({
         maxLength={200}
         onChange={(event) => setLocation(event.target.value)}
         onKeyDown={handleKeyDown}
-        error={fetcher.data?.errors?.location}
+        error={result?.errors?.location}
       />
-      <Button type="button" onClick={submit} disabled={fetcher.state !== 'idle'}>
+      <Button type="button" onClick={() => void submit()} disabled={isPending}>
         {t('club.create')}
       </Button>
     </div>

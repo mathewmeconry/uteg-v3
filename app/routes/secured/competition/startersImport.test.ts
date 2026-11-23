@@ -48,7 +48,7 @@ it('imports a workbook and reports the rows that fail', async () => {
   if (!('starters' in result)) throw new Error(result.error);
 
   const { data } = await call({ contestId, clubId: club.id, rows: result.starters });
-  expect(data).toEqual({
+  expect(data).toMatchObject({
     created: 2,
     restored: 0,
     existing: 0,
@@ -98,6 +98,43 @@ it('denies viewers, strangers and visitors', async () => {
   expect(await prisma.starter.count()).toBe(0);
 });
 
+it('asks before it changes clubs', async () => {
+  const { competition, club, contestId, call } = await setup();
+  await call({ contestId, clubId: club.id, rows: [ANNA] });
+  const starter = await prisma.starter.findFirstOrThrow();
+  const other = await createClub();
+  const body = { contestId, clubId: other.id, rows: [ANNA, { ...ANNA, firstname: 'Bea' }] };
+
+  const { data } = await call(body);
+  expect(data).toEqual({
+    conflicts: [
+      {
+        starterId: starter.id,
+        firstname: 'Anna',
+        lastname: 'Muster',
+        birthYear: 2010,
+        club: { name: club.name, location: club.location },
+      },
+    ],
+  });
+  // Nothing is imported before the answer.
+  expect(await prisma.starter.count({ where: { competitionId: competition.id } })).toBe(1);
+
+  const viewer = await createUser();
+  await addMember(competition.id, viewer.id, 'VIEWER');
+  const answer = { ...body, overwriteClubOf: [starter.id] };
+  expect((await call(answer, viewer.id)).status).toBe(403);
+  expect((await call({ ...body, overwriteClubOf: ['\0'] })).status).toBe(400);
+
+  const kept = await call({ ...body, overwriteClubOf: [] });
+  expect(kept.data).toMatchObject({ created: 1, existing: 1, clubsKept: 1, clubsChanged: 0 });
+  const find = () => prisma.starter.findUniqueOrThrow({ where: { id: starter.id } });
+  expect(await find()).toMatchObject({ clubId: club.id });
+  const changed = await call(answer);
+  expect(changed.data).toMatchObject({ existing: 2, clubsKept: 0, clubsChanged: 1 });
+  expect(await find()).toMatchObject({ clubId: other.id });
+});
+
 it('rejects contests of other competitions and unknown clubs', async () => {
   const { club, contestId, call } = await setup();
   const other = await createCompetition();
@@ -111,6 +148,9 @@ it('limits the rows and their values', async () => {
   const send = async (rows: object[]) => (await call({ contestId, clubId: club.id, rows })).status;
   expect(await send([])).toBe(400);
   expect(await send(Array.from({ length: MAX_IMPORT_ROWS + 1 }, () => ANNA))).toBe(400);
+  expect(await send([{ ...ANNA, sex: 'X' }])).toBe(400);
+  expect(await send([{ ...ANNA, lastname: 'a\0b' }])).toBe(400);
+  expect(await send([{ ...ANNA, category: 'K\0' }])).toBe(400);
   expect(await send([{ ...ANNA, divisionNumber: 2 ** 40 }])).toBe(400);
   expect(await send([{ ...ANNA, firstname: 'x'.repeat(5000) }])).toBe(400);
 });

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { action } from '~/routes/api/competition/athletes';
+import type { suggestAthletes } from '~/lib/athletes.server';
 
-export type AthleteSuggestion = Awaited<ReturnType<typeof action>>['athletes'][number];
+export type AthleteSuggestion = Awaited<ReturnType<typeof suggestAthletes>>[number];
 
 const DEBOUNCE_MS = 200;
 

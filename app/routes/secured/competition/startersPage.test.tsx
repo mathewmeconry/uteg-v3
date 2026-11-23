@@ -1,7 +1,7 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nextProvider } from 'react-i18next';
-import { createRoutesStub, Outlet } from 'react-router';
+import { createRoutesStub, Link, Outlet, useLocation } from 'react-router';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { StarterRow } from '~/components/starters/starterRow';
 import { createI18n } from '~/lib/i18n';
@@ -14,6 +14,9 @@ const CLUBS = [
   { id: 'chur', name: 'TV Chur', location: 'Chur' },
   { id: 'buchs', name: 'TV Buchs', location: 'Buchs' },
 ];
+
+// The long list takes its time in jsdom.
+configure({ asyncUtilTimeout: 5000 });
 
 /** 100 starters, every fourth from Buchs. */
 const STARTERS = Array.from({ length: 100 }, (_, index): StarterRow => {
@@ -60,7 +63,12 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-async function renderPage({ canEdit = true } = {}) {
+function Address() {
+  const { pathname, search } = useLocation();
+  return <p data-testid="address">{pathname + search}</p>;
+}
+
+async function renderPage({ canEdit = true, entries = ['/'] } = {}) {
   const Stub = createRoutesStub([
     {
       id: 'routes/secured/competition/layout',
@@ -72,6 +80,7 @@ async function renderPage({ canEdit = true } = {}) {
       }),
       Component: () => (
         <I18nextProvider i18n={createI18n('de')}>
+          <Address />
           <Outlet />
         </I18nextProvider>
       ),
@@ -86,17 +95,23 @@ async function renderPage({ canEdit = true } = {}) {
               name: 'EGT',
               categories: { FEMALE: ['K5'], MALE: ['K5'] },
               apparatus: ['reck'],
-              divisions: [],
+              divisions: [{ id: 'd', category: 'K5', sex: 'FEMALE', number: 1, lineups: [] }],
             },
           }),
+          action: () => ({ ok: true }),
           // The props are typed for the real route.
           Component: Starters as never,
         },
+        { path: 'lineups', Component: () => <Link to="/?edit=003">Anna003</Link> },
       ],
     },
   ]);
-  render(<Stub />);
-  const table = within(await screen.findByRole('table'));
+  render(<Stub initialEntries={entries} />);
+  if (entries[0] === '/lineups') {
+    await userEvent.click(await screen.findByRole('link', { name: 'Anna003' }));
+    await screen.findByRole('dialog');
+  }
+  const table = within(await screen.findByRole('table', { hidden: true }));
   return { user: userEvent.setup(), table, rows: () => table.getAllByRole('row').slice(1) };
 }
 
@@ -163,6 +178,62 @@ it('marks differences from the athlete and lists who is removed', async () => {
   await user.click(table.getByRole('button', { name: 'Anna000 Muster entfernen' }));
   const dialog = within(screen.getByRole('alertdialog'));
   expect(dialog.getByText('Anna000 Muster, TV Buchs')).toBeInTheDocument();
+});
+
+it('shows a partial selection', async () => {
+  const { user, table, rows } = await renderPage();
+  const all = table.getByRole('checkbox', { name: /Alle gefilterten/ });
+  await user.click(within(rows()[0]).getByRole('checkbox'));
+  expect(all).toBePartiallyChecked();
+  await user.click(all);
+  expect(all).toBeChecked();
+});
+
+it('drops removed starters from the selection and moves the focus to the list', async () => {
+  const { user, rows } = await renderPage();
+  await user.click(within(rows()[0]).getByRole('checkbox'));
+  await user.click(within(rows()[1]).getByRole('checkbox'));
+  await user.click(within(rows()[0]).getByRole('button', { name: /entfernen/ }));
+  await user.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Entfernen' }),
+  );
+  expect(await screen.findByText('1 Person ausgewählt')).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole('region', { name: 'Teilnehmende' })).toHaveFocus());
+});
+
+it('gives the focus back after assigning', async () => {
+  const { user, rows } = await renderPage();
+  await user.click(within(rows()[0]).getByRole('checkbox'));
+  const assign = screen.getByRole('button', { name: 'Einteilen' });
+  await user.click(assign);
+  const dialog = within(screen.getByRole('dialog'));
+  await user.selectOptions(dialog.getByLabelText('Abteilung'), 'd');
+  await user.click(dialog.getByRole('button', { name: 'Einteilen' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await waitFor(() => expect(assign).toHaveFocus());
+});
+
+it('opens the starter of a link and drops it from the address', async () => {
+  const { user } = await renderPage({ entries: ['/?contest=contest&edit=003'] });
+  expect(screen.getByRole('dialog', { name: 'Anna003 Muster bearbeiten' })).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Abbrechen' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByTestId('address')).toHaveTextContent('/?contest=contest');
+  await waitFor(() => expect(screen.getByTestId('address')).not.toHaveTextContent('edit'));
+});
+
+it('returns to the page with the link', async () => {
+  const { user } = await renderPage({ entries: ['/lineups'] });
+  await user.click(screen.getByRole('button', { name: 'Abbrechen' }));
+  await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent('/lineups'));
+});
+
+it.each([
+  ['an unknown starter', { entries: ['/?edit=nope'] }],
+  ['viewers', { entries: ['/?edit=003'], canEdit: false }],
+])('ignores the link for %s', async (_, options) => {
+  await renderPage(options);
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
 it('lets viewers look and export only', async () => {

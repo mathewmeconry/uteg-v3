@@ -146,6 +146,22 @@ describe('access', () => {
     expect(await starters()).toMatchObject([{ id: foreign.id, deletedAt: null }]);
   });
 
+  it('answers NUL characters with 400', async () => {
+    const { competition, call, anna } = await setup();
+    const { id } = await createStarter(competition.id);
+    const all: Record<string, string>[] = [
+      { ...anna, firstname: 'a\0b' },
+      { ...anna, clubId: '\0' },
+      { ...anna, intent: 'update', starterId: id, contestId: '\0' },
+      { intent: 'remove', id: '\0' },
+      {
+        intent: 'assign',
+        assignments: JSON.stringify([{ entryIds: ['\0'], divisionId: 'x' }]),
+      },
+    ];
+    for (const fields of all) expect((await call(fields)).status).toBe(400);
+  });
+
   it('answers unknown intents with 400', async () => {
     const { call } = await setup();
     expect((await call({ intent: 'other' })).status).toBe(400);
@@ -279,6 +295,19 @@ describe('assign and remove', () => {
       { divisionId: k5.id, lineupId: k5.lineup('reck') },
       { divisionId: k6.id, lineupId: null },
     ]);
+  });
+
+  it('keeps the lineup when none is sent', async () => {
+    const { call, competition } = await setup();
+    const division = await createDivision(competition.contest.id);
+    const lineupId = division.lineup('boden');
+    const { entry } = await createStarter(competition.id, { divisionId: division.id, lineupId });
+    const { status } = await call({
+      intent: 'assign',
+      assignments: JSON.stringify([{ entryIds: [entry.id], divisionId: division.id }]),
+    });
+    expect(status).toBe(200);
+    expect(await prisma.entry.findFirst()).toMatchObject({ lineupId });
   });
 
   it.each(['', 'nonsense', '[{}]', '{}'])('rejects assignments %j', async (assignments) => {

@@ -48,6 +48,7 @@ describe('readStarterFile', () => {
         expect.objectContaining({ stvId: null, firstname: 'Jan', sex: 'MALE', category: 'KH' }),
         expect.objectContaining({ firstname: 'Tim', birthYear: 2008, sex: undefined }),
       ],
+      skippedSheets: ['Notizen'],
     });
   });
 
@@ -82,6 +83,9 @@ describe('readStarterFile', () => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(bytes.buffer as ArrayBuffer);
     expect((workbook.worksheets[0].getRow(1).values as string[]).slice(1)).toEqual(HEADER);
-    expect(await readStarterFile(new File([bytes], 'v.xlsx'))).toEqual({ starters: [] });
+    expect(await readStarterFile(new File([bytes], 'v.xlsx'))).toEqual({
+      starters: [],
+      skippedSheets: [],
+    });
   });
 });

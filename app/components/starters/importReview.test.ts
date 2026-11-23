@@ -76,6 +76,8 @@ describe('invalidFields', () => {
     [{ birthYear: '1800' }, ['birthYear']],
     [{ category: 'KH' }, ['category']],
     [{ sex: '', category: 'KH' }, ['sex']],
+    [{ category: 'foo' }, ['category']],
+    [{ sex: '', category: 'foo' }, ['sex', 'category']],
   ])('%j: %j', (change, fields) => {
     expect(invalidFields({ ...load({})[0], ...change }, OPTIONS)).toEqual(fields);
   });

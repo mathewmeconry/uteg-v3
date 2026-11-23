@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useFetcher } from 'react-router';
 import { FormField } from '~/components/FormField';
 import { SubmitButton } from '~/components/SubmitButton';
-import { Alert, AlertDescription } from '~/components/ui/alert';
 import { Button } from '~/components/ui/button';
 import {
   Dialog,
@@ -14,11 +13,16 @@ import {
   DialogTitle,
 } from '~/components/ui/dialog';
 import type { ContestOptions } from '~/lib/contestOptions.server';
-import type { action } from '~/routes/secured/competition/starters';
+import type { clientAction } from '~/routes/secured/competition/starters';
 import { groupForAssignment } from './assignGroups';
 import { DivisionOptions, fittingDivisions, LineupOptions } from './EntryFields';
+import { FormAlert } from './FormAlert';
+import { useActionError } from './keepPage';
 import { NativeSelect } from './NativeSelect';
 import type { StarterRow } from './starterRow';
+import { useReturnFocus } from './useReturnFocus';
+
+const KEEP = 'keep';
 
 /** Assigns starters to divisions, per category and sex. Render it while it is open. */
 export function AssignDialog({
@@ -31,7 +35,8 @@ export function AssignDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation(['starters', 'common']);
-  const fetcher = useFetcher<typeof action>();
+  const fetcher = useFetcher<typeof clientAction>();
+  const returnFocus = useReturnFocus();
   const [choices, setChoices] = useState<Record<string, { divisionId: string; lineupId: string }>>(
     {},
   );
@@ -40,9 +45,10 @@ export function AssignDialog({
   const assignments = groups.flatMap(({ key, entryIds }) => {
     const choice = choices[key];
     if (!choice?.divisionId) return [];
-    return [{ entryIds, divisionId: choice.divisionId, lineupId: choice.lineupId || null }];
+    const { divisionId, lineupId } = choice;
+    return [{ entryIds, divisionId, lineupId: lineupId === KEEP ? undefined : lineupId || null }];
   });
-  const error = fetcher.data && 'error' in fetcher.data ? fetcher.data.error : undefined;
+  const error = useActionError(fetcher.data);
   const isDone = Boolean(fetcher.data && 'ok' in fetcher.data);
 
   useEffect(() => {
@@ -52,7 +58,10 @@ export function AssignDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 p-0 sm:max-w-xl">
+      <DialogContent
+        className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 p-0 sm:max-w-xl"
+        onCloseAutoFocus={returnFocus}
+      >
         <DialogHeader className="border-b p-4 pr-12 text-left sm:px-6">
           <DialogTitle>{t('assign.title')}</DialogTitle>
           <DialogDescription>
@@ -63,14 +72,10 @@ export function AssignDialog({
           <input type="hidden" name="intent" value="assign" />
           <input type="hidden" name="assignments" value={JSON.stringify(assignments)} />
           <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 sm:px-6">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            {error && fetcher.state === 'idle' && <FormAlert message={error} />}
             {groups.map(({ key, category, sex, entryIds }) => {
               const divisions = fittingDivisions(options, { category, sex });
-              const choice = choices[key] ?? { divisionId: '', lineupId: '' };
+              const choice = choices[key] ?? { divisionId: '', lineupId: KEEP };
               const division = divisions.find(({ id }) => id === choice.divisionId);
               return (
                 <fieldset key={key} className="grid gap-3 rounded-md border p-4">
@@ -89,7 +94,7 @@ export function AssignDialog({
                             onChange={(event) =>
                               setChoices({
                                 ...choices,
-                                [key]: { divisionId: event.target.value, lineupId: '' },
+                                [key]: { divisionId: event.target.value, lineupId: KEEP },
                               })
                             }
                           >
@@ -111,6 +116,7 @@ export function AssignDialog({
                               })
                             }
                           >
+                            <option value={KEEP}>{t('assign.keep')}</option>
                             <option value="">{t('noApparatus')}</option>
                             <LineupOptions division={division} />
                           </NativeSelect>

@@ -2,13 +2,14 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer, type ReactNode } from 'react';
 import { I18nextProvider } from 'react-i18next';
-import { createRoutesStub } from 'react-router';
+import { createRoutesStub, data } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ContestOptions } from '~/lib/contestOptions.server';
 import { createI18n } from '~/lib/i18n';
 import { AssignDialog } from './AssignDialog';
 import { ImportReview } from './ImportReview';
 import { reviewReducer } from './importReview';
+import { RemoveDialog } from './RemoveDialog';
 import { StarterDialog } from './StarterDialog';
 import type { StarterRow } from './starterRow';
 
@@ -27,6 +28,7 @@ const OPTIONS: ContestOptions = {
   ],
 };
 const CLUB = { id: 'chur', name: 'TV Chur', location: 'Chur' };
+const CLUBS = [CLUB, { id: '01M845', name: 'Geräteriege', location: 'Zürich' }];
 const ANNA: StarterRow = {
   id: 'anna',
   firstname: 'Anna',
@@ -47,7 +49,7 @@ const ANNA: StarterRow = {
 };
 
 /** Renders with the routes the dialogs post to. */
-function renderPage(children: ReactNode) {
+function renderPage(children: ReactNode, result: unknown = { ok: true }) {
   const submitted = vi.fn();
   const Stub = createRoutesStub([
     {
@@ -56,15 +58,7 @@ function renderPage(children: ReactNode) {
       Component: () => <I18nextProvider i18n={createI18n('de')}>{children}</I18nextProvider>,
       action: async ({ request }) => {
         submitted([...(await request.formData())]);
-        return { ok: true };
-      },
-    },
-    {
-      path: '/api/competitions/:id/clubs',
-      action: async ({ request }) => {
-        const form = await request.formData();
-        const club = { id: 'new', name: form.get('name'), location: form.get('location') };
-        return { club, errors: null };
+        return result;
       },
     },
   ]);
@@ -87,17 +81,18 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-function renderStarterDialog(starter?: StarterRow) {
+function renderStarterDialog(starter?: StarterRow, result?: unknown) {
   const onClose = vi.fn();
   const page = renderPage(
     <StarterDialog
       competitionId="c"
       starter={starter}
       options={OPTIONS}
-      clubs={[CLUB]}
+      clubs={CLUBS}
       startingIds={new Set(['athlete-anna'])}
       onClose={onClose}
     />,
+    result,
   );
   return { ...page, onClose };
 }
@@ -112,9 +107,14 @@ describe('StarterDialog', () => {
     sex: 'FEMALE',
     club: CLUB,
   };
-  const fetchMock = vi.fn(async (_url: string, _init: RequestInit) =>
-    Response.json({ athletes: [suggestion] }),
-  );
+  const fetchMock = vi.fn(async (url: string, init: RequestInit) => {
+    if (!url.endsWith('/clubs')) return Response.json({ athletes: [suggestion] });
+    const fields = Object.fromEntries(init.body as URLSearchParams);
+    if (!fields.location) {
+      return Response.json({ errors: { location: 'Bitte ausfüllen' } }, { status: 400 });
+    }
+    return Response.json({ club: { id: 'new', ...fields } });
+  });
 
   beforeEach(() => {
     fetchMock.mockClear();
@@ -189,6 +189,93 @@ describe('StarterDialog', () => {
     expect(fields()).toMatchObject({ clubId: 'new' });
   });
 
+  it('keeps a new club that could not be saved', async () => {
+    const user = userEvent.setup();
+    renderStarterDialog();
+    await user.click(screen.getByLabelText('Verein'));
+    await user.click(screen.getByRole('button', { name: 'Neuen Verein erfassen' }));
+    await user.type(screen.getByLabelText('Name des Vereins'), 'TV Neu{Enter}');
+    expect(await screen.findByText('Bitte ausfüllen')).toBeInTheDocument();
+
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await user.type(screen.getByLabelText('Ort'), 'Bern{Enter}');
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Keine Verbindung/);
+    expect(screen.getByLabelText('Name des Vereins')).toHaveValue('TV Neu');
+  });
+
+  it('opens the form for a new club with Enter, instead of picking a club', async () => {
+    const user = userEvent.setup();
+    renderStarterDialog();
+    await user.click(screen.getByLabelText('Verein'));
+    await user.type(screen.getByRole('combobox', { name: 'Verein suchen' }), 'Chur');
+    screen.getByRole('button', { name: '«Chur» neu erfassen' }).focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByLabelText('Name des Vereins')).toHaveValue('Chur');
+    expect(screen.queryByText('TV Chur, Chur')).not.toBeInTheDocument();
+  });
+
+  it('searches clubs by name and place, not by id, ignoring accents', async () => {
+    const user = userEvent.setup();
+    renderStarterDialog();
+    await user.click(screen.getByLabelText('Verein'));
+    const search = screen.getByRole('combobox', { name: 'Verein suchen' });
+    expect(screen.getByRole('listbox', { name: 'Verein' })).toBeInTheDocument();
+    for (const [text, count] of [
+      ['01M', 0],
+      ['gerateriege zur', 1],
+      ['GERÄ', 1],
+      ['tc', 0],
+    ] as const) {
+      await user.clear(search);
+      await user.type(search, text);
+      const list = within(screen.getByRole('listbox', { name: 'Verein' }));
+      expect(list.queryAllByRole('option')).toHaveLength(count);
+    }
+  });
+
+  it('only picks a suggestion that is marked in the current list', async () => {
+    const user = userEvent.setup();
+    renderStarterDialog();
+    const firstname = screen.getByRole('combobox', { name: 'Vorname' });
+    await user.type(firstname, 'Ann');
+    await screen.findByRole('listbox');
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('option', { name: /Anna/ })).toHaveAttribute('aria-selected', 'true');
+
+    await user.type(firstname, 'a');
+    const option = await screen.findByRole('option', { name: /Anna/ });
+    expect(option).toHaveAttribute('aria-selected', 'false');
+    await user.type(firstname, '{Backspace}');
+    expect(await screen.findByRole('option', { name: /Anna/ })).toHaveAttribute(
+      'aria-selected',
+      'false',
+    );
+  });
+
+  it.each([
+    ['network', /Keine Verbindung/],
+    ['notFound', /nicht mehr/],
+    ['server', /schiefgelaufen/],
+  ])('keeps what was typed after a failure (%s)', async (failed, message) => {
+    const user = userEvent.setup();
+    const { onClose } = renderStarterDialog(ANNA, data({ failed }, 500));
+    await user.type(screen.getByLabelText('Vorname'), 'belle');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(message);
+    await waitFor(() => expect(alert).toHaveFocus());
+    expect(screen.getByLabelText('Vorname')).toHaveValue('Annabelle');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('focuses the first invalid field', async () => {
+    const user = userEvent.setup();
+    const errors = { birthYear: 'Ungültiger Wert', clubId: 'Bitte ausfüllen' };
+    renderStarterDialog(undefined, data({ errors }, 400));
+    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+    await waitFor(() => expect(screen.getByLabelText('Jahrgang')).toHaveFocus());
+  });
+
   it('edits with the athlete left alone by default', async () => {
     const user = userEvent.setup();
     const { submitted, fields } = renderStarterDialog(ANNA);
@@ -261,6 +348,37 @@ it('AssignDialog groups by category and sex and sends only the chosen groups', a
   ]);
 });
 
+it.each([
+  ['Nicht ändern', {}],
+  ['Kein Startgerät', { lineupId: null }],
+])('AssignDialog sends the start apparatus "%s"', async (choice, sent) => {
+  const user = userEvent.setup();
+  const { submitted, fields } = renderPage(
+    <AssignDialog starters={[ANNA]} options={OPTIONS} onClose={() => {}} />,
+  );
+  const apparatus = screen.getByLabelText('Startgerät');
+  expect(apparatus).toHaveDisplayValue('Nicht ändern');
+  await user.selectOptions(screen.getByLabelText('Abteilung'), 'f1');
+  await user.selectOptions(apparatus, choice);
+  await user.click(screen.getByRole('button', { name: 'Einteilen' }));
+  await waitFor(() => expect(submitted).toHaveBeenCalled());
+  expect(JSON.parse(fields().assignments)).toEqual([
+    { entryIds: ['entry-anna'], divisionId: 'f1', ...sent },
+  ]);
+});
+
+it('RemoveDialog shows errors and stays open', async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  renderPage(
+    <RemoveDialog starters={[ANNA]} onClose={onClose} onRemoved={() => {}} />,
+    data({ error: 'Das geht nicht.' }, 400),
+  );
+  await user.click(screen.getByRole('button', { name: 'Entfernen' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Das geht nicht.');
+  expect(onClose).not.toHaveBeenCalled();
+});
+
 describe('ImportReview', () => {
   function Review() {
     const [rows, dispatch] = useReducer(
@@ -298,6 +416,7 @@ describe('ImportReview', () => {
     const sex = screen.getByLabelText('Geschlecht, Zeile 1');
     expect(sex).toBeInvalid();
     expect(sex).toHaveValue('');
+    expect(sex).toHaveAccessibleDescription('Bitte ausfüllen');
     expect(screen.getAllByText(/Diese Abteilung gibt es nicht/)).toHaveLength(2);
 
     await user.selectOptions(sex, 'FEMALE');
@@ -312,5 +431,11 @@ describe('ImportReview', () => {
     await user.click(screen.getByRole('button', { name: 'Zeile 1 entfernen' }));
     expect(screen.getByLabelText('Vorname, Zeile 1')).toHaveValue('Lea');
     expect(screen.queryByLabelText('Vorname, Zeile 2')).not.toBeInTheDocument();
+    // The focus moves to the row that took its place, and to the empty list at the end.
+    const remove = screen.getByRole('button', { name: 'Zeile 1 entfernen' });
+    expect(remove).toHaveFocus();
+    await user.click(remove);
+    expect(screen.getByText('Keine Zeilen mehr übrig.')).toBeInTheDocument();
+    expect(document.body).not.toHaveFocus();
   });
 });

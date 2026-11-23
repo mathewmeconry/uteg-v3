@@ -16,6 +16,8 @@ export type ImportFile = {
   id: string;
   name: string;
   starters: ImportedStarter[];
+  /** The sheets without the columns of a starter list. */
+  skippedSheets: string[];
   error?: FileError;
 };
 
@@ -41,7 +43,13 @@ export function ImportFiles({
     const added: ImportFile[] = [];
     for (const file of chosen) {
       const result = await readStarterFile(file);
-      added.push({ id: crypto.randomUUID(), name: file.name, starters: [], ...result });
+      added.push({
+        id: crypto.randomUUID(),
+        name: file.name,
+        starters: [],
+        skippedSheets: [],
+        ...result,
+      });
     }
     setIsReading(false);
     onAdd(added);
@@ -95,7 +103,7 @@ export function ImportFiles({
       </div>
       {files.length > 0 && (
         <ul className="grid gap-2">
-          {files.map(({ id, name, starters, error }) => (
+          {files.map(({ id, name, starters, skippedSheets, error }) => (
             <li
               key={id}
               className="flex items-center gap-3 rounded-md border bg-card py-1 pr-1 pl-3"
@@ -109,6 +117,9 @@ export function ImportFiles({
                   <p className="text-muted-foreground">
                     {t('common:starterCount', { count: starters.length })}
                   </p>
+                )}
+                {skippedSheets.length > 0 && (
+                  <p>{t('import.skippedSheets', { names: skippedSheets.join(', ') })}</p>
                 )}
               </div>
               <Button

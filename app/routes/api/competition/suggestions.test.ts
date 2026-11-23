@@ -62,6 +62,15 @@ it('creates clubs for editors', async () => {
   expect(data.club).toMatchObject({ name: 'TV Chur', location: 'Chur' });
   expect((await call(body())).data.club.id).toBe(data.club.id);
 
+  expect((await call(new URLSearchParams({ name: 'a\0', location: 'b' }))).status).toBe(400);
+  const nul = await callRoute(athletes, {
+    layout: 'api',
+    userId: competition.ownerId,
+    competitionId: competition.id,
+    body: new URLSearchParams({ query: 'a\0b' }),
+  });
+  expect(nul.status).toBe(400);
+
   const invalid = await call(new URLSearchParams({ name: 'TV Chur', location: ' ' }));
   expect(invalid.status).toBe(400);
   expect(invalid.data.errors).toEqual({ location: 'Bitte ausfüllen' });

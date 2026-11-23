@@ -9,7 +9,6 @@ import {
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
-import { Checkbox } from '~/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -212,14 +211,19 @@ function SelectAll({
 }) {
   const { t } = useTranslation('starters');
   return (
-    <span className="flex size-11 items-center justify-center">
-      <Checkbox
-        checked={selectedCount === 0 ? false : selectedCount === count || 'indeterminate'}
-        onCheckedChange={onToggle}
+    <label className="flex size-11 items-center justify-center">
+      <input
+        type="checkbox"
+        // There is no attribute for it.
+        ref={(input) => {
+          if (input) input.indeterminate = selectedCount > 0 && selectedCount < count;
+        }}
+        checked={selectedCount === count}
+        onChange={onToggle}
         aria-label={t('selectAllFiltered', { count })}
-        className="relative after:absolute after:-inset-3.5"
+        className="size-4 accent-primary"
       />
-    </span>
+    </label>
   );
 }
 

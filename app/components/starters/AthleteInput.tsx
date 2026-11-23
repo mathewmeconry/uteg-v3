@@ -15,6 +15,7 @@ export function AthleteInput({
   label,
   error,
   hint,
+  onChange,
   ...inputProps
 }: {
   /** Null for a plain input. */
@@ -28,8 +29,10 @@ export function AthleteInput({
 } & ComponentProps<typeof Input>) {
   const { t } = useTranslation(['starters', 'common']);
   const listId = useId();
-  const [activeIndex, setActiveIndex] = useState(-1);
+  const [marked, setMarked] = useState<{ list: AthleteSuggestion[]; index: number }>();
   const suggestions = offered ?? [];
+  // Enter must not pick somebody at the same place of another list.
+  const activeIndex = marked && marked.list === offered ? marked.index : -1;
   const open = suggestions.length > 0;
   const active = suggestions[activeIndex];
   const optionId = (index: number) => `${listId}-${index}`;
@@ -41,10 +44,9 @@ export function AthleteInput({
       const step = event.key === 'ArrowDown' ? 1 : -1;
       // -1 is the input itself.
       const count = suggestions.length + 1;
-      setActiveIndex((index) => ((index + 1 + step + count) % count) - 1);
+      setMarked({ list: suggestions, index: ((activeIndex + 1 + step + count) % count) - 1 });
     } else if (event.key === 'Enter' && active) {
       event.preventDefault();
-      setActiveIndex(-1);
       onPick(active);
     }
   }
@@ -57,6 +59,10 @@ export function AthleteInput({
             {...inputProps}
             {...controlProps}
             autoComplete="off"
+            onChange={(event) => {
+              setMarked(undefined);
+              onChange?.(event);
+            }}
             {...(offered && {
               role: 'combobox',
               'aria-autocomplete': 'list',

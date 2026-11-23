@@ -49,9 +49,8 @@ export function invalidFields(row: ReviewRow, { categories }: ContestOptions): R
   const fields = result.success
     ? []
     : result.error.issues.map(({ path }) => path[0] as ReviewField);
-  if (row.category && row.sex && !categories[row.sex].includes(row.category)) {
-    fields.push('category');
-  }
+  const allowed = row.sex ? categories[row.sex] : [...categories.FEMALE, ...categories.MALE];
+  if (row.category && !allowed.includes(row.category)) fields.push('category');
   return [...new Set(fields)];
 }
 

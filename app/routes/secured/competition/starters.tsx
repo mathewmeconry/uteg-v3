@@ -8,14 +8,15 @@ import {
   UsersIcon,
   XIcon,
 } from 'lucide-react';
-import { useCallback, useDeferredValue, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { data, Link, useSearchParams } from 'react-router';
+import { data, Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/starters';
 import { EmptyState } from '~/components/EmptyState';
 import { PageHeader } from '~/components/PageHeader';
 import { AssignDialog } from '~/components/starters/AssignDialog';
+import { keepPage } from '~/components/starters/keepPage';
 import { NativeSelect } from '~/components/starters/NativeSelect';
 import { postIds } from '~/components/starters/postIds';
 import { RemoveDialog } from '~/components/starters/RemoveDialog';
@@ -46,6 +47,7 @@ import { listClubs } from '~/lib/clubs.server';
 import { getContestOptions } from '~/lib/contestOptions.server';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { parseForm } from '~/lib/forms.server';
+import { hasNul, safeText } from '~/lib/safeText';
 import {
   assignEntries,
   createStarter,
@@ -76,6 +78,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { id } = requireRole(context, 'EDITOR');
   const t = getT(context);
   const formData = await request.formData();
+  if (hasNul(formData)) return data({ error: t('errors.invalid') }, 400);
   const success = (message: string) => {
     enqueueToast(context, { type: 'success', message });
     return { ok: true as const };
@@ -140,6 +143,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
+export function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return keepPage(() => serverAction());
+}
+
 function starterFormSchema(t: ServerT) {
   const required = t('errors.required');
   const invalid = t('errors.invalid');
@@ -167,9 +174,10 @@ function starterFormSchema(t: ServerT) {
 const assignmentsSchema = z
   .array(
     z.object({
-      entryIds: z.array(z.string()).min(1),
-      divisionId: z.string().min(1),
-      lineupId: z.string().min(1).nullable(),
+      entryIds: z.array(safeText()).min(1),
+      divisionId: safeText().min(1),
+      // Not sent: keep, null: none.
+      lineupId: safeText().min(1).nullish(),
     }),
   )
   .min(1);
@@ -192,7 +200,9 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
   const { starters, contest, clubs } = loaderData;
   const { t } = useTranslation(['starters', 'common']);
   const { competition, contests, canEdit } = useCompetition();
-  const [, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   useLiveUpdates(`/api/events/${competition.id}`);
 
   const [search, setSearch] = useState('');
@@ -202,8 +212,32 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
     COLUMNS.filter((column) => column !== 'location'),
   );
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [dialog, setDialog] = useState<OpenDialog | null>(null);
-  const closeDialog = () => setDialog(null);
+  // Other pages link to a starter with ?edit=<id>.
+  const editId = searchParams.get('edit');
+  const [dialog, setDialog] = useState<OpenDialog | null>(() => {
+    const starter = canEdit && starters.find(({ id }) => id === editId);
+    return starter ? { type: 'edit', starter } : null;
+  });
+  const listRef = useRef<HTMLElement>(null);
+
+  function closeDialog() {
+    setDialog(null);
+    if (dialog?.type !== 'edit' || dialog.starter.id !== editId) return;
+    // The first page of a tab has this key, there is nothing to return to.
+    if (location.key !== 'default') return void navigate(-1);
+    setSearchParams(
+      (params) => {
+        params.delete('edit');
+        return params;
+      },
+      { replace: true },
+    );
+  }
+
+  function forget(removed: StarterRow[]) {
+    const ids = new Set(removed.map(({ id }) => id));
+    setSelected((previous) => new Set([...previous].filter((id) => !ids.has(id))));
+  }
 
   // Typing stays fluent, the list follows.
   const deferredSearch = useDeferredValue(search);
@@ -326,40 +360,42 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
         </NativeSelect>
       )}
 
-      {starters.length === 0 ? (
-        <EmptyState icon={UsersIcon} title={t('emptyTitle')} text={canEdit && t('emptyText')} />
-      ) : (
-        <>
-          <StartersToolbar
-            rows={starters}
-            apparatus={contest.apparatus}
-            search={search}
-            onSearch={setSearch}
-            filters={filters}
-            onFilters={setFilters}
-            sort={sort}
-            onSort={setSort}
-            columns={columns}
-            onColumns={setColumns}
-          />
-          {rows.length === 0 ? (
-            <EmptyState title={t('noMatchTitle')} text={t('noMatchText')} />
-          ) : (
-            <StartersTable
-              rows={rows}
-              columns={columns}
+      <section ref={listRef} tabIndex={-1} aria-label={t('title')} className="outline-none">
+        {starters.length === 0 ? (
+          <EmptyState icon={UsersIcon} title={t('emptyTitle')} text={canEdit && t('emptyText')} />
+        ) : (
+          <>
+            <StartersToolbar
+              rows={starters}
+              apparatus={contest.apparatus}
+              search={search}
+              onSearch={setSearch}
+              filters={filters}
+              onFilters={setFilters}
               sort={sort}
-              onSort={sortBy}
-              canEdit={canEdit}
-              selected={selected}
-              onToggle={toggle}
-              onToggleAll={toggleAll}
-              onEdit={edit}
-              onRemove={remove}
+              onSort={setSort}
+              columns={columns}
+              onColumns={setColumns}
             />
-          )}
-        </>
-      )}
+            {rows.length === 0 ? (
+              <EmptyState title={t('noMatchTitle')} text={t('noMatchText')} />
+            ) : (
+              <StartersTable
+                rows={rows}
+                columns={columns}
+                sort={sort}
+                onSort={sortBy}
+                canEdit={canEdit}
+                selected={selected}
+                onToggle={toggle}
+                onToggleAll={toggleAll}
+                onEdit={edit}
+                onRemove={remove}
+              />
+            )}
+          </>
+        )}
+      </section>
 
       {canEdit && selectedRows.length > 0 && (
         <div
@@ -413,7 +449,12 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
         <AssignDialog starters={dialog.starters} options={contest} onClose={closeDialog} />
       )}
       {dialog?.type === 'remove' && (
-        <RemoveDialog starters={dialog.starters} onClose={closeDialog} />
+        <RemoveDialog
+          starters={dialog.starters}
+          onClose={closeDialog}
+          onRemoved={() => forget(dialog.starters)}
+          focusAfterwards={() => listRef.current?.focus()}
+        />
       )}
     </>
   );

@@ -34,16 +34,26 @@ export function filterStarters(
   rows: readonly StarterRow[],
   { search, filters }: { search: string; filters: Filters },
 ) {
-  const words = normalize(search).split(/\s+/).filter(Boolean);
   return rows.filter((row) => {
     if (FILTERS.some((key) => filters[key].length > 0 && !filters[key].includes(value(row, key)))) {
       return false;
     }
-    if (words.length === 0) return true;
     const { firstname, lastname, club, stvId } = row;
-    const text = normalize([firstname, lastname, club.name, club.location, stvId].join(' '));
-    return words.every((word) => text.includes(word));
+    return matches([firstname, lastname, club.name, club.location, stvId].join(' '), search);
   });
+}
+
+/** Whether the text contains every word of the search, ignoring case and accents. */
+export function matches(text: string, search: string) {
+  const normalized = normalize(text);
+  return normalize(search)
+    .split(/\s+/)
+    .every((word) => normalized.includes(word));
+}
+
+/** Filter of command menus. Their values are ids, the keywords are what users see. */
+export function commandFilter(_value: string, search: string, keywords: string[] = []) {
+  return matches(keywords.join(' '), search) ? 1 : 0;
 }
 
 /** Missing values always come last, equal ones are ordered by name. */

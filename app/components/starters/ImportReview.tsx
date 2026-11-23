@@ -1,6 +1,7 @@
 import { ArrowLeftRightIcon, Trash2Icon, TriangleAlertIcon } from 'lucide-react';
-import { memo, type Dispatch, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useRef, type Dispatch, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '~/components/EmptyState';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import type { ContestOptions } from '~/lib/contestOptions.server';
@@ -14,7 +15,7 @@ import {
 import { NativeSelect } from './NativeSelect';
 
 const GRID =
-  '@5xl:grid-cols-[2.5rem_6.5rem_minmax(0,1fr)_2.75rem_minmax(0,1fr)_5rem_7.5rem_6rem_6rem_2.75rem]';
+  '@5xl:grid-cols-[2.5rem_6.5rem_minmax(0,1fr)_2.75rem_minmax(0,1fr)_5rem_9rem_6rem_5rem_2.75rem]';
 
 /** Edits the rows before the import. One line per row, or cards when there is no room. */
 export function ImportReview({
@@ -27,59 +28,104 @@ export function ImportReview({
   dispatch: Dispatch<ReviewAction>;
 }) {
   const { t } = useTranslation(['starters', 'common']);
-  const swapAll = (
-    <Button type="button" variant="outline" onClick={() => dispatch({ type: 'swapAll' })}>
-      <ArrowLeftRightIcon aria-hidden />
-      {t('import.swapAll')}
-    </Button>
+  const listRef = useRef<HTMLDivElement>(null);
+  const removedIndex = useRef<number>(null);
+
+  const remove = useCallback(
+    (key: number, index: number) => {
+      removedIndex.current = index;
+      dispatch({ type: 'remove', key });
+    },
+    [dispatch],
   );
 
+  useEffect(() => {
+    if (removedIndex.current === null) return;
+    // The button that was pressed is gone, the one of the next row takes its place.
+    const buttons = [...(listRef.current?.querySelectorAll<HTMLElement>('[data-remove]') ?? [])];
+    const next = buttons[removedIndex.current] ?? buttons.at(-1) ?? listRef.current;
+    next?.focus();
+    removedIndex.current = null;
+  }, [rows]);
+
   return (
-    <div className="@container grid gap-3">
-      <div>{swapAll}</div>
-      <div aria-hidden className={`hidden gap-2 px-2 text-sm font-medium @5xl:grid ${GRID}`}>
-        <span />
-        <span>{t('common:fields.stvId')}</span>
-        <span>{t('common:fields.firstname')}</span>
-        <span />
-        <span>{t('common:fields.lastname')}</span>
-        <span>{t('common:fields.birthYear')}</span>
-        <span>{t('common:fields.sex')}</span>
-        <span>{t('common:fields.category')}</span>
-        <span>{t('division')}</span>
-      </div>
-      <ul className="grid gap-3 @5xl:gap-0 @5xl:divide-y @5xl:rounded-xl @5xl:border @5xl:bg-card">
-        {rows.map((row, index) => (
-          <Row key={row.key} row={row} number={index + 1} options={options} dispatch={dispatch} />
-        ))}
-      </ul>
+    <div ref={listRef} tabIndex={-1} className="@container grid gap-3 outline-none">
+      {rows.length === 0 ? (
+        <EmptyState title={t('import.noRows')} />
+      ) : (
+        <>
+          <div>
+            <Button type="button" variant="outline" onClick={() => dispatch({ type: 'swapAll' })}>
+              <ArrowLeftRightIcon aria-hidden />
+              {t('import.swapAll')}
+            </Button>
+          </div>
+          <div
+            aria-hidden
+            className={`hidden items-end gap-2 px-2 text-sm font-medium @5xl:grid ${GRID}`}
+          >
+            <span />
+            <span>{t('common:fields.stvId')}</span>
+            <span>{t('common:fields.firstname')}</span>
+            <span />
+            <span>{t('common:fields.lastname')}</span>
+            <span>{t('common:fields.birthYear')}</span>
+            <span>{t('common:fields.sex')}</span>
+            <span>{t('common:fields.category')}</span>
+            <span>{t('division')}</span>
+          </div>
+          <ul className="grid gap-3 @5xl:gap-0 @5xl:divide-y @5xl:rounded-xl @5xl:border @5xl:bg-card">
+            {rows.map((row, index) => (
+              <Row
+                key={row.key}
+                row={row}
+                index={index}
+                options={options}
+                dispatch={dispatch}
+                onRemove={remove}
+              />
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }
 
 const Row = memo(function Row({
   row,
-  number,
+  index,
   options,
   dispatch,
+  onRemove,
 }: {
   row: ReviewRow;
-  number: number;
+  index: number;
   options: ContestOptions;
   dispatch: Dispatch<ReviewAction>;
+  onRemove: (key: number, index: number) => void;
 }) {
   const { t } = useTranslation(['starters', 'common']);
+  const number = index + 1;
   const invalid = invalidFields(row, options);
   const isUnknown = isDivisionUnknown(row, options);
   const categories = row.sex ? options.categories[row.sex] : [];
 
+  const errorId = (field: ReviewField) => `${field}-${row.key}`;
   const control = (field: ReviewField, label: string) => ({
     value: row[field],
     'aria-label': t('import.field', { label, row: number }),
     'aria-invalid': invalid.includes(field),
+    'aria-describedby': invalid.includes(field) ? errorId(field) : undefined,
     onChange: (event: { target: { value: string } }) =>
       dispatch({ type: 'change', key: row.key, field, value: event.target.value }),
   });
+  const error = (field: ReviewField) =>
+    invalid.includes(field) && (
+      <p id={errorId(field)} className="text-xs text-destructive">
+        {row[field].trim() ? t('common:errors.invalid') : t('common:errors.required')}
+      </p>
+    );
 
   return (
     <li
@@ -93,9 +139,11 @@ const Row = memo(function Row({
       </span>
       <Cell label={t('common:fields.stvId')}>
         <Input {...control('stvId', t('common:fields.stvId'))} maxLength={50} />
+        {error('stvId')}
       </Cell>
       <Cell label={t('common:fields.firstname')}>
         <Input {...control('firstname', t('common:fields.firstname'))} maxLength={100} />
+        {error('firstname')}
       </Cell>
       <Button
         type="button"
@@ -109,6 +157,7 @@ const Row = memo(function Row({
       </Button>
       <Cell label={t('common:fields.lastname')}>
         <Input {...control('lastname', t('common:fields.lastname'))} maxLength={100} />
+        {error('lastname')}
       </Cell>
       <Cell label={t('common:fields.birthYear')}>
         <Input
@@ -116,6 +165,7 @@ const Row = memo(function Row({
           inputMode="numeric"
           maxLength={4}
         />
+        {error('birthYear')}
       </Cell>
       <Cell label={t('common:fields.sex')}>
         <NativeSelect {...control('sex', t('common:fields.sex'))}>
@@ -125,6 +175,7 @@ const Row = memo(function Row({
           <option value="FEMALE">{t('common:sex.FEMALE')}</option>
           <option value="MALE">{t('common:sex.MALE')}</option>
         </NativeSelect>
+        {error('sex')}
       </Cell>
       <Cell label={t('common:fields.category')}>
         <NativeSelect {...control('category', t('common:fields.category'))}>
@@ -134,6 +185,7 @@ const Row = memo(function Row({
             <option key={category}>{category}</option>
           ))}
         </NativeSelect>
+        {error('category')}
       </Cell>
       <Cell label={t('division')}>
         <Input
@@ -147,9 +199,10 @@ const Row = memo(function Row({
         type="button"
         variant="ghost"
         size="icon"
+        data-remove
         className="order-last w-full @5xl:w-auto"
         aria-label={t('import.removeRow', { row: number })}
-        onClick={() => dispatch({ type: 'remove', key: row.key })}
+        onClick={() => onRemove(row.key, index)}
       >
         <Trash2Icon aria-hidden />
       </Button>
@@ -168,7 +221,7 @@ const Row = memo(function Row({
 
 function Cell({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid gap-1">
+    <div className="grid min-w-0 gap-1">
       {/* The control carries a label with the row number. */}
       <span aria-hidden className="text-xs text-muted-foreground @5xl:hidden">
         {label}

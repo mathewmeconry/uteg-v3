@@ -1,5 +1,7 @@
+import { data } from 'react-router';
 import type { Route } from './+types/athletes';
 import { suggestAthletes } from '~/lib/athletes.server';
+import { hasNul } from '~/lib/safeText';
 import { requireRole } from '~/middlewares/competition.server';
 
 /**
@@ -8,6 +10,8 @@ import { requireRole } from '~/middlewares/competition.server';
  */
 export async function action({ request, context }: Route.ActionArgs) {
   requireRole(context, 'EDITOR');
-  const query = (await request.formData()).get('query');
+  const formData = await request.formData();
+  if (hasNul(formData)) return data({ athletes: [] }, 400);
+  const query = formData.get('query');
   return { athletes: await suggestAthletes(String(query ?? '').slice(0, 200)) };
 }

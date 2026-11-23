@@ -1,9 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFetcher } from 'react-router';
 import { FormField } from '~/components/FormField';
 import { SubmitButton } from '~/components/SubmitButton';
-import { Alert, AlertDescription } from '~/components/ui/alert';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import {
@@ -17,12 +16,15 @@ import {
 import { Label } from '~/components/ui/label';
 import type { ContestOptions } from '~/lib/contestOptions.server';
 import type { Sex } from '~/modules/types';
-import type { action } from '~/routes/secured/competition/starters';
+import type { clientAction } from '~/routes/secured/competition/starters';
 import { AthleteInput } from './AthleteInput';
 import { ClubCombobox, type ClubOption } from './ClubCombobox';
 import { EntryFields } from './EntryFields';
+import { FormAlert } from './FormAlert';
+import { useActionError } from './keepPage';
 import { NativeSelect } from './NativeSelect';
 import { fullName, type StarterRow } from './starterRow';
+import { useReturnFocus } from './useReturnFocus';
 import { useAthleteSuggestions, type AthleteSuggestion } from './useAthleteSuggestions';
 
 type Person = {
@@ -53,7 +55,8 @@ export function StarterDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation(['starters', 'common']);
-  const fetcher = useFetcher<typeof action>();
+  const fetcher = useFetcher<typeof clientAction>();
+  const returnFocus = useReturnFocus();
   const [person, setPerson] = useState<Person>(
     starter
       ? { ...starter, stvId: starter.stvId ?? '', birthYear: `${starter.birthYear}` }
@@ -70,8 +73,13 @@ export function StarterDialog({
 
   const result = fetcher.data;
   const errors = result && 'errors' in result ? result.errors : undefined;
-  const formError = result && 'error' in result ? result.error : undefined;
+  const formError = useActionError(result);
   const isDone = Boolean(result && 'ok' in result);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (errors) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [errors]);
 
   useEffect(() => {
     if (isDone) onClose();
@@ -124,6 +132,7 @@ export function StarterDialog({
           event.preventDefault();
           setSearchField(null);
         }}
+        onCloseAutoFocus={returnFocus}
         // A stray tap must not discard what was typed.
         onInteractOutside={(event) => event.preventDefault()}
       >
@@ -135,18 +144,19 @@ export function StarterDialog({
             {starter ? t('editTitle', { name: fullName(starter) }) : t('createTitle')}
           </DialogDescription>
         </DialogHeader>
-        <fetcher.Form method="post" className="flex min-h-0 flex-1 flex-col" noValidate>
+        <fetcher.Form
+          ref={formRef}
+          method="post"
+          className="flex min-h-0 flex-1 flex-col"
+          noValidate
+        >
           <input type="hidden" name="intent" value={starter ? 'update' : 'create'} />
           <input type="hidden" name="contestId" value={options.id} />
           {starter && <input type="hidden" name="starterId" value={starter.id} />}
           {linked && <input type="hidden" name="athleteId" value={linked.athleteId} />}
 
           <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 sm:px-6">
-            {formError && (
-              <Alert variant="destructive">
-                <AlertDescription>{formError}</AlertDescription>
-              </Alert>
-            )}
+            {formError && fetcher.state === 'idle' && <FormAlert message={formError} />}
             <AthleteInput
               {...inputProps('stvId')}
               hint={starter ? undefined : t('form.stvIdHint')}

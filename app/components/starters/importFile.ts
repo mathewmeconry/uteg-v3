@@ -1,4 +1,4 @@
-import { parseSheet, parseSheets, type ImportedStarter } from '~/lib/domain/starterImport';
+import { parseSheet, type ImportedStarter, type SheetCell } from '~/lib/domain/starterImport';
 
 // Files are read in the browser, so a harmful one cannot slow down a competition's server.
 export const MAX_FILE_MB = 5;
@@ -9,10 +9,12 @@ export type FileError = 'UNREADABLE' | 'NO_STARTERS' | 'TOO_LARGE';
 /** The starters of all sheets of an XLSX file. */
 export async function readStarterFile(
   file: File,
-): Promise<{ starters: ImportedStarter[] } | { error: FileError }> {
+): Promise<{ starters: ImportedStarter[]; skippedSheets: string[] } | { error: FileError }> {
   if (file.size > MAX_FILE_MB * 1024 * 1024) return { error: 'TOO_LARGE' };
 
-  const sheets: Parameters<typeof parseSheets>[0][number][] = [];
+  const starters: ImportedStarter[] = [];
+  const skippedSheets: string[] = [];
+  let hasStarterSheet = false;
   try {
     // Large, so it is only loaded when needed.
     const { default: ExcelJS } = await import('exceljs');
@@ -22,11 +24,14 @@ export async function readStarterFile(
       const rows: unknown[][] = [];
       // Cells are numbered from 1.
       worksheet.eachRow((row) => rows.push((row.values as unknown[]).slice(1)));
-      sheets.push(rows as (typeof sheets)[number]);
+      const found = parseSheet(rows as SheetCell[][]);
+      if (found) starters.push(...found);
+      // Nobody misses an empty sheet.
+      else if (rows.length > 0) skippedSheets.push(worksheet.name);
+      hasStarterSheet ||= found !== null;
     }
   } catch {
     return { error: 'UNREADABLE' };
   }
-  if (sheets.every((sheet) => parseSheet(sheet) === null)) return { error: 'NO_STARTERS' };
-  return { starters: parseSheets(sheets) };
+  return hasStarterSheet ? { starters, skippedSheets } : { error: 'NO_STARTERS' };
 }

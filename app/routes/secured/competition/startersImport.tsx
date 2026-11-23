@@ -1,13 +1,13 @@
-import { useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data, Link, useFetcher, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/startersImport';
-import { EmptyState } from '~/components/EmptyState';
 import { FormField } from '~/components/FormField';
 import { PageHeader } from '~/components/PageHeader';
 import { SubmitButton } from '~/components/SubmitButton';
 import { ClubCombobox, type ClubOption } from '~/components/starters/ClubCombobox';
+import { ClubConflictDialog } from '~/components/starters/ClubConflictDialog';
 import { MAX_IMPORT_ROWS } from '~/components/starters/importFile';
 import { ImportFiles, type ImportFile } from '~/components/starters/ImportFiles';
 import { ImportReview } from '~/components/starters/ImportReview';
@@ -17,6 +17,7 @@ import {
   reviewReducer,
   toImportRow,
 } from '~/components/starters/importReview';
+import { keepPage, useActionError } from '~/components/starters/keepPage';
 import { NativeSelect } from '~/components/starters/NativeSelect';
 import { fullName } from '~/components/starters/starterRow';
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
@@ -26,7 +27,8 @@ import { useCompetition } from '~/hooks/useCompetition';
 import { listClubs } from '~/lib/clubs.server';
 import { getContestOptions } from '~/lib/contestOptions.server';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
-import { importStarters, type ImportRow } from '~/lib/starters.server';
+import { safeText } from '~/lib/safeText';
+import { findClubConflicts, importStarters, type ImportRow } from '~/lib/starters.server';
 import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
@@ -40,10 +42,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 // Only limits sizes. importStarters validates each row and reports the invalid ones.
-const text = z.string().max(500).nullish();
+const text = safeText().max(500).nullish();
 const importSchema = z.object({
-  contestId: z.string(),
-  clubId: z.string(),
+  contestId: safeText(),
+  clubId: safeText(),
+  /** The answer to the conflicts. They are checked before, so the first request has none. */
+  overwriteClubOf: z.array(safeText()).max(MAX_IMPORT_ROWS).optional(),
   rows: z
     .array(
       z.object({
@@ -51,7 +55,7 @@ const importSchema = z.object({
         firstname: text,
         lastname: text,
         birthYear: z.number().nullish(),
-        sex: text,
+        sex: z.enum(['FEMALE', 'MALE']).nullish(),
         category: text,
         divisionNumber: z.number().int().min(1).max(9999).nullish(),
       }),
@@ -67,11 +71,13 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { data: values } = importSchema.safeParse(body);
   if (!values) return data({ error: t('starters:import.failed') }, 400);
 
+  const rows = values.rows as ImportRow[];
   try {
-    const { failures, ...counts } = await importStarters(id, {
-      ...values,
-      rows: values.rows as ImportRow[],
-    });
+    if (!values.overwriteClubOf) {
+      const conflicts = await findClubConflicts(id, { clubId: values.clubId, rows });
+      if (conflicts.length > 0) return { conflicts };
+    }
+    const { failures, ...counts } = await importStarters(id, { ...values, rows });
     return {
       ...counts,
       failures: failures.map(({ index, code }) => ({
@@ -82,6 +88,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   } catch (error) {
     return data({ error: domainErrorMessage(error, t) }, 400);
   }
+}
+
+export function clientAction({ serverAction }: Route.ClientActionArgs) {
+  return keepPage(() => serverAction());
 }
 
 const STEPS = ['files', 'review', 'result'] as const;
@@ -107,20 +117,29 @@ function Wizard({
   const { t } = useTranslation(['starters', 'common']);
   const { competition, contests } = useCompetition();
   const [, setSearchParams] = useSearchParams();
-  const fetcher = useFetcher<typeof action>();
+  /** Checks the clubs, and imports when nobody is affected. */
+  const checker = useFetcher<typeof clientAction>();
+  /** Imports with the answer about the clubs. */
+  const importer = useFetcher<typeof clientAction>();
+  const [isAnswered, setIsAnswered] = useState(false);
 
   const [club, setClub] = useState<ClubOption | null>(null);
   const [files, setFiles] = useState<ImportFile[]>([]);
   const [isReviewing, setIsReviewing] = useState(false);
   const [rows, dispatch] = useReducer(reviewReducer, []);
   const [loadedFiles, setLoadedFiles] = useState<ImportFile[]>();
-  /** The result that was left to correct the failed rows. */
-  const [seenResult, setSeenResult] = useState<unknown>();
+  /** The response that was left to change rows. */
+  const [seenResponse, setSeenResponse] = useState<unknown>();
+  const submitRef = useRef<HTMLButtonElement>(null);
+  const resultRef = useRef<HTMLHeadingElement>(null);
 
-  const response = fetcher.data;
-  const result =
-    response && 'failures' in response && response !== seenResult ? response : undefined;
-  const error = response && 'error' in response ? response.error : undefined;
+  const fetcher = isAnswered ? importer : checker;
+  const isPending = fetcher.state !== 'idle';
+  const response = fetcher.data === seenResponse ? undefined : fetcher.data;
+  const result = response && 'failures' in response ? response : undefined;
+  const error = useActionError(isPending ? undefined : response);
+  const checked = checker.data === seenResponse ? undefined : checker.data;
+  const conflicts = !result && checked && 'conflicts' in checked ? checked.conflicts : undefined;
   const step = result ? 'result' : isReviewing ? 'review' : 'files';
 
   const found = files.reduce((sum, { starters }) => sum + starters.length, 0);
@@ -141,12 +160,28 @@ function Wizard({
     setIsReviewing(true);
   }
 
-  function submit() {
+  useEffect(() => {
+    if (result) resultRef.current?.focus();
+  }, [result]);
+
+  function submit(overwriteClubOf?: string[]) {
     if (!club) return;
-    void fetcher.submit(
-      { contestId: contest.id, clubId: club.id, rows: rows.map(toImportRow) },
+    setIsAnswered(overwriteClubOf !== undefined);
+    void (overwriteClubOf ? importer : checker).submit(
+      {
+        contestId: contest.id,
+        clubId: club.id,
+        rows: rows.map(toImportRow),
+        ...(overwriteClubOf && { overwriteClubOf }),
+      },
       { method: 'post', encType: 'application/json' },
     );
+  }
+
+  /** Back from the question about the clubs. */
+  function goBack() {
+    setIsAnswered(false);
+    setSeenResponse(checker.data);
   }
 
   return (
@@ -241,11 +276,7 @@ function Wizard({
           <p>
             {t('common:fields.club')}: <strong>{club && `${club.name}, ${club.location}`}</strong>
           </p>
-          {rows.length === 0 ? (
-            <EmptyState title={t('import.noRows')} />
-          ) : (
-            <ImportReview rows={rows} options={contest} dispatch={dispatch} />
-          )}
+          <ImportReview rows={rows} options={contest} dispatch={dispatch} />
           <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t bg-background px-4 py-3 md:-mx-6 md:px-6">
             <Button variant="outline" onClick={() => setIsReviewing(false)}>
               {t('common:actions.back')}
@@ -254,21 +285,33 @@ function Wizard({
               role="status"
               className="order-first basis-full text-sm empty:hidden lg:order-none lg:flex-1"
             >
-              {error && <p className="text-destructive">{error}</p>}
+              {error && !conflicts && <p className="text-destructive">{error}</p>}
               {issues > 0 && (
                 <p className="text-destructive">{t('import.issues', { count: issues })}</p>
               )}
               {warnings > 0 && <p>{t('import.warnings', { count: warnings })}</p>}
             </div>
             <SubmitButton
+              ref={submitRef}
               type="button"
-              pending={fetcher.state !== 'idle'}
+              pending={isPending}
               disabled={issues > 0 || rows.length === 0}
-              onClick={submit}
+              onClick={() => submit()}
             >
               {t('import.submit', { count: rows.length })}
             </SubmitButton>
           </div>
+          {conflicts && club && (
+            <ClubConflictDialog
+              conflicts={conflicts}
+              club={club}
+              error={isAnswered ? error : undefined}
+              isPending={isPending}
+              onImport={submit}
+              onBack={goBack}
+              focusAfterwards={() => (submitRef.current ?? resultRef.current)?.focus()}
+            />
+          )}
         </div>
       )}
 
@@ -276,13 +319,15 @@ function Wizard({
         <div className="grid max-w-3xl gap-6">
           <Card>
             <CardContent className="grid gap-4">
-              <h2 className="text-lg font-semibold" role="status">
+              <h2 ref={resultRef} tabIndex={-1} className="text-lg font-semibold outline-none">
                 {t('import.resultTitle')}
               </h2>
-              <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <Count label={t('import.created')} value={result.created} />
                 <Count label={t('import.restored')} value={result.restored} />
                 <Count label={t('import.existing')} value={result.existing} />
+                <Count label={t('import.clubsChanged')} value={result.clubsChanged} />
+                <Count label={t('import.clubsKept')} value={result.clubsKept} />
                 <Count label={t('import.failures')} value={result.failures.length} />
               </dl>
             </CardContent>
@@ -313,7 +358,9 @@ function Wizard({
                     type: 'keep',
                     keys: result.failures.map(({ index }) => rows[index].key),
                   });
-                  setSeenResult(result);
+                  // The check that led to an answered import is over as well.
+                  setIsAnswered(false);
+                  setSeenResponse(checker.data);
                 }}
               >
                 {t('import.fixFailures')}

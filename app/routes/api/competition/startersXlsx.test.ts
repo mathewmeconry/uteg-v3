@@ -1,7 +1,12 @@
 import ExcelJS from 'exceljs';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { readStarterFile } from '~/components/starters/importFile';
+import { toStarterRow } from '~/components/starters/starterRow';
+import { createStartersWorkbook } from '~/components/starters/startersWorkbook.server';
 import { parseSheet } from '~/lib/domain/starterImport';
-import { withdrawStarters } from '~/lib/starters.server';
+import { createI18n } from '~/lib/i18n';
+import { listStarters, withdrawStarters } from '~/lib/starters.server';
+import { NAMESPACES } from '~/locales';
 import {
   addMember,
   createClub,
@@ -12,7 +17,7 @@ import {
   truncateTables,
 } from '~/tests/helpers';
 import { callRoute } from '~/tests/starterRoutes';
-import { action, loader } from './startersXlsx';
+import { action } from './startersXlsx';
 
 beforeEach(truncateTables);
 
@@ -119,31 +124,40 @@ describe('starters.xlsx', () => {
     expect((await read(data)).rowCount).toBe(1);
   });
 
-  it('exports everyone when opened as a link', async () => {
+  it.each(['de', 'en'] as const)('can be imported again in %s', async (language) => {
     const competition = await createCompetition();
-    await createStarter(competition.id);
-    await createStarter(competition.id);
-    const { data } = await callRoute(loader, {
-      layout: 'api',
-      userId: competition.ownerId,
-      competitionId: competition.id,
+    const division = await createDivision(competition.contest.id, { number: 3 });
+    await createStarter(competition.id, {
+      firstname: 'Anna',
+      lastname: 'Muster',
+      stvId: '0012',
+      divisionId: division.id,
     });
-    expect((await read(data)).rowCount).toBe(3);
+    const rows = (await listStarters(competition.id)).map((starter) =>
+      toStarterRow(starter, competition.contest.id),
+    );
+    const t = createI18n(language).getFixedT(null, NAMESPACES);
+    const bytes = await createStartersWorkbook(rows, t);
+    expect(await readStarterFile(new File([bytes as BlobPart], 'a.xlsx'))).toEqual({
+      starters: [
+        {
+          stvId: '0012',
+          firstname: 'Anna',
+          lastname: 'Muster',
+          birthYear: 2010,
+          sex: 'FEMALE',
+          category: 'K5',
+          divisionNumber: 3,
+        },
+      ],
+      skippedSheets: [],
+    });
   });
 
   it('is only for members', async () => {
     const competition = await createCompetition();
     const stranger = await createUser();
-    for (const handler of [action, loader]) {
-      const call = (userId: string | null) =>
-        callRoute(handler, {
-          layout: 'api',
-          userId,
-          competitionId: competition.id,
-          body: handler === action ? new URLSearchParams() : undefined,
-        });
-      expect((await call(stranger.id)).status).toBe(404);
-      expect((await call(null)).status).toBe(302);
-    }
+    expect((await post(stranger.id, competition.id, [])).status).toBe(404);
+    expect((await post(null, competition.id, [])).status).toBe(302);
   });
 });

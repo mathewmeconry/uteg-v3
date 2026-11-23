@@ -12,6 +12,7 @@ import {
 } from '~/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover';
 import { cn } from '~/lib/utils';
+import { commandFilter } from './starterList';
 
 const SEARCH_FROM = 8;
 
@@ -52,11 +53,11 @@ export function MultiSelectFilter({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 p-0" aria-label={label}>
-        <Command>
+        <Command filter={commandFilter} label={t('filterBy', { label })}>
           {options.length >= SEARCH_FROM && (
             <CommandInput placeholder={t('common:actions.search')} />
           )}
-          <CommandList aria-multiselectable>
+          <CommandList label={label} aria-multiselectable>
             <CommandEmpty>{t('common:noResults')}</CommandEmpty>
             <CommandGroup>
               {options.map(({ value, label: optionLabel }) => {
@@ -64,8 +65,9 @@ export function MultiSelectFilter({
                 return (
                   <CommandItem
                     key={value}
-                    // Not empty for "none", and unique for clubs of the same name.
-                    value={`${optionLabel} ${value}`}
+                    // Not empty for "none".
+                    value={`value-${value}`}
+                    keywords={[optionLabel]}
                     onSelect={() => toggle(value)}
                   >
                     <span
