@@ -1,5 +1,5 @@
 import { EllipsisVerticalIcon, FileTextIcon, PlusIcon, TrashIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data, Form, Link, redirect, useBlocker } from 'react-router';
 import { z } from 'zod';
@@ -8,6 +8,7 @@ import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { EmptyState } from '~/components/EmptyState';
 import { FormField } from '~/components/FormField';
 import { PageHeader } from '~/components/PageHeader';
+import { AssignmentSection, AssignmentSummary } from '~/components/ranking/AssignmentSection';
 import { CoverSection } from '~/components/ranking/CoverSection';
 import { TemplateFields } from '~/components/ranking/TemplateFields';
 import { TemplatePreview, type PreviewGroup } from '~/components/ranking/TemplatePreview';
@@ -31,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { competitionContext } from '~/context';
+import type { Sex } from '~/generated/prisma/enums';
 import { useActionErrors, useActionFetcher } from '~/hooks/useActionFetcher';
 import { useCompetition } from '~/hooks/useCompetition';
 import { findBrokenCovers, removeCover, setCover } from '~/lib/covers.server';
@@ -51,10 +53,16 @@ import {
   updateRankingTemplate,
 } from '~/lib/rankingTemplates.server';
 import { safeClientAction } from '~/lib/safeClientAction';
+import {
+  assignTemplate,
+  getCompetitionCategories,
+  unassignTemplate,
+} from '~/lib/templateAssignments.server';
 import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
+import { parseRankingGroup } from '~/pdf/request.server';
 
 const NEW = 'new';
 const NAME_LENGTH = 100;
@@ -82,14 +90,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ),
   );
   return {
-    templates: templates.map(({ id: templateId, name, isDefault, options, coverPages }) => ({
-      id: templateId,
-      coverPages,
-      isCoverBroken: brokenCovers.has(templateId),
-      name,
-      isDefault,
-      options,
+    templates: templates.map((template) => ({
+      id: template.id,
+      name: template.name,
+      isDefault: template.isDefault,
+      options: template.options,
+      assignments: template.assignments,
+      coverPages: template.coverPages,
+      isCoverBroken: brokenCovers.has(template.id),
     })),
+    categories: getCompetitionCategories(contests),
     // Without templates the address may still name a deleted one.
     selected: templates.length > 0 || selected === NEW ? selected : null,
     previewGroups: groups.flat(),
@@ -143,9 +153,30 @@ export async function action({ request, context }: Route.ActionArgs) {
         const source = templates.find((template) => template.id === templateId);
         if (!source) throw data(null, 404);
         const name = t('pdf:templates.copyName', { name: source.name }).slice(0, NAME_LENGTH);
-        await duplicateRankingTemplate(id, source.id, name);
+        const copy = await duplicateRankingTemplate(id, source.id, name);
         enqueueToast(context, { type: 'success', message: t('pdf:templates.created') });
-        return { errors: undefined };
+        return redirect(`${page}?template=${copy.id}&focus=cover`);
+      }
+
+      case 'assign':
+      case 'unassign': {
+        if (!templateId) throw data(null, 400);
+        const group = parseRankingGroup(String(formData.get('group')));
+        try {
+          if (formData.get('intent') === 'unassign') {
+            await unassignTemplate(id, templateId, group);
+            return { errors: undefined };
+          }
+          const previous = await assignTemplate(id, templateId, group);
+          if (previous !== null) {
+            const category = `${group.category} ${t(`pdf:sex.${group.sex}`)}`;
+            const message = t('pdf:assignments.moved', { category, name: previous });
+            enqueueToast(context, { type: 'info', message });
+          }
+          return { errors: undefined };
+        } catch (error) {
+          return data({ error: domainErrorMessage(error, t) }, 400);
+        }
       }
 
       case 'setDefault': {
@@ -201,11 +232,12 @@ export const clientAction = safeClientAction;
 type Template = Route.ComponentProps['loaderData']['templates'][number];
 
 export default function Templates({ loaderData, actionData }: Route.ComponentProps) {
-  const { templates, selected, previewGroups } = loaderData;
+  const { templates, selected, categories, previewGroups } = loaderData;
   const { t } = useTranslation('pdf');
   const { canEdit } = useCompetition();
   const errors = useActionErrors(actionData);
   const [discards, setDiscards] = useState(0);
+  const [isDirty, setIsDirty] = useState(false);
   const template = templates.find(({ id }) => id === selected);
   const createButton = canEdit && (
     <Button asChild>
@@ -230,7 +262,12 @@ export default function Templates({ loaderData, actionData }: Route.ComponentPro
         <ul className="mb-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {templates.map((item) => (
             <li key={item.id}>
-              <TemplateItem template={item} selected={item.id === selected} />
+              <TemplateItem
+                template={item}
+                selected={item.id === selected}
+                // The copy is opened, which would lose the changes.
+                canDuplicate={!isDirty}
+              />
             </li>
           ))}
         </ul>
@@ -248,7 +285,10 @@ export default function Templates({ loaderData, actionData }: Route.ComponentPro
           // A new template or another one starts over, and after discarding changes.
           key={`${selected} ${discards}`}
           onDiscard={() => setDiscards((count) => count + 1)}
+          onDirtyChange={setIsDirty}
           template={template}
+          templates={templates}
+          categories={categories}
           previewGroups={previewGroups}
           errors={errors}
         />
@@ -257,7 +297,15 @@ export default function Templates({ loaderData, actionData }: Route.ComponentPro
   );
 }
 
-function TemplateItem({ template, selected }: { template: Template; selected: boolean }) {
+function TemplateItem({
+  template,
+  selected,
+  canDuplicate,
+}: {
+  template: Template;
+  selected: boolean;
+  canDuplicate: boolean;
+}) {
   const { t } = useTranslation(['pdf', 'common']);
   const { canEdit } = useCompetition();
   const { submit: post, pending } = useActionFetcher();
@@ -287,6 +335,7 @@ function TemplateItem({ template, selected }: { template: Template; selected: bo
         ) : (
           <span className="block truncate font-medium">{name}</span>
         )}
+        <AssignmentSummary assignments={template.assignments} />
       </div>
       {isDefault && <Badge variant="secondary">{t('templates.default')}</Badge>}
       {canEdit ? (
@@ -308,8 +357,8 @@ function TemplateItem({ template, selected }: { template: Template; selected: bo
                   {t('templates.setDefault')}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onSelect={() => submit('duplicate')}>
-                {t('templates.duplicate')}
+              <DropdownMenuItem disabled={!canDuplicate} onSelect={() => submit('duplicate')}>
+                {canDuplicate ? t('templates.duplicate') : t('templates.duplicateSaveFirst')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -340,14 +389,20 @@ function TemplateItem({ template, selected }: { template: Template; selected: bo
 
 function TemplateEditor({
   template,
+  templates,
+  categories,
   previewGroups,
   errors,
   onDiscard,
+  onDirtyChange,
 }: {
   template: Template | undefined;
+  templates: Template[];
+  categories: Record<Sex, string[]>;
   previewGroups: PreviewGroup[];
   errors: Record<string, string | undefined>;
   onDiscard: () => void;
+  onDirtyChange: (isDirty: boolean) => void;
 }) {
   const { t } = useTranslation(['pdf', 'common']);
   const { competition } = useCompetition();
@@ -362,10 +417,22 @@ function TemplateEditor({
   const isDirty =
     name.trim() !== saved.name || JSON.stringify(options) !== JSON.stringify(saved.options);
 
+  useEffect(() => {
+    onDirtyChange(isDirty);
+    return () => onDirtyChange(false);
+  }, [isDirty, onDirtyChange]);
+
   return (
     <div className="grid gap-6 xl:grid-cols-2">
       <div className="grid content-start gap-4">
         <CoverSection template={template} options={options} onChange={setOptions} />
+        {template && (
+          <AssignmentSection
+            templateId={template.id}
+            templates={templates}
+            categories={categories}
+          />
+        )}
         <Form method="post" className="grid content-start gap-4">
           {template && <input type="hidden" name="id" value={template.id} />}
           <input type="hidden" name="options" value={JSON.stringify(options)} />

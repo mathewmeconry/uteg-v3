@@ -29,6 +29,7 @@ export default {
     title: 'Rangliste als PDF',
     text: 'Wähle die Kategorien und die Vorlage.',
     template: 'Vorlage',
+    auto: 'Automatisch (Vorlage je Kategorie)',
     noneSelected: 'Wähle mindestens eine Kategorie.',
     create: 'PDF erstellen',
   },

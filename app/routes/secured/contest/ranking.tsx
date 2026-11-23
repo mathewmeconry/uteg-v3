@@ -64,10 +64,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     groups,
     ranking,
     quota: getHonourQuota(ranking.entries.length, ranking.options),
-    templates: templates.map(({ id, name, isDefault }) => ({
+    templates: templates.map(({ id, name, isDefault, assignments }) => ({
       id,
       name,
       isDefault,
+      assignments,
       isCoverBroken: brokenCovers.has(id),
     })),
   };

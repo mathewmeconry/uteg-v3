@@ -21,7 +21,13 @@ type TemplateInput = z.input<typeof inputSchema>;
 export async function listRankingTemplates(competitionId: string) {
   const templates = await prisma.rankingTemplate.findMany({
     where: { competitionId },
-    include: { coverPages: { orderBy: { position: 'asc' }, select: { id: true } } },
+    include: {
+      coverPages: { orderBy: { position: 'asc' }, select: { id: true } },
+      assignments: {
+        orderBy: [{ category: 'asc' }, { sex: 'asc' }],
+        select: { sex: true, category: true },
+      },
+    },
     orderBy: { name: 'asc' },
   });
   return templates.map(({ coverPages, ...template }) => ({
@@ -46,7 +52,7 @@ export async function getRankingTemplate(competitionId: string, templateId: stri
   };
 }
 
-/** A copy with its own cover. */
+/** A copy with its own cover. The categories stay with the original. */
 export async function duplicateRankingTemplate(
   competitionId: string,
   templateId: string,
@@ -54,7 +60,7 @@ export async function duplicateRankingTemplate(
 ) {
   const { options, cover } = await getRankingTemplate(competitionId, templateId);
   const input = parseInput({ name, options });
-  await prisma.rankingTemplate.create({
+  const template = await prisma.rankingTemplate.create({
     data: {
       ...input,
       competitionId,
@@ -71,6 +77,7 @@ export async function duplicateRankingTemplate(
     },
   });
   publish(competitionId, 'settings');
+  return template;
 }
 
 export async function createRankingTemplate(competitionId: string, input: TemplateInput) {

@@ -1,6 +1,7 @@
 import { LoaderCircleIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { FormField } from '~/components/FormField';
 import { Button } from '~/components/ui/button';
@@ -47,6 +48,14 @@ function Cover({
   const [isDrawing, setIsDrawing] = useState(false);
   const [fileError, setFileError] = useState<string>();
   const isBusy = isDrawing || pending;
+  const input = useRef<HTMLInputElement>(null);
+  const [searchParams] = useSearchParams();
+  const isFocused = searchParams.get('focus') === 'cover';
+
+  useEffect(() => {
+    // A copy usually gets another cover and category, which are next to each other.
+    if (isFocused) input.current?.focus();
+  }, [isFocused]);
 
   async function upload(file: File) {
     setFileError(undefined);
@@ -109,6 +118,7 @@ function Cover({
         label={coverPages.length > 0 ? t('cover.replace') : t('cover.file')}
         hint={t('cover.hint', { count: MAX_COVER_PAGES })}
         error={fileError ?? (isBusy ? undefined : errors?.cover)}
+        ref={input}
         type="file"
         accept="application/pdf,image/png,image/jpeg"
         disabled={isBusy}

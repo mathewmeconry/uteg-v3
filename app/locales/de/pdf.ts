@@ -13,6 +13,7 @@ export default {
     default: 'Standard',
     setDefault: 'Als Standard verwenden',
     duplicate: 'Duplizieren',
+    duplicateSaveFirst: 'Duplizieren (zuerst speichern)',
     copyName: '{{name}} (Kopie)',
     deleteTitle: 'Vorlage «{{name}}» löschen?',
     deleteText: 'Das kann nicht rückgängig gemacht werden.',
@@ -75,6 +76,12 @@ export default {
     medalStyles: { letters: 'Buchstaben (G, S, B)', icons: 'Symbole', none: 'Keine' },
     highlightBest: 'Beste Noten pro Gerät hervorheben',
     onlyAwarded: 'Nur Medaillen und Auszeichnungen',
+  },
+  assignments: {
+    title: 'Kategorien',
+    hint: 'Ranglisten dieser Kategorien werden mit der Vorlage gedruckt, die übrigen mit der Standardvorlage. Wird sofort gespeichert.',
+    of: 'bei «{{name}}»',
+    moved: '{{category}} war bei «{{name}}» und gehört jetzt zu dieser Vorlage.',
   },
   cover: {
     title: 'Titelseite',

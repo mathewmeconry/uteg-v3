@@ -4,6 +4,7 @@ import { accessUrl, getOrCreateJudgeLinks, logIn, resolveAccess } from '~/lib/ac
 import { setCover } from '~/lib/covers.server';
 import { prisma } from '~/lib/prisma.server';
 import { createRankingTemplate } from '~/lib/rankingTemplates.server';
+import { assignTemplate } from '~/lib/templateAssignments.server';
 import {
   createClub,
   createCompetition,
@@ -165,6 +166,40 @@ describe('ranking', () => {
       expect(await describePages(await load())).toEqual([
         ...['wide', 'high', 'K5 Turnerinnen 1 / 3', 'K5 Turnerinnen 2 / 3'],
         ...['wide', 'high', 'K6 Turner 3 / 3'],
+      ]);
+    });
+
+    it('belongs to the template of each category', async () => {
+      const { id, contest } = await setup();
+      const create = async (name: string, options: object) =>
+        (
+          await createRankingTemplate(id, {
+            name,
+            options: rankingTemplateSchema.parse({ ...options, footer: `Fuss ${name}` }),
+          })
+        ).id;
+      await create('Standard', {});
+      const men = await create('Turner', { orientation: 'landscape' });
+      await setCover(id, men, COVER);
+      await assignTemplate(id, men, { sex: 'MALE', category: 'K6' });
+
+      const load = (template: string) =>
+        callRoute(ranking.loader, {
+          competitionId: id,
+          role: 'VIEWER',
+          search: `?contest=${contest.id}&group=FEMALE:K5&group=MALE:K6&template=${template}`,
+        });
+      const pages = await readPdf(await load('auto'));
+      // The default one has no cover, then the cover of the other and its landscape page.
+      expect(pages.map(({ width, height }) => width > height)).toEqual([false, true, false, true]);
+      expect(pages[0].text).toMatch(/K5 Turnerinnen.*Fuss Standard.*1 \/ 2$/);
+      expect(pages[1].text + pages[2].text).toBe('');
+      expect(pages[3].text).toMatch(/K6 Turner.*Fuss Turner.*2 \/ 2$/);
+
+      // One for all if it is chosen.
+      const same = await readPdf(await load(men));
+      expect(same.map(({ text }) => /Fuss \w+/.exec(text)?.[0])).toEqual([
+        ...[undefined, undefined, 'Fuss Turner', 'Fuss Turner'],
       ]);
     });
 

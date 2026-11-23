@@ -16,6 +16,7 @@ export default {
     default: 'Default',
     setDefault: 'Use as default',
     duplicate: 'Duplicate',
+    duplicateSaveFirst: 'Duplicate (save first)',
     copyName: '{{name}} (copy)',
     deleteTitle: 'Delete the template “{{name}}”?',
     deleteText: 'This cannot be undone.',
@@ -78,6 +79,12 @@ export default {
     medalStyles: { letters: 'Letters (G, S, B)', icons: 'Symbols', none: 'None' },
     highlightBest: 'Highlight the best grade per apparatus',
     onlyAwarded: 'Only medals and honours',
+  },
+  assignments: {
+    title: 'Categories',
+    hint: 'Rankings of these categories are printed with this template, the others with the default one. Saved at once.',
+    of: 'in “{{name}}”',
+    moved: '{{category}} was in “{{name}}” and now belongs to this template.',
   },
   cover: {
     title: 'Cover page',

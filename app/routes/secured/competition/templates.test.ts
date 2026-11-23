@@ -9,8 +9,11 @@ import { action, loader } from './templates';
 
 beforeEach(truncateTables);
 
+const K1 = { group: 'FEMALE:K1' };
 const PAGE = new Blob([createJpeg()]);
-const INTENTS = ['save', 'duplicate', 'setDefault', 'delete', 'cover', 'removeCover'];
+const INTENTS = [
+  ...['save', 'duplicate', 'setDefault', 'delete', 'cover', 'removeCover', 'assign'],
+];
 const OPTIONS = rankingTemplateSchema.parse({ title: 'Titel' });
 
 function create(competitionId: string, name: string) {
@@ -143,6 +146,34 @@ describe('action', () => {
     expect(await list(id)).toEqual([]);
   });
 
+  it('opens a copy to change its cover', async () => {
+    const { id } = await createCompetition();
+    const { id: templateId } = await create(id, 'A');
+    const response = await post(id, { intent: 'duplicate', id: templateId });
+    const [, copy] = await listRankingTemplates(id);
+    expect(response.headers.get('Location')).toBe(
+      `/competitions/${id}/templates?template=${copy.id}&focus=cover`,
+    );
+  });
+
+  it('assigns categories', async () => {
+    const { id } = await createCompetition();
+    const { id: a } = await create(id, 'A');
+    const { id: b } = await create(id, 'B');
+    const assigned = async () =>
+      (await listRankingTemplates(id)).map(({ assignments }) => assignments.length);
+    await post(id, { intent: 'assign', id: a, ...K1 });
+    expect(await assigned()).toEqual([1, 0]);
+    await post(id, { intent: 'assign', id: b, ...K1 });
+    expect(await assigned()).toEqual([0, 1]);
+    await post(id, { intent: 'unassign', id: b, ...K1 });
+    expect(await assigned()).toEqual([0, 0]);
+
+    const unknown = await post(id, { intent: 'assign', id: a, group: 'FEMALE:KH' });
+    expect(unknown).toMatchObject({ init: { status: 400 }, data: { error: expect.any(String) } });
+    expect((await post(id, { intent: 'assign', id: a, group: 'K1' })).status).toBe(400);
+  });
+
   it('uploads and removes a cover', async () => {
     const { id } = await createCompetition();
     const { id: templateId } = await create(id, 'A');
@@ -176,7 +207,7 @@ describe('action', () => {
     const { id } = await createCompetition();
     const { id: templateId } = await create(id, 'A');
     for (const intent of INTENTS) {
-      const fields = { intent, id: templateId, name: 'X', options: '{}', page: PAGE };
+      const fields = { intent, id: templateId, name: 'X', options: '{}', page: PAGE, ...K1 };
       expect((await post(id, fields, { role: 'VIEWER' })).status).toBe(403);
       const stranger = await callRoute(action, {
         competitionId: id,
@@ -192,7 +223,7 @@ describe('action', () => {
     const other = await createCompetition();
     const { id: templateId } = await create(other.id, 'A');
     for (const intent of INTENTS) {
-      const fields = { intent, id: templateId, name: 'X', options: '{}', page: PAGE };
+      const fields = { intent, id: templateId, name: 'X', options: '{}', page: PAGE, ...K1 };
       expect((await post(id, fields)).status).toBe(404);
     }
     expect(await list(other.id)).toEqual([['A', true]]);

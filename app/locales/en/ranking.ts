@@ -32,6 +32,7 @@ export default {
     title: 'Ranking as PDF',
     text: 'Choose the categories and the template.',
     template: 'Template',
+    auto: 'Automatic (template of each category)',
     noneSelected: 'Choose at least one category.',
     create: 'Create PDF',
   },

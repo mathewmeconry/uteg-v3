@@ -52,24 +52,43 @@ export type RankingGroup = {
   entries: RankedEntry[];
 };
 
-export type RankingDocumentProps = {
+/** The rankings with the same template. */
+export type RankingSection = {
   groups: RankingGroup[];
   options: RankingTemplateOptions;
-  competition: { name: string; location: string; date: string };
-  logo: Logo | null;
   /** Pages in front, which are not numbered. */
   cover: Jpeg[];
+};
+
+export type RankingDocumentProps = {
+  sections: RankingSection[];
+  competition: { name: string; location: string; date: string };
+  logo: Logo | null;
   t: ServerT;
   language: string;
 };
+
+type PageProps = Omit<RankingSection, 'cover'> &
+  Pick<RankingDocumentProps, 'competition' | 'logo' | 't'>;
 
 const MARGIN = 40;
 const PAGE_WIDTH = { portrait: 595, landscape: 842 };
 const MEDAL_COLORS = { GOLD: '#d4a017', SILVER: '#9ca3af', BRONZE: '#b06a2c' };
 
 export function RankingDocument(props: RankingDocumentProps) {
-  const { groups, options, competition, cover, t, language } = props;
-  const pages = options.newPagePerCategory ? groups.map((group) => [group]) : [groups];
+  const { sections, competition, t, language } = props;
+  // Categories on the same pages are one part. A part starts on a new page, after its cover.
+  const parts = sections.flatMap(({ groups, options, cover }) =>
+    (options.newPagePerCategory ? groups.map((group) => [group]) : [groups]).map(
+      (partGroups, index) => ({
+        groups: partGroups,
+        options,
+        cover: index === 0 || options.cover === 'eachCategory' ? cover : [],
+      }),
+    ),
+  );
+  const countCovers = (upTo: number) =>
+    parts.slice(0, upTo).reduce((sum, { cover }) => sum + cover.length, 0);
 
   return (
     <Document
@@ -77,20 +96,19 @@ export function RankingDocument(props: RankingDocumentProps) {
       creator="UTEG"
       language={language}
     >
-      {pages.map((pageGroups, index) => {
-        const hasCover = index === 0 || options.cover === 'eachCategory';
-        return (
-          <Fragment key={groupKey(pageGroups[0])}>
-            {hasCover && cover.map((page, position) => <CoverPage key={position} page={page} />)}
-            <RankingPage
-              {...props}
-              groups={pageGroups}
-              coversBefore={cover.length * (options.cover === 'once' ? 1 : index + 1)}
-              covers={cover.length * (options.cover === 'once' ? 1 : pages.length)}
-            />
-          </Fragment>
-        );
-      })}
+      {parts.map((part, index) => (
+        <Fragment key={groupKey(part.groups[0])}>
+          {part.cover.map((page, position) => (
+            <CoverPage key={position} page={page} />
+          ))}
+          <RankingPage
+            {...props}
+            {...part}
+            coversBefore={countCovers(index + 1)}
+            covers={countCovers(parts.length)}
+          />
+        </Fragment>
+      ))}
     </Document>
   );
 }
@@ -103,8 +121,8 @@ function CoverPage({ page: { data, width, height } }: { page: Jpeg }) {
         // A worker would otherwise keep the pictures of many files.
         cache={false}
         src={{ data: Buffer.from(data), format: 'jpg' }}
-        // Absolute, so it cannot be a fraction too high for the page.
-        style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'contain' }}
+        // Not quite 100%, rounding makes that too high for the page.
+        style={{ width: '100%', height: '99.99%', objectFit: 'contain' }}
       />
     </Page>
   );
@@ -118,7 +136,7 @@ function RankingPage({
   t,
   coversBefore,
   covers,
-}: RankingDocumentProps & { coversBefore: number; covers: number }) {
+}: PageProps & { coversBefore: number; covers: number }) {
   const fill = (pattern: string, filled = groups) =>
     fillPlaceholders(pattern, {
       category: [...new Set(filled.map(({ category }) => category))].join(', '),
@@ -205,7 +223,7 @@ function PageHead({
   options: { showLogo, logoPosition, accentColor },
   logo,
   children,
-}: Pick<RankingDocumentProps, 'options' | 'logo'> & { children: React.ReactNode }) {
+}: Pick<PageProps, 'options' | 'logo'> & { children: React.ReactNode }) {
   const image = showLogo && logo && <LogoImage logo={logo} />;
   const center = Boolean(image) && logoPosition === 'center';
   return (
@@ -235,7 +253,7 @@ function RankingTable({
   group: { apparatus, best, entries, precision },
   options,
   t,
-}: Pick<RankingDocumentProps, 'options' | 't'> & { title: React.ReactNode; group: RankingGroup }) {
+}: Pick<PageProps, 'options' | 't'> & { title: React.ReactNode; group: RankingGroup }) {
   const { columns, nameFormat } = options;
   // With fewer, different totals and ranks would look the same.
   const decimals = precision === 3 ? 3 : options.decimals;
