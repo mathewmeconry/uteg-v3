@@ -10,16 +10,16 @@ export default function HomeLayout() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 border-b bg-background">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
-          <Link to="/home" className="flex items-center gap-2 text-lg font-black tracking-tight">
+      <header className="sticky top-0 z-10 bg-ink text-ink-foreground">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between pr-2 pl-4 lg:px-6">
+          <Link to="/home" className="flex h-11 items-center gap-2 font-display text-xl">
             <Logo />
             {t('appName')}
           </Link>
           <AccountMenu email={email} />
         </div>
       </header>
-      <main id="content" className="mx-auto max-w-5xl px-4 py-8">
+      <main id="content" className="mx-auto max-w-5xl px-4 pt-6 pb-16 md:pt-10 lg:px-6">
         <Outlet />
       </main>
     </>

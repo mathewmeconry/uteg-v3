@@ -1,9 +1,10 @@
 import { CheckIcon } from 'lucide-react';
+import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Badge } from '~/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
-import { Progress } from '~/components/ui/progress';
+import { StatusBadge } from '~/components/StatusBadge';
 import type { LiveGround } from '~/lib/liveResults.server';
+import { cn } from '~/lib/utils';
+import { RoundMeter } from './RoundMeter';
 
 /** The running divisions of a ground, and the round and last grades of each apparatus. */
 export function LiveGroundCard({
@@ -14,86 +15,103 @@ export function LiveGroundCard({
   const { t } = useTranslation(['competition', 'common']);
 
   return (
-    <Card className="gap-4">
-      <CardHeader>
-        <CardTitle>
-          <h3>{t('common:ground', { number: ground })}</h3>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        {divisions.length === 0 && (
+    <section className="overflow-hidden rounded-xl border bg-card">
+      <div className="grid gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[11rem_1fr]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:block">
+          <h3 className="font-display text-xl leading-tight">
+            {t('common:ground', { number: ground })}
+          </h3>
+          {divisions.length > 0 && (
+            <StatusBadge tone="live" className="sm:mt-1.5">
+              {t('common:divisionState.RUNNING')}
+            </StatusBadge>
+          )}
+        </div>
+        {divisions.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('dashboard.groundIdle')}</p>
-        )}
-        {divisions.length > 0 && (
-          <ul className="grid gap-3">
+        ) : (
+          <ul className="grid content-center gap-3">
             {divisions.map(({ id, category, sex, number, round, rounds, percent }) => {
               const name = `${category} ${t(`common:sex.${sex}`)}, ${t('dashboard.division', { number })}`;
               return (
                 <li key={id} className="grid gap-1.5">
-                  <div className="flex flex-wrap justify-between gap-x-4 text-sm">
-                    <span className="font-medium">{name}</span>
+                  <div className="flex flex-wrap justify-between gap-x-4">
+                    <span className="font-semibold">{name}</span>
                     <span className="text-muted-foreground tabular-nums">
                       {t('dashboard.roundOf', { round: Math.min(round + 1, rounds), rounds })}
                     </span>
                   </div>
-                  <Progress
-                    value={percent}
-                    aria-label={t('dashboard.progressLabel', { division: name })}
+                  <RoundMeter
+                    rounds={rounds}
+                    percent={percent}
+                    label={t('dashboard.progressLabel', { division: name })}
                   />
                 </li>
               );
             })}
           </ul>
         )}
-        {apparatus.length > 0 && (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {apparatus.map((item) => (
-              <ApparatusTile key={item.apparatus} item={item} />
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+      {apparatus.length > 0 && (
+        <ul
+          className="grid gap-px border-t bg-border sm:grid-cols-2 2xl:grid-cols-[repeat(var(--count),minmax(0,1fr))]"
+          style={{ '--count': apparatus.length } as CSSProperties}
+        >
+          {apparatus.map((item) => (
+            <ApparatusCell key={item.apparatus} item={item} />
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
-function ApparatusTile({ item }: { item: LiveGround['apparatus'][number] }) {
+function ApparatusCell({ item }: { item: LiveGround['apparatus'][number] }) {
   const { t } = useTranslation(['competition', 'common']);
   const { apparatus, status, round, rounds, graded, total, latest } = item;
   const isFinished = status === 'FINISHED';
 
   return (
-    <li className="grid content-start gap-3 rounded-lg border p-3">
-      <div className="flex items-center justify-between gap-2">
-        <h4 className="font-medium">
+    <li className="bg-card px-4 py-3 sm:max-2xl:odd:last:col-span-2">
+      <div className="flex min-h-6 flex-wrap items-center justify-between gap-x-3">
+        <h4 className="font-semibold">
           {t(`common:apparatus.${apparatus}` as 'common:apparatus.reck')}
         </h4>
-        {isFinished && (
-          <Badge className="bg-success text-success-foreground">
-            <CheckIcon aria-hidden />
+        {isFinished ? (
+          <StatusBadge tone="done" icon={CheckIcon}>
             {t('dashboard.finished')}
-          </Badge>
+          </StatusBadge>
+        ) : (
+          <p className="text-sm text-muted-foreground tabular-nums">
+            <span className="sr-only">{t('dashboard.roundOf', { round, rounds })}, </span>
+            {total === 0 ? (
+              t('dashboard.pause')
+            ) : (
+              <span className={cn(graded === total && 'font-semibold text-success')}>
+                {t('dashboard.gradedOf', { graded, total })}
+              </span>
+            )}
+          </p>
         )}
       </div>
-      {!isFinished && (
-        <p className="flex flex-wrap justify-between gap-x-3 text-sm text-muted-foreground tabular-nums">
-          <span>{t('dashboard.roundOf', { round, rounds })}</span>
-          <span>
-            {total === 0 ? t('dashboard.pause') : t('dashboard.gradedOf', { graded, total })}
-          </span>
-        </p>
-      )}
       {latest.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('dashboard.noGrades')}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t('dashboard.noGrades')}</p>
       ) : (
-        <ul className="grid gap-2">
-          {latest.map(({ entryId, firstname, lastname, clubName, grade }) => (
-            <li key={entryId} className="flex items-baseline justify-between gap-3">
-              <div className="min-w-0 text-sm">
-                <p className="truncate font-medium">{`${firstname} ${lastname}`}</p>
+        <ul className="mt-1.5 grid gap-1.5">
+          {latest.map(({ entryId, firstname, lastname, clubName, grade }, index) => (
+            <li
+              key={entryId}
+              // The one before is only interesting where there is room.
+              className={cn(
+                'flex items-center justify-between gap-3',
+                index > 0 && 'max-sm:hidden',
+              )}
+            >
+              <div className="min-w-0 text-sm leading-snug">
+                <p className="truncate">{`${firstname} ${lastname}`}</p>
                 <p className="truncate text-muted-foreground">{clubName}</p>
               </div>
-              <span className="text-lg font-bold tabular-nums">{grade}</span>
+              <span className="figure text-xl">{grade}</span>
             </li>
           ))}
         </ul>

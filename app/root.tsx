@@ -9,6 +9,7 @@ import {
   ScrollRestoration,
   useNavigation,
 } from 'react-router';
+import font from '@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2?url';
 import type { Route } from './+types/root';
 import { ErrorPage } from '~/components/ErrorPage';
 import { Toaster } from '~/components/ui/sonner';
@@ -41,6 +42,7 @@ export function loader({ context }: Route.LoaderArgs) {
 
 export const links: Route.LinksFunction = () => [
   { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
+  { rel: 'preload', href: font, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
 ];
 
 export const meta: Route.MetaFunction = () => [{ title: 'UTEG' }];
@@ -48,7 +50,9 @@ export const meta: Route.MetaFunction = () => [{ title: 'UTEG' }];
 function NavigationProgress() {
   const navigation = useNavigation();
   if (navigation.state === 'idle') return null;
-  return <div aria-hidden className="fixed inset-x-0 top-0 z-50 h-1 animate-pulse bg-primary" />;
+  return (
+    <div aria-hidden className="navigation-progress fixed inset-x-0 top-0 z-50 h-1 bg-brand" />
+  );
 }
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -60,7 +64,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#0b1a3c" />
+        <meta name="theme-color" content="#012e35" />
         <Meta />
         <Links />
       </head>

@@ -1,3 +1,4 @@
+import { TriangleAlertIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { data, Form, Link, redirect, useSearchParams } from 'react-router';
 import { z } from 'zod';
@@ -5,7 +6,6 @@ import type { Route } from './+types/register';
 import { FormField } from '~/components/FormField';
 import { SubmitButton } from '~/components/SubmitButton';
 import { Alert, AlertDescription } from '~/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { languageContext } from '~/context';
 import { authCookies, callAuth } from '~/lib/auth/auth.server';
 import { safeRedirect } from '~/lib/auth/redirect';
@@ -57,64 +57,60 @@ export default function Register({ actionData }: Route.ComponentProps) {
   const [searchParams] = useSearchParams();
 
   return (
-    <Card>
+    <>
       <title>{`${t('registerTitle')} · UTEG`}</title>
-      <CardHeader>
-        <CardTitle>
-          <h1 className="text-xl">{t('registerTitle')}</h1>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form method="post" className="grid gap-4">
-          {actionData?.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{actionData.error}</AlertDescription>
-            </Alert>
-          )}
-          <input
-            type="hidden"
-            name="redirectTo"
-            value={searchParams.get('redirectTo') ?? '/home'}
-          />
-          <FormField
-            label={t('common:fields.email')}
-            error={actionData?.errors?.email}
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-          />
-          <FormField
-            label={t('common:fields.password')}
-            hint={t('passwordHint')}
-            error={actionData?.errors?.password}
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            minLength={8}
-            maxLength={128}
-            required
-          />
-          <FormField
-            label={t('repeatPassword')}
-            error={actionData?.errors?.repeatPassword}
-            name="repeatPassword"
-            type="password"
-            autoComplete="new-password"
-            required
-          />
-          <SubmitButton size="lg">{t('registerTitle')}</SubmitButton>
-          <p className="text-center text-sm">
-            {t('haveAccount')}{' '}
-            <Link
-              to={{ pathname: '/login', search: searchParams.toString() }}
-              className="font-medium underline"
-            >
-              {t('loginTitle')}
-            </Link>
-          </p>
-        </Form>
-      </CardContent>
-    </Card>
+      <h1 className="mb-6 font-display text-3xl leading-tight">{t('registerTitle')}</h1>
+      <Form method="post" className="grid gap-5">
+        {actionData?.error && (
+          <Alert variant="destructive">
+            <TriangleAlertIcon aria-hidden />
+            <AlertDescription>{actionData.error}</AlertDescription>
+          </Alert>
+        )}
+        <input type="hidden" name="redirectTo" value={searchParams.get('redirectTo') ?? '/home'} />
+        <FormField
+          label={t('common:fields.email')}
+          error={actionData?.errors?.email}
+          name="email"
+          type="email"
+          autoComplete="email"
+          className="h-12"
+          required
+        />
+        <FormField
+          label={t('common:fields.password')}
+          hint={t('passwordHint')}
+          error={actionData?.errors?.password}
+          name="password"
+          type="password"
+          autoComplete="new-password"
+          minLength={8}
+          maxLength={128}
+          className="h-12"
+          required
+        />
+        <FormField
+          label={t('repeatPassword')}
+          error={actionData?.errors?.repeatPassword}
+          name="repeatPassword"
+          type="password"
+          autoComplete="new-password"
+          className="h-12"
+          required
+        />
+        <SubmitButton size="lg" className="mt-1">
+          {t('registerTitle')}
+        </SubmitButton>
+        <p className="text-sm text-muted-foreground">
+          {t('haveAccount')}{' '}
+          <Link
+            to={{ pathname: '/login', search: searchParams.toString() }}
+            className="inline-flex items-center font-semibold text-primary underline underline-offset-4 pointer-coarse:min-h-11"
+          >
+            {t('loginTitle')}
+          </Link>
+        </p>
+      </Form>
+    </>
   );
 }

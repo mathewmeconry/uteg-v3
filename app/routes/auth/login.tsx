@@ -1,3 +1,4 @@
+import { TriangleAlertIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { data, Form, Link, redirect, useSearchParams } from 'react-router';
 import { z } from 'zod';
@@ -5,7 +6,6 @@ import type { Route } from './+types/login';
 import { FormField } from '~/components/FormField';
 import { SubmitButton } from '~/components/SubmitButton';
 import { Alert, AlertDescription } from '~/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { authCookies, callAuth } from '~/lib/auth/auth.server';
 import { safeRedirect } from '~/lib/auth/redirect';
 import { parseForm } from '~/lib/forms.server';
@@ -32,51 +32,46 @@ export default function Login({ actionData }: Route.ComponentProps) {
   const [searchParams] = useSearchParams();
 
   return (
-    <Card>
+    <>
       <title>{`${t('loginTitle')} · UTEG`}</title>
-      <CardHeader>
-        <CardTitle>
-          <h1 className="text-xl">{t('loginTitle')}</h1>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form method="post" className="grid gap-4">
-          {actionData?.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{actionData.error}</AlertDescription>
-            </Alert>
-          )}
-          <input
-            type="hidden"
-            name="redirectTo"
-            value={searchParams.get('redirectTo') ?? '/home'}
-          />
-          <FormField
-            label={t('common:fields.email')}
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-          />
-          <FormField
-            label={t('common:fields.password')}
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-          />
-          <SubmitButton size="lg">{t('loginTitle')}</SubmitButton>
-          <p className="text-center text-sm">
-            {t('noAccount')}{' '}
-            <Link
-              to={{ pathname: '/register', search: searchParams.toString() }}
-              className="font-medium underline"
-            >
-              {t('registerTitle')}
-            </Link>
-          </p>
-        </Form>
-      </CardContent>
-    </Card>
+      <h1 className="mb-6 font-display text-3xl leading-tight">{t('loginTitle')}</h1>
+      <Form method="post" className="grid gap-5">
+        {actionData?.error && (
+          <Alert variant="destructive">
+            <TriangleAlertIcon aria-hidden />
+            <AlertDescription>{actionData.error}</AlertDescription>
+          </Alert>
+        )}
+        <input type="hidden" name="redirectTo" value={searchParams.get('redirectTo') ?? '/home'} />
+        <FormField
+          label={t('common:fields.email')}
+          name="email"
+          type="email"
+          autoComplete="email"
+          className="h-12"
+          required
+        />
+        <FormField
+          label={t('common:fields.password')}
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          className="h-12"
+          required
+        />
+        <SubmitButton size="lg" className="mt-1">
+          {t('loginTitle')}
+        </SubmitButton>
+        <p className="text-sm text-muted-foreground">
+          {t('noAccount')}{' '}
+          <Link
+            to={{ pathname: '/register', search: searchParams.toString() }}
+            className="inline-flex items-center font-semibold text-primary underline underline-offset-4 pointer-coarse:min-h-11"
+          >
+            {t('registerTitle')}
+          </Link>
+        </p>
+      </Form>
+    </>
   );
 }
