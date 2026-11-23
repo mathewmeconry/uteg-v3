@@ -1,4 +1,3 @@
-import { parentPort, workerData } from 'node:worker_threads';
 import { Font, renderToBuffer } from '@react-pdf/renderer';
 import { createI18n } from '~/lib/i18n';
 import { NAMESPACES, type Language } from '~/locales';
@@ -28,15 +27,9 @@ export type PdfJob = {
 
 export type PdfResult = { pdf: Uint8Array } | { error: string };
 
-// Passed in, because only the app's build inlines them.
-const { regular, bold } = workerData as { regular: string; bold: string };
-Font.register({
-  family: FONT,
-  fonts: [
-    { src: regular, fontWeight: 400 },
-    { src: bold, fontWeight: 700 },
-  ],
-});
+/** The fonts come first, because only the app's build inlines them. */
+export type PdfMessage = { fonts: { regular: string; bold: string } } | { job: PdfJob };
+
 // Normal text only breaks words that could be wider than the page.
 Font.registerHyphenationCallback((word) => breakWord(word, 30));
 
@@ -50,4 +43,15 @@ async function render({ type, language, props }: PdfJob): Promise<PdfResult> {
   }
 }
 
-parentPort!.on('message', async (job: PdfJob) => parentPort!.postMessage(await render(job)));
+process.on('message', async (message: PdfMessage) => {
+  if ('job' in message) return process.send!(await render(message.job));
+  Font.register({
+    family: FONT,
+    fonts: [
+      { src: message.fonts.regular, fontWeight: 400 },
+      { src: message.fonts.bold, fontWeight: 700 },
+    ],
+  });
+});
+// The server is gone.
+process.on('disconnect', () => process.exit());

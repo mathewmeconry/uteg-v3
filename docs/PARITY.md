@@ -66,6 +66,7 @@ Paths in brackets point into `uteg-v2/frontend/src` unless prefixed `BE:` (`uteg
 - [ ] P-61 Warning when divisions are running; **provisional ranking**; live
 - [ ] P-62 Honour % editable next to the ranking
 - [ ] P-63 **Ranking PDF customisation** with preview: title, subtitle, footer, logos, colour, orientation, columns, decimals, medal style, page numbers, signature line, group headings, saved per competition
+- [ ] P-64 **Cover page** of a ranking PDF: PDF or image per template, once or before every category; templates are assigned to categories
 
 ## PDFs
 

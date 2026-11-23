@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { rankingTemplateSchema } from '~/lib/domain/rankingTemplate';
 import { accessUrl, getOrCreateJudgeLinks, logIn, resolveAccess } from '~/lib/access.server';
+import { setCover } from '~/lib/covers.server';
+import { prisma } from '~/lib/prisma.server';
 import { createRankingTemplate } from '~/lib/rankingTemplates.server';
+import { assignTemplate } from '~/lib/templateAssignments.server';
 import {
   createClub,
   createCompetition,
@@ -9,6 +12,7 @@ import {
   createStarter,
   truncateTables,
 } from '~/tests/helpers';
+import { createJpeg, createPng } from '~/tests/images';
 import { findOverlaps, readPdf } from '~/tests/pdf';
 import { callRoute } from '~/tests/routes';
 import * as manual from './judgingManualPdf';
@@ -97,6 +101,151 @@ describe('ranking', () => {
       );
     expect((await call(''))[0]).toContain('Titel A');
     expect((await call(templateId))[0]).toContain('Titel B');
+  });
+
+  describe('with a cover', () => {
+    async function setupCover(options: object = {}) {
+      const { id, contest } = await setup();
+      const template = await createRankingTemplate(id, {
+        name: 'A',
+        options: rankingTemplateSchema.parse(options),
+      });
+      await setCover(id, template.id, COVER);
+      const load = async (provisional = '') => {
+        const response = await callRoute(ranking.loader, {
+          competitionId: id,
+          role: 'VIEWER',
+          search: `?contest=${contest.id}&group=FEMALE:K5&group=MALE:K6${provisional}`,
+        });
+        return Buffer.from(await response.arrayBuffer());
+      };
+      return { id, template, load };
+    }
+
+    const COVER = [createJpeg(200, 100), createJpeg(100, 200)];
+
+    /** "wide" and "high" covers, or the start of a page and its number. */
+    const describePages = async (pdf: Uint8Array) =>
+      (await readPdf(new Uint8Array(pdf))).map(({ text, width, height }) => {
+        if (!text) return width > height ? 'wide' : 'high';
+        return `${/K5 Turnerinnen|K6 Turner|K5, K6/.exec(text)} ${/\d \/ \d$/.exec(text)}`;
+      });
+
+    it('starts the file with it and does not count it as a page', async () => {
+      const { load } = await setupCover();
+      expect(await describePages(await load('&provisional=1'))).toEqual([
+        ...['wide', 'high', 'K5 Turnerinnen 1 / 2', 'K6 Turner 2 / 2'],
+      ]);
+    });
+
+    it('can be before every category, and is in the file once and as it is', async () => {
+      const { load } = await setupCover({ cover: 'eachCategory' });
+      const pdf = await load();
+      expect(await describePages(pdf)).toEqual([
+        ...['wide', 'high', 'K5 Turnerinnen 1 / 2'],
+        ...['wide', 'high', 'K6 Turner 2 / 2'],
+      ]);
+      for (const page of COVER) {
+        expect(pdf.indexOf(page)).toBeGreaterThan(0);
+        expect(pdf.lastIndexOf(page)).toBe(pdf.indexOf(page));
+      }
+      // Categories on the same page have one.
+      const shared = await setupCover({ cover: 'eachCategory', newPagePerCategory: false });
+      expect(await describePages(await shared.load())).toEqual(['wide', 'high', 'K5, K6 1 / 1']);
+    });
+
+    it('is before the first of several pages', async () => {
+      const { id, load } = await setupCover({ cover: 'eachCategory', rowHeight: 40 });
+      const division = await prisma.division.findFirstOrThrow({
+        where: { category: 'K5', contest: { competitionId: id } },
+        include: { lineups: true },
+      });
+      for (let index = 0; index < 25; index++) {
+        await createStarter(id, { divisionId: division.id, lineupId: division.lineups[0].id });
+      }
+      expect(await describePages(await load())).toEqual([
+        ...['wide', 'high', 'K5 Turnerinnen 1 / 3', 'K5 Turnerinnen 2 / 3'],
+        ...['wide', 'high', 'K6 Turner 3 / 3'],
+      ]);
+    });
+
+    it('belongs to the template of each category', async () => {
+      const { id, contest } = await setup();
+      const create = async (name: string, options: object) =>
+        (
+          await createRankingTemplate(id, {
+            name,
+            options: rankingTemplateSchema.parse({ ...options, footer: `Fuss ${name}` }),
+          })
+        ).id;
+      await create('Standard', {});
+      const men = await create('Turner', { orientation: 'landscape' });
+      await setCover(id, men, COVER);
+      await assignTemplate(id, men, { sex: 'MALE', category: 'K6' });
+
+      const load = (template: string) =>
+        callRoute(ranking.loader, {
+          competitionId: id,
+          role: 'VIEWER',
+          search: `?contest=${contest.id}&group=FEMALE:K5&group=MALE:K6&template=${template}`,
+        });
+      const pages = await readPdf(await load('auto'));
+      // The default one has no cover, then the cover of the other and its landscape page.
+      expect(pages.map(({ width, height }) => width > height)).toEqual([false, true, false, true]);
+      expect(pages[0].text).toMatch(/K5 Turnerinnen.*Fuss Standard.*1 \/ 2$/);
+      expect(pages[1].text + pages[2].text).toBe('');
+      expect(pages[3].text).toMatch(/K6 Turner.*Fuss Turner.*2 \/ 2$/);
+
+      // One for all if it is chosen.
+      const same = await readPdf(await load(men));
+      expect(same.map(({ text }) => /Fuss \w+/.exec(text)?.[0])).toEqual([
+        ...[undefined, undefined, 'Fuss Turner', 'Fuss Turner'],
+      ]);
+    });
+
+    it('is left out when it is damaged', async () => {
+      const { id, load } = await setupCover();
+      await prisma.asset.updateMany({
+        where: { competitionId: id },
+        data: { data: new Uint8Array([1, 2, 3]) },
+      });
+      expect(await describePages(await load())).toEqual([
+        ...['K5 Turnerinnen 1 / 2', 'K6 Turner 2 / 2'],
+      ]);
+    });
+
+    it('is in the preview', async () => {
+      const { id, template } = await setupCover();
+      const preview = (form: [string, string][]) =>
+        callRoute(ranking.action, {
+          competitionId: id,
+          role: 'EDITOR',
+          form: [['options', '{}'], ...form],
+        });
+      const count = async (form: [string, string][]) =>
+        (await readText(await preview(form))).length;
+      expect(await count([])).toBe(2);
+      expect(await count([['template', template.id]])).toBe(4);
+      const other = await setupCover();
+      expect((await preview([['template', other.template.id]])).status).toBe(404);
+    });
+  });
+
+  it('leaves out a stored logo that must not be rendered', async () => {
+    const { id, contest } = await setup();
+    const load = async (data: Uint8Array<ArrayBuffer>) => {
+      const logo = { competitionId: id, mimeType: 'image/png', data };
+      await prisma.asset.deleteMany();
+      await prisma.competition.update({ where: { id }, data: { logo: { create: logo } } });
+      const response = await callRoute(ranking.loader, {
+        competitionId: id,
+        role: 'VIEWER',
+        search: `?contest=${contest.id}&group=FEMALE:K5`,
+      });
+      return (await readPdf(response))[0].images;
+    };
+    expect(await load(createPng(10, 10))).toBe(1);
+    expect(await load(createPng(10, 10, { pixels: Buffer.alloc(1e6) }))).toBe(0);
   });
 
   it('answers unknown and foreign ids with 404, missing ones with 400', async () => {

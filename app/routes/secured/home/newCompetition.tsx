@@ -6,7 +6,7 @@ import { CreateWizard } from '~/components/competition/CreateWizard';
 import { PageHeader } from '~/components/PageHeader';
 import { Role } from '~/generated/prisma/enums';
 import { useUser } from '~/hooks/useUser';
-import { checkLogo } from '~/lib/assets.server';
+import { cleanLogo } from '~/lib/assets.server';
 import { getUser } from '~/lib/auth/auth.server';
 import { competitionSchema, parseJson, readLogo } from '~/lib/competitionForm.server';
 import { createCompetition, findUnknownEmails } from '~/lib/competitions.server';
@@ -43,7 +43,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     : t('errors.invalid');
   if (membersError) errors.members = membersError;
   try {
-    if (logo) checkLogo(logo);
+    if (logo) await cleanLogo(logo);
   } catch (error) {
     errors.logo = domainErrorMessage(error, t);
   }

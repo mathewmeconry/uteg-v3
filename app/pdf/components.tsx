@@ -145,13 +145,13 @@ export function Row({ style, children }: { style?: Style; children: ReactNode })
   );
 }
 
-/** "1 / 3" at the bottom right. */
-export function PageNumber() {
+/** "1 / 3" at the bottom right, not counting covers. */
+export function PageNumber({ before = 0, uncounted = 0 }) {
   return (
     <Text
       fixed
       style={{ position: 'absolute', bottom: 18, right: 40, fontSize: 8, color: MUTED }}
-      render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
+      render={({ pageNumber, totalPages }) => `${pageNumber - before} / ${totalPages - uncounted}`}
     />
   );
 }

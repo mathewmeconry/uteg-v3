@@ -25,7 +25,7 @@ export async function callRoute(
     contestId?: string;
     role?: Role;
     search?: string;
-    form?: [string, string][];
+    form?: [string, string | Blob][];
     /** Sent instead of a form. */
     text?: string;
   },

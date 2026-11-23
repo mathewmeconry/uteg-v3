@@ -1,8 +1,10 @@
 import type { Prisma } from '~/generated/prisma/client';
 import { readImageSize } from './domain/imageSize';
+import { cleanJpeg } from './domain/jpeg';
 import { DomainError } from './errors';
 import { publish } from './events.server';
 import { lockCompetition } from './locks.server';
+import { cleanPng } from './png.server';
 import { prisma } from './prisma.server';
 
 export const MAX_LOGO_BYTES = 5 * 1024 * 1024;
@@ -17,22 +19,41 @@ export function getLogo(competitionId: string) {
   return prisma.asset.findFirst({ where: { competitionId, logoOf: { id: competitionId } } });
 }
 
-/** Throws unless the image can be a logo. Returns its type. */
-export function checkLogo(data: Uint8Array) {
-  if (data.byteLength > MAX_LOGO_BYTES) throw new DomainError('FILE_TOO_LARGE');
-  const mimeType = detectMimeType(data);
-  if (!mimeType) throw new DomainError('INVALID_IMAGE');
-  // Compressed images can be small files but need a lot of memory in PDFs.
-  const { width, height } = readImageSize(data) ?? { width: 0, height: 0 };
-  if (Math.max(width, height) > MAX_LOGO_PIXELS) throw new DomainError('IMAGE_TOO_LARGE');
-  return mimeType;
+/** The logo for a PDF, null if none is stored or it must not be rendered. */
+export async function getPdfLogo(competitionId: string) {
+  const logo = await getLogo(competitionId);
+  if (!logo) return null;
+  try {
+    // Those stored before the checks existed.
+    return await cleanLogo(logo.data);
+  } catch (error) {
+    if (error instanceof DomainError) return null;
+    throw error;
+  }
 }
 
-export async function setLogo(competitionId: string, data: Uint8Array<ArrayBuffer>) {
+/**
+ * The picture without anything else that its file may contain. Throws unless it can be a logo.
+ * The browser draws logos before it uploads them, see LogoField, so nothing is lost.
+ */
+export async function cleanLogo(file: Uint8Array) {
+  if (file.byteLength > MAX_LOGO_BYTES) throw new DomainError('FILE_TOO_LARGE');
+  const mimeType = detectMimeType(file);
+  if (!mimeType) throw new DomainError('INVALID_IMAGE');
+  // Compressed images can be small files but need a lot of memory in PDFs.
+  const { width, height } = readImageSize(file) ?? { width: 0, height: 0 };
+  if (Math.max(width, height) > MAX_LOGO_PIXELS) throw new DomainError('IMAGE_TOO_LARGE');
+  const data =
+    mimeType === 'image/png' ? await cleanPng(file) : cleanJpeg(file, MAX_LOGO_PIXELS)?.data;
+  if (!data) throw new DomainError('INVALID_IMAGE');
+  return { mimeType, data };
+}
+
+export async function setLogo(competitionId: string, file: Uint8Array) {
   const asset = await prisma.$transaction(async (tx) => {
     await lockCompetition(tx, competitionId);
     await tx.asset.deleteMany({ where: { logoOf: { id: competitionId } } });
-    return insertLogo(tx, competitionId, data);
+    return insertLogo(tx, competitionId, file);
   });
   publish(competitionId, 'settings');
   return asset;
@@ -42,9 +63,9 @@ export async function setLogo(competitionId: string, data: Uint8Array<ArrayBuffe
 export async function insertLogo(
   tx: Prisma.TransactionClient,
   competitionId: string,
-  data: Uint8Array<ArrayBuffer>,
+  file: Uint8Array,
 ) {
-  const mimeType = checkLogo(data);
+  const { mimeType, data } = await cleanLogo(file);
   const { id } = await tx.asset.create({
     data: { competitionId, mimeType, data },
     select: { id: true },
