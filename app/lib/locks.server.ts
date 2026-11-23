@@ -1,8 +1,8 @@
 import { Prisma } from '~/generated/prisma/client';
 import { DomainError } from './errors';
 
-// Always lock in this order: competition, athletes, divisions. NO KEY UPDATE does not block
-// inserts that only reference the row.
+// Always lock in this order: competition, athletes, contests, divisions. NO KEY UPDATE does not
+// block inserts that only reference the row.
 
 /** Serialises changes to the competition's starters, divisions and members. */
 export async function lockCompetition(tx: Prisma.TransactionClient, competitionId: string) {
@@ -15,6 +15,17 @@ export async function lockCompetition(tx: Prisma.TransactionClient, competitionI
 /** Athletes are shared by all competitions, so matching and creating them takes turns. */
 export async function lockAthletes(tx: Prisma.TransactionClient) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('athlete'))`;
+}
+
+/** For changing the config of a contest. Waits for everyone who computes with it. */
+export async function lockContest(tx: Prisma.TransactionClient, contestId: string) {
+  await tx.$executeRaw`SELECT id FROM contest WHERE id = ${contestId} FOR NO KEY UPDATE`;
+}
+
+/** Keeps the configs of the competition's contests still while computing with them. */
+export async function lockContestConfigs(tx: Prisma.TransactionClient, competitionId: string) {
+  await tx.$executeRaw`
+    SELECT id FROM contest WHERE "competitionId" = ${competitionId} ORDER BY id FOR SHARE`;
 }
 
 /**

@@ -49,7 +49,20 @@ export function getAffectedGrades(
   return { recompute, keep };
 }
 
+/** The database does not keep the order of the keys. */
+export function isSameConfig(a: EgtConfig, b: EgtConfig) {
+  return serialize(a) === serialize(b);
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+function serialize(config: EgtConfig) {
+  return JSON.stringify(config, (_key, value: unknown) =>
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? Object.fromEntries(Object.entries(value).toSorted(([a], [b]) => (a < b ? -1 : 1)))
+      : value,
+  );
+}
 
 /** One attempt is the grade, several have to be combined. */
 function normalize({ attempts, aggregation }: InputRule): InputRule {

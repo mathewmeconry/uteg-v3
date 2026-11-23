@@ -1,5 +1,6 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { createI18n } from '~/lib/i18n';
@@ -31,6 +32,7 @@ function renderForm(props: Partial<React.ComponentProps<typeof EgtSettingsForm>>
   return renderElement(
     <EgtSettingsForm
       savedConfig={egtModule.defaultConfig}
+      version="1"
       attemptGrades={[{ apparatus: 'sprung', category: 'K5', attempts: 2, count: 12 }]}
       canEdit
       {...props}
@@ -99,6 +101,83 @@ describe('EgtSettingsForm', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Add Vault' }));
     const { tieBreak } = await save();
     expect(tieBreak).toEqual(['schaukelringe', 'reck', 'barren', 'sprung']);
+  });
+
+  describe('when someone else saves', () => {
+    const PRECISE = { ...egtModule.defaultConfig, precision: 3 as const };
+    const precision = () => screen.getByRole('combobox', { name: 'Precision of the grades' });
+
+    function Harness() {
+      const [saved, setSaved] = useState({ config: egtModule.defaultConfig, version: '1' });
+      return (
+        <>
+          <button onClick={() => setSaved({ config: PRECISE, version: '2' })}>Other save</button>
+          <EgtSettingsForm
+            savedConfig={saved.config}
+            version={saved.version}
+            attemptGrades={[]}
+            canEdit
+            error="Refused"
+          />
+        </>
+      );
+    }
+
+    const otherSave = () => userEvent.click(screen.getByRole('button', { name: 'Other save' }));
+
+    it('follows as long as nothing was changed', async () => {
+      renderElement(<Harness />);
+      await otherSave();
+      expect(precision()).toHaveTextContent('3 decimals');
+      await save();
+      expect(action.mock.calls[0][0].version).toBe('2');
+    });
+
+    it('keeps changes with the version they were made on, until reloaded', async () => {
+      renderElement(<Harness />);
+      await choose('Rounding of the number', 'Always round up (as at the Swiss championships)');
+      await otherSave();
+      expect(precision()).toHaveTextContent('2 decimals');
+      expect(screen.getByRole('alert')).toHaveTextContent('Someone else changed these settings');
+      expect((await save()).honourRounding).toBe('ceil');
+      expect(action.mock.calls[0][0].version).toBe('1');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Reload' }));
+      expect(precision()).toHaveTextContent('3 decimals');
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('shows why saving failed while there are changes', async () => {
+      renderElement(<Harness />);
+      expect(screen.queryByText('Refused')).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Remove Floor' }));
+      expect(screen.getByText('Refused')).toBeInTheDocument();
+    });
+
+    it('is clean after saving, also when the keys come back in another order', async () => {
+      const entries = Object.entries(PRECISE).toReversed();
+      const reordered = Object.fromEntries(entries) as typeof PRECISE;
+      function Saved() {
+        const [saved, setSaved] = useState({ config: egtModule.defaultConfig, version: '1' });
+        return (
+          <>
+            <button onClick={() => setSaved({ config: reordered, version: '2' })}>Own save</button>
+            <EgtSettingsForm
+              savedConfig={saved.config}
+              version={saved.version}
+              attemptGrades={[]}
+              canEdit
+            />
+          </>
+        );
+      }
+      renderElement(<Saved />);
+      await choose('Precision of the grades', '3 decimals (as at the Swiss championships)');
+      await userEvent.click(screen.getByRole('button', { name: 'Own save' }));
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      await save();
+      expect(action.mock.calls[0][0].version).toBe('2');
+    });
   });
 
   it('cannot be changed by viewers', () => {

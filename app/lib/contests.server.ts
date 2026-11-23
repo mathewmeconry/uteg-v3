@@ -1,10 +1,11 @@
+import { createHash } from 'node:crypto';
 import type { Prisma, Sex } from '~/generated/prisma/client';
 import { getContestModule, getModule, type BoundModule } from '~/modules/registry';
 import { aggregate } from './domain/grade';
 import { selectQualifiers } from './domain/ranking';
 import { DomainError } from './errors';
 import { publish } from './events.server';
-import { lockCompetition } from './locks.server';
+import { lockCompetition, lockContest } from './locks.server';
 import { prisma } from './prisma.server';
 import { getRanking } from './ranking.server';
 
@@ -19,16 +20,42 @@ export async function getContest(
   return { ...contest, module: getContestModule(contest) };
 }
 
-/** Saves the config and recomputes the stored grades whose attempts are now combined differently. */
-export async function updateContestConfig(
+/** Changes with the config. Pages send back the version they edited. */
+export function getConfigVersion({ config }: { config: unknown }) {
+  // jsonb returns the keys of equal objects in the same order.
+  return createHash('sha256').update(JSON.stringify(config)).digest('base64url');
+}
+
+/** Replaces the config. With a `version` only when nobody else changed it since. */
+export function updateContestConfig(
   competitionId: string,
   contestId: string,
   config: unknown,
+  { version }: { version?: string } = {},
+) {
+  return patchContestConfig(competitionId, contestId, () => config, { version });
+}
+
+/**
+ * Changes parts of the config, keeping what others change at the same time, and recomputes the
+ * stored grades whose attempts are now combined differently.
+ */
+export async function patchContestConfig<Config = unknown>(
+  competitionId: string,
+  contestId: string,
+  change: (config: Config) => unknown,
+  { version }: { version?: string } = {},
 ) {
   const recomputed = await prisma.$transaction(async (tx) => {
-    await lockCompetition(tx, competitionId);
+    await lockContest(tx, contestId);
     const contest = await getContest(competitionId, contestId, tx);
-    const newConfig = parseContestConfig(contest.module.key, config);
+    if (version !== undefined && version !== getConfigVersion(contest)) {
+      throw new DomainError('CONFIG_CHANGED');
+    }
+    // The config is validated by the module, which the caller knows.
+    const changed = change(contest.module.config as Config);
+    if (!changed) throw new DomainError('INVALID_CONFIG');
+    const newConfig = parseContestConfig(contest.module.key, changed);
     await tx.contest.update({ where: { id: contest.id }, data: { config: newConfig } });
     const module = getContestModule({ module: contest.module.key, config: newConfig });
     return recomputeGrades(tx, contest.id, contest.module, module);
@@ -141,14 +168,16 @@ export async function createContestFromRanking(
 async function findAttemptGrades(tx: Prisma.TransactionClient, contestId: string) {
   const grades = await tx.grade.findMany({
     where: { entry: { contestId }, NOT: { attempts: { isEmpty: true } } },
-    include: { entry: { include: { division: true } } },
+    select: {
+      id: true,
+      apparatus: true,
+      value: true,
+      attempts: true,
+      entry: { select: { category: true, division: { select: { category: true } } } },
+    },
   });
-  return grades.map(({ id, apparatus, value, attempts, updatedAt, entry }) => ({
-    id,
-    apparatus,
-    value,
-    attempts,
-    updatedAt,
+  return grades.map(({ entry, ...grade }) => ({
+    ...grade,
     category: entry.category ?? entry.division?.category ?? '',
   }));
 }
@@ -160,9 +189,10 @@ async function recomputeGrades(
   oldModule: BoundModule,
   newModule: BoundModule,
 ) {
-  let recomputed = 0;
-  const grades = await findAttemptGrades(tx, contestId);
-  for (const { id, apparatus, category, value, attempts, updatedAt } of grades) {
+  const ids: string[] = [];
+  const values: number[] = [];
+  for (const grade of await findAttemptGrades(tx, contestId)) {
+    const { id, apparatus, category, value, attempts } = grade;
     const rule = newModule.inputRule(apparatus, category);
     const oldRule = oldModule.inputRule(apparatus, category);
     const isSameRule =
@@ -170,9 +200,13 @@ async function recomputeGrades(
     if (isSameRule || rule.attempts !== attempts.length) continue;
     const newValue = aggregate(attempts, rule.aggregation);
     if (newValue === null || newValue === value) continue;
-    // Dashboard and displays show who was graded last, which does not change.
-    await tx.grade.update({ where: { id }, data: { value: newValue, updatedAt } });
-    recomputed++;
+    ids.push(id);
+    values.push(newValue);
   }
-  return recomputed;
+  if (ids.length === 0) return 0;
+  // Keeps updatedAt: dashboard and displays show who was graded last, which does not change.
+  return tx.$executeRaw`
+    UPDATE grade SET value = changed.value
+    FROM unnest(${ids}::text[], ${values}::int[]) AS changed(id, value)
+    WHERE grade.id = changed.id`;
 }

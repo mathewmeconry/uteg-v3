@@ -23,7 +23,10 @@ async function setup(role: Role = 'EDITOR') {
   return {
     competition,
     load: () => callRoute(loader, call),
-    post: (form: Record<string, string>, ids = {}) => callRoute(action, { ...call, ...ids, form }),
+    post: async (form: Record<string, string>, ids = {}) => {
+      const version = (await callRoute(loader, call)).data.version;
+      return callRoute(action, { ...call, ...ids, form: { version, ...form } });
+    },
     precision: async () => {
       const contest = await prisma.contest.findUniqueOrThrow({ where: { id: call.contestId } });
       return (contest.config as { precision: number }).precision;
@@ -74,6 +77,16 @@ describe('contest settings', () => {
     const { post, precision } = await setup();
     expect((await post({ config: text })).status).toBe(400);
     expect(await precision()).toBe(2);
+  });
+
+  it('refuses changes made on an older version', async () => {
+    const { load, post, precision } = await setup();
+    const { version } = (await load()).data;
+    await post({ config });
+    const late = await post({ config: JSON.stringify(egtModule.defaultConfig), version });
+    expect(late.status).toBe(400);
+    expect(late.data.error).toContain('geändert');
+    expect(await precision()).toBe(3);
   });
 
   it('denies a VIEWER', async () => {

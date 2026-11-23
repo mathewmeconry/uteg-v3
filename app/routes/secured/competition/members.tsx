@@ -1,15 +1,12 @@
-import { LogOutIcon, Trash2Icon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { data, Form, redirect, useFetcher } from 'react-router';
+import { data, Form, redirect } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/members';
+import { MemberRow } from '~/components/competition/MemberRow';
 import { ROLES, RoleSelect } from '~/components/competition/RoleSelect';
-import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { FormField } from '~/components/FormField';
 import { PageHeader } from '~/components/PageHeader';
 import { SubmitButton } from '~/components/SubmitButton';
-import { Badge } from '~/components/ui/badge';
-import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { competitionContext } from '~/context';
 import { Role } from '~/generated/prisma/enums';
@@ -92,69 +89,6 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
-type Member = Route.ComponentProps['loaderData']['members'][number];
-
-function MemberRow({
-  member: { userId, email, role },
-  isSelf,
-  isLastOwner,
-}: {
-  member: Member;
-  isSelf: boolean;
-  isLastOwner: boolean;
-}) {
-  const { t } = useTranslation(['settings', 'common']);
-  const { isOwner } = useCompetition();
-  const fetcher = useFetcher();
-  const pendingRole = fetcher.formData?.get('role') as Role | undefined;
-
-  return (
-    <li className="flex flex-wrap items-center gap-3 py-3">
-      <div className="min-w-0 flex-1 basis-60">
-        <p className="flex items-center gap-2 font-medium">
-          <span className="truncate">{email}</span>
-          {isSelf && <Badge variant="secondary">{t('members.you')}</Badge>}
-        </p>
-        {isOwner && isLastOwner && (
-          <p className="text-sm text-muted-foreground">{t('members.lastOwner')}</p>
-        )}
-      </div>
-      {isOwner ? (
-        <div className="flex items-center gap-2">
-          <RoleSelect
-            value={pendingRole ?? role}
-            disabled={isLastOwner || fetcher.state !== 'idle'}
-            aria-label={t('members.roleOf', { email })}
-            className="w-36"
-            onChange={(newRole) =>
-              void fetcher.submit({ intent: 'role', userId, role: newRole }, { method: 'post' })
-            }
-          />
-          <ConfirmDialog
-            trigger={
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={isLastOwner}
-                aria-label={isSelf ? t('members.leave') : t('members.remove', { email })}
-              >
-                {isSelf ? <LogOutIcon aria-hidden /> : <Trash2Icon aria-hidden />}
-              </Button>
-            }
-            title={isSelf ? t('members.leaveTitle') : t('members.removeTitle', { email })}
-            description={isSelf ? t('members.leaveText') : t('members.removeText')}
-            confirmLabel={isSelf ? t('members.leave') : t('common:actions.remove')}
-            destructive
-            fields={{ intent: 'remove', userId }}
-          />
-        </div>
-      ) : (
-        <Badge variant="outline">{t(`common:role.${role}`)}</Badge>
-      )}
-    </li>
-  );
-}
-
 export default function Members({
   loaderData: { members, ownId },
   actionData,
@@ -176,6 +110,7 @@ export default function Members({
                 <MemberRow
                   key={member.userId}
                   member={member}
+                  canManage={isOwner}
                   isSelf={member.userId === ownId}
                   isLastOwner={member.role === 'OWNER' && owners === 1}
                 />

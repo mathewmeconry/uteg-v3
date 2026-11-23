@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { egtModule } from '~/modules/egt/module';
+import { egtModule, type EgtConfig } from '~/modules/egt/module';
 import { registerModule } from '~/modules/registry';
 import type { ContestModule } from '~/modules/types';
 import {
@@ -12,13 +12,16 @@ import {
 import {
   countAttemptGrades,
   createContestFromRanking,
+  getConfigVersion,
   getContest,
+  patchContestConfig,
   updateContestConfig,
 } from './contests.server';
 import { createDivision as createDivisionService, startDivisions } from './divisions.server';
 import { subscribe } from './events.server';
 import { confirmRound, getJudgingState, saveGrades } from './judging.server';
 import { moveEntriesToLineup } from './lineups.server';
+import { lockContestConfigs } from './locks.server';
 import { prisma } from './prisma.server';
 import { getRanking } from './ranking.server';
 
@@ -133,6 +136,57 @@ describe('changed vault rules', () => {
     expect(listener.mock.calls.flat()).toEqual(['settings', 'grades']);
   });
 
+  it('apply to a grade saved at the same time', async () => {
+    const { id, contest, entry } = await setup();
+    const save = () =>
+      saveGrades(id, [{ entryId: entry.id, apparatus: 'sprung', attempts: [9500, 9700] }], {
+        kind: 'editor',
+      });
+    const others = [];
+    for (let index = 0; index < 200; index++) others.push(await createStarter(id));
+    const data = others.map((other) => ({
+      entryId: other.entry.id,
+      apparatus: 'sprung',
+      value: 9000,
+      attempts: [8000, 9000],
+    }));
+    await prisma.grade.createMany({ data });
+    await addVault(entry.id, 9000, [8000, 9000]);
+
+    for (const delay of [0, 5, 15, 30]) {
+      await updateContestConfig(id, contest.id, egtModule.defaultConfig);
+      await addVaultAgain(entry.id);
+      const update = updateContestConfig(id, contest.id, AVERAGE);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      await Promise.all([update, save()]);
+      expect(await vaultOf(entry.id)).toEqual({ value: 9600, attempts: [9500, 9700] });
+    }
+  });
+
+  it('wait for a grade that is being saved', async () => {
+    const { id, contest, entry } = await setup();
+    await addVault(entry.id, 9000, [8000, 9000]);
+    let update: Promise<unknown> | undefined;
+    await prisma.$transaction(async (tx) => {
+      await lockContestConfigs(tx, id);
+      update = updateContestConfig(id, contest.id, AVERAGE);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await tx.grade.updateMany({
+        where: { entryId: entry.id },
+        data: { value: 9700, attempts: [9500, 9700] },
+      });
+    });
+    await update;
+    expect(await vaultOf(entry.id)).toEqual({ value: 9600, attempts: [9500, 9700] });
+  });
+
+  function addVaultAgain(entryId: string) {
+    return prisma.grade.updateMany({
+      where: { entryId },
+      data: { value: 9000, attempts: [8000, 9000] },
+    });
+  }
+
   it('lists how many grades have attempts', async () => {
     const { id, contest, entry } = await setup();
     const { entry: second } = await createStarter(id);
@@ -144,6 +198,70 @@ describe('changed vault rules', () => {
     ]);
     const other = await createCompetition();
     expect(await errorCode(countAttemptGrades(other.id, contest.id))).toBe('NOT_FOUND');
+  });
+});
+
+describe('changing the config at the same time', () => {
+  const PRECISE = { ...egtModule.defaultConfig, precision: 3 as const };
+
+  it('is refused when the version is outdated', async () => {
+    const { id, contest } = await createCompetition();
+    const version = getConfigVersion(await getContest(id, contest.id));
+    await updateContestConfig(id, contest.id, PRECISE, { version });
+    const late = updateContestConfig(id, contest.id, egtModule.defaultConfig, { version });
+    expect(await errorCode(late)).toBe('CONFIG_CHANGED');
+    expect((await getContest(id, contest.id)).module.config).toMatchObject({ precision: 3 });
+    const newVersion = getConfigVersion(await getContest(id, contest.id));
+    await updateContestConfig(id, contest.id, egtModule.defaultConfig, { version: newVersion });
+  });
+
+  it('lets only one of two saves win', async () => {
+    const { id, contest } = await createCompetition();
+    const version = getConfigVersion(await getContest(id, contest.id));
+    const results = await Promise.all(
+      [2, 3].map((precision) =>
+        errorCode(
+          updateContestConfig(
+            id,
+            contest.id,
+            { ...egtModule.defaultConfig, honourRounding: 'ceil', precision },
+            { version },
+          ),
+        ),
+      ),
+    );
+    expect(results.toSorted()).toEqual(['CONFIG_CHANGED', null]);
+  });
+
+  it('keeps all patches', async () => {
+    const { id, contest } = await createCompetition();
+    const categories = ['K1', 'K2', 'K3', 'K4', 'K5'];
+    await Promise.all(
+      categories.map((category) =>
+        patchContestConfig<EgtConfig>(id, contest.id, (config) => ({
+          ...config,
+          honourPercent: {
+            ...config.honourPercent,
+            MALE: { ...config.honourPercent.MALE, [category]: 50 },
+          },
+        })),
+      ),
+    );
+    const { module } = await getContest(id, contest.id);
+    for (const category of categories) {
+      expect(module.rankingOptions(category, 'MALE').honourPercent).toBe(50);
+    }
+  });
+
+  it('refuses an invalid patch', async () => {
+    const { id, contest } = await createCompetition();
+    const patch = patchContestConfig<any>(id, contest.id, (config) => ({
+      ...config,
+      precision: 7,
+    }));
+    expect(await errorCode(patch)).toBe('INVALID_CONFIG');
+    const empty = patchContestConfig<any>(id, contest.id, () => undefined);
+    expect(await errorCode(empty)).toBe('INVALID_CONFIG');
   });
 });
 

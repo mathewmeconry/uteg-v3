@@ -2,6 +2,7 @@ import { Trash2Icon } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Form } from 'react-router';
+import { z } from 'zod';
 import { FormField } from '~/components/FormField';
 import { SubmitButton } from '~/components/SubmitButton';
 import { Button } from '~/components/ui/button';
@@ -28,6 +29,8 @@ const FIELD_STEPS: Record<string, Step> = {
 };
 
 const MODULES = ['egt'] as const;
+
+const DOUBLE_CLICK_MS = 500;
 
 type Errors = Record<string, string | undefined>;
 const NO_ERRORS: Errors = {};
@@ -61,17 +64,22 @@ export function CreateWizard({
   const form = useRef<HTMLFormElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const isFirstRender = useRef(true);
+  const openedAt = useRef(0);
   const index = STEPS.indexOf(step);
 
   const [seenErrors, setSeenErrors] = useState(errors);
+  // The list the server's message is about.
+  const [refusedMembers, setRefusedMembers] = useState(members);
   if (errors !== seenErrors) {
     setSeenErrors(errors);
+    setRefusedMembers(members);
     setStep(getErrorStep(errors) ?? step);
   }
 
   useEffect(() => {
     if (!isFirstRender.current) heading.current?.focus();
     isFirstRender.current = false;
+    openedAt.current = Date.now();
   }, [step]);
 
   function goTo(next: Step) {
@@ -82,7 +90,7 @@ export function CreateWizard({
   function addMember() {
     const email = draft.email.trim().toLowerCase();
     const isDuplicate = members.some((member) => member.email === email);
-    const isInvalid = !/^\S+@\S+\.\S+$/.test(email);
+    const isInvalid = !z.email().safeParse(email).success;
     const error = isInvalid
       ? 'Invalid'
       : email === ownEmail
@@ -114,9 +122,11 @@ export function CreateWizard({
   }
 
   function onSubmit(event: FormEvent) {
-    if (step === 'review') return;
+    // The second half of a double click on "Next" hits the button of the step it opened.
+    const isDoubleClick = Date.now() - openedAt.current < DOUBLE_CLICK_MS;
+    if (step === 'review' && !isDoubleClick) return;
     event.preventDefault();
-    next();
+    if (!isDoubleClick) next();
   }
 
   return (
@@ -222,7 +232,9 @@ export function CreateWizard({
             >
               {t('common:actions.add')}
             </Button>
-            {errors.members && <FieldError>{errors.members}</FieldError>}
+            {errors.members && members === refusedMembers && (
+              <FieldError>{errors.members}</FieldError>
+            )}
             {members.length > 0 && (
               <ul className="divide-y rounded-md border">
                 {members.map(({ email, role }) => (

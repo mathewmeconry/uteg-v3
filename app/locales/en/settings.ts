@@ -7,6 +7,7 @@ export default {
   membersTitle: 'Members',
   readOnly: 'As a viewer you cannot change anything.',
   saved: 'The settings were saved.',
+  reloadDiscards: 'Your changes are not saved. “Reload” discards them.',
   general: 'General',
   logo: {
     current: 'Current logo',
@@ -39,6 +40,10 @@ export default {
     leave: 'Leave competition',
     leaveTitle: 'Leave the competition?',
     leaveText: 'You will no longer have access to this competition.',
+    demoteTitle: 'Give up ownership?',
+    demoteText:
+      'You can no longer manage members or delete the competition. Only another owner can undo this.',
+    demote: 'Give up ownership',
     lastOwner: 'The last owner cannot be changed or removed.',
     added: 'The member was added.',
     roleChanged: 'The role was changed.',
