@@ -46,6 +46,8 @@ export default [
     route('display/:token/events', 'routes/api/displayEvents.ts'),
     route('assets/:assetId', 'routes/api/asset.ts'),
     route('competitions/:competitionId', 'routes/api/competition/layout.ts', [
+      route('athletes', 'routes/api/competition/athletes.ts'),
+      route('clubs', 'routes/api/competition/clubs.ts'),
       route('starters.xlsx', 'routes/api/competition/startersXlsx.ts'),
       route('pdf/ranking', 'routes/api/competition/rankingPdf.ts'),
       route('pdf/starters', 'routes/api/competition/startersPdf.ts'),
