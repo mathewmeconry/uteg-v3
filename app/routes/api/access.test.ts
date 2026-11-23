@@ -98,9 +98,9 @@ describe.each([
   it('shows the images of the competition', async () => {
     const { id, request } = await setup();
     const other = await createCompetition();
-    const load = async (competitionId: string) => {
+    const load = async (competitionId: string, mimeType = 'image/png') => {
       const asset = await prisma.asset.create({
-        data: { competitionId, mimeType: 'image/png', data: new Uint8Array([1]) },
+        data: { competitionId, mimeType, data: new Uint8Array([1]) },
       });
       const args = {
         request: await request(),
@@ -111,5 +111,6 @@ describe.each([
     };
     expect(await load(id)).toBe(200);
     expect(await load(other.id)).toBe(404);
+    expect(await load(id, 'application/pdf')).toBe(404);
   });
 });

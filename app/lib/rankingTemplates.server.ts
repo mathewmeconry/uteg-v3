@@ -28,12 +28,37 @@ export async function listRankingTemplates(competitionId: string) {
   }));
 }
 
-/** The options to use unless the user picks a template. */
-export async function getDefaultRankingTemplate(competitionId: string) {
+/** The template, or the default one. Without any the built-in look. */
+export async function getRankingTemplate(competitionId: string, templateId: string | null) {
   const template = await prisma.rankingTemplate.findFirst({
-    where: { competitionId, isDefault: true },
+    where: { competitionId, ...(templateId ? { id: templateId } : { isDefault: true }) },
+    include: { cover: true },
   });
-  return template ? parseStoredTemplate(template.options) : defaultRankingTemplate;
+  if (templateId && !template) throw new DomainError('NOT_FOUND');
+  return {
+    options: template ? parseStoredTemplate(template.options) : defaultRankingTemplate,
+    cover: template?.cover?.data ?? null,
+  };
+}
+
+/** A copy with its own cover. */
+export async function duplicateRankingTemplate(
+  competitionId: string,
+  templateId: string,
+  name: string,
+) {
+  const { options, cover } = await getRankingTemplate(competitionId, templateId);
+  const input = parseInput({ name, options });
+  await prisma.rankingTemplate.create({
+    data: {
+      ...input,
+      competition: { connect: { id: competitionId } },
+      cover: cover
+        ? { create: { competitionId, mimeType: 'application/pdf', data: cover } }
+        : undefined,
+    },
+  });
+  publish(competitionId, 'settings');
 }
 
 export async function createRankingTemplate(competitionId: string, input: TemplateInput) {
@@ -73,8 +98,9 @@ export async function setDefaultRankingTemplate(competitionId: string, templateI
 export async function deleteRankingTemplate(competitionId: string, templateId: string) {
   await prisma.$transaction(async (tx) => {
     await lockCompetition(tx, competitionId);
-    const { isDefault } = await getTemplate(tx, competitionId, templateId);
+    const { isDefault, coverId } = await getTemplate(tx, competitionId, templateId);
     await tx.rankingTemplate.delete({ where: { id: templateId } });
+    if (coverId) await tx.asset.delete({ where: { id: coverId }, select: { id: true } });
     const next = await tx.rankingTemplate.findFirst({
       where: { competitionId },
       orderBy: { id: 'asc' },

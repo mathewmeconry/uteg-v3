@@ -3,8 +3,8 @@ import type { z } from 'zod';
 
 export type FieldErrors = Record<string, string>;
 
-/** A form without files. Browsers never send other content types or NUL in it. */
-export async function readForm(request: Request) {
+/** Browsers never send other content types or NUL in a form. Only forms with uploads have files. */
+export async function readForm(request: Request, { allowFiles = false } = {}) {
   let formData;
   try {
     formData = await request.formData();
@@ -12,7 +12,8 @@ export async function readForm(request: Request) {
     throw data(null, 400);
   }
   for (const value of formData.values()) {
-    if (typeof value !== 'string' || value.includes('\0')) throw data(null, 400);
+    const isValid = typeof value === 'string' ? !value.includes('\0') : allowFiles;
+    if (!isValid) throw data(null, 400);
   }
   return formData;
 }

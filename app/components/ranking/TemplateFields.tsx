@@ -218,7 +218,7 @@ export function TemplateFields({
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <FieldSet className="gap-4 rounded-lg border bg-card p-4">
       <FieldLegend className="float-left mb-0 w-full">{title}</FieldLegend>
@@ -248,7 +248,7 @@ function CheckField({
   );
 }
 
-function SelectField<Value extends string>({
+export function SelectField<Value extends string>({
   label,
   hint,
   value,

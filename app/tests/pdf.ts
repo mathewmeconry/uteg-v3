@@ -1,3 +1,5 @@
+import { crc32, deflateSync } from 'node:zlib';
+import { PDFDocument } from 'pdf-lib';
 import { getDocument, OPS, Util } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 export type PdfItem = {
@@ -60,6 +62,44 @@ function findImageX({ fnArray, argsArray }: { fnArray: number[]; argsArray: any[
     if (operator === OPS.paintImageXObject) return matrix[4];
   }
   return null;
+}
+
+/** A PDF to upload with a page per text. */
+export async function createCoverPdf(
+  texts: string[],
+  change: (document: PDFDocument) => unknown = () => {},
+) {
+  const document = await PDFDocument.create();
+  for (const text of texts) document.addPage([595, 842]).drawText(text, { x: 50, y: 400 });
+  await change(document);
+  return new Uint8Array(await document.save({ useObjectStreams: false }));
+}
+
+/** A red PNG. */
+export function createPng(width: number, height: number) {
+  const chunk = (type: string, content: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type), content]);
+    const result = Buffer.alloc(body.length + 8);
+    result.writeUInt32BE(content.length, 0);
+    body.copy(result, 4);
+    result.writeUInt32BE(crc32(body), body.length + 4);
+    return result;
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 2], 8);
+  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(width * 3)]);
+  for (let x = 0; x < width; x++) row[1 + x * 3] = 255;
+  const pixels = Buffer.concat(Array.from({ length: height }, () => row));
+  return new Uint8Array(
+    Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      chunk('IHDR', header),
+      chunk('IDAT', deflateSync(pixels)),
+      chunk('IEND', Buffer.alloc(0)),
+    ]),
+  );
 }
 
 /** Pairs of texts that cover each other. */

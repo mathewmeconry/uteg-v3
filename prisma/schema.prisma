@@ -116,7 +116,7 @@ model Member {
   @@map("member")
 }
 
-/// An uploaded image.
+/// An uploaded image, or the PDF made from an uploaded cover.
 model Asset {
   id            String      @id @default(ulid())
   competitionId String
@@ -125,7 +125,8 @@ model Asset {
   data          Bytes
   createdAt     DateTime    @default(now())
 
-  logoOf Competition? @relation("CompetitionLogo")
+  logoOf  Competition?     @relation("CompetitionLogo")
+  coverOf RankingTemplate? @relation("TemplateCover")
 
   @@index([competitionId])
   @@map("asset")
@@ -163,6 +164,9 @@ model RankingTemplate {
   name          String
   isDefault     Boolean     @default(false)
   options       Json
+  // The pages in front of the ranking, a PDF.
+  coverId       String?     @unique
+  cover         Asset?      @relation("TemplateCover", fields: [coverId], references: [id], onDelete: SetNull)
   updatedAt     DateTime    @updatedAt
 
   @@index([competitionId])

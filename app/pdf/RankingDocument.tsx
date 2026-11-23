@@ -57,6 +57,8 @@ export type RankingDocumentProps = {
   logo: Logo | null;
   t: ServerT;
   language: string;
+  /** Called with the first page, counted from 1, of each part of the document. */
+  onStart?: (part: number, page: number) => void;
 };
 
 const MARGIN = 40;
@@ -73,14 +75,19 @@ export function RankingDocument(props: RankingDocumentProps) {
       creator="UTEG"
       language={language}
     >
-      {pages.map((pageGroups) => (
-        <RankingPage key={groupKey(pageGroups[0])} {...props} groups={pageGroups} />
+      {pages.map((pageGroups, index) => (
+        <RankingPage
+          key={groupKey(pageGroups[0])}
+          {...props}
+          groups={pageGroups}
+          onStart={(_, page) => props.onStart?.(index, page)}
+        />
       ))}
     </Document>
   );
 }
 
-function RankingPage({ groups, options, competition, logo, t }: RankingDocumentProps) {
+function RankingPage({ groups, options, competition, logo, t, onStart }: RankingDocumentProps) {
   const fill = (pattern: string, filled = groups) =>
     fillPlaceholders(pattern, {
       category: [...new Set(filled.map(({ category }) => category))].join(', '),
@@ -117,6 +124,12 @@ function RankingPage({ groups, options, competition, logo, t }: RankingDocumentP
         )}
         {options.showDate && <Text style={{ marginTop: 3, color: MUTED }}>{competition.date}</Text>}
       </PageHead>
+      <View
+        render={({ pageNumber }) => {
+          onStart?.(0, pageNumber);
+          return null;
+        }}
+      />
       {groups.map((group) => (
         <RankingTable
           key={groupKey(group)}

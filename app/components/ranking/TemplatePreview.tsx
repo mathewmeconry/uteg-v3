@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import type { Sex } from '~/generated/prisma/enums';
+import { COVER_FAILED_HEADER } from '~/lib/domain/cover';
 import { rankingTemplateSchema, type RankingTemplateOptions } from '~/lib/domain/rankingTemplate';
 
 export type PreviewGroup = {
@@ -28,10 +29,12 @@ const toKey = ({ contestId, sex, category }: PreviewGroup) => `${contestId} ${se
 /** The PDF with the options as they are in the form, rendered by the server. */
 export function TemplatePreview({
   competitionId,
+  template,
   options,
   groups,
 }: {
   competitionId: string;
+  template: { id: string; coverId: string | null } | undefined;
   options: RankingTemplateOptions;
   groups: PreviewGroup[];
 }) {
@@ -39,7 +42,12 @@ export function TemplatePreview({
   const id = useId();
   const [source, setSource] = useState(SAMPLE);
   const showContest = new Set(groups.map(({ contestId }) => contestId)).size > 1;
-  const { url, status } = usePreview(competitionId, options, source);
+  // Only as long as it is there, so that a change of the cover loads the preview again.
+  const coverId = template?.coverId ?? null;
+  const { url, status, coverFailed } = usePreview(competitionId, options, source, {
+    templateId: coverId && template ? template.id : null,
+    coverId,
+  });
 
   return (
     <section aria-label={t('preview.title')} className="grid gap-3">
@@ -70,6 +78,11 @@ export function TemplatePreview({
           </Button>
         )}
       </div>
+      {coverFailed && (
+        <p role="alert" className="text-sm text-destructive">
+          {t('cover.failed')}
+        </p>
+      )}
       {status === 'failed' && (
         <p role="alert" className="text-sm text-destructive">
           {t('preview.failed')}
@@ -95,7 +108,13 @@ export function TemplatePreview({
   );
 }
 
-function usePreview(competitionId: string, options: RankingTemplateOptions, source: string) {
+function usePreview(
+  competitionId: string,
+  options: RankingTemplateOptions,
+  source: string,
+  { templateId, coverId }: { templateId: string | null; coverId: string | null },
+) {
+  const [coverFailed, setCoverFailed] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
   const serialized = JSON.stringify(options);
@@ -109,6 +128,7 @@ function usePreview(competitionId: string, options: RankingTemplateOptions, sour
       setStatus('loading');
       const body = new FormData();
       body.set('options', serialized);
+      if (templateId) body.set('template', templateId);
       if (source !== SAMPLE) {
         const [contestId, group] = source.split(' ');
         body.set('contest', contestId);
@@ -124,6 +144,7 @@ function usePreview(competitionId: string, options: RankingTemplateOptions, sour
         const blob = await response.blob();
         if (controller.signal.aborted) return;
         setUrl(URL.createObjectURL(blob));
+        setCoverFailed(response.headers.has(COVER_FAILED_HEADER));
         setStatus('ready');
       } catch {
         if (!controller.signal.aborted) setStatus('failed');
@@ -135,12 +156,13 @@ function usePreview(competitionId: string, options: RankingTemplateOptions, sour
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [competitionId, serialized, source]);
+    // A replaced cover has another id.
+  }, [competitionId, serialized, source, templateId, coverId]);
 
   useEffect(() => {
     if (!url) return;
     return () => URL.revokeObjectURL(url);
   }, [url]);
 
-  return { url, status };
+  return { url, status, coverFailed };
 }

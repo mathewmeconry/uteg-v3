@@ -8,6 +8,7 @@ import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { EmptyState } from '~/components/EmptyState';
 import { FormField } from '~/components/FormField';
 import { PageHeader } from '~/components/PageHeader';
+import { CoverSection } from '~/components/ranking/CoverSection';
 import { TemplateFields } from '~/components/ranking/TemplateFields';
 import { TemplatePreview, type PreviewGroup } from '~/components/ranking/TemplatePreview';
 import { SubmitButton } from '~/components/SubmitButton';
@@ -31,6 +32,7 @@ import {
 } from '~/components/ui/dropdown-menu';
 import { competitionContext } from '~/context';
 import { useCompetition } from '~/hooks/useCompetition';
+import { removeCover, setCover } from '~/lib/covers.server';
 import {
   defaultRankingTemplate,
   rankingTemplateSchema,
@@ -42,6 +44,7 @@ import { listRankingGroups } from '~/lib/ranking.server';
 import {
   createRankingTemplate,
   deleteRankingTemplate,
+  duplicateRankingTemplate,
   listRankingTemplates,
   setDefaultRankingTemplate,
   updateRankingTemplate,
@@ -50,6 +53,7 @@ import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
+import { PdfUnavailableError } from '~/pdf/render.server';
 
 const NEW = 'new';
 const NAME_LENGTH = 100;
@@ -76,8 +80,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ),
   );
   return {
-    templates: templates.map(({ id: templateId, name, isDefault, options }) => ({
+    templates: templates.map(({ id: templateId, name, isDefault, options, coverId }) => ({
       id: templateId,
+      coverId,
       name,
       isDefault,
       options,
@@ -91,7 +96,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
   const { id } = requireRole(context, 'EDITOR');
   const t = getT(context);
-  const formData = await readForm(request);
+  const formData = await readForm(request, { allowFiles: true });
   const page = `/competitions/${id}/templates`;
   const templateId = z.string().min(1).safeParse(formData.get('id')).data;
 
@@ -134,10 +139,8 @@ export async function action({ request, context }: Route.ActionArgs) {
         const templates = await listRankingTemplates(id);
         const source = templates.find((template) => template.id === templateId);
         if (!source) throw data(null, 404);
-        await createRankingTemplate(id, {
-          name: t('pdf:templates.copyName', { name: source.name }).slice(0, NAME_LENGTH),
-          options: source.options,
-        });
+        const name = t('pdf:templates.copyName', { name: source.name }).slice(0, NAME_LENGTH);
+        await duplicateRankingTemplate(id, source.id, name);
         enqueueToast(context, { type: 'success', message: t('pdf:templates.created') });
         return { errors: undefined };
       }
@@ -146,6 +149,33 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (!templateId) throw data(null, 400);
         await setDefaultRankingTemplate(id, templateId);
         enqueueToast(context, { type: 'success', message: t('pdf:templates.defaultSet') });
+        return { errors: undefined };
+      }
+
+      case 'cover': {
+        if (!templateId) throw data(null, 400);
+        const file = formData.get('cover');
+        if (!(file instanceof File) || file.size === 0) {
+          return data({ errors: { cover: t('errors.required') } as Record<string, string> }, 400);
+        }
+        try {
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          await setCover(id, templateId, bytes, request.signal);
+        } catch (error) {
+          const message =
+            error instanceof PdfUnavailableError
+              ? t('pdf:unavailable')
+              : domainErrorMessage(error, t);
+          return data({ errors: { cover: message } as Record<string, string> }, 400);
+        }
+        enqueueToast(context, { type: 'success', message: t('pdf:cover.saved') });
+        return { errors: undefined };
+      }
+
+      case 'removeCover': {
+        if (!templateId) throw data(null, 400);
+        await removeCover(id, templateId);
+        enqueueToast(context, { type: 'success', message: t('pdf:cover.removed') });
         return { errors: undefined };
       }
 
@@ -330,32 +360,40 @@ function TemplateEditor({
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">
-      <Form method="post" className="grid content-start gap-4">
-        {template && <input type="hidden" name="id" value={template.id} />}
-        <input type="hidden" name="options" value={JSON.stringify(options)} />
-        <FormField
-          label={t('form.name')}
-          name="name"
-          required
-          maxLength={NAME_LENGTH}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          error={errors?.name}
-        />
-        <TemplateFields options={options} onChange={setOptions} />
-        <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-3 border-t bg-background px-1 py-3">
-          <SubmitButton name="intent" value="save" disabled={!isValid}>
-            {template ? t('common:actions.save') : t('common:actions.create')}
-          </SubmitButton>
-          {!isValid && (
-            <p role="alert" className="text-sm text-destructive">
-              {t('common:errors.invalid')}
-            </p>
-          )}
-        </div>
-      </Form>
+      <div className="grid content-start gap-4">
+        <CoverSection template={template} options={options} onChange={setOptions} />
+        <Form method="post" className="grid content-start gap-4">
+          {template && <input type="hidden" name="id" value={template.id} />}
+          <input type="hidden" name="options" value={JSON.stringify(options)} />
+          <FormField
+            label={t('form.name')}
+            name="name"
+            required
+            maxLength={NAME_LENGTH}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            error={errors?.name}
+          />
+          <TemplateFields options={options} onChange={setOptions} />
+          <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-3 border-t bg-background px-1 py-3">
+            <SubmitButton name="intent" value="save" disabled={!isValid}>
+              {template ? t('common:actions.save') : t('common:actions.create')}
+            </SubmitButton>
+            {!isValid && (
+              <p role="alert" className="text-sm text-destructive">
+                {t('common:errors.invalid')}
+              </p>
+            )}
+          </div>
+        </Form>
+      </div>
       <div className="xl:sticky xl:top-20 xl:self-start">
-        <TemplatePreview competitionId={competition.id} options={options} groups={previewGroups} />
+        <TemplatePreview
+          competitionId={competition.id}
+          template={template}
+          options={options}
+          groups={previewGroups}
+        />
       </div>
       <DiscardDialog
         when={isDirty}

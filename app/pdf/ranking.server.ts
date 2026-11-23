@@ -39,6 +39,7 @@ export async function rankingPdfResponse({
   competition,
   groups,
   options,
+  cover,
   signal,
   t,
   language,
@@ -46,6 +47,7 @@ export async function rankingPdfResponse({
   competition: Competition;
   groups: RankingGroup[];
   options: RankingTemplateOptions;
+  cover: Uint8Array | null;
   signal: AbortSignal;
   t: ServerT;
   language: Language;
@@ -57,6 +59,7 @@ export async function rankingPdfResponse({
     {
       type: 'ranking',
       language,
+      cover,
       props: {
         groups,
         options,

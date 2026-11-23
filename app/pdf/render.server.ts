@@ -2,7 +2,10 @@ import { resolve as resolvePath } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import bold from './fonts/Roboto-Bold.ttf?inline';
 import regular from './fonts/Roboto-Regular.ttf?inline';
+import { DomainError } from '~/lib/errors';
 import type { PdfJob, PdfResult } from './worker';
+
+type PdfOutput = Extract<PdfResult, { pdf: Uint8Array }>;
 
 /** The PDF takes too long, or too many are being rendered. */
 export class PdfUnavailableError extends Error {
@@ -12,7 +15,7 @@ export class PdfUnavailableError extends Error {
 type Task = {
   job: PdfJob;
   worker?: Worker;
-  succeed: (pdf: Uint8Array) => void;
+  succeed: (output: PdfOutput) => void;
   fail: (error: unknown) => void;
 };
 
@@ -24,23 +27,27 @@ const idle: Worker[] = [];
 const queue: Task[] = [];
 let running = 0;
 
+export async function renderPdf(...args: Parameters<typeof runPdfJob>) {
+  return (await runPdfJob(...args)).pdf;
+}
+
 /**
- * Renders in worker threads, because it takes up to seconds and would block everyone else. Ends a
+ * Runs in worker threads, because it takes up to seconds and would block everyone else. Ends a
  * worker that takes too long or whose request was aborted.
  */
-export function renderPdf(
+export function runPdfJob(
   job: PdfJob,
   { signal, timeoutMs = TIMEOUT_MS }: { signal?: AbortSignal; timeoutMs?: number } = {},
-): Promise<Uint8Array> {
+): Promise<PdfOutput> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(signal.reason);
     if (queue.length >= MAX_QUEUE) return reject(new PdfUnavailableError('Queue is full'));
 
     const task: Task = {
       job,
-      succeed(pdf) {
+      succeed(output) {
         settle();
-        resolve(pdf);
+        resolve(output);
       },
       fail(error) {
         settle();
@@ -105,7 +112,8 @@ function start(task: Task) {
     // In development the next one gets the current code.
     if (import.meta.env.MODE === 'development') void worker.terminate();
     else idle.push(worker);
-    if ('pdf' in result) task.succeed(result.pdf);
+    if ('pdf' in result) task.succeed(result);
+    else if ('coverError' in result) task.fail(new DomainError(result.coverError));
     else task.fail(new Error(result.error));
     finish();
   }

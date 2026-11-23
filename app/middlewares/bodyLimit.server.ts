@@ -4,9 +4,9 @@ const MEGABYTE = 1024 * 1024;
 const LIMIT = 1 * MEGABYTE;
 const UPLOAD_LIMIT = 20 * MEGABYTE;
 
-/** The pages that take logos and starter lists. Navigations in the browser add ".data". */
+/** The pages that take logos, covers and starter lists. Navigations in the browser add ".data". */
 const UPLOAD_PATHS =
-  /^\/competitions\/(new|[^/]+\/(settings|starters\/import))\/?(\.data|_\.data)?$/i;
+  /^\/competitions\/(new|[^/]+\/(settings|templates|starters\/import))\/?(\.data|_\.data)?$/i;
 
 /**
  * Rejects large bodies, which actions would read into memory. Node makes sure that a body is not

@@ -2,7 +2,7 @@ import { data } from 'react-router';
 import type { Route } from './+types/rankingPdf';
 import { competitionContext, languageContext } from '~/context';
 import { rankingTemplateSchema } from '~/lib/domain/rankingTemplate';
-import { getDefaultRankingTemplate, listRankingTemplates } from '~/lib/rankingTemplates.server';
+import { getRankingTemplate } from '~/lib/rankingTemplates.server';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { loadRankingGroup, rankingPdfResponse } from '~/pdf/ranking.server';
@@ -23,14 +23,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   return rankingPdfResponse({
     competition,
     groups: await loadGroups(competition.id, contestId, groups, params.get('provisional') === '1'),
-    options: await getOptions(competition.id, params.get('template')),
+    ...(await orNotFound(getRankingTemplate(competition.id, params.get('template')))),
     signal: request.signal,
     t: getT(context),
     language: context.get(languageContext),
   });
 }
 
-/** A preview of unsaved options, with the ranking `group` of `contest` or sample data. */
+/**
+ * A preview of unsaved options with the cover of `template`, and with the ranking `group` of
+ * `contest` or sample data.
+ */
 export async function action({ request, context }: Route.ActionArgs) {
   const competition = requireRole(context, 'EDITOR');
   const params = await readParams(request);
@@ -39,6 +42,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   const contestId = params.get('contest');
   const group = params.get('group');
+  const templateId = params.get('template');
   return rankingPdfResponse({
     competition,
     groups:
@@ -46,6 +50,9 @@ export async function action({ request, context }: Route.ActionArgs) {
         ? await loadGroups(competition.id, contestId, [group], false)
         : createSampleGroups(),
     options: options.data,
+    cover: templateId
+      ? (await orNotFound(getRankingTemplate(competition.id, templateId))).cover
+      : null,
     signal: request.signal,
     t: getT(context),
     language: context.get(languageContext),
@@ -66,14 +73,6 @@ function loadGroups(
       parsed.map((group) => loadRankingGroup(competitionId, contestId, { ...group, provisional })),
     ),
   );
-}
-
-async function getOptions(competitionId: string, templateId: string | null) {
-  if (!templateId) return getDefaultRankingTemplate(competitionId);
-  const templates = await listRankingTemplates(competitionId);
-  const template = templates.find(({ id }) => id === templateId);
-  if (!template) throw data(null, 404);
-  return template.options;
 }
 
 function parseJson(value: string | null): unknown {

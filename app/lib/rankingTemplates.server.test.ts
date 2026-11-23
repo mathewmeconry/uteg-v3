@@ -5,7 +5,7 @@ import { prisma } from './prisma.server';
 import {
   createRankingTemplate,
   deleteRankingTemplate,
-  getDefaultRankingTemplate,
+  getRankingTemplate,
   listRankingTemplates,
   setDefaultRankingTemplate,
   updateRankingTemplate,
@@ -59,14 +59,28 @@ describe('stored options that are no longer valid', () => {
     });
     const options = { ...defaultRankingTemplate, ...expected };
     expect(await listRankingTemplates(id)).toMatchObject([{ name: 'A', options }]);
-    expect(await getDefaultRankingTemplate(id)).toEqual(options);
+    expect(await getRankingTemplate(id, null)).toEqual({ options, cover: null });
   });
 });
 
 describe('ranking templates', () => {
   it('uses the built-in look without templates', async () => {
     const { id } = await createCompetition();
-    expect(await getDefaultRankingTemplate(id)).toEqual(defaultRankingTemplate);
+    expect(await getRankingTemplate(id, null)).toEqual({
+      options: defaultRankingTemplate,
+      cover: null,
+    });
+  });
+
+  it('finds one of the competition', async () => {
+    const { id } = await createCompetition();
+    const other = await createCompetition();
+    const { id: templateId } = await createRankingTemplate(id, {
+      name: 'A',
+      options: { title: 'T' },
+    });
+    expect((await getRankingTemplate(id, templateId)).options.title).toBe('T');
+    expect(await errorCode(getRankingTemplate(other.id, templateId))).toBe('NOT_FOUND');
   });
 
   it('makes the first one the default', async () => {
@@ -74,7 +88,7 @@ describe('ranking templates', () => {
     await createRankingTemplate(id, { name: 'A', options: { title: 'T' } });
     await createRankingTemplate(id, { name: 'B', options: {} });
     expect(await defaults(id)).toEqual(['A']);
-    expect(await getDefaultRankingTemplate(id)).toMatchObject({ title: 'T' });
+    expect(await getRankingTemplate(id, null)).toMatchObject({ options: { title: 'T' } });
   });
 
   it('has exactly one default', async () => {

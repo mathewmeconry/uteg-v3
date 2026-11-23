@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { rankingTemplateSchema } from '~/lib/domain/rankingTemplate';
 import { accessUrl, getOrCreateJudgeLinks, logIn, resolveAccess } from '~/lib/access.server';
+import { setCover } from '~/lib/covers.server';
+import { prisma } from '~/lib/prisma.server';
 import { createRankingTemplate } from '~/lib/rankingTemplates.server';
 import {
   createClub,
@@ -9,7 +11,7 @@ import {
   createStarter,
   truncateTables,
 } from '~/tests/helpers';
-import { findOverlaps, readPdf } from '~/tests/pdf';
+import { createCoverPdf, findOverlaps, readPdf } from '~/tests/pdf';
 import { callRoute } from '~/tests/routes';
 import * as manual from './judgingManualPdf';
 import * as sheets from './judgingSheetsPdf';
@@ -97,6 +99,94 @@ describe('ranking', () => {
       );
     expect((await call(''))[0]).toContain('Titel A');
     expect((await call(templateId))[0]).toContain('Titel B');
+  });
+
+  describe('with a cover', () => {
+    async function setupCover(options: object = {}) {
+      const { id, contest } = await setup();
+      const template = await createRankingTemplate(id, {
+        name: 'A',
+        options: rankingTemplateSchema.parse(options),
+      });
+      await setCover(id, template.id, await createCoverPdf(['Titelseite', 'Sponsoren']));
+      const load = async (provisional = '') => {
+        const response = await callRoute(ranking.loader, {
+          competitionId: id,
+          role: 'VIEWER',
+          search: `?contest=${contest.id}&group=FEMALE:K5&group=MALE:K6${provisional}`,
+        });
+        return { response, pages: await readText(response) };
+      };
+      return { id, template, load };
+    }
+
+    const starts = (pages: string[]) =>
+      pages.map((page) => /Titelseite|Sponsoren|K5 Turnerinnen|K6 Turner/.exec(page)?.[0]);
+
+    it('starts the file with it and does not count it as a page', async () => {
+      const { load } = await setupCover();
+      const { response, pages } = await load('&provisional=1');
+      expect(starts(pages)).toEqual(['Titelseite', 'Sponsoren', 'K5 Turnerinnen', 'K6 Turner']);
+      expect(pages[0]).toBe('Titelseite');
+      expect(pages[2]).toContain('1 / 2');
+      expect(pages[3]).toContain('2 / 2');
+      expect(pages[3]).toContain('Provisorisch');
+      expect(response.headers.has('X-Cover-Failed')).toBe(false);
+    });
+
+    it('can be before every category', async () => {
+      const { load } = await setupCover({ cover: 'eachCategory' });
+      expect(starts((await load()).pages)).toEqual([
+        ...['Titelseite', 'Sponsoren', 'K5 Turnerinnen'],
+        ...['Titelseite', 'Sponsoren', 'K6 Turner'],
+      ]);
+      // Categories on the same page have one.
+      const shared = await setupCover({ cover: 'eachCategory', newPagePerCategory: false });
+      const { pages } = await shared.load();
+      expect(pages).toHaveLength(3);
+      expect(pages[0]).toBe('Titelseite');
+      expect(pages[2]).toContain('K5, K6');
+    });
+
+    it('finds the first page of categories with several pages', async () => {
+      const { id, load } = await setupCover({ cover: 'eachCategory', rowHeight: 40 });
+      const division = await prisma.division.findFirstOrThrow({
+        where: { category: 'K5', contest: { competitionId: id } },
+        include: { lineups: true },
+      });
+      for (let index = 0; index < 25; index++) {
+        await createStarter(id, { divisionId: division.id, lineupId: division.lineups[0].id });
+      }
+      expect(starts((await load()).pages)).toEqual([
+        ...['Titelseite', 'Sponsoren', 'K5 Turnerinnen', 'K5 Turnerinnen'],
+        ...['Titelseite', 'Sponsoren', 'K6 Turner'],
+      ]);
+    });
+
+    it('is left out when it is damaged', async () => {
+      const { id, load } = await setupCover();
+      await prisma.asset.updateMany({
+        where: { competitionId: id },
+        data: { data: new Uint8Array([1, 2, 3]) },
+      });
+      const { response, pages } = await load();
+      expect(starts(pages)).toEqual(['K5 Turnerinnen', 'K6 Turner']);
+      expect(response.headers.get('X-Cover-Failed')).toBe('1');
+    });
+
+    it('is in the preview', async () => {
+      const { id, template } = await setupCover();
+      const preview = (form: [string, string][]) =>
+        callRoute(ranking.action, {
+          competitionId: id,
+          role: 'EDITOR',
+          form: [['options', '{}'], ...form],
+        });
+      expect((await readText(await preview([['template', template.id]])))[0]).toBe('Titelseite');
+      expect((await readText(await preview([])))[0]).not.toContain('Titelseite');
+      const other = await setupCover();
+      expect((await preview([['template', other.template.id]])).status).toBe(404);
+    });
   });
 
   it('answers unknown and foreign ids with 404, missing ones with 400', async () => {
