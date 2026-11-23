@@ -1,5 +1,7 @@
+import { Prisma } from '~/generated/prisma/client';
 import { createCompetition, errorCode, truncateTables } from '~/tests/helpers';
 import { defaultRankingTemplate, rankingTemplateSchema } from './domain/rankingTemplate';
+import { prisma } from './prisma.server';
 import {
   createRankingTemplate,
   deleteRankingTemplate,
@@ -34,6 +36,30 @@ describe('rankingTemplateSchema', () => {
     { title: 'x'.repeat(201) },
   ])('rejects %j', (options) => {
     expect(rankingTemplateSchema.safeParse(options).success).toBe(false);
+  });
+});
+
+describe('stored options that are no longer valid', () => {
+  it.each([
+    [
+      { title: 'Titel', footer: 'a\n'.repeat(20) },
+      { title: 'Titel', footer: '' },
+    ],
+    [
+      { decimals: 3, columns: 'x' },
+      { decimals: 3, columns: defaultRankingTemplate.columns },
+    ],
+    ['x', {}],
+    [null, {}],
+  ])('get defaults: %j', async (stored, expected) => {
+    const { id } = await createCompetition();
+    await createRankingTemplate(id, { name: 'A', options: {} });
+    await prisma.rankingTemplate.updateMany({
+      data: { options: stored ?? Prisma.JsonNull },
+    });
+    const options = { ...defaultRankingTemplate, ...expected };
+    expect(await listRankingTemplates(id)).toMatchObject([{ name: 'A', options }]);
+    expect(await getDefaultRankingTemplate(id)).toEqual(options);
   });
 });
 

@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import type { Prisma } from '~/generated/prisma/client';
-import { defaultRankingTemplate, rankingTemplateSchema } from './domain/rankingTemplate';
+import {
+  defaultRankingTemplate,
+  parseStoredTemplate,
+  rankingTemplateSchema,
+} from './domain/rankingTemplate';
 import { DomainError } from './errors';
 import { publish } from './events.server';
 import { lockCompetition } from './locks.server';
@@ -20,7 +24,7 @@ export async function listRankingTemplates(competitionId: string) {
   });
   return templates.map((template) => ({
     ...template,
-    options: rankingTemplateSchema.parse(template.options),
+    options: parseStoredTemplate(template.options),
   }));
 }
 
@@ -29,7 +33,7 @@ export async function getDefaultRankingTemplate(competitionId: string) {
   const template = await prisma.rankingTemplate.findFirst({
     where: { competitionId, isDefault: true },
   });
-  return template ? rankingTemplateSchema.parse(template.options) : defaultRankingTemplate;
+  return template ? parseStoredTemplate(template.options) : defaultRankingTemplate;
 }
 
 export async function createRankingTemplate(competitionId: string, input: TemplateInput) {

@@ -12,6 +12,7 @@ export type DomainErrorCode =
   | 'FORBIDDEN'
   | 'GRADES_MISSING'
   | 'GROUND_IN_USE'
+  | 'IMAGE_TOO_LARGE'
   | 'INVALID_APPARATUS'
   | 'INVALID_CATEGORY'
   | 'INVALID_CONFIG'
