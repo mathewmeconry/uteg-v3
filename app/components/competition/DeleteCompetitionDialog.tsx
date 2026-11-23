@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useFetcher } from 'react-router';
 import { FormField } from '~/components/FormField';
 import { SubmitButton } from '~/components/SubmitButton';
 import {
@@ -14,11 +13,12 @@ import {
   AlertDialogTrigger,
 } from '~/components/ui/alert-dialog';
 import { Button } from '~/components/ui/button';
+import { useActionFetcher } from '~/hooks/useActionFetcher';
 
 /** Deletes the competition once its name was typed. The server checks the name again. */
 export function DeleteCompetitionDialog({ name }: { name: string }) {
   const { t } = useTranslation(['settings', 'common']);
-  const fetcher = useFetcher<{ errors?: { confirmName?: string } }>();
+  const { Form, pending, errors } = useActionFetcher();
   const [typed, setTyped] = useState('');
 
   return (
@@ -27,7 +27,7 @@ export function DeleteCompetitionDialog({ name }: { name: string }) {
         <Button variant="destructive">{t('delete.title')}</Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
-        <fetcher.Form method="post" className="grid gap-6">
+        <Form method="post" className="grid gap-6">
           <input type="hidden" name="intent" value="delete" />
           <AlertDialogHeader>
             <AlertDialogTitle>{t('delete.confirmTitle')}</AlertDialogTitle>
@@ -37,7 +37,7 @@ export function DeleteCompetitionDialog({ name }: { name: string }) {
             label={
               <span className="min-w-0 wrap-anywhere">{t('delete.confirmName', { name })}</span>
             }
-            error={fetcher.data?.errors?.confirmName}
+            error={errors?.confirmName}
             name="confirmName"
             autoComplete="off"
             value={typed}
@@ -45,15 +45,11 @@ export function DeleteCompetitionDialog({ name }: { name: string }) {
           />
           <AlertDialogFooter>
             <AlertDialogCancel type="button">{t('common:actions.cancel')}</AlertDialogCancel>
-            <SubmitButton
-              variant="destructive"
-              pending={fetcher.state !== 'idle'}
-              disabled={typed.trim() !== name}
-            >
+            <SubmitButton variant="destructive" pending={pending} disabled={typed.trim() !== name}>
               {t('delete.button')}
             </SubmitButton>
           </AlertDialogFooter>
-        </fetcher.Form>
+        </Form>
       </AlertDialogContent>
     </AlertDialog>
   );

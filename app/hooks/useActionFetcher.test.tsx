@@ -1,12 +1,19 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nextProvider } from 'react-i18next';
-import { createMemoryRouter, data, redirect, RouterProvider } from 'react-router';
+import {
+  createMemoryRouter,
+  data,
+  Form,
+  redirect,
+  RouterProvider,
+  useActionData,
+} from 'react-router';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from '~/lib/i18n';
 import { safeClientAction } from '~/lib/safeClientAction';
-import { useActionFetcher } from './useActionFetcher';
+import { useActionErrors, useActionFetcher } from './useActionFetcher';
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 
@@ -87,6 +94,36 @@ describe('useActionFetcher', () => {
     await submitAtOnce();
     expect(toast.error).toHaveBeenCalledTimes(1);
     expect(onSuccess).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['failures', { failed: 503 }, 'Verbindung', 'none'],
+    ['errors', { error: 'Geht nicht.' }, 'Geht nicht.', 'none'],
+    ['field errors', { errors: { name: 'Bitte ausfüllen' } }, null, 'Bitte ausfüllen'],
+  ])('handles %s of a plain form', async (_name, answer, message, shown) => {
+    function FormPage() {
+      const errors = useActionErrors(useActionData());
+      return (
+        <Form method="post">
+          <button>{errors.name ?? 'none'}</button>
+        </Form>
+      );
+    }
+    const router = createMemoryRouter([
+      { path: '/', element: <FormPage />, action: () => data(answer, 400) },
+    ]);
+    render(
+      <I18nextProvider i18n={createI18n('de')}>
+        <RouterProvider router={router} />
+      </I18nextProvider>,
+    );
+    for (const times of [1, 2]) {
+      await submitAtOnce();
+      expect(screen.getByText(shown)).toBeInTheDocument();
+      if (message === null) expect(toast.error).not.toHaveBeenCalled();
+      else expect(toast.error).toHaveBeenCalledTimes(times);
+    }
+    if (message) expect(toast.error).toHaveBeenCalledWith(expect.stringContaining(message));
   });
 
   it('does not take the error of an earlier attempt for the answer', async () => {
