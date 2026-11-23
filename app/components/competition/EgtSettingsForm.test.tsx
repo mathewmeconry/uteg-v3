@@ -98,9 +98,9 @@ describe('EgtSettingsForm', () => {
     renderForm();
     await userEvent.click(screen.getByRole('button', { name: 'Move Horizontal bar up' }));
     await userEvent.click(screen.getByRole('button', { name: 'Remove Floor' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Add Vault' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Add Floor' }));
     const { tieBreak } = await save();
-    expect(tieBreak).toEqual(['schaukelringe', 'reck', 'barren', 'sprung']);
+    expect(tieBreak).toEqual(['schaukelringe', 'sprung', 'reck', 'barren', 'boden']);
   });
 
   describe('when someone else saves', () => {
