@@ -20,7 +20,8 @@ export function SelectionBar({
   return (
     <div
       {...props}
-      className="sticky bottom-3 z-10 mx-auto mt-4 flex w-fit max-w-full flex-wrap items-center gap-2 rounded-xl bg-ink p-2 pl-4 text-ink-foreground shadow-xl max-sm:w-full max-sm:pl-2 dark:border"
+      data-slot="selection-bar"
+      className="sticky bottom-3 z-10 mx-auto mt-10 flex w-fit max-w-full flex-wrap items-center gap-2 rounded-xl bg-ink p-2 pl-4 text-ink-foreground shadow-xl max-sm:w-full max-sm:pl-2 dark:border"
     >
       <div className="text-sm max-sm:flex-1 max-sm:pl-2 sm:mr-2">{text}</div>
       <div className="flex flex-wrap gap-2 max-sm:order-last max-sm:w-full max-sm:*:grow">

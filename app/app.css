@@ -171,6 +171,15 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Nothing that gets the focus stays behind the floating bar, or the bar at the top. */
+  html {
+    scroll-padding-top: 4rem;
+  }
+
+  html:has([data-slot='selection-bar']) {
+    scroll-padding-bottom: 12rem;
+  }
+
   h1,
   h2,
   h3,
@@ -192,6 +201,22 @@
 
 @utility scrollbar-none {
   scrollbar-width: none;
+}
+
+/* A new grade on a display: lights up and settles. */
+@utility new-grade {
+  animation: new-grade 1.6s ease-out;
+}
+
+@keyframes new-grade {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  25% {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Under the top edge while a page loads. Waits a moment, most pages are faster. */
@@ -233,4 +258,11 @@
   [data-slot$='-trigger'][data-size] {
     min-width: 2.75rem;
   }
+}
+
+/* The judging tablet, used at arm's length and in a hurry. */
+[data-touch='large'] [data-slot='button'],
+[data-touch='large'] [data-slot$='-trigger'][data-size] {
+  min-width: 3.5rem;
+  min-height: 3.5rem;
 }

@@ -83,7 +83,7 @@ export function LineupEntry({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       data-entry={entry.id}
       className={cn(
-        'mx-1 flex min-h-11 items-center gap-0.5 rounded-md bg-card py-0.5 hover:bg-muted',
+        'group/entry relative mx-1 flex min-h-11 items-center gap-0.5 rounded-md bg-card py-0.5 hover:bg-muted max-[359px]:pointer-coarse:flex-wrap',
         selected && 'bg-accent hover:bg-accent',
         isDragging && 'opacity-40',
       )}
@@ -129,7 +129,8 @@ export function LineupEntry({
         )}
       </span>
       {canMove && ordered && (
-        <span className="flex shrink-0 text-muted-foreground *:w-7 max-[359px]:hidden">
+        // With a mouse only while pointing at the entry, the lists are narrow.
+        <span className="flex shrink-0 rounded-md bg-inherit text-muted-foreground *:w-7 max-[359px]:pointer-coarse:w-full max-[359px]:pointer-coarse:justify-end pointer-fine:absolute pointer-fine:inset-y-0 pointer-fine:right-0 pointer-fine:items-center pointer-fine:opacity-0 group-hover/entry:opacity-100 group-focus-within/entry:opacity-100">
           <Button
             variant="ghost"
             size="icon-sm"

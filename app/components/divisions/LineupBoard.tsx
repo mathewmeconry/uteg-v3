@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { GripVerticalIcon } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SelectionBar } from '~/components/SelectionBar';
 import { Button } from '~/components/ui/button';
@@ -311,12 +311,18 @@ export function LineupBoard({
       onDragEnd={onDragEnd}
       onDragCancel={stopDragging}
     >
-      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 xl:grid-cols-[16.5rem_minmax(0,1fr)]">
-        <div className="xl:sticky xl:top-4">
-          {columns.filter(({ id }) => id === UNASSIGNED).map(renderColumn)}
-        </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,16.5rem),1fr))] items-start gap-4">
-          {columns.filter(({ id }) => id !== UNASSIGNED).map(renderColumn)}
+      {/* All in one row, or without a gap: 5 lists as 1 + 2 × 2, 6 as 2 × 3. */}
+      <div className="@container">
+        <div
+          className={cn(
+            'grid grid-cols-[minmax(0,1fr)] items-start gap-3 @2xl:grid-cols-2',
+            columns.length % 2 === 1
+              ? '@2xl:*:first:col-span-2 @min-[66rem]:grid-cols-[repeat(var(--lists),minmax(0,1fr))] @min-[66rem]:*:first:col-span-1'
+              : '@4xl:grid-cols-3 @min-[80rem]:grid-cols-[repeat(var(--lists),minmax(0,1fr))]',
+          )}
+          style={{ '--lists': columns.length } as CSSProperties}
+        >
+          {columns.map(renderColumn)}
         </div>
       </div>
 
@@ -399,7 +405,7 @@ function LineupColumn({
         <ol
           className={cn(
             'grid min-h-14 grid-cols-[minmax(0,1fr)] content-start gap-px py-1',
-            id === UNASSIGNED && 'max-h-[45dvh] overflow-y-auto xl:max-h-[calc(100dvh-9rem)]',
+            id === UNASSIGNED && 'max-h-[45dvh] overflow-y-auto @min-[66rem]:max-h-none',
           )}
         >
           {children}

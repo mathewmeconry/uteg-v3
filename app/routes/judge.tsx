@@ -61,8 +61,10 @@ export default function Judge({ loaderData, params: { linkId } }: Route.Componen
   // Everything is sized in rem, also what is rendered outside of this page.
   useEffect(() => {
     document.documentElement.style.fontSize = `${scale * 100}%`;
+    document.documentElement.dataset.touch = 'large';
     return () => {
       document.documentElement.style.fontSize = '';
+      delete document.documentElement.dataset.touch;
     };
   }, [scale]);
 
@@ -71,19 +73,19 @@ export default function Judge({ loaderData, params: { linkId } }: Route.Componen
     <AccessGate>
       <div className="min-h-svh">
         <title>{`${apparatus} · UTEG`}</title>
-        <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-background px-4 py-2">
+        <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-ink px-4 py-2 text-ink-foreground sm:px-6">
           <div className="min-w-0">
-            <h1 className="text-2xl leading-tight font-black">{apparatus}</h1>
-            <p className="truncate text-sm text-muted-foreground">
+            <h1 className="font-display text-4xl leading-none">{apparatus}</h1>
+            <p className="mt-1 truncate text-ink-muted">
               {t('common:ground', { number: ground })} · {competitionName}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <ConnectionBadge status={status} />
+            <ConnectionBadge status={status} onInk />
             <ScreenControls scale={scale} onScale={change} />
           </div>
         </header>
-        <main id="content" className="p-4">
+        <main id="content" className="p-4 pb-10 sm:px-6">
           <Tablet
             key={linkId}
             linkId={linkId}

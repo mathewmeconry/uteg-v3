@@ -4,7 +4,7 @@ import { Button } from '~/components/ui/button';
 import { FONT_SCALES } from '~/hooks/useFontScale';
 import { LANGUAGES, type Language } from '~/locales';
 
-/** Font size and language of a tablet or display. */
+/** Font size and language of a tablet or display, for its ink header. */
 export function ScreenControls({
   scale,
   onScale,
@@ -28,7 +28,7 @@ export function ScreenControls({
   return (
     <div className="flex flex-wrap gap-1">
       <Button
-        variant="outline"
+        variant="onInk"
         aria-label={t('screen.smaller')}
         disabled={scale <= FONT_SCALES[0]}
         onClick={() => onScale(-1)}
@@ -36,14 +36,14 @@ export function ScreenControls({
         A−
       </Button>
       <Button
-        variant="outline"
+        variant="onInk"
         aria-label={t('screen.larger')}
         disabled={scale >= FONT_SCALES.at(-1)!}
         onClick={() => onScale(1)}
       >
         A+
       </Button>
-      <Button variant="outline" aria-label={t('screen.switchLanguage')} onClick={switchLanguage}>
+      <Button variant="onInk" aria-label={t('screen.switchLanguage')} onClick={switchLanguage}>
         <LanguagesIcon aria-hidden />
         {i18n.language === 'de' ? 'DE' : 'EN'}
       </Button>

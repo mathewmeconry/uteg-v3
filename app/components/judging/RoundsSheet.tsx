@@ -1,8 +1,8 @@
-import { ListOrderedIcon } from 'lucide-react';
+import { CheckIcon, ListOrderedIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GradeDrafts } from '~/components/grading/useGradeDrafts';
-import { Badge } from '~/components/ui/badge';
+import { StatusBadge } from '~/components/StatusBadge';
 import { Button } from '~/components/ui/button';
 import {
   Sheet,
@@ -36,14 +36,14 @@ export function RoundsSheet({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="h-11">
+        <Button variant="outline" className="h-14 px-5 text-lg">
           <ListOrderedIcon aria-hidden />
           {t('list.all')}
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full gap-0 sm:max-w-md">
         <SheetHeader className="border-b">
-          <SheetTitle className="pr-6 text-lg">{t('list.all')}</SheetTitle>
+          <SheetTitle className="pr-6 font-display text-2xl font-bold">{t('list.all')}</SheetTitle>
           <SheetDescription>{t('list.allText')}</SheetDescription>
         </SheetHeader>
         <div className="grid grid-cols-1 gap-6 overflow-y-auto p-4">
@@ -52,11 +52,14 @@ export function RoundsSheet({
             const isDone = currentRound === null || round < currentRound;
             return (
               <section key={round} aria-current={isCurrent ? 'step' : undefined}>
-                <h3 className="mb-2 flex items-center gap-2 text-lg font-bold">
+                <h3 className="mb-2 flex items-center gap-3 font-display text-xl">
                   {t('common:round', { number: round + 1 })}
-                  <Badge variant={isCurrent ? 'default' : 'outline'}>
+                  <StatusBadge
+                    tone={isCurrent ? 'live' : isDone ? 'done' : 'neutral'}
+                    icon={isDone ? CheckIcon : undefined}
+                  >
                     {t(isCurrent ? 'list.now' : isDone ? 'list.done' : 'list.later')}
-                  </Badge>
+                  </StatusBadge>
                 </h3>
                 <StarterList
                   slots={slots}

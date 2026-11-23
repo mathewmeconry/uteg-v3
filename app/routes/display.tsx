@@ -1,4 +1,3 @@
-import { HourglassIcon } from 'lucide-react';
 import { useEffect, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data } from 'react-router';
@@ -9,6 +8,7 @@ import { ApparatusPanel } from '~/components/display/ApparatusPanel';
 import { getColumns } from '~/components/display/displayState';
 import { useDelayedRound, useIsExpired } from '~/components/display/useDisplayTimers';
 import { ScreenControls } from '~/components/judging/ScreenControls';
+import { Rings } from '~/components/Rings';
 import { TokenErrorBoundary } from '~/components/TokenErrorBoundary';
 import { useFontScale } from '~/hooks/useFontScale';
 import { useIsOnline } from '~/hooks/useIsOnline';
@@ -68,22 +68,20 @@ export default function Display({ loaderData, params: { linkId } }: Route.Compon
   return (
     <AccessGate>
       <div
-        className="flex h-svh flex-col gap-2 overflow-hidden p-2"
+        className="flex h-svh flex-col gap-2 overflow-hidden bg-ink p-2 text-ink-foreground"
         style={{ '--scale': scale } as CSSProperties}
       >
         <title>{`${t('screenTitle')} · UTEG`}</title>
         <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 px-2">
-          <h1 className="min-w-0 truncate text-xl font-bold">
+          <h1 className="min-w-0 truncate font-display text-2xl">
             {competitionName}
-            <span className="ml-3 font-normal text-muted-foreground">
-              {t('common:ground', { number: ground })}
-            </span>
+            <span className="ml-4 text-ink-muted">{t('common:ground', { number: ground })}</span>
             {!isWaiting && (
-              <span className="ml-3">{t('common:round', { number: shownRound + 1 })}</span>
+              <span className="ml-4">{t('common:round', { number: shownRound + 1 })}</span>
             )}
           </h1>
           <div className="flex flex-wrap items-center gap-2">
-            <ConnectionBadge status={status} />
+            <ConnectionBadge status={status} onInk />
             <ScreenControls scale={scale} onScale={change} />
           </div>
         </header>
@@ -91,14 +89,19 @@ export default function Display({ loaderData, params: { linkId } }: Route.Compon
           id="content"
           className={cn(
             'grid min-h-0 flex-1 auto-rows-fr gap-2',
-            columns === 2 && 'landscape:grid-cols-2',
+            // The last of an odd number takes the whole row.
+            columns === 2 && 'landscape:grid-cols-2 landscape:*:last:odd:col-span-2',
           )}
         >
           {isWaiting ? (
-            <div className="flex flex-col items-center justify-center gap-4 p-6 text-center">
-              <HourglassIcon aria-hidden className="size-20 text-muted-foreground" />
-              <p className="text-5xl font-black">{t('waitingTitle')}</p>
-              <p className="text-2xl text-muted-foreground">{t('waitingText')}</p>
+            <div className="flex min-h-0 flex-col items-center gap-4 text-center">
+              <Rings className="min-h-0 w-full flex-1" />
+              <p className="shrink-0 font-display text-[clamp(2.5rem,7vw,8rem)] leading-tight">
+                {t('waitingTitle')}
+              </p>
+              <p className="shrink-0 pb-[6vh] text-[clamp(1.25rem,2.4vw,2.5rem)] text-ink-muted">
+                {t('waitingText')}
+              </p>
             </div>
           ) : (
             apparatus.map(({ apparatus: key, rounds }) => (

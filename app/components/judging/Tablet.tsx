@@ -182,13 +182,13 @@ export function Tablet({
           {isFinished ? (
             <EmptyState
               icon={CircleCheckBigIcon}
-              title={<span className="text-4xl font-black">{t('finished.title')}</span>}
+              title={<span className="text-5xl">{t('finished.title')}</span>}
               text={t('finished.text')}
             />
           ) : (
             <EmptyState
               icon={HourglassIcon}
-              title={<span className="text-4xl font-black">{t('waiting.title')}</span>}
+              title={<span className="text-5xl">{t('waiting.title')}</span>}
               text={t('waiting.text')}
             />
           )}
@@ -210,9 +210,9 @@ export function Tablet({
           {notices}
           {unsavedGrades}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-lg font-bold">
+            <p className="font-display text-2xl">
               {t('roundOf', { number: currentRound + 1, total: rounds.length })}
-              <span className="ml-3 font-normal text-muted-foreground">
+              <span className="ml-3 font-sans text-lg font-normal text-muted-foreground [font-stretch:100%]">
                 {data.divisions
                   .filter(({ id }) => data.divisionIds.includes(id))
                   .map(
@@ -256,8 +256,8 @@ export function Tablet({
             />
           )}
         </div>
-        <aside className="sticky top-24 hidden max-h-[calc(100svh-7rem)] overflow-y-auto rounded-xl border bg-card p-3 @5xl:block">
-          <h2 className="mb-2 px-2 text-lg font-bold">{t('list.current')}</h2>
+        <aside className="sticky top-24 hidden max-h-[calc(100svh-7rem)] overflow-y-auto rounded-xl border bg-card p-2 @5xl:block">
+          <h2 className="mt-1 mb-2 px-2 font-display text-xl">{t('list.current')}</h2>
           <StarterList slots={slots} drafts={drafts} currentId={current?.entryId} onSelect={open} />
         </aside>
       </div>

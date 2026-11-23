@@ -34,7 +34,7 @@ export function JudgeLinkCard({ link, manualUrl }: { link: JudgeLink; manualUrl:
           </a>
         </Button>
         <CopyButton value={link.url} size="sm" aria-label={t('links.copyFor', { name })} />
-        <Button asChild variant="outline" size="sm">
+        <Button asChild variant="outline" size="sm" className="max-[359px]:[&_svg]:hidden">
           <a
             href={manualUrl}
             target="_blank"

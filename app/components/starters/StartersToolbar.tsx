@@ -66,8 +66,8 @@ export function StartersToolbar({
 
   return (
     <div className="@container mb-4">
-      <div className="grid grid-cols-1 gap-2 @4xl:flex @4xl:flex-wrap">
-        <div className="relative @4xl:w-72">
+      <div className="grid grid-cols-1 gap-2 @4xl:flex @4xl:items-start">
+        <div className="relative @4xl:w-60 @4xl:shrink-0">
           <SearchIcon
             aria-hidden
             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
@@ -82,7 +82,7 @@ export function StartersToolbar({
           />
         </div>
         {/* On phones one line to swipe through, the list matters more. */}
-        <div className="-mx-4 flex scrollbar-none items-center gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:py-0 @4xl:flex-1">
+        <div className="-mx-4 flex scrollbar-none items-center gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:py-0 @4xl:min-w-0 @4xl:flex-1">
           {withoutDivision > 0 && (
             <Button
               variant="outline"
@@ -147,36 +147,34 @@ export function StartersToolbar({
               )}
             </Button>
           </div>
-          <div className="ml-auto hidden @4xl:block">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="pointer-coarse:min-h-11">
-                  <Columns3Icon aria-hidden />
-                  {t('columns')}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {COLUMNS.map((column) => (
-                  <DropdownMenuCheckboxItem
-                    key={column}
-                    checked={columns.includes(column)}
-                    // Without the name nobody knows who is meant.
-                    disabled={column === 'lastname'}
-                    onSelect={(event) => event.preventDefault()}
-                    onCheckedChange={(isVisible) =>
-                      onColumns(
-                        COLUMNS.filter((key) =>
-                          key === column ? isVisible : columns.includes(key),
-                        ),
-                      )
-                    }
-                  >
-                    {columnLabel(t, column)}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+        </div>
+        <div className="hidden @4xl:block">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="pointer-coarse:min-h-11">
+                <Columns3Icon aria-hidden />
+                {t('columns')}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {COLUMNS.map((column) => (
+                <DropdownMenuCheckboxItem
+                  key={column}
+                  checked={columns.includes(column)}
+                  // Without the name nobody knows who is meant.
+                  disabled={column === 'lastname'}
+                  onSelect={(event) => event.preventDefault()}
+                  onCheckedChange={(isVisible) =>
+                    onColumns(
+                      COLUMNS.filter((key) => (key === column ? isVisible : columns.includes(key))),
+                    )
+                  }
+                >
+                  {columnLabel(t, column)}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>

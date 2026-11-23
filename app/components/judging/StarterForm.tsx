@@ -7,11 +7,16 @@ import { ConflictNotice, RejectedNotice, SaveState, Warning } from '~/components
 import type { GradeDrafts } from '~/components/grading/useGradeDrafts';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
-import { Progress } from '~/components/ui/progress';
 import type { GradeResult } from '~/lib/gradeRequests';
 import { cn } from '~/lib/utils';
 import { findNeighbour } from './judgeState';
 import { fullName, type TabletSlot } from './types';
+
+/** In the bar of the round: saved, entered but not saved, open. */
+function segmentColor({ saved, isDirty }: ReturnType<GradeDrafts['get']>) {
+  if (isDirty) return 'bg-warning';
+  return saved ? 'bg-success' : 'bg-primary/20';
+}
 
 /** One starter: who it is, the grade and the way to the next one. */
 export function StarterForm({
@@ -90,32 +95,48 @@ export function StarterForm({
   return (
     <form
       noValidate
-      className="grid grid-cols-1 gap-6"
+      className="grid grid-cols-1 gap-5 @2xl:gap-7"
       onSubmit={(event) => {
         event.preventDefault();
         submit();
       }}
     >
       {isPast ? (
-        <p className="font-medium text-destructive">{t('pastRound')}</p>
+        <p className="rounded-xl bg-warning px-5 py-3 text-lg font-semibold text-warning-foreground">
+          {t('pastRound')}
+        </p>
       ) : (
         <div className="grid gap-2">
-          <p className="font-medium text-muted-foreground">
+          <p className="text-lg text-muted-foreground">
             {t('position', { position: index + 1, total: slots.length })}
           </p>
-          <Progress
+          <div
+            role="progressbar"
             aria-label={t('position', { position: index + 1, total: slots.length })}
-            value={((index + 1) / slots.length) * 100}
-          />
+            aria-valuenow={index + 1}
+            aria-valuemin={1}
+            aria-valuemax={slots.length}
+            className="flex gap-1"
+          >
+            {slots.map((item) => (
+              <span
+                key={item.entryId}
+                className={cn(
+                  'h-3 flex-1 rounded-sm',
+                  item.entryId === slot.entryId ? 'bg-foreground' : segmentColor(drafts.get(item)),
+                )}
+              />
+            ))}
+          </div>
         </div>
       )}
 
-      <div className="grid gap-2 text-center">
+      <div className="grid gap-1.5 text-center">
         <h2
           ref={heading}
           tabIndex={-1}
           className={cn(
-            'text-4xl font-black wrap-anywhere outline-none @2xl:text-6xl',
+            'font-display text-5xl leading-[1.05] wrap-anywhere outline-none @2xl:text-7xl',
             slot.withdrawn && 'text-muted-foreground line-through',
           )}
         >
@@ -131,13 +152,13 @@ export function StarterForm({
 
       {slot.withdrawn ? (
         <div className="grid justify-items-center gap-2 text-center">
-          <Badge variant="destructive" className="text-base">
+          <Badge variant="destructive" className="px-3 py-1 text-xl">
             {t('withdrawn')}
           </Badge>
-          <p>{t('withdrawnText')}</p>
+          <p className="text-lg">{t('withdrawnText')}</p>
         </div>
       ) : (
-        <div className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4">
+        <div className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4 [&_input]:h-24 [&_input]:rounded-xl [&_input]:border-2 [&_input]:text-6xl [&_input]:[font-stretch:85%] md:[&_input]:text-6xl">
           <GradeInputs
             large
             fields={state.fields}
@@ -151,7 +172,11 @@ export function StarterForm({
             onSubmit={submit}
           />
           {!state.isConflict && !state.rejected && !(state.isFailed && !state.isSaving) && (
-            <SaveState state={state} className="justify-center text-lg" />
+            // As high as it gets, so that the buttons stay where they are.
+            <SaveState
+              state={state}
+              className="min-h-13 justify-center rounded-xl bg-muted px-4 text-xl font-semibold empty:bg-transparent [&>svg]:size-6"
+            />
           )}
           {state.isConflict && (
             <ConflictNotice
@@ -181,7 +206,7 @@ export function StarterForm({
         <Button
           type="button"
           variant="outline"
-          className="h-16 px-6 text-xl"
+          className="h-20 rounded-xl px-6 text-xl"
           disabled={!(previous || isPast) || state.isSaving}
           onClick={() => onMove(previous?.entryId ?? 'review')}
         >
@@ -190,7 +215,7 @@ export function StarterForm({
         </Button>
         <Button
           type="submit"
-          className="h-auto min-h-16 grow px-6 py-2 text-xl whitespace-normal @2xl:max-w-80"
+          className="h-auto min-h-20 grow rounded-xl px-6 py-2 text-2xl whitespace-normal @2xl:max-w-xl"
           disabled={state.isSaving || state.isConflict}
         >
           {state.isSaving && <LoaderCircleIcon aria-hidden className="size-6 animate-spin" />}
@@ -205,7 +230,7 @@ export function StarterForm({
         </Button>
       </div>
       {!isPast && (
-        <p className="truncate text-center text-lg text-muted-foreground">
+        <p className="truncate text-center text-xl text-muted-foreground">
           {next ? t('nextUp', { name: fullName(next) }) : t('lastOfRound')}
         </p>
       )}
