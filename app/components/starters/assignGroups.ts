@@ -10,8 +10,7 @@ export function groupForAssignment(starters: readonly StarterRow[]) {
       sex: StarterRow['sex'];
       entryIds: string[];
       /** Where they are now. */
-      divisionIds: Set<string | null>;
-      hasLineups: boolean;
+      members: Pick<StarterRow, 'divisionId' | 'lineupId'>[];
     }
   >();
   let withoutCategory = 0;
@@ -21,17 +20,9 @@ export function groupForAssignment(starters: readonly StarterRow[]) {
       continue;
     }
     const key = `${category}-${sex}`;
-    const group = groups.get(key) ?? {
-      key,
-      category,
-      sex,
-      entryIds: [],
-      divisionIds: new Set(),
-      hasLineups: false,
-    };
+    const group = groups.get(key) ?? { key, category, sex, entryIds: [], members: [] };
     group.entryIds.push(entryId);
-    group.divisionIds.add(divisionId);
-    group.hasLineups ||= lineupId !== null;
+    group.members.push({ divisionId, lineupId });
     groups.set(key, group);
   }
   return {

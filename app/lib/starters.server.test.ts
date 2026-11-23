@@ -703,6 +703,18 @@ describe('assignEntries', () => {
     const find = () => prisma.entry.findUnique({ where: { id: entry.id } });
     await assignEntries(id, [assignment]);
     expect(await find()).toMatchObject({ lineupId, position: entry.position });
+    // Someone from another division does not change that.
+    const old = await createDivision(contest.id, { number: 2 });
+    const mover = await createTestStarter(id, {
+      divisionId: old.id,
+      lineupId: old.lineup('boden'),
+    });
+    await assignEntries(id, [{ ...assignment, entryIds: [mover.entry.id, entry.id] }]);
+    expect(await find()).toMatchObject({ lineupId });
+    expect(await prisma.entry.findUnique({ where: { id: mover.entry.id } })).toMatchObject({
+      divisionId: division.id,
+      lineupId: null,
+    });
     await assignEntries(id, [{ ...assignment, lineupId: null }]);
     expect(await find()).toMatchObject({ lineupId: null });
   });

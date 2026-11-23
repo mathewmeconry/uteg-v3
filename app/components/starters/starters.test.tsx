@@ -367,17 +367,41 @@ it.each([
   ]);
 });
 
-it('AssignDialog clears the start apparatus of groups that change the division, and says so', async () => {
+it('AssignDialog keeps the start apparatus of those who stay in the division', async () => {
   const user = userEvent.setup();
   const moving = { ...ANNA, id: 'lea', entryId: 'lea', divisionId: 'f2', lineupId: 'f2-boden' };
+  const without = { ...moving, id: 'eva', entryId: 'eva', lineupId: null };
   const { submitted, fields } = renderPage(
-    <AssignDialog starters={[ANNA, moving]} options={OPTIONS} onClose={() => {}} />,
+    <AssignDialog starters={[ANNA, moving, without]} options={OPTIONS} onClose={() => {}} />,
   );
   await user.selectOptions(screen.getByLabelText('Abteilung'), 'f1');
   const apparatus = screen.getByLabelText('Startgerät');
-  expect(within(apparatus).queryByRole('option', { name: 'Nicht ändern' })).toBeNull();
+  expect(apparatus).toHaveDisplayValue('Behalten, falls möglich');
+  // Only of those who have one and leave its division.
+  expect(apparatus).toHaveAccessibleDescription(/^1 Person verliert/);
+  await user.selectOptions(apparatus, 'Kein Startgerät');
+  expect(apparatus).toHaveAccessibleDescription(/^2 Personen verlieren/);
+  await user.selectOptions(apparatus, 'Reck');
+  expect(apparatus).not.toHaveAccessibleDescription();
+  await user.selectOptions(apparatus, 'Behalten, falls möglich');
+  await user.click(screen.getByRole('button', { name: 'Einteilen' }));
+  await waitFor(() => expect(submitted).toHaveBeenCalled());
+  expect(JSON.parse(fields().assignments)).toEqual([
+    { entryIds: ['entry-anna', 'lea', 'eva'], divisionId: 'f1' },
+  ]);
+});
+
+it('AssignDialog has no apparatus to keep when everyone changes the division', async () => {
+  const user = userEvent.setup();
+  const moving = { ...ANNA, id: 'lea', entryId: 'lea', divisionId: 'f2', lineupId: 'f2-boden' };
+  const { submitted, fields } = renderPage(
+    <AssignDialog starters={[moving]} options={OPTIONS} onClose={() => {}} />,
+  );
+  await user.selectOptions(screen.getByLabelText('Abteilung'), 'f1');
+  const apparatus = screen.getByLabelText('Startgerät');
+  expect(within(apparatus).queryByRole('option', { name: /Nicht ändern|Behalten/ })).toBeNull();
   expect(apparatus).toHaveDisplayValue('Kein Startgerät');
-  expect(apparatus).toHaveAccessibleDescription(/bisherige Startgerät wird entfernt/);
+  expect(apparatus).toHaveAccessibleDescription(/^1 Person verliert/);
   await user.selectOptions(apparatus, 'Reck');
   expect(apparatus).not.toHaveAccessibleDescription();
   await user.selectOptions(apparatus, 'Kein Startgerät');
