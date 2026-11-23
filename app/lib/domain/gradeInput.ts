@@ -7,7 +7,7 @@ export type StoredGrade = { value: number; attempts: number[] };
 /** What was typed. The final grade is only used while all attempts are empty. */
 export type GradeFields = { attempts: string[]; final: string };
 
-type FieldErrorCode = 'INVALID' | 'RANGE' | 'PRECISION' | 'REQUIRED';
+type FieldErrorCode = 'INVALID' | 'RANGE' | 'PRECISION' | 'ATTEMPT_PRECISION' | 'REQUIRED';
 
 export type EvaluatedFields = {
   /** Null while something is missing or wrong. */
@@ -27,7 +27,9 @@ export function toFields(grade: StoredGrade | null, rule: InputRule): GradeField
 }
 
 export function evaluateFields(fields: GradeFields, rule: InputRule): EvaluatedFields {
-  const attempts = fields.attempts.slice(0, countAttempts(rule)).map(parseGrade);
+  const attempts = fields.attempts
+    .slice(0, countAttempts(rule))
+    .map((attempt) => parseGrade(attempt, 2));
   const usesAttempts = fields.attempts.some((attempt) => attempt.trim() !== '');
   const final = parseGrade(fields.final);
 
@@ -50,7 +52,9 @@ export function evaluateFields(fields: GradeFields, rule: InputRule): EvaluatedF
     usesAttempts,
     errors: {
       attempts: attempts.map((attempt) => {
-        if (!attempt.ok) return attempt.error;
+        if (!attempt.ok) {
+          return attempt.error === 'PRECISION' ? 'ATTEMPT_PRECISION' : attempt.error;
+        }
         return attempt.value === null ? 'REQUIRED' : null;
       }),
       final: null,

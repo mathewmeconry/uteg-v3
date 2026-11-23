@@ -30,11 +30,13 @@ export default {
       MIN: 'Endnote (schlechtester Versuch)',
       AVG: 'Endnote (Durchschnitt)',
     },
-    directHint: 'Alle Versuche eintragen oder direkt die Endnote.',
+    directHint:
+      'Alle Versuche eintragen (höchstens zwei Nachkommastellen) oder direkt die Endnote.',
     errors: {
       INVALID: 'Das ist keine Zahl. Beispiel: 9.25',
       RANGE: 'Die Note muss zwischen 0 und 10 liegen.',
       PRECISION: 'Höchstens drei Nachkommastellen.',
+      ATTEMPT_PRECISION: 'Versuche haben höchstens zwei Nachkommastellen.',
       REQUIRED: 'Bitte eine Note eintragen.',
     },
   },
@@ -73,6 +75,8 @@ export default {
     confirm: 'Durchgang bestätigen',
     blocked_one: 'Es fehlt noch {{count}} Note.',
     blocked_other: 'Es fehlen noch {{count}} Noten.',
+    missingText:
+      'Die Abteilung kann so nicht enden. Melde es der Wettkampfleitung, sie kann die Noten eintragen. Bestätige danach nochmals.',
     failed: 'Nicht bestätigt: keine Verbindung. Versuche es nochmals.',
   },
   pause: {

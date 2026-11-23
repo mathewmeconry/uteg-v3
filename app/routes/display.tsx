@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data } from 'react-router';
 import type { Route } from './+types/display';
+import { AccessGate } from '~/components/AccessGate';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
 import { ApparatusPanel } from '~/components/display/ApparatusPanel';
 import { getColumns } from '~/components/display/displayState';
@@ -13,14 +14,14 @@ import { useFontScale } from '~/hooks/useFontScale';
 import { useIsOnline } from '~/hooks/useIsOnline';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { useWakeLock } from '~/hooks/useWakeLock';
-import { resolveToken } from '~/lib/access.server';
+import { resolveAccess } from '~/lib/access.server';
 import { getDisplayState } from '~/lib/judging.server';
-import { createLastData, INVALID_LINK } from '~/lib/lastData';
+import { createLastData } from '~/lib/lastData';
 import { cn } from '~/lib/utils';
 
-export async function loader({ params: { token } }: Route.LoaderArgs) {
-  const link = await resolveToken(token, 'DISPLAY');
-  if (!link) throw data(INVALID_LINK, 404);
+export async function loader({ request, params: { linkId } }: Route.LoaderArgs) {
+  const link = await resolveAccess(request, linkId, 'DISPLAY');
+  if (!link) throw data(null, 403);
   const { apparatus, ...state } = await getDisplayState(link.competitionId, link.ground);
   return {
     competitionName: link.competition.name,
@@ -45,18 +46,18 @@ export async function loader({ params: { token } }: Route.LoaderArgs) {
 
 const keepLastData = createLastData<Awaited<ReturnType<typeof loader>>>();
 
-export function clientLoader({ params: { token }, serverLoader }: Route.ClientLoaderArgs) {
-  return keepLastData(token, serverLoader);
+export function clientLoader({ params: { linkId }, serverLoader }: Route.ClientLoaderArgs) {
+  return keepLastData(linkId, serverLoader);
 }
 // The first data is needed as well, in case the connection is lost right after.
 clientLoader.hydrate = true as const;
 
 export default function Display({
   loaderData: { competitionName, ground, round, divisionIds, hidesInMs, apparatus },
-  params: { token },
+  params: { linkId },
 }: Route.ComponentProps) {
   const { t } = useTranslation(['display', 'common']);
-  const stream = useLiveUpdates(`/api/display/${token}/events`);
+  const stream = useLiveUpdates(`/api/display/${linkId}/events`);
   const status = useIsOnline() ? stream : 'lost';
   const { scale, change } = useFontScale('display-font-scale');
   const shownRound = useDelayedRound(round, divisionIds);
@@ -67,46 +68,48 @@ export default function Display({
   const columns = getColumns(apparatus.length);
 
   return (
-    <div
-      className="flex h-svh flex-col gap-2 overflow-hidden p-2"
-      style={{ '--scale': scale } as CSSProperties}
-    >
-      <title>{`${t('screenTitle')} · UTEG`}</title>
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 px-2">
-        <h1 className="min-w-0 truncate text-xl font-bold">
-          {competitionName}
-          <span className="ml-3 font-normal text-muted-foreground">
-            {t('common:ground', { number: ground })}
-          </span>
-          {!isWaiting && (
-            <span className="ml-3">{t('common:round', { number: shownRound + 1 })}</span>
-          )}
-        </h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <ConnectionBadge status={status} />
-          <ScreenControls scale={scale} onScale={change} />
-        </div>
-      </header>
-      <main
-        id="content"
-        className={cn(
-          'grid min-h-0 flex-1 auto-rows-fr gap-2',
-          columns === 2 && 'landscape:grid-cols-2',
-        )}
+    <AccessGate>
+      <div
+        className="flex h-svh flex-col gap-2 overflow-hidden p-2"
+        style={{ '--scale': scale } as CSSProperties}
       >
-        {isWaiting ? (
-          <div className="flex flex-col items-center justify-center gap-4 p-6 text-center">
-            <HourglassIcon aria-hidden className="size-20 text-muted-foreground" />
-            <p className="text-5xl font-black">{t('waitingTitle')}</p>
-            <p className="text-2xl text-muted-foreground">{t('waitingText')}</p>
+        <title>{`${t('screenTitle')} · UTEG`}</title>
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 px-2">
+          <h1 className="min-w-0 truncate text-xl font-bold">
+            {competitionName}
+            <span className="ml-3 font-normal text-muted-foreground">
+              {t('common:ground', { number: ground })}
+            </span>
+            {!isWaiting && (
+              <span className="ml-3">{t('common:round', { number: shownRound + 1 })}</span>
+            )}
+          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <ConnectionBadge status={status} />
+            <ScreenControls scale={scale} onScale={change} />
           </div>
-        ) : (
-          apparatus.map(({ apparatus: key, rounds }) => (
-            <ApparatusPanel key={key} apparatus={key} slots={rounds[shownRound] ?? []} />
-          ))
-        )}
-      </main>
-    </div>
+        </header>
+        <main
+          id="content"
+          className={cn(
+            'grid min-h-0 flex-1 auto-rows-fr gap-2',
+            columns === 2 && 'landscape:grid-cols-2',
+          )}
+        >
+          {isWaiting ? (
+            <div className="flex flex-col items-center justify-center gap-4 p-6 text-center">
+              <HourglassIcon aria-hidden className="size-20 text-muted-foreground" />
+              <p className="text-5xl font-black">{t('waitingTitle')}</p>
+              <p className="text-2xl text-muted-foreground">{t('waitingText')}</p>
+            </div>
+          ) : (
+            apparatus.map(({ apparatus: key, rounds }) => (
+              <ApparatusPanel key={key} apparatus={key} slots={rounds[shownRound] ?? []} />
+            ))
+          )}
+        </main>
+      </div>
+    </AccessGate>
   );
 }
 

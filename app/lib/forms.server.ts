@@ -1,3 +1,4 @@
+import { data } from 'react-router';
 import type { z } from 'zod';
 
 export type FieldErrors = Record<string, string>;
@@ -14,6 +15,11 @@ export function parseForm<Schema extends z.ZodType>(
   formData: FormData,
   schema: Schema,
 ): { data: z.infer<Schema>; errors?: undefined } | { data?: undefined; errors: FieldErrors } {
-  const result = schema.safeParse(Object.fromEntries(formData));
+  const values = Object.fromEntries(formData);
+  // Browsers never send NUL, and PostgreSQL rejects it.
+  if (Object.values(values).some((value) => typeof value === 'string' && value.includes('\0'))) {
+    throw data(null, 400);
+  }
+  const result = schema.safeParse(values);
   return result.success ? { data: result.data } : { errors: fieldErrors(result.error) };
 }

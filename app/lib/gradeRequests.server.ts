@@ -34,7 +34,7 @@ export async function handleGradeRequest(
     return reply({ ok: true, savedAt: Date.now() });
   } catch (error) {
     if (!(error instanceof DomainError)) throw error;
-    return reply({ ok: false, code: error.code }, 400);
+    return reply({ ok: false, code: error.code, ...error.details }, 400);
   }
 }
 

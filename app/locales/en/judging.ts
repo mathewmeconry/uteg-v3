@@ -33,11 +33,12 @@ export default {
       MIN: 'Final grade (worst attempt)',
       AVG: 'Final grade (average)',
     },
-    directHint: 'Enter all attempts or directly the final grade.',
+    directHint: 'Enter all attempts (at most two decimals) or directly the final grade.',
     errors: {
       INVALID: 'That is not a number. Example: 9.25',
       RANGE: 'The grade must be between 0 and 10.',
       PRECISION: 'At most three decimals.',
+      ATTEMPT_PRECISION: 'Attempts have at most two decimals.',
       REQUIRED: 'Please enter a grade.',
     },
   },
@@ -75,6 +76,8 @@ export default {
     confirm: 'Confirm round',
     blocked_one: '{{count}} grade is missing.',
     blocked_other: '{{count}} grades are missing.',
+    missingText:
+      'The division cannot end like this. Tell the competition office, they can enter the grades. Then confirm again.',
     failed: 'Not confirmed: no connection. Try again.',
   },
   pause: {

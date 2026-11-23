@@ -1,11 +1,11 @@
 import type { Route } from './+types/judgeGrades';
-import { resolveToken } from '~/lib/access.server';
+import { resolveAccess } from '~/lib/access.server';
 import { handleGradeRequest } from '~/lib/gradeRequests.server';
 import { confirmRound, saveGrades, type GradeScope } from '~/lib/judging.server';
 
-export async function action({ request, params: { token } }: Route.ActionArgs) {
-  const link = await resolveToken(token, 'JUDGE');
-  if (!link?.apparatus) throw new Response(null, { status: 404 });
+export async function action({ request, params: { linkId } }: Route.ActionArgs) {
+  const link = await resolveAccess(request, linkId, 'JUDGE');
+  if (!link?.apparatus) throw new Response(null, { status: 403 });
   const { competitionId, ground, apparatus: own } = link;
 
   return handleGradeRequest(request, async (body) => {

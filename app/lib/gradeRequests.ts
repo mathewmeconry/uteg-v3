@@ -1,5 +1,5 @@
 import type { StoredGrade } from './domain/gradeInput';
-import type { DomainErrorCode } from './errors';
+import type { DomainErrorCode, MissingGrade } from './errors';
 
 export type GradeRequest =
   | {
@@ -13,10 +13,13 @@ export type GradeRequest =
   | { intent: 'confirm'; round: number; divisionIds: string[] };
 
 /** `savedAt` is server time. Data loaded later contains the change. */
-export type GradeReply = { ok: true; savedAt: number } | { ok: false; code: DomainErrorCode };
+export type GradeReply =
+  | { ok: true; savedAt: number }
+  /** GRADES_MISSING tells which, also on other apparatus. */
+  | { ok: false; code: DomainErrorCode; missing?: MissingGrade[] };
 
 /** OFFLINE: not answered, it may or may not have been saved. GONE: no access any more. */
-export type GradeResult = GradeReply | { ok: false; code: 'OFFLINE' | 'GONE' };
+export type GradeResult = GradeReply | { ok: false; code: 'OFFLINE' | 'GONE'; missing?: undefined };
 
 const TIMEOUT_MS = 8_000;
 
@@ -31,10 +34,7 @@ export async function sendGradeRequest(url: string, body: GradeRequest): Promise
       // The page itself sends no referrer, but the server checks the origin.
       referrerPolicy: 'same-origin',
     });
-    if ([401, 404].includes(response.status) || response.redirected) {
-      return { ok: false, code: 'GONE' };
-    }
-    if (response.status === 403) return { ok: false, code: 'FORBIDDEN' };
+    if (response.status === 403 || response.redirected) return { ok: false, code: 'GONE' };
     const reply = (await response.json()) as GradeReply;
     // Error pages of a proxy are not a reply.
     return typeof reply.ok === 'boolean' ? reply : { ok: false, code: 'OFFLINE' };

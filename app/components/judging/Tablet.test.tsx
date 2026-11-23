@@ -281,6 +281,30 @@ describe('the end of a round', () => {
     expect(screen.getByRole('button', { name: 'Durchgang bestätigen' })).toBeDisabled();
   });
 
+  it('names the grades of other apparatus that keep the division from ending', async () => {
+    send.mockImplementation(() =>
+      reply({
+        ok: false,
+        code: 'GRADES_MISSING',
+        missing: [{ entryId: 'x', firstname: 'Xenia', lastname: 'Frei', apparatus: 'boden' }],
+      }),
+    );
+    setup(createData([createSlot('Anna', { grade: grade(9000) })]));
+    await act(() => vi.advanceTimersByTimeAsync(1_000));
+    await click('Durchgang bestätigen');
+    expect(screen.getByRole('alert')).toHaveTextContent('Xenia Frei (Boden)');
+    expect(screen.getByRole('alert')).toHaveTextContent('Wettkampfleitung');
+    expect(screen.getByRole('button', { name: 'Durchgang bestätigen' })).toBeEnabled();
+  });
+
+  it('keeps a grade when the link was reset meanwhile', async () => {
+    send.mockImplementation(() => Promise.resolve(new Response(null, { status: 403 })));
+    setup(createData([createSlot('Anna')]));
+    type('9.1');
+    await click('Kontrolle');
+    expect(localStorage.getItem(`grade:${LINK}:reck:Anna`)).toContain('9.1');
+  });
+
   it('tells when it could not be confirmed', async () => {
     send.mockImplementation(() => Promise.reject(new TypeError('Failed to fetch')));
     setup(createData([]));

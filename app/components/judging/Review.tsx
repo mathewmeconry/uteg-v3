@@ -5,13 +5,17 @@ import { SaveState, Warning } from '~/components/grading/SaveState';
 import type { GradeDrafts } from '~/components/grading/useGradeDrafts';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
+import { useApparatusName } from '~/hooks/useApparatusName';
 import { formatEntered } from '~/lib/domain/gradeInput';
+import type { MissingGrade } from '~/lib/errors';
 import { cn } from '~/lib/utils';
 import { fullName, type TabletSlot } from './types';
 
 export type Confirmation = {
   isConfirming: boolean;
   error: string | null;
+  /** The grades that keep the division from ending, also on other apparatus. */
+  missing: MissingGrade[];
   confirm: () => void;
 };
 
@@ -28,6 +32,7 @@ export function Review({
   onEdit: (entryId: string) => void;
 }) {
   const { t } = useTranslation(['judging', 'common']);
+  const apparatusName = useApparatusName();
   const heading = useRef<HTMLHeadingElement>(null);
   const isPause = slots.length === 0;
   // A second tap on "confirm" must not confirm the pause that follows.
@@ -97,7 +102,22 @@ export function Review({
         ))}
       </ol>
 
-      {confirmation.error && <Warning title={confirmation.error} />}
+      {confirmation.error && (
+        <Warning title={confirmation.error}>
+          {confirmation.missing.length > 0 && (
+            <>
+              <ul className="list-disc pl-6 text-lg font-medium">
+                {confirmation.missing.map((missing) => (
+                  <li key={`${missing.entryId}-${missing.apparatus}`}>
+                    {fullName(missing)} ({apparatusName(missing.apparatus)})
+                  </li>
+                ))}
+              </ul>
+              <p>{t('review.missingText')}</p>
+            </>
+          )}
+        </Warning>
+      )}
       <div className="flex flex-wrap items-center justify-end gap-4">
         {open > 0 && (
           <p className="text-lg font-medium text-destructive">

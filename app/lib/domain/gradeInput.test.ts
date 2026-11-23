@@ -79,6 +79,14 @@ describe('evaluateFields', () => {
     expect(evaluateFields({ attempts: ['9.1', '0'], final: '' }, AVERAGE).grade?.value).toBe(4550);
   });
 
+  it('allows two decimals for attempts and three for the final grade', () => {
+    expect(evaluateFields({ attempts: ['9.125', '9.2'], final: '' }, BEST)).toMatchObject({
+      grade: null,
+      errors: { attempts: ['ATTEMPT_PRECISION', null] },
+    });
+    expect(evaluateFields({ attempts: ['', ''], final: '9.125' }, BEST).grade?.value).toBe(9125);
+  });
+
   it('takes the final grade directly while the attempts are empty', () => {
     expect(evaluateFields({ attempts: ['', ''], final: '9.4' }, BEST).grade).toEqual({
       value: 9400,

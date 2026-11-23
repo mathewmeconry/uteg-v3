@@ -1,14 +1,10 @@
 import { isRouteErrorResponse } from 'react-router';
 
-/** Thrown with status 404 by the loaders of judges and displays. */
-export const INVALID_LINK = 'INVALID_LINK';
-
 const TIMEOUT_MS = 10_000;
 
 /**
  * For the client loaders of judges and displays: when the data cannot be loaded, the last one is
- * kept instead of showing an error page. A reset link still ends the session, also if it was
- * answered by this app and not by a proxy while it restarts.
+ * kept instead of showing an error page. A denied access still ends the session.
  */
 export function createLastData<Data>() {
   let last: { key: string; data: Data } | null = null;
@@ -23,11 +19,18 @@ export function createLastData<Data>() {
       last = { key, data };
       return data;
     } catch (error) {
-      const isInvalidLink = isRouteErrorResponse(error) && error.data === INVALID_LINK;
-      if (isInvalidLink || last?.key !== key) throw error;
+      if (isDenied(error)) last = null;
+      if (last?.key !== key) throw error;
       return last.data;
     } finally {
       clearTimeout(timer);
     }
   };
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** The loaders throw data(null, 403). The answer of a proxy has a text instead of null. */
+function isDenied(error: unknown) {
+  return isRouteErrorResponse(error) && error.status === 403 && error.data === null;
 }

@@ -6,6 +6,7 @@ import type { Draft } from '~/components/grading/draftStore';
 import { useGradeDrafts } from '~/components/grading/useGradeDrafts';
 import { EmptyState } from '~/components/EmptyState';
 import type { ConnectionStatus } from '~/hooks/useLiveUpdates';
+import type { MissingGrade } from '~/lib/errors';
 import { sendGradeRequest } from '~/lib/gradeRequests';
 import {
   getNotices,
@@ -70,6 +71,7 @@ export function Tablet({
     round: -1,
     isConfirming: false,
     error: null as string | null,
+    missing: [] as MissingGrade[],
   });
 
   const slots = currentRound === null ? [] : rounds[currentRound].slots;
@@ -102,7 +104,7 @@ export function Tablet({
   async function confirm() {
     if (currentRound === null) return;
     const round = currentRound;
-    setConfirmation({ round, isConfirming: true, error: null });
+    setConfirmation({ round, isConfirming: true, error: null, missing: [] });
     const { divisionIds } = data;
     const result = await sendGradeRequest(url, {
       intent: 'confirm',
@@ -117,7 +119,8 @@ export function Tablet({
         : result.code === 'GONE'
           ? t('save.revoked')
           : t(`common:domainErrors.${result.code}`);
-    setConfirmation({ round, isConfirming: false, error });
+    const missing = result.ok ? [] : (result.missing ?? []);
+    setConfirmation({ round, isConfirming: false, error, missing });
   }
 
   const notices = (
@@ -203,6 +206,7 @@ export function Tablet({
             confirmation={{
               isConfirming: confirmation.isConfirming,
               error: confirmation.round === currentRound ? confirmation.error : null,
+              missing: confirmation.missing,
               confirm: () => void confirm(),
             }}
             onEdit={(entryId) => moveTo(entryId, true)}

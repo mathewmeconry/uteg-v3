@@ -35,7 +35,11 @@ export async function getDivisionLineups(competitionId: string, divisionId: stri
   };
 }
 
-/** Appends entries of the division to a lineup. */
+/**
+ * Appends entries of the division to a lineup. Also while it runs, e.g. for somebody who came late:
+ * what they miss on an apparatus that has already passed is asked for when the division ends, see
+ * confirmRound.
+ */
 export async function moveEntriesToLineup(
   competitionId: string,
   lineupId: string,

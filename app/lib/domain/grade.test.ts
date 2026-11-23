@@ -1,4 +1,4 @@
-import { aggregate, formatGrade, parseGrade, roundGrade } from './grade';
+import { aggregate, formatGrade, isAttempt, parseGrade, roundGrade } from './grade';
 
 describe('parseGrade', () => {
   it.each([
@@ -33,6 +33,21 @@ describe('parseGrade', () => {
     ['9.5555', 'PRECISION'],
   ])('rejects "%s" as %s', (input, error) => {
     expect(parseGrade(input)).toEqual({ ok: false, error });
+  });
+});
+
+describe('attempts', () => {
+  it('have at most two decimals', () => {
+    expect(parseGrade('9.22', 2)).toEqual({ ok: true, value: 9220 });
+    expect(parseGrade('9.225', 2)).toEqual({ ok: false, error: 'PRECISION' });
+    expect([0, 9220, 10000].every(isAttempt)).toBe(true);
+    expect([9225, -10, 10010, 9.5].some(isAttempt)).toBe(false);
+  });
+
+  it('are averaged without rounding twice', () => {
+    // 9.0045 would become 9.005 and then 9.01.
+    expect(roundGrade(aggregate([9000, 9000], 'AVG')!, 2)).toBe(9000);
+    expect(roundGrade(aggregate([9000, 9010], 'AVG')!, 2)).toBe(9010);
   });
 });
 

@@ -1,11 +1,17 @@
-import type { Prisma } from '~/generated/prisma/client';
+import type { Grade, Prisma } from '~/generated/prisma/client';
 import { getContestModule, getContestsApparatus } from '~/modules/registry';
 import type { InputRule } from '~/modules/types';
-import { aggregate, isGrade } from './domain/grade';
+import { aggregate, isAttempt, isGrade } from './domain/grade';
 import { isSameGrade, type StoredGrade } from './domain/gradeInput';
 import { getCurrentRound, isEnded } from './domain/progress';
-import { compareDivisions, getRoundCount, getRoundList, isVisible } from './domain/rotation';
-import { DomainError } from './errors';
+import {
+  compareDivisions,
+  getRoundCount,
+  getRoundList,
+  isVisible,
+  startApparatus,
+} from './domain/rotation';
+import { DomainError, type MissingGrade } from './errors';
 import { publish } from './events.server';
 import { lockDivisions } from './locks.server';
 import { prisma } from './prisma.server';
@@ -129,28 +135,36 @@ export async function saveGrades(
   grades: readonly GradeInput[],
   scope: GradeScope,
 ) {
+  // In one order, so two devices saving the same grades cannot block each other.
+  const sorted = grades.toSorted((a, b) =>
+    a.entryId === b.entryId
+      ? Number(a.apparatus > b.apparatus) - Number(a.apparatus < b.apparatus)
+      : a.entryId < b.entryId
+        ? -1
+        : 1,
+  );
   const saved = await prisma.$transaction(async (tx) => {
     const ids = grades.map(({ entryId }) => entryId);
+    const entries = await lockGradedEntries(tx, competitionId, ids);
     // Two devices grading the same entry take turns, the second one sees the first one's grade.
     await tx.$queryRaw`
       SELECT id FROM entry WHERE id = ANY(${ids}::text[]) ORDER BY id FOR NO KEY UPDATE`;
-    const entries = await tx.entry.findMany({
-      where: { id: { in: ids }, contest: { competitionId } },
-      include: { ...GRADED_ENTRY, grades: true },
-    });
-    const result = [];
-    for (const input of grades) {
+    const stored = await tx.grade.findMany({ where: { entryId: { in: ids } } });
+    const result = new Map<GradeInput, Grade>();
+    for (const input of sorted) {
       const { entryId, apparatus } = input;
       const entry = entries.find(({ id }) => id === entryId);
       const data = computeGrade(input, getGradeableRule(entry, apparatus, scope));
-      const current = entry?.grades.find((grade) => grade.apparatus === apparatus) ?? null;
+      const current =
+        stored.find((grade) => grade.entryId === entryId && grade.apparatus === apparatus) ?? null;
       const isUnchanged =
         input.previous === undefined ||
         isSameGrade(current, input.previous) ||
         // Sent again because the first response got lost.
         isSameGrade(current, data);
       if (!isUnchanged) throw new DomainError('GRADE_CHANGED');
-      result.push(
+      result.set(
+        input,
         await tx.grade.upsert({
           where: { entryId_apparatus: { entryId, apparatus } },
           create: { entryId, apparatus, ...data },
@@ -158,23 +172,26 @@ export async function saveGrades(
         }),
       );
     }
-    return result;
+    return grades.map((input) => result.get(input)!);
   });
   publish(competitionId, 'grades');
   return saved;
 }
 
+/** Judges may correct the grades of confirmed rounds but not delete them. */
 export async function deleteGrade(
   competitionId: string,
   { entryId, apparatus }: { entryId: string; apparatus: string },
   scope: GradeScope,
 ) {
-  const entry = await prisma.entry.findFirst({
-    where: { id: entryId, contest: { competitionId } },
-    include: GRADED_ENTRY,
+  await prisma.$transaction(async (tx) => {
+    const [entry] = await lockGradedEntries(tx, competitionId, [entryId]);
+    getGradeableRule(entry, apparatus, scope);
+    if (scope.kind === 'judge' && isConfirmed(entry, apparatus)) {
+      throw new DomainError('ROUND_NOT_CURRENT');
+    }
+    await tx.grade.deleteMany({ where: { entryId, apparatus } });
   });
-  getGradeableRule(entry, apparatus, scope);
-  await prisma.grade.deleteMany({ where: { entryId, apparatus } });
   publish(competitionId, 'grades');
 }
 
@@ -182,7 +199,9 @@ export async function deleteGrade(
 
 /**
  * Confirms a round of an apparatus, also an empty one. Repeating it changes nothing. Divisions
- * whose apparatus have all confirmed every round end.
+ * whose apparatus have all confirmed every round end, unless grades are missing: an editor may
+ * have deleted one or moved somebody to a lineup that had already passed an apparatus. Then an
+ * editor has to enter them before the round can be confirmed.
  */
 export async function confirmRound(
   competitionId: string,
@@ -208,13 +227,14 @@ export async function confirmRound(
     if (open.some(({ state }) => state !== 'RUNNING')) {
       throw new DomainError('DIVISION_NOT_RUNNING');
     }
-    if (round < 0 || open.some((division) => completed(division, apparatus) !== round)) {
-      throw new DomainError('ROUND_NOT_CURRENT');
-    }
-    const missing = getSlots(open, apparatus, round).some(
-      ({ withdrawn, grade }) => !withdrawn && !grade,
+    const isCurrent = (division: LoadedDivision) =>
+      round < division.rounds && completed(division, apparatus) === round;
+    if (round < 0 || !open.every(isCurrent)) throw new DomainError('ROUND_NOT_CURRENT');
+    assertGraded(
+      getSlots(open, apparatus, round)
+        .filter(({ withdrawn, grade }) => !withdrawn && !grade)
+        .map((slot) => toMissingGrade(slot.entryId, slot, apparatus)),
     );
-    if (missing) throw new DomainError('GRADES_MISSING');
 
     for (const division of open) {
       await tx.$executeRaw`
@@ -223,6 +243,7 @@ export async function confirmRound(
         WHERE "divisionId" = ${division.id} AND apparatus = ${apparatus}`;
       const progress = await tx.divisionProgress.findMany({ where: { divisionId: division.id } });
       if (isEnded(progress)) {
+        assertGraded(getMissingGrades(division));
         await tx.division.update({
           where: { id: division.id },
           data: { state: 'ENDED', endedAt: new Date() },
@@ -235,8 +256,68 @@ export async function confirmRound(
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const GRADED_ENTRY = { contest: true, division: true, starter: true } as const;
+const GRADED_ENTRY = {
+  contest: true,
+  division: { include: { progress: true } },
+  lineup: true,
+  starter: true,
+} as const;
 type GradedEntry = Prisma.EntryGetPayload<{ include: typeof GRADED_ENTRY }>;
+
+/** The entries, with their divisions kept in their state until the end of the transaction. */
+async function lockGradedEntries(
+  tx: Prisma.TransactionClient,
+  competitionId: string,
+  entryIds: string[],
+) {
+  const locked = new Set<string>();
+  for (;;) {
+    const entries = await tx.entry.findMany({
+      where: { id: { in: entryIds }, contest: { competitionId } },
+      include: GRADED_ENTRY,
+    });
+    const ids = entries.flatMap(({ divisionId }) => divisionId ?? []);
+    const unlocked = [...new Set(ids)].filter((id) => !locked.has(id));
+    if (unlocked.length === 0) return entries;
+    // Waiting for the lock takes time, the entries may have changed meanwhile.
+    await lockDivisions(tx, competitionId, unlocked, 'SHARE');
+    for (const id of unlocked) locked.add(id);
+  }
+}
+
+/** Whether the apparatus has confirmed the round in which the entry is there. */
+function isConfirmed({ contest, division, lineup }: GradedEntry, apparatus: string) {
+  if (!division || !lineup) return false;
+  const order = getContestModule(contest).apparatus(division.sex);
+  const row = division.progress.find((item) => item.apparatus === apparatus);
+  return Array.from({ length: row?.completedRounds ?? 0 }).some(
+    (_, round) => startApparatus(order, apparatus, round) === lineup.apparatus,
+  );
+}
+
+function assertGraded(missing: MissingGrade[]) {
+  if (missing.length > 0) throw new DomainError('GRADES_MISSING', { missing });
+}
+
+function toMissingGrade(
+  entryId: string,
+  { firstname, lastname }: { firstname: string; lastname: string },
+  apparatus: string,
+): MissingGrade {
+  return { entryId, firstname, lastname, apparatus };
+}
+
+/** What the entries in the division's lineups still need on any apparatus. */
+function getMissingGrades({ lineups, apparatus }: LoadedDivision) {
+  return Object.values(lineups)
+    .flat()
+    .filter(({ withdrawnAt }) => !withdrawnAt)
+    .flatMap(({ id, starter, grades }) =>
+      apparatus
+        .filter((key) => !grades.some((grade) => grade.apparatus === key))
+        .map((key) => toMissingGrade(id, starter, key)),
+    );
+}
 
 type LoadedDivision = Awaited<ReturnType<typeof loadDivisions>>[number];
 
@@ -388,7 +469,8 @@ function getGradeableRule(
 function computeGrade({ value, attempts = [] }: GradeInput, rule: InputRule) {
   if (attempts.length > 0) {
     const final = aggregate(attempts, rule.aggregation);
-    if (attempts.length !== rule.attempts || !attempts.every(isGrade) || final === null) {
+    const isValid = rule.attempts > 1 ? isAttempt : isGrade;
+    if (attempts.length !== rule.attempts || !attempts.every(isValid) || final === null) {
       throw new DomainError('INVALID_GRADE');
     }
     // A single attempt is the final grade.
