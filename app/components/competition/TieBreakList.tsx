@@ -23,11 +23,11 @@ export function TieBreakList({
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-1 gap-3">
       {value.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('ranking.tieBreakEmpty')}</p>
       ) : (
-        <ol className="grid gap-2">
+        <ol className="grid grid-cols-1 gap-2">
           {value.map((apparatus, index) => {
             const name = t(`common:apparatus.${apparatus}`);
             return (

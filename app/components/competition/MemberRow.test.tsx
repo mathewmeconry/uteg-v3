@@ -55,9 +55,11 @@ describe('MemberRow', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(action).not.toHaveBeenCalled();
     expect(screen.getByRole('combobox')).toHaveTextContent('Owner');
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveFocus());
 
     await chooseEditor();
     await userEvent.click(screen.getByRole('button', { name: 'Give up ownership' }));
     await waitFor(() => expect(action).toHaveBeenCalledWith(DEMOTION));
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveFocus());
   });
 });

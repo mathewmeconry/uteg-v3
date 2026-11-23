@@ -1,7 +1,7 @@
 import { TriangleAlertIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Form, useRevalidator } from 'react-router';
+import { Form, useNavigation, useRevalidator } from 'react-router';
 import { FormField } from '~/components/FormField';
 import { SubmitButton } from '~/components/SubmitButton';
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
@@ -40,6 +40,7 @@ export function EgtSettingsForm({
 }) {
   const { t } = useTranslation(['settings', 'common']);
   const { revalidate } = useRevalidator();
+  const isSaving = useNavigation().formData !== undefined;
   const [config, setConfig] = useState(savedConfig);
   // What the changes were made on. Posting a newer version would overwrite what others saved.
   const [base, setBase] = useState({ config: savedConfig, version });
@@ -63,94 +64,97 @@ export function EgtSettingsForm({
       <input type="hidden" name="config" value={JSON.stringify(config)} />
       <input type="hidden" name="version" value={base.version} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('honour.title')}</CardTitle>
-          <CardDescription>{t('honour.text')}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-6">
-          <HonourPercentFields
-            value={config.honourPercent}
-            onChange={(honourPercent) => setConfig({ ...config, honourPercent })}
-            disabled={!canEdit}
-          />
-          <FormField label={t('honour.rounding')}>
-            {(props) => (
-              <Select
-                value={config.honourRounding}
-                disabled={!canEdit}
-                onValueChange={(honourRounding: EgtConfig['honourRounding']) =>
-                  setConfig({ ...config, honourRounding })
-                }
-              >
-                <SelectTrigger {...props} className="w-full max-w-sm min-w-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROUNDINGS.map((rounding) => (
-                    <SelectItem key={rounding} value={rounding}>
-                      {t(`honour.roundingOptions.${rounding}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </FormField>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+      {/* What changes meanwhile would look like it was made on an outdated version. */}
+      <fieldset disabled={isSaving} className="grid grid-cols-1 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>{t('ranking.title')}</CardTitle>
+            <CardTitle>{t('honour.title')}</CardTitle>
+            <CardDescription>{t('honour.text')}</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-6">
-            <FormField label={t('ranking.precision')}>
+            <HonourPercentFields
+              value={config.honourPercent}
+              onChange={(honourPercent) => setConfig({ ...config, honourPercent })}
+              disabled={!canEdit}
+            />
+            <FormField label={t('honour.rounding')}>
               {(props) => (
                 <Select
-                  value={String(config.precision)}
-                  disabled={!canEdit}
-                  onValueChange={(value) =>
-                    setConfig({ ...config, precision: value === '3' ? 3 : 2 })
+                  value={config.honourRounding}
+                  disabled={!canEdit || isSaving}
+                  onValueChange={(honourRounding: EgtConfig['honourRounding']) =>
+                    setConfig({ ...config, honourRounding })
                   }
                 >
                   <SelectTrigger {...props} className="w-full max-w-sm min-w-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PRECISIONS.map((precision) => (
-                      <SelectItem key={precision} value={precision}>
-                        {t(`ranking.precisionOptions.decimals${precision}`)}
+                    {ROUNDINGS.map((rounding) => (
+                      <SelectItem key={rounding} value={rounding}>
+                        {t(`honour.roundingOptions.${rounding}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
             </FormField>
-            <section className="grid gap-3">
-              <div className="grid gap-1">
-                <h3 className="text-sm font-medium">{t('ranking.tieBreak')}</h3>
-                <p className="text-sm text-muted-foreground">{t('ranking.tieBreakText')}</p>
-              </div>
-              <TieBreakList
-                value={config.tieBreak}
-                onChange={(tieBreak) => setConfig({ ...config, tieBreak })}
-                disabled={!canEdit}
-              />
-            </section>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('vault.title')}</CardTitle>
-            <CardDescription>{t('vault.text')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <VaultFields config={config} onChange={setConfig} disabled={!canEdit} />
-          </CardContent>
-        </Card>
-      </div>
+        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('ranking.title')}</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-6">
+              <FormField label={t('ranking.precision')}>
+                {(props) => (
+                  <Select
+                    value={String(config.precision)}
+                    disabled={!canEdit || isSaving}
+                    onValueChange={(value) =>
+                      setConfig({ ...config, precision: value === '3' ? 3 : 2 })
+                    }
+                  >
+                    <SelectTrigger {...props} className="w-full max-w-sm min-w-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRECISIONS.map((precision) => (
+                        <SelectItem key={precision} value={precision}>
+                          {t(`ranking.precisionOptions.decimals${precision}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </FormField>
+              <section className="grid grid-cols-1 gap-3">
+                <div className="grid gap-1">
+                  <h3 className="text-sm font-medium">{t('ranking.tieBreak')}</h3>
+                  <p className="text-sm text-muted-foreground">{t('ranking.tieBreakText')}</p>
+                </div>
+                <TieBreakList
+                  value={config.tieBreak}
+                  onChange={(tieBreak) => setConfig({ ...config, tieBreak })}
+                  disabled={!canEdit}
+                />
+              </section>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('vault.title')}</CardTitle>
+              <CardDescription>{t('vault.text')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <VaultFields config={config} onChange={setConfig} disabled={!canEdit || isSaving} />
+            </CardContent>
+          </Card>
+        </div>
+      </fieldset>
 
       {affected.recompute + affected.keep > 0 && (
         <Alert className="border-warning">

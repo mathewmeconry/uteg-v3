@@ -1,5 +1,5 @@
 import { LogOutIcon, Trash2Icon } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFetcher } from 'react-router';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
@@ -32,6 +32,7 @@ export function MemberRow({
   const { t } = useTranslation(['settings', 'common']);
   const fetcher = useFetcher();
   const pendingRole = fetcher.formData?.get('role') as Role | undefined;
+  const roleSelect = useRef<HTMLButtonElement>(null);
   const [ownNewRole, setOwnNewRole] = useState<Role>();
 
   function changeRole(newRole: Role) {
@@ -53,7 +54,8 @@ export function MemberRow({
         <div className="flex items-center gap-2">
           <RoleSelect
             value={pendingRole ?? role}
-            disabled={isLastOwner || fetcher.state !== 'idle'}
+            ref={roleSelect}
+            disabled={isLastOwner}
             aria-label={t('members.roleOf', { email })}
             className="w-36"
             // Only owners can change roles, so they cannot take it back.
@@ -87,7 +89,13 @@ export function MemberRow({
           if (!open) setOwnNewRole(undefined);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent
+          onCloseAutoFocus={(event) => {
+            // Without a trigger the dialog does not know where the focus was.
+            event.preventDefault();
+            roleSelect.current?.focus();
+          }}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>{t('members.demoteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>{t('members.demoteText')}</AlertDialogDescription>

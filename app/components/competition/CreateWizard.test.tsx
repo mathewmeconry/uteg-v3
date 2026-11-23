@@ -202,6 +202,14 @@ describe('CreateWizard', () => {
     await waitFor(() => expect(submitted).toHaveBeenCalledOnce());
   });
 
+  it('lets the other steps be clicked through quickly', async () => {
+    await fillGeneral();
+    pause();
+    await click('Next');
+    await click('Next');
+    expect(heading()).toBe('Awards');
+  });
+
   it('lets a chosen logo be cleared', async () => {
     const input = screen.getByLabelText<HTMLInputElement>('Logo');
     expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();

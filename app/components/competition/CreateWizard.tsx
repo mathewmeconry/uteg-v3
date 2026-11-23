@@ -122,11 +122,11 @@ export function CreateWizard({
   }
 
   function onSubmit(event: FormEvent) {
-    // The second half of a double click on "Next" hits the button of the step it opened.
+    // The second half of a double click on "Next" must not create the competition.
     const isDoubleClick = Date.now() - openedAt.current < DOUBLE_CLICK_MS;
     if (step === 'review' && !isDoubleClick) return;
     event.preventDefault();
-    if (!isDoubleClick) next();
+    if (step !== 'review') next();
   }
 
   return (

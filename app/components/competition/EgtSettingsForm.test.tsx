@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
@@ -16,7 +16,7 @@ function renderElement(element: React.ReactNode) {
       path: '/',
       element,
       action: async ({ request }) => {
-        action(Object.fromEntries(await request.formData()));
+        await action(Object.fromEntries(await request.formData()));
         return null;
       },
     },
@@ -178,6 +178,21 @@ describe('EgtSettingsForm', () => {
       await save();
       expect(action.mock.calls[0][0].version).toBe('2');
     });
+  });
+
+  it('cannot be changed while it is saved', async () => {
+    let finish = () => {};
+    action.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    renderForm();
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const controls = [
+      ...screen.getAllByRole('combobox'),
+      ...screen.getAllByRole('spinbutton'),
+      screen.getByRole('button', { name: 'Remove Floor' }),
+    ];
+    for (const control of controls) expect(control).toBeDisabled();
+    finish();
+    await waitFor(() => expect(controls[0]).toBeEnabled());
   });
 
   it('cannot be changed by viewers', () => {

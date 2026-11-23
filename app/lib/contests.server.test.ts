@@ -21,7 +21,7 @@ import { createDivision as createDivisionService, startDivisions } from './divis
 import { subscribe } from './events.server';
 import { confirmRound, getJudgingState, saveGrades } from './judging.server';
 import { moveEntriesToLineup } from './lineups.server';
-import { lockContestConfigs } from './locks.server';
+import { lockContest, lockContestConfigs } from './locks.server';
 import { prisma } from './prisma.server';
 import { getRanking } from './ranking.server';
 
@@ -138,29 +138,20 @@ describe('changed vault rules', () => {
 
   it('apply to a grade saved at the same time', async () => {
     const { id, contest, entry } = await setup();
-    const save = () =>
-      saveGrades(id, [{ entryId: entry.id, apparatus: 'sprung', attempts: [9500, 9700] }], {
+    await addVault(entry.id, 9000, [8000, 9000]);
+    let save: Promise<unknown> | undefined;
+    // Holds what updateContestConfig holds while it recomputes.
+    await prisma.$transaction(async (tx) => {
+      await lockContest(tx, contest.id);
+      await tx.contest.update({ where: { id: contest.id }, data: { config: AVERAGE } });
+      save = saveGrades(id, [{ entryId: entry.id, apparatus: 'sprung', attempts: [9500, 9700] }], {
         kind: 'editor',
       });
-    const others = [];
-    for (let index = 0; index < 200; index++) others.push(await createStarter(id));
-    const data = others.map((other) => ({
-      entryId: other.entry.id,
-      apparatus: 'sprung',
-      value: 9000,
-      attempts: [8000, 9000],
-    }));
-    await prisma.grade.createMany({ data });
-    await addVault(entry.id, 9000, [8000, 9000]);
-
-    for (const delay of [0, 5, 15, 30]) {
-      await updateContestConfig(id, contest.id, egtModule.defaultConfig);
-      await addVaultAgain(entry.id);
-      const update = updateContestConfig(id, contest.id, AVERAGE);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      await Promise.all([update, save()]);
-      expect(await vaultOf(entry.id)).toEqual({ value: 9600, attempts: [9500, 9700] });
-    }
+      // Time to get ahead, if nothing made it wait.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    await save;
+    expect(await vaultOf(entry.id)).toEqual({ value: 9600, attempts: [9500, 9700] });
   });
 
   it('do not deadlock with saved grades and confirmed rounds', async () => {
@@ -219,13 +210,6 @@ describe('changed vault rules', () => {
     await update;
     expect(await vaultOf(entry.id)).toEqual({ value: 9600, attempts: [9500, 9700] });
   });
-
-  function addVaultAgain(entryId: string) {
-    return prisma.grade.updateMany({
-      where: { entryId },
-      data: { value: 9000, attempts: [8000, 9000] },
-    });
-  }
 
   it('lists how many grades have attempts', async () => {
     const { id, contest, entry } = await setup();
