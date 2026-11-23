@@ -926,7 +926,8 @@ describe('importStarters', () => {
           clubAnswers: [keep, change(idOf('Bea'), club.id)],
         }),
       ).toMatchObject({ restored: 3, clubsKept: 1, clubsChanged: 1 });
-      expect(await clubs()).toEqual({ Anna: 'old', Bea: 'new', Carla: 'new', Dora: 'new' });
+      // Restored with the values of the row.
+      expect(await clubs()).toEqual({ Anna: 'old', bea: 'new', Carla: 'new', Dora: 'new' });
     });
 
     it('keeps and reports a club that changed after the check', async () => {

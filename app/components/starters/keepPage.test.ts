@@ -1,5 +1,7 @@
 import { UNSAFE_ErrorResponseImpl } from 'react-router';
 import { expect, it } from 'vitest';
+import { clientAction as startersAction } from '~/routes/secured/competition/starters';
+import { clientAction as importAction } from '~/routes/secured/competition/startersImport';
 import { keepPage } from './keepPage';
 
 it.each([
@@ -13,6 +15,16 @@ it.each([
     data: { failed },
     // React Router does not revalidate after an error status.
     init: { status: 500 },
+  });
+});
+
+it.each([
+  ['starters', startersAction],
+  ['import', importAction],
+])('is used by the %s page', async (_, clientAction) => {
+  const serverAction = () => Promise.reject(new TypeError('Failed to fetch'));
+  expect(await clientAction({ serverAction } as never)).toMatchObject({
+    data: { failed: 'network' },
   });
 });
 
