@@ -6,7 +6,7 @@ import { FormActions } from '~/components/FormActions';
 import { FormField } from '~/components/FormField';
 import { Section, Sections } from '~/components/Section';
 import { SubmitButton } from '~/components/SubmitButton';
-import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
+import { Alert, AlertDescription } from '~/components/ui/alert';
 import { Button } from '~/components/ui/button';
 import {
   Select,
@@ -15,9 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
-import type { AttemptGradeCount } from '~/lib/contests.server';
 import type { EgtConfig } from '~/modules/egt/module';
-import { getAffectedGrades, isSameConfig } from './egtConfig';
+import { isSameConfig } from './egtConfig';
 import { HonourPercentFields } from './HonourPercentFields';
 import { TieBreakList } from './TieBreakList';
 import { VaultFields } from './VaultFields';
@@ -29,13 +28,11 @@ const PRECISIONS = ['2', '3'] as const;
 export function EgtSettingsForm({
   savedConfig,
   version,
-  attemptGrades,
   canEdit,
   error,
 }: {
   savedConfig: EgtConfig;
   version: string;
-  attemptGrades: AttemptGradeCount[];
   canEdit: boolean;
   error?: string;
 }) {
@@ -52,7 +49,6 @@ export function EgtSettingsForm({
     setConfig(savedConfig);
   }
   const isOutdated = version !== base.version;
-  const affected = getAffectedGrades(base.config, config, attemptGrades);
 
   function reload() {
     // Without changes the form takes over the saved config.
@@ -146,16 +142,6 @@ export function EgtSettingsForm({
         </Sections>
       </fieldset>
 
-      {affected.recompute + affected.keep > 0 && (
-        <Alert variant="warning">
-          <TriangleAlertIcon aria-hidden />
-          <AlertTitle>{t('vault.warningTitle')}</AlertTitle>
-          <AlertDescription>
-            {affected.recompute > 0 && <p>{t('vault.recompute', { count: affected.recompute })}</p>}
-            {affected.keep > 0 && <p>{t('vault.keep', { count: affected.keep })}</p>}
-          </AlertDescription>
-        </Alert>
-      )}
       {isDirty && (isOutdated || error) && (
         <Alert variant="destructive">
           <TriangleAlertIcon aria-hidden />

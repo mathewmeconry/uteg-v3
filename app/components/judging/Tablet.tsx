@@ -2,10 +2,8 @@ import { CircleCheckBigIcon, HourglassIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRevalidator } from 'react-router';
-import { isUntouched } from '~/components/grading/draftStore';
-import { useGradeDrafts } from '~/components/grading/useGradeDrafts';
+import { isUntouched, useGradeDrafts } from '~/components/grading/useGradeDrafts';
 import { EmptyState } from '~/components/EmptyState';
-import type { ConnectionStatus } from '~/hooks/useLiveUpdates';
 import type { MissingGrade } from '~/lib/errors';
 import { sendGradeRequest } from '~/lib/gradeRequests';
 import {
@@ -37,13 +35,11 @@ export function Tablet({
   linkId,
   url,
   data,
-  status,
 }: {
   linkId: string;
   /** Where grades are sent. */
   url: string;
   data: TabletData;
-  status: ConnectionStatus;
 }) {
   const { t } = useTranslation(['judging', 'common']);
   const { revalidate } = useRevalidator();
@@ -51,10 +47,8 @@ export function Tablet({
   const allSlots = useMemo(() => rounds.flatMap(({ slots }) => slots), [rounds]);
   const drafts = useGradeDrafts({
     url,
-    prefix: `grade:${linkId}`,
-    slots: allSlots,
+    storageKey: `grades:${linkId}`,
     loadedAt: data.loadedAt,
-    status,
   });
 
   const [changes, setChanges] = useState({ data, notices: [] as Notice[], hasEnded: false });
@@ -99,7 +93,7 @@ export function Tablet({
   const past = pastSlots.find(({ entryId }) => entryId === pastEntryId);
   const current = past ?? slots.find(({ entryId }) => entryId === resolved?.view);
   const unsaved = [...drafts.drafts.values()].filter(
-    (draft) => !draft.confirmed && !isUntouched(draft) && draft.entryId !== current?.entryId,
+    (draft) => !isUntouched(draft) && draft.entryId !== current?.entryId,
   );
 
   function moveTo(view: string, fromReview = false) {

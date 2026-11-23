@@ -24,18 +24,11 @@ export type GradeInput = {
   /** Thousandths. The final grade is computed from all of them. */
   attempts?: number[];
   /**
-   * The saved grade that was shown when the input started. Given, a grade that was saved since is
-   * not overwritten, so a request that arrives late cannot replace a newer one.
+   * Of the saved grade the input is based on, null without one. Given, a grade that was saved since
+   * is not overwritten, also by a request that arrives late.
    */
-  previous?: GradeVersion | null;
-  /** The same for every repetition of a request. */
-  requestId?: string;
-  /** Requests of the same device that got no answer and may be replaced. */
-  supersedes?: string[];
+  version?: number | null;
 };
-
-/** With the id, because a deleted grade that is entered again starts with the same version. */
-export type GradeVersion = { id: string; version: number };
 
 /** Judges may only grade what their tablet shows, editors also before and after the division. */
 export type GradeScope = { kind: 'editor' } | { kind: 'judge'; ground: number; apparatus: string };
@@ -165,23 +158,21 @@ export async function saveGrades(
       const data = computeGrade(input, getGradeableRule(entry, apparatus, scope));
       const current =
         stored.find((grade) => grade.entryId === entryId && grade.apparatus === apparatus) ?? null;
-      const { requestId = null, supersedes = [] } = input;
-      const isRepeated = requestId !== null && current?.requestId === requestId;
-      const isOwn = current?.requestId != null && supersedes.includes(current.requestId);
       const isExpected =
-        input.previous === undefined || isSameVersion(current, input.previous) || isOwn;
-      if (current && (isRepeated || (!isExpected && isSameGrade(current, data)))) {
+        input.version === undefined || input.version === (current?.version ?? null);
+      if (!isExpected) {
+        // Sent again because the answer got lost.
+        if (!current || !isSameGrade(current, data)) throw new DomainError('GRADE_CHANGED');
         result.set(input, current);
         continue;
       }
-      if (!isExpected) throw new DomainError('GRADE_CHANGED');
-      // Saving the same value counts as well: a late request must not replace it.
+      // Also with the same value: a late request must not replace it.
       result.set(
         input,
         await tx.grade.upsert({
           where: { entryId_apparatus: { entryId, apparatus } },
-          create: { entryId, apparatus, requestId, ...data },
-          update: { ...data, requestId, version: { increment: 1 } },
+          create: { entryId, apparatus, ...data },
+          update: { ...data, version: { increment: 1 } },
         }),
       );
     }
@@ -192,12 +183,12 @@ export async function saveGrades(
 }
 
 /**
- * Judges may correct the grades of confirmed rounds but not delete them. `previous` is the grade
- * that was shown, see GradeInput.
+ * Judges may correct the grades of confirmed rounds but not delete them. `version` is the one of
+ * the grade that was shown.
  */
 export async function deleteGrade(
   competitionId: string,
-  { entryId, apparatus, previous }: { entryId: string; apparatus: string; previous?: GradeVersion },
+  { entryId, apparatus, version }: { entryId: string; apparatus: string; version?: number },
   scope: GradeScope,
 ) {
   await prisma.$transaction(async (tx) => {
@@ -207,7 +198,7 @@ export async function deleteGrade(
       throw new DomainError('ROUND_NOT_CURRENT');
     }
     const where = { entryId, apparatus };
-    const { count } = await tx.grade.deleteMany({ where: { ...where, ...previous } });
+    const { count } = await tx.grade.deleteMany({ where: { ...where, version } });
     // Already deleted is fine.
     if (count === 0 && (await tx.grade.count({ where })) > 0) {
       throw new DomainError('GRADE_CHANGED');
@@ -448,9 +439,7 @@ function getSlots(divisions: readonly LoadedDivision[], apparatus: string, round
       precision: division.module.rankingOptions(division.category, division.sex).precision,
       grade: grade
         ? {
-            id: grade.id,
             version: grade.version,
-            requestId: grade.requestId,
             value: grade.value,
             attempts: grade.attempts,
             updatedAt: grade.updatedAt,
@@ -492,10 +481,6 @@ function getGradeableRule(
     throw new DomainError('INVALID_APPARATUS');
   }
   return module.inputRule(apparatus, entry.category ?? entry.division?.category ?? '');
-}
-
-function isSameVersion(a: GradeVersion | null, b: GradeVersion | null) {
-  return a?.id === b?.id && a?.version === b?.version;
 }
 
 function computeGrade({ value, attempts = [] }: GradeInput, rule: InputRule) {

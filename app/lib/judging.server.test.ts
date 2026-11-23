@@ -411,62 +411,37 @@ describe('saveGrades', () => {
   });
 
   describe('with the grade the input was based on', () => {
-    const previousOf = ({ id, version }: { id: string; version: number }) => ({ id, version });
-
     it('does not overwrite what someone else saved', async () => {
       const { save, grade } = await setup();
-      const [first] = await save({});
-      expect(await errorCode(save({ value: 9500, previous: null }))).toBe('GRADE_CHANGED');
-      const other = { id: 'other', version: first.version };
-      expect(await errorCode(save({ value: 9500, previous: other }))).toBe('GRADE_CHANGED');
+      await save({});
+      expect(await errorCode(save({ value: 9500, version: null }))).toBe('GRADE_CHANGED');
       expect(await grade()).toMatchObject({ value: 9000, version: 1 });
-      await save({ value: 9500, previous: previousOf(first) });
+      await save({ value: 9500, version: 1 });
       expect(await grade()).toMatchObject({ value: 9500, version: 2 });
     });
 
-    it('notices a deleted grade, also when it was entered again', async () => {
+    it('notices a deleted grade', async () => {
       const { id, entry, save, grade } = await setup();
-      const [first] = await save({});
+      await save({});
       await deleteGrade(id, { entryId: entry.id, apparatus: 'reck' }, EDITOR);
-      const late = () => errorCode(save({ value: 9500, previous: previousOf(first) }));
-      expect(await late()).toBe('GRADE_CHANGED');
-      await save({ value: 8700 });
-      expect(await late()).toBe('GRADE_CHANGED');
-      expect(await grade()).toMatchObject({ value: 8700 });
+      expect(await errorCode(save({ value: 9500, version: 1 }))).toBe('GRADE_CHANGED');
+      expect(await grade()).toBeNull();
     });
 
     it('can be repeated after a lost response', async () => {
       const { save, grade } = await setup();
-      const request = { previous: null, requestId: 'a' };
-      await save(request);
-      await save(request);
+      await save({ version: null });
+      await save({ version: null });
       expect(await grade()).toMatchObject({ version: 1 });
-      // Someone else typed the same.
-      await save({ previous: null, requestId: 'b' });
-      expect(await grade()).toMatchObject({ version: 1, requestId: 'a' });
     });
 
-    it('does not repeat a request after a newer one', async () => {
+    it('refuses a request that arrives after a newer one', async () => {
       const { save, grade } = await setup();
-      const [first] = await save({});
-      const late = { value: 9500, previous: previousOf(first), requestId: 'late' };
+      await save({});
       // The judge went back to the saved value, which counts as a change.
-      await save({ value: 9000, previous: previousOf(first), requestId: 'b' });
-      expect(await errorCode(save(late))).toBe('GRADE_CHANGED');
+      await save({ value: 9000, version: 1 });
+      expect(await errorCode(save({ value: 9500, version: 1 }))).toBe('GRADE_CHANGED');
       expect(await grade()).toMatchObject({ value: 9000, version: 2 });
-    });
-
-    it('replaces an own request whose response got lost', async () => {
-      const { save, grade } = await setup();
-      const [first] = await save({});
-      const previous = previousOf(first);
-      await save({ value: 9500, previous, requestId: 'lost' });
-      await save({ value: 9000, previous, requestId: 'b', supersedes: ['lost'] });
-      expect(await grade()).toMatchObject({ value: 9000 });
-      // Not when someone else saved in between.
-      await save({ value: 8000 });
-      const own = save({ value: 9100, previous, requestId: 'c', supersedes: ['lost', 'b'] });
-      expect(await errorCode(own)).toBe('GRADE_CHANGED');
     });
 
     it('does not delete a grade that was changed', async () => {
@@ -475,7 +450,7 @@ describe('saveGrades', () => {
       const [first] = await save({});
       const [second] = await save({ value: 9100 });
       const remove = (shown: typeof first) =>
-        errorCode(deleteGrade(id, { ...key, previous: previousOf(shown) }, EDITOR));
+        errorCode(deleteGrade(id, { ...key, version: shown.version }, EDITOR));
       expect(await remove(first)).toBe('GRADE_CHANGED');
       expect(await grade()).toMatchObject({ value: 9100 });
       expect(await remove(second)).toBeNull();
@@ -486,7 +461,7 @@ describe('saveGrades', () => {
     it('lets one of two devices win', async () => {
       const { save } = await setup();
       const codes = await Promise.all(
-        [9100, 9200].map((value) => errorCode(save({ value, previous: null }))),
+        [9100, 9200].map((value) => errorCode(save({ value, version: null }))),
       );
       expect(codes.toSorted()).toEqual(['GRADE_CHANGED', null]);
     });

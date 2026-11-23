@@ -34,22 +34,10 @@ async function setup(role: Role = 'EDITOR') {
   };
 }
 
-function addVault(entryId: string) {
-  return prisma.grade.create({
-    data: { entryId, apparatus: 'sprung', value: 9000, attempts: [8000, 9000] },
-  });
-}
-
 describe('contest settings', () => {
-  it('loads the config and how many grades depend on it', async () => {
-    const { competition, load } = await setup('VIEWER');
-    const { entry } = await createStarter(competition.id);
-    await addVault(entry.id);
-    expect((await load()).data).toMatchObject({
-      module: 'egt',
-      config: egtModule.defaultConfig,
-      attemptGrades: [{ apparatus: 'sprung', category: 'K5', attempts: 2, count: 1 }],
-    });
+  it('loads the config', async () => {
+    const { load } = await setup('VIEWER');
+    expect((await load()).data).toMatchObject({ module: 'egt', config: egtModule.defaultConfig });
   });
 
   it('saves the config', async () => {
@@ -59,18 +47,18 @@ describe('contest settings', () => {
     expect(await precision()).toBe(3);
   });
 
-  it('recomputes grades and says how many', async () => {
+  it('explains that a vault rule with grades cannot change', async () => {
     const { competition, post } = await setup();
     const { entry } = await createStarter(competition.id);
-    const { id } = await addVault(entry.id);
+    await prisma.grade.create({
+      data: { entryId: entry.id, apparatus: 'sprung', value: 9000, attempts: [8000, 9000] },
+    });
     const inputs = {
       sprung: { default: { attempts: 2, aggregation: 'AVG' }, categories: {} },
     };
-    const { toasts } = await post({
-      config: JSON.stringify({ ...egtModule.defaultConfig, inputs }),
-    });
-    expect((await prisma.grade.findUnique({ where: { id } }))?.value).toBe(8500);
-    expect(toasts[0].message).toContain('1');
+    const result = await post({ config: JSON.stringify({ ...egtModule.defaultConfig, inputs }) });
+    expect(result.status).toBe(400);
+    expect(result.data.error).toContain('Sprung');
   });
 
   it.each(['', '{', '{"precision":7}', 'null'])('rejects the config %j', async (text) => {

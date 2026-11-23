@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import { formatEntered } from '~/lib/domain/gradeInput';
 import { cn } from '~/lib/utils';
-import type { Draft } from './draftStore';
-import type { GradeDrafts } from './useGradeDrafts';
+import type { Draft, GradeDrafts } from './useGradeDrafts';
 
 type EntryState = ReturnType<GradeDrafts['get']>;
 

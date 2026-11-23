@@ -1,4 +1,3 @@
-import type { AttemptGradeCount } from '~/lib/contests.server';
 import { egtModule, type EgtConfig } from '~/modules/egt/module';
 import type { InputRule, Sex } from '~/modules/types';
 
@@ -30,23 +29,6 @@ export function setVaultRule(config: EgtConfig, category: string, rule: InputRul
   const categories = { ...vault.categories, [category]: normalize(rule) };
   if (isSameRule(categories[category], vault.default)) delete categories[category];
   return { ...config, inputs: { ...config.inputs, sprung: { ...vault, categories } } };
-}
-
-/** What saving does to stored grades, see updateContestConfig. */
-export function getAffectedGrades(
-  oldConfig: EgtConfig,
-  newConfig: EgtConfig,
-  counts: readonly AttemptGradeCount[],
-) {
-  let recompute = 0;
-  let keep = 0;
-  for (const { apparatus, category, attempts, count } of counts) {
-    const rule = egtModule.inputRule(newConfig, apparatus, category);
-    if (isSameRule(rule, egtModule.inputRule(oldConfig, apparatus, category))) continue;
-    if (rule.attempts === attempts) recompute += count;
-    else keep += count;
-  }
-  return { recompute, keep };
 }
 
 /** The database does not keep the order of the keys. */

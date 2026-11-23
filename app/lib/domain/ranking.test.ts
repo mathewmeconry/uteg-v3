@@ -1,5 +1,5 @@
 import type { RankingOptions } from '~/modules/types';
-import { getHonourQuota, rankEntries, selectQualifiers } from './ranking';
+import { getHonourQuota, rankEntries } from './ranking';
 
 const WOMEN = ['reck', 'boden', 'schaukelringe', 'sprung'];
 
@@ -157,16 +157,5 @@ describe('getHonourQuota', () => {
   it('is not thrown off by floating point', () => {
     expect(getHonourQuota(50, { honourPercent: 14, honourRounding: 'ceil' })).toBe(7);
     expect(getHonourQuota(1000, { honourPercent: 33.3, honourRounding: 'ceil' })).toBe(333);
-  });
-});
-
-describe('selectQualifiers', () => {
-  it('takes the first ranks', () => {
-    expect(selectQualifiers(rank([9500, 9400, 9300]), 2).map(({ id }) => id)).toEqual(['0', '1']);
-  });
-
-  it('includes everyone tied at the cutoff', () => {
-    expect(selectQualifiers(rank([9500, 9400, 9400, 9300]), 2)).toHaveLength(3);
-    expect(selectQualifiers(rank([9500, 9400, 9400, 9300]), 3)).toHaveLength(3);
   });
 });

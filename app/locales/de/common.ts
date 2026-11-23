@@ -153,7 +153,8 @@ export default {
     COVER_ENCRYPTED: 'Das PDF ist mit einem Passwort geschützt. Speichere es ohne Schutz.',
     COVER_TOO_MANY_PAGES: 'Das PDF darf höchstens 4 Seiten haben.',
     DIVISION_MISMATCH: 'Die Abteilung passt nicht zu Kategorie oder Geschlecht.',
-    DIVISION_NOT_ENDED: 'Es sind noch nicht alle Abteilungen beendet.',
+    RULE_IN_USE:
+      'Die Wertung am Sprung kann nicht mehr geändert werden, weil in dieser Kategorie schon Versuche erfasst sind.',
     DIVISION_NOT_RUNNING: 'Die Abteilung läuft nicht.',
     DIVISION_RUNNING: 'Das geht nicht, solange die Abteilung läuft.',
     ENTRY_NOT_IN_DIVISION: 'Diese Person ist nicht mehr in dieser Abteilung.',

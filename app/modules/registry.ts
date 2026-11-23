@@ -23,14 +23,6 @@ function bindModule<Config>(module: ContestModule<Config>, rawConfig: unknown) {
   };
 }
 
-/** Adds a module and returns a function that removes it again. */
-export function registerModule<Config>(module: ContestModule<Config>) {
-  modules[module.key] = module as unknown as ContestModule;
-  return () => {
-    delete modules[module.key];
-  };
-}
-
 export function getModule(key: string): ContestModule {
   const module = modules[key];
   if (!module) throw new Error(`Unknown contest module "${key}"`);

@@ -1,8 +1,8 @@
 import type { StoredGrade } from './domain/gradeInput';
 import type { DomainErrorCode, MissingGrade } from './errors';
 
-/** A grade as the server has it. */
-export type SavedGrade = StoredGrade & { id: string; version: number; requestId: string | null };
+/** A grade as the server has it. The version goes up with every save. */
+export type SavedGrade = StoredGrade & { version: number };
 
 export type GradeRequest =
   | {
@@ -10,12 +10,8 @@ export type GradeRequest =
       entryId: string;
       apparatus: string;
       grade: StoredGrade;
-      /** The saved grade the input is based on. */
-      previous: { id: string; version: number } | null;
-      /** The same when the request is sent again. */
-      requestId: string;
-      /** Earlier requests that were not answered. This one replaces them. */
-      supersedes: string[];
+      /** Of the saved grade the input is based on. The server refuses it when there is a newer one. */
+      version: number | null;
     }
   | { intent: 'confirm'; round: number; divisionIds: string[] };
 
@@ -48,11 +44,4 @@ export async function sendGradeRequest(url: string, body: GradeRequest): Promise
   } catch {
     return { ok: false, code: 'OFFLINE' };
   }
-}
-
-/** crypto.randomUUID only exists with https, tablets may use plain http in the gym. */
-export function createRequestId() {
-  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
-    byte.toString(16).padStart(2, '0'),
-  ).join('');
 }

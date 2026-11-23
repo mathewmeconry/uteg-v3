@@ -4,11 +4,11 @@ import type { Route } from './+types/settings';
 import { EgtSettingsForm } from '~/components/competition/EgtSettingsForm';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
 import { PageHeader } from '~/components/PageHeader';
-import { competitionContext, contestContext } from '~/context';
+import { contestContext } from '~/context';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { parseJson } from '~/lib/competitionForm.server';
-import { countAttemptGrades, getConfigVersion, updateContestConfig } from '~/lib/contests.server';
+import { getConfigVersion, updateContestConfig } from '~/lib/contests.server';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
 import type { EgtConfig } from '~/modules/egt/module';
 import { requireRole } from '~/middlewares/competition.server';
@@ -16,7 +16,6 @@ import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { id: competitionId } = context.get(competitionContext);
   const contest = context.get(contestContext);
   const { id, name, module } = contest;
   return {
@@ -26,7 +25,6 @@ export async function loader({ context }: Route.LoaderArgs) {
     module: module.key,
     // The page only shows it for this module.
     config: module.config as EgtConfig,
-    attemptGrades: await countAttemptGrades(competitionId, id),
   };
 }
 
@@ -39,16 +37,8 @@ export async function action({ request, context }: Route.ActionArgs) {
   const version = String(formData.get('version'));
 
   try {
-    const { recomputed } = await updateContestConfig(competitionId, contest.id, config, {
-      version,
-    });
-    enqueueToast(context, {
-      type: 'success',
-      message:
-        recomputed > 0
-          ? t('settings:vault.recomputed', { count: recomputed })
-          : t('settings:saved'),
-    });
+    await updateContestConfig(competitionId, contest.id, config, { version });
+    enqueueToast(context, { type: 'success', message: t('settings:saved') });
   } catch (error) {
     return data({ error: domainErrorMessage(error, t) }, 400);
   }
@@ -59,7 +49,7 @@ export default function ContestSettings({ loaderData, actionData }: Route.Compon
   const { t } = useTranslation('settings');
   const { competition, canEdit } = useCompetition();
   const status = useLiveUpdates(`/api/events/${competition.id}`);
-  const { contestId, name, module, config, version, attemptGrades } = loaderData;
+  const { contestId, name, module, config, version } = loaderData;
 
   return (
     <>
@@ -74,7 +64,6 @@ export default function ContestSettings({ loaderData, actionData }: Route.Compon
           key={contestId}
           savedConfig={config}
           version={version}
-          attemptGrades={attemptGrades}
           canEdit={canEdit}
           error={actionData?.error}
         />

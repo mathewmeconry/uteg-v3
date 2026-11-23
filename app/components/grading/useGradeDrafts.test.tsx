@@ -12,7 +12,6 @@ const SLOT = {
   inputRule: { attempts: 1, aggregation: 'NONE' },
   grade: null,
 } as const;
-const SLOTS = [SLOT];
 
 let drafts: GradeDrafts;
 const load = vi.fn(() => null);
@@ -24,13 +23,7 @@ async function setup() {
     drafts = value;
   };
   function Page() {
-    const value = useGradeDrafts({
-      url: '/grades',
-      prefix: 'test',
-      slots: SLOTS,
-      loadedAt: 0,
-      status: 'lost',
-    });
+    const value = useGradeDrafts({ url: '/grades', storageKey: 'test', loadedAt: 0 });
     capture(value);
     return <p>page</p>;
   }
@@ -38,7 +31,7 @@ async function setup() {
   render(<Stub />);
   await screen.findByText('page');
   load.mockClear();
-  act(() => drafts.change(SLOT, null, { attempts: [], final: '9.1' }));
+  act(() => drafts.change(SLOT, { attempts: [], final: '9.1' }));
 }
 
 beforeEach(() => {

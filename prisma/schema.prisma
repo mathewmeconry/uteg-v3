@@ -342,10 +342,8 @@ model Grade {
   value     Int
   // Thousandths per attempt, empty when the final grade was entered directly.
   attempts  Int[]
-  // Goes up with every change of the value or the attempts.
+  // Goes up with every save.
   version   Int      @default(1)
-  // Chosen by the device that saved last, so it recognises its own grade after a lost response.
-  requestId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

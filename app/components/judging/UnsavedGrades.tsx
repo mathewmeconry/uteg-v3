@@ -1,8 +1,7 @@
 import { ChevronDownIcon, TriangleAlertIcon } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { draftKey, wasSent, type Draft } from '~/components/grading/draftStore';
-import type { GradeDrafts } from '~/components/grading/useGradeDrafts';
+import { draftKey, type Draft, type GradeDrafts } from '~/components/grading/useGradeDrafts';
 import { Button } from '~/components/ui/button';
 import { evaluateFields, formatEntered } from '~/lib/domain/gradeInput';
 import { cn } from '~/lib/utils';
@@ -36,7 +35,7 @@ export function UnsavedGrades({
     });
 
   function discard(draft: Draft) {
-    const text = t(wasSent(draft) ? 'discardSent' : 'discardConfirm', { name: draft.name });
+    const text = t(draft.sent ? 'discardSent' : 'discardConfirm', { name: draft.name });
     if (window.confirm(text)) drafts.discard(draftKey(draft));
   }
 

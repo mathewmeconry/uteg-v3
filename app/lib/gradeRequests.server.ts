@@ -3,8 +3,6 @@ import { DomainError } from './errors';
 import type { GradeReply, GradeRequest } from './gradeRequests';
 import { saveGrades, type GradeScope } from './judging.server';
 
-const requestIdSchema = z.string().regex(/^\w{1,64}$/);
-
 const schema = z.discriminatedUnion('intent', [
   z.object({
     intent: z.literal('save'),
@@ -12,9 +10,7 @@ const schema = z.discriminatedUnion('intent', [
     entryId: z.string().regex(/^\w+$/),
     apparatus: z.string(),
     grade: z.object({ value: z.number(), attempts: z.array(z.number()) }),
-    previous: z.object({ id: z.string(), version: z.number() }).nullable(),
-    requestId: requestIdSchema,
-    supersedes: z.array(requestIdSchema).max(100),
+    version: z.number().int().nullable(),
   }),
   z.object({
     intent: z.literal('confirm'),
@@ -43,8 +39,8 @@ export async function handleGradeRequest(
       await confirm(body);
       return reply({ ok: true, savedAt: Date.now() });
     }
-    const { entryId, apparatus, grade, previous, requestId, supersedes } = body;
-    const input = { entryId, apparatus, ...grade, previous, requestId, supersedes };
+    const { entryId, apparatus, grade, version } = body;
+    const input = { entryId, apparatus, ...grade, version };
     const [saved] = await saveGrades(competitionId, [input], scope);
     return reply({ ok: true, savedAt: Date.now(), grade: saved });
   } catch (error) {

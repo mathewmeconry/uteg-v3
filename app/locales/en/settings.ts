@@ -99,14 +99,5 @@ export default {
       MIN: 'Worst attempt',
       AVG: 'Average',
     },
-    warningTitle: 'Existing grades are affected',
-    recompute_one: '{{count}} saved vault grade is recomputed on saving.',
-    recompute_other: '{{count}} saved vault grades are recomputed on saving.',
-    keep_one:
-      '{{count}} saved vault grade has another number of attempts and stays unchanged. Check it by hand.',
-    keep_other:
-      '{{count}} saved vault grades have another number of attempts and stay unchanged. Check them by hand.',
-    recomputed_one: 'Saved. {{count}} grade was recomputed.',
-    recomputed_other: 'Saved. {{count}} grades were recomputed.',
   },
 } satisfies Translation<typeof de>;

@@ -33,9 +33,7 @@ function createSlot(patch: Partial<TabletSlot> = {}): TabletSlot {
 }
 
 const grade = (value: number, version = 1) => ({
-  id: 'g1',
   version,
-  requestId: null,
   value,
   attempts: [],
   updatedAt: new Date(0),
@@ -50,12 +48,8 @@ const values = () =>
     .map(([, init]) => JSON.parse(init!.body as string).grade.value);
 const saves: typeof fetch = async (url, init) => {
   if (url !== URL) return new Response('ok');
-  const { grade: sent, requestId } = JSON.parse(init!.body as string);
-  return Response.json({
-    ok: true,
-    savedAt: 1,
-    grade: { id: 'g1', version: 2, requestId, ...sent },
-  });
+  const { grade: sent } = JSON.parse(init!.body as string);
+  return Response.json({ ok: true, savedAt: 1, grade: { version: 2, ...sent } });
 };
 
 let show: (slot: TabletSlot) => void;
@@ -66,7 +60,7 @@ function setup(...initial: TabletSlot[]) {
   };
   function Page() {
     const [slots, setSlots] = useState(initial);
-    const drafts = useGradeDrafts({ url: URL, prefix: 'test', slots, loadedAt: 0, status: 'open' });
+    const drafts = useGradeDrafts({ url: URL, storageKey: 'test', loadedAt: 0 });
     capture(setSlots);
     return (
       <>
@@ -142,7 +136,7 @@ describe('with the keyboard only', () => {
     await user.keyboard(`9.6${key}`);
     await saved('9.60');
     expect(values()).toEqual([9400, 9500, 9600]);
-    expect(people.map((name) => field(name).value)).toEqual(['9.4', '9.5', '9.6']);
+    expect(people.map((name) => field(name).value)).toEqual(['9.40', '9.50', '9.60']);
   });
 
   it('skips withdrawn starters with Enter', async () => {
@@ -229,14 +223,6 @@ describe('the header', () => {
     expect(await screen.findByText('1 Note ist noch nicht gespeichert')).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Eingabe für Anna Frei verwerfen' }));
     expect(header()).not.toHaveTextContent(/^Gespeichert$/);
-  });
-
-  it('counts rows that need attention', async () => {
-    const user = setup(createSlot());
-    await user.type(input(), '95');
-    expect(header()).toBeEmptyDOMElement();
-    await user.click(elsewhere());
-    expect(header()).toHaveTextContent('1 Note ist noch nicht gespeichert');
   });
 });
 

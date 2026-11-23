@@ -96,14 +96,5 @@ export default {
       MIN: 'Schlechtester Versuch',
       AVG: 'Durchschnitt',
     },
-    warningTitle: 'Bestehende Noten sind betroffen',
-    recompute_one: '{{count}} gespeicherte Sprungnote wird beim Speichern neu berechnet.',
-    recompute_other: '{{count}} gespeicherte Sprungnoten werden beim Speichern neu berechnet.',
-    keep_one:
-      '{{count}} gespeicherte Sprungnote hat eine andere Anzahl Versuche und bleibt unverändert. Prüfe sie von Hand.',
-    keep_other:
-      '{{count}} gespeicherte Sprungnoten haben eine andere Anzahl Versuche und bleiben unverändert. Prüfe sie von Hand.',
-    recomputed_one: 'Gespeichert. {{count}} Note wurde neu berechnet.',
-    recomputed_other: 'Gespeichert. {{count}} Noten wurden neu berechnet.',
   },
 };

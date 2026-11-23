@@ -1,10 +1,9 @@
 import { ArrowLeftIcon, ArrowRightIcon, LoaderCircleIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { draftKey } from '~/components/grading/draftStore';
 import { GradeInputs } from '~/components/grading/GradeInputs';
 import { ConflictNotice, RejectedNotice, SaveState, Warning } from '~/components/grading/SaveState';
-import type { GradeDrafts } from '~/components/grading/useGradeDrafts';
+import { draftKey, type GradeDrafts } from '~/components/grading/useGradeDrafts';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import type { GradeResult } from '~/lib/gradeRequests';
@@ -71,14 +70,11 @@ export function StarterForm({
   }, []);
 
   const fields = useRef<HTMLDivElement>(null);
-  const needsAnswer = state.isConflict || (state.isFailed && !state.isSaving);
+  const needsAnswer = state.isConflict || state.isWaiting;
   useEffect(() => {
     // In large type the question would appear behind the buttons.
     if (needsAnswer) fields.current?.lastElementChild?.scrollIntoView?.({ block: 'nearest' });
   }, [needsAnswer]);
-
-  const { leave } = drafts;
-  useEffect(() => () => leave(key), [leave, key]);
 
   function moveOn() {
     onMove(fromReview ? 'review' : (next?.entryId ?? 'review'));
@@ -182,10 +178,10 @@ export function StarterForm({
             showRequired={showRequired}
             disabled={state.isSaving}
             firstInput={firstInput}
-            onChange={(fields) => drafts.change(slot, state.saved, fields)}
+            onChange={(fields) => drafts.change(slot, fields)}
             onSubmit={submit}
           />
-          {!state.isConflict && !state.rejected && !(state.isFailed && !state.isSaving) && (
+          {!state.isConflict && !state.rejected && !state.isWaiting && (
             // As high as it gets, so that the buttons stay where they are.
             <SaveState
               state={state}
@@ -206,7 +202,7 @@ export function StarterForm({
             />
           )}
           {state.rejected && <RejectedNotice code={state.rejected} />}
-          {state.isFailed && !state.isSaving && (
+          {state.isWaiting && !state.isConflict && (
             <Warning title={t('save.failedTitle')}>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="flex-1 basis-72 leading-snug">{t('save.failedText')}</p>

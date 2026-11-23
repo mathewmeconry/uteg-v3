@@ -31,9 +31,7 @@ function createSlot(entryId: string, patch: Partial<TabletSlot> = {}): TabletSlo
 }
 
 const grade = (value: number, version = 1) => ({
-  id: 'g1',
   version,
-  requestId: null,
   value,
   attempts: [],
   updatedAt: new Date(0),
@@ -79,7 +77,7 @@ function setup(initial: TabletData) {
     useEffect(() => void capture(setData), []);
     return (
       <main id="content">
-        <Tablet linkId={LINK} url={URL} data={data} status="open" />
+        <Tablet linkId={LINK} url={URL} data={data} />
       </main>
     );
   }
@@ -102,8 +100,8 @@ const bodies = () =>
 const unreachable = () => Promise.reject(new TypeError('Failed to fetch'));
 /** The server saves everything. */
 const saves: typeof fetch = (_, init) => {
-  const { intent, grade: sent, requestId } = JSON.parse(init!.body as string);
-  const saved = { id: 'g1', version: 2, requestId, ...sent };
+  const { intent, grade: sent } = JSON.parse(init!.body as string);
+  const saved = { version: 2, ...sent };
   return reply({ ok: true, savedAt: 1, grade: intent === 'save' ? saved : undefined });
 };
 const input = () => screen.getByLabelText<HTMLInputElement>('Note');
@@ -138,16 +136,15 @@ describe('one starter at a time', () => {
     type('9,25');
     await click('Weiter');
     expect(heading()).toBe('Anna Frei');
-    await act(async () => answer(Response.json({ ok: true, savedAt: 1 })));
+    const saved = { value: 9250, attempts: [], version: 1 };
+    await act(async () => answer(Response.json({ ok: true, savedAt: 1, grade: saved })));
     expect(heading()).toBe('Bea Frei');
     expect(bodies()[0]).toEqual({
       intent: 'save',
       entryId: 'Anna',
       apparatus: 'reck',
       grade: { value: 9250, attempts: [] },
-      previous: null,
-      requestId: expect.any(String),
-      supersedes: [],
+      version: null,
     });
   });
 
@@ -314,7 +311,7 @@ describe('a lost connection', () => {
     await click('Weiter');
     expect(heading()).toBe('Anna Frei');
     expect(screen.getByText('Keine Antwort vom Server')).toBeVisible();
-    expect(localStorage.getItem(`grade:${LINK}:reck:Anna`)).toContain('9.1');
+    expect(localStorage.getItem(`grades:${LINK}`)).toContain('9.1');
 
     await click('Trotzdem weiter');
     expect(heading()).toBe('Bea Frei');
@@ -324,7 +321,7 @@ describe('a lost connection', () => {
     send.mockImplementation(saves);
     await act(() => vi.advanceTimersByTimeAsync(5_000));
     expect(screen.queryByText('1 Note ist noch nicht gespeichert')).toBeNull();
-    expect(localStorage.getItem(`grade:${LINK}:reck:Anna`)).toBeNull();
+    expect(localStorage.getItem(`grades:${LINK}`)).not.toContain('Anna');
     // The other one was not submitted yet.
     expect(input()).toHaveValue('9.5');
   });
@@ -339,12 +336,31 @@ describe('a lost connection', () => {
     expect(screen.getByText('Noch nicht gespeichert')).toBeVisible();
     send.mockImplementation(saves);
     await click('Weiter');
-    const [first, second] = bodies();
-    expect(second).toMatchObject({
-      grade: { value: 8500 },
-      previous: { id: 'g1', version: 3 },
-      supersedes: [first.requestId],
-    });
+    expect(bodies()[1]).toMatchObject({ grade: { value: 8500 }, version: 3 });
+    expect(heading()).toBe('Bea Frei');
+  });
+
+  it('is done when the data shows that the grade arrived after all', async () => {
+    send.mockImplementation(unreachable);
+    setup(createData([createSlot('Anna'), createSlot('Bea')]));
+    type('9.1');
+    await click('Weiter');
+    show(createData([createSlot('Anna', { grade: grade(9100) }), createSlot('Bea')]));
+    expect(screen.queryByText('Keine Antwort vom Server')).toBeNull();
+    expect(screen.getByText('Gespeichert: 9.10')).toBeVisible();
+  });
+
+  it('asks when an earlier input arrived after all', async () => {
+    send.mockImplementation(unreachable);
+    setup(createData([createSlot('Anna'), createSlot('Bea')]));
+    type('9.1');
+    await click('Weiter');
+    type('8.1');
+    show(createData([createSlot('Anna', { grade: grade(9100) }), createSlot('Bea')]));
+    expect(screen.getByText('Gespeichert ist 9.10. Deine Eingabe: 8.10.')).toBeVisible();
+    send.mockImplementation(saves);
+    await click('Meine Eingabe speichern');
+    expect(bodies().at(-1)).toMatchObject({ grade: { value: 8100 }, version: 1 });
     expect(heading()).toBe('Bea Frei');
   });
 
@@ -435,7 +451,7 @@ describe('changes from elsewhere', () => {
     expect(alert).toHaveTextContent('Anna Frei: 9.60');
     expect(alert).toHaveTextContent('gespeichert ist 9.10');
     await click('Meine Eingabe speichern');
-    expect(bodies()).toMatchObject([{ grade: { value: 9600 }, previous: { version: 1 } }]);
+    expect(bodies()).toMatchObject([{ grade: { value: 9600 }, version: 1 }]);
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
@@ -523,7 +539,7 @@ describe('the end of a round', () => {
     setup(createData([createSlot('Anna')]));
     type('9.1');
     await click('Kontrolle');
-    expect(localStorage.getItem(`grade:${LINK}:reck:Anna`)).toContain('9.1');
+    expect(localStorage.getItem(`grades:${LINK}`)).toContain('9.1');
   });
 
   it('tells when it could not be confirmed', async () => {
