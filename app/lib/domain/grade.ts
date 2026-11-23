@@ -1,6 +1,6 @@
 import type { Aggregation } from '~/modules/types';
 
-export const MAX_GRADE = 10_000;
+const MAX_GRADE = 10_000;
 
 export type ParsedGrade =
   { ok: true; value: number | null } | { ok: false; error: 'INVALID' | 'RANGE' | 'PRECISION' };

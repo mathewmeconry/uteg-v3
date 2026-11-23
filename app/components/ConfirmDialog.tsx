@@ -26,6 +26,7 @@ export function ConfirmDialog({
   destructive = false,
   action,
   fields = {},
+  onCloseAutoFocus,
 }: {
   trigger: ReactNode;
   title: ReactNode;
@@ -34,6 +35,8 @@ export function ConfirmDialog({
   destructive?: boolean;
   action?: string;
   fields?: Record<string, string | string[]>;
+  /** To focus something else than the trigger afterwards. */
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -47,6 +50,7 @@ export function ConfirmDialog({
       </AlertDialogTrigger>
       <AlertDialogContent
         onCloseAutoFocus={(event) => {
+          if (onCloseAutoFocus) return onCloseAutoFocus(event);
           if (triggerRef.current) return;
           // It was deleted together with its trigger.
           event.preventDefault();

@@ -51,6 +51,11 @@ describe('cleanPng', () => {
     expect(await cleanPng(trailing)).toEqual(addChunks(file, PALETTE, transparency));
   });
 
+  it('leaves out what follows the compressed pixels', async () => {
+    const idat = Buffer.concat([deflateSync(Buffer.alloc(410)), Buffer.from('hidden')]);
+    expect(await cleanPng(createPng(10, 10, { idat }))).toEqual(createPng(10, 10));
+  });
+
   it.each([
     ['much more data than the header says', createPng(10, 10, { pixels: Buffer.alloc(8e6) })],
     ['a byte more', createPng(10, 10, { pixels: Buffer.alloc(411) })],

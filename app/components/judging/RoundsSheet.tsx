@@ -1,5 +1,5 @@
 import { CheckIcon, ListOrderedIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GradeDrafts } from '~/components/grading/useGradeDrafts';
 import { StatusBadge } from '~/components/StatusBadge';
@@ -32,6 +32,7 @@ export function RoundsSheet({
 }) {
   const { t } = useTranslation(['judging', 'common']);
   const [open, setOpen] = useState(false);
+  const hasPicked = useRef(false);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -41,7 +42,17 @@ export function RoundsSheet({
           {t('list.all')}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full gap-0 sm:max-w-md">
+      <SheetContent
+        className="w-full gap-0 sm:max-w-md"
+        onCloseAutoFocus={(event) => {
+          if (!hasPicked.current) return;
+          hasPicked.current = false;
+          // Not the button: the judge wants to enter the grade. The form could not take the focus
+          // while the list was open.
+          event.preventDefault();
+          document.querySelector<HTMLElement>('#content form input')?.focus();
+        }}
+      >
         <SheetHeader className="border-b pr-18">
           <SheetTitle className="font-display text-2xl font-bold">{t('list.all')}</SheetTitle>
           <SheetDescription>{t('list.allText')}</SheetDescription>
@@ -69,6 +80,7 @@ export function RoundsSheet({
                   onSelect={
                     isCurrent || isDone
                       ? (entryId) => {
+                          hasPicked.current = true;
                           onSelect(entryId);
                           setOpen(false);
                         }

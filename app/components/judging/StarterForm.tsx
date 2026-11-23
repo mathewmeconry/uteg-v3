@@ -77,6 +77,9 @@ export function StarterForm({
     if (needsAnswer) fields.current?.lastElementChild?.scrollIntoView?.({ block: 'nearest' });
   }, [needsAnswer]);
 
+  const { leave } = drafts;
+  useEffect(() => () => leave(key), [leave, key]);
+
   function moveOn() {
     onMove(fromReview ? 'review' : (next?.entryId ?? 'review'));
   }

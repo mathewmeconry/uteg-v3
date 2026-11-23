@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { evaluateFields, isSameGrade, type GradeFields } from '~/lib/domain/gradeInput';
+import { evaluateFields, isSameGrade, toFields, type GradeFields } from '~/lib/domain/gradeInput';
 import {
   createRequestId,
   type GradeRequest,
@@ -37,8 +37,12 @@ export type Draft = z.infer<typeof draftSchema> & {
   /** Why the server refused it. Not sent again by itself. */
   rejected: Exclude<(GradeResult & { ok: false })['code'], 'OFFLINE' | 'GONE'> | null;
   saving: boolean;
+  /** The field was not left yet. */
+  typing: boolean;
   /** The last attempt to send it got no answer. */
   failed: boolean;
+  /** What this device saved last, while typing again before the data has it. */
+  lastSaved: { grade: SavedGrade | null; savedAt: number } | null;
   /** Saved, but maybe not yet part of the loaded data. */
   confirmed: { grade: SavedGrade | null; savedAt: number } | null;
 };
@@ -59,6 +63,13 @@ export type Drafts = ReadonlyMap<string, Draft>;
 type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>;
 
 const MAX_UNANSWERED = 100;
+const NOTHING_SENT = {
+  queued: false,
+  requestId: null,
+  unanswered: [],
+  saving: false,
+  failed: false,
+};
 
 export function draftKey({ apparatus, entryId }: { apparatus: string; entryId: string }) {
   return `${apparatus}:${entryId}`;
@@ -67,6 +78,13 @@ export function draftKey({ apparatus, entryId }: { apparatus: string; entryId: s
 /** Whether something of it was sent that the server has not answered. */
 export function wasSent({ requestId, unanswered }: Draft) {
   return requestId !== null || unanswered.length > 0;
+}
+
+/** Whether it says the same as the saved grade it started from, and nothing else was sent. */
+export function isUntouched(draft: Draft) {
+  const { grade, isEmpty } = evaluateFields(draft.fields, draft.inputRule);
+  const isSame = isEmpty ? draft.base === null : grade !== null && isSameGrade(grade, draft.base);
+  return isSame && !wasSent(draft);
 }
 
 /**
@@ -102,7 +120,7 @@ export function createDraftStore({
 
   function write(key: string, draft: Draft | null) {
     try {
-      if (draft && !draft.confirmed) {
+      if (draft && !draft.confirmed && !isUntouched(draft)) {
         storage()?.setItem(`${prefix}:${key}`, JSON.stringify(draftSchema.parse(draft)));
       } else {
         storage()?.removeItem(`${prefix}:${key}`);
@@ -112,8 +130,25 @@ export function createDraftStore({
     }
   }
 
+  /** Back to what is saved, which the loaded data may not have yet. */
+  function drop(key: string) {
+    const draft = drafts.get(key);
+    if (!draft?.lastSaved) return set(key, null);
+    const { lastSaved } = draft;
+    set(key, {
+      ...draft,
+      fields: toFields(lastSaved.grade, draft.inputRule),
+      ...NOTHING_SENT,
+      typing: false,
+      rejected: null,
+      lastSaved: null,
+      confirmed: lastSaved,
+    });
+  }
+
   async function sendDraft(key: string): Promise<GradeResult> {
     const draft = drafts.get(key);
+    if (draft?.confirmed) return { ok: true, savedAt: draft.confirmed.savedAt };
     const grade = draft && evaluateFields(draft.fields, draft.inputRule).grade;
     if (!draft || !grade) return { ok: false, code: 'INVALID_GRADE' };
 
@@ -138,9 +173,9 @@ export function createDraftStore({
       // Whatever was sent before has an older base and is refused if it still arrives.
       const answered = { saving: false, requestId: null, unanswered: [] };
       const saved = result.grade ?? null;
-      if (wasEdited) patch(key, { ...answered, base: saved });
+      const confirmed = { grade: saved, savedAt: result.savedAt };
+      if (wasEdited) patch(key, { ...answered, base: saved, lastSaved: confirmed });
       else {
-        const confirmed = { grade: saved, savedAt: result.savedAt };
         patch(key, { ...answered, queued: false, confirmed });
       }
     } else if (result.code === 'OFFLINE' || result.code === 'GONE') {
@@ -160,12 +195,8 @@ export function createDraftStore({
 
   async function submit(key: string): Promise<GradeResult> {
     const previous = running.get(key);
-    const promise = (previous ?? Promise.resolve()).then(() => {
-      const draft = drafts.get(key);
-      // Confirmed while waiting for the previous attempt.
-      if (draft?.confirmed) return { ok: true, savedAt: draft.confirmed.savedAt } as const;
-      return sendDraft(key);
-    });
+    // It may be confirmed while waiting for the previous attempt.
+    const promise = previous ? previous.then(() => sendDraft(key)) : sendDraft(key);
     running.set(key, promise);
     try {
       return await promise;
@@ -194,9 +225,11 @@ export function createDraftStore({
         if (restored.has(key)) continue;
         restored.set(key, {
           ...parsed.data,
+          typing: false,
           rejected: null,
           saving: false,
           failed: parsed.data.queued,
+          lastSaved: null,
           confirmed: null,
         });
       }
@@ -210,10 +243,6 @@ export function createDraftStore({
       const key = draftKey(slot);
       const existing = drafts.get(key);
       const open = existing?.confirmed ? undefined : existing;
-      const { grade, isEmpty } = evaluateFields(fields, slot.inputRule);
-      const isUnchanged = isEmpty ? saved === null : grade !== null && isSameGrade(grade, saved);
-      // What was sent without an answer may still be saved. Only another request replaces it.
-      if (isUnchanged && !(open && wasSent(open))) return set(key, null);
       const unanswered = [
         ...(open?.unanswered ?? []),
         ...(open?.requestId ? [open.requestId] : []),
@@ -228,9 +257,11 @@ export function createDraftStore({
         queued: false,
         requestId: null,
         unanswered: unanswered.slice(-MAX_UNANSWERED),
+        typing: true,
         rejected: null,
         saving: open?.saving ?? false,
         failed: false,
+        lastSaved: existing?.confirmed ?? existing?.lastSaved ?? null,
         confirmed: null,
       });
     },
@@ -250,8 +281,14 @@ export function createDraftStore({
       return submit(key);
     },
 
-    discard(key: string) {
-      set(key, null);
+    discard: drop,
+
+    /** Typing has ended. Until then also what equals the saved grade stays as it was typed. */
+    leave(key: string) {
+      const draft = drafts.get(key);
+      if (!draft || draft.confirmed) return;
+      if (isUntouched(draft)) drop(key);
+      else patch(key, { typing: false });
     },
 
     async retry() {
@@ -268,12 +305,20 @@ export function createDraftStore({
         }
         const slot = slots.find((item) => draftKey(item) === key);
         if (!slot || draft.saving) continue;
+        // Loaded before the last save of this device.
+        if (draft.lastSaved && draft.lastSaved.savedAt > loadedAt) continue;
         const { grade: saved } = slot;
         const { grade } = evaluateFields(draft.fields, draft.inputRule);
 
         if (saved && saved.requestId !== null && saved.requestId === draft.requestId) {
           set(key, null);
-        } else if (saved && grade && isSameGrade(grade, saved) && !wasSent(draft)) {
+        } else if (
+          saved &&
+          grade &&
+          isSameGrade(grade, saved) &&
+          !wasSent(draft) &&
+          !draft.typing
+        ) {
           set(key, null);
         } else if (saved?.requestId && draft.unanswered.includes(saved.requestId)) {
           // Its answer got lost. Earlier ones have an older base and are refused from now on.
@@ -298,8 +343,8 @@ export function getSlotState(
   slot: GradedSlot,
   { fields, draft, loadedAt }: { fields: GradeFields; draft: Draft | undefined; loadedAt: number },
 ) {
-  const isNewer = draft?.confirmed && draft.confirmed.savedAt > loadedAt;
-  const saved = isNewer ? draft.confirmed!.grade : slot.grade;
+  const own = draft?.confirmed ?? draft?.lastSaved;
+  const saved = own && own.savedAt > loadedAt ? own.grade : slot.grade;
   const open = draft && !draft.confirmed ? draft : null;
   const evaluated = evaluateFields(fields, slot.inputRule);
   const isOwn = (grade: SavedGrade | null) =>
@@ -316,7 +361,7 @@ export function getSlotState(
   return {
     saved,
     evaluated,
-    isDirty: open !== null,
+    isDirty: open !== null && (isConflict || !isUntouched(open)),
     isSaving: open?.saving ?? false,
     /** Submitted, not answered. */
     isWaiting: Boolean(open?.queued && !open.saving),

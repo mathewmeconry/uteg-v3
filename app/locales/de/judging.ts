@@ -124,6 +124,7 @@ export default {
   },
   grading: {
     text: 'Laufende Abteilungen',
+    keys: 'Noten werden automatisch gespeichert. Enter: nächste Person · Esc: Eingabe verwerfen · Alt+Entf oder Alt+Rücktaste: Note löschen',
     nothingRuns: 'Auf diesem Wettkampfplatz läuft keine Abteilung',
     nothingRunsText: 'Starte eine Abteilung, um hier Noten einzugeben.',
     toDivisions: 'Zu den Abteilungen',

@@ -6,6 +6,7 @@ import type { Route } from './+types/grading';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
 import { EmptyState } from '~/components/EmptyState';
+import { GradingSaveStatus } from '~/components/grading/GradingSaveStatus';
 import { GradingTable } from '~/components/grading/GradingTable';
 import { useGradeDrafts } from '~/components/grading/useGradeDrafts';
 import { PageHeader } from '~/components/PageHeader';
@@ -81,7 +82,15 @@ export default function Grading({ loaderData }: Route.ComponentProps) {
   return (
     <>
       <title>{`${t('gradingTitle')} · UTEG`}</title>
-      <PageHeader title={t('gradingTitle')} actions={<ConnectionBadge status={status} />} />
+      <PageHeader
+        title={t('gradingTitle')}
+        actions={
+          <>
+            <GradingSaveStatus drafts={drafts} />
+            <ConnectionBadge status={status} />
+          </>
+        }
+      />
       {competition.grounds > 1 && (
         <nav aria-label={t('common:fields.ground')} className="mb-4 flex flex-wrap gap-2">
           {Array.from({ length: competition.grounds }, (_, index) => index + 1).map((number) => (
@@ -113,6 +122,11 @@ export default function Grading({ loaderData }: Route.ComponentProps) {
         />
       ) : (
         <div className="grid gap-6">
+          {canEdit && (
+            <p className="text-sm text-muted-foreground pointer-coarse:hidden">
+              {t('grading.keys')}
+            </p>
+          )}
           <p className="text-muted-foreground">
             {t('grading.text')}:{' '}
             {divisions

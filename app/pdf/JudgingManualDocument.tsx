@@ -30,6 +30,7 @@ export function JudgingManualDocument({
       {links.map((link) => {
         const apparatus = t(`apparatus.${link.apparatus as 'reck'}`);
         const ground = t('ground', { number: link.ground });
+        const confirm = t('judging:review.confirm');
         return (
           <Page
             key={link.id}
@@ -62,17 +63,19 @@ export function JudgingManualDocument({
               <Step number={1}>{t('pdf:manual.grading1', { next: t('actions.next') })}</Step>
               <Step number={2}>{t('pdf:manual.grading2', { back: t('actions.back') })}</Step>
               <Step number={3}>{t('pdf:manual.grading3')}</Step>
-              <Step number={4}>{t('pdf:manual.grading4')}</Step>
+              <Step number={4}>
+                {t('pdf:manual.grading4', { review: t('judging:toReview'), confirm })}
+              </Step>
             </Section>
-            <Section title={t('pdf:manual.pause')}>
-              <Text>{t('pdf:manual.pause1')}</Text>
+            <Section title={t('judging:pause.title')}>
+              <Text>{t('pdf:manual.pause1', { confirm })}</Text>
             </Section>
-            <Section title={t('pdf:manual.overview')}>
+            <Section title={t('judging:list.all')}>
               <Text>{t('pdf:manual.overview1')}</Text>
             </Section>
             <Section title={t('pdf:manual.changes')}>
               <Text>{t('pdf:manual.changes1')}</Text>
-              <Text>{t('pdf:manual.changes2')}</Text>
+              <Text>{t('pdf:manual.changes2', { continue: t('judging:save.continue') })}</Text>
             </Section>
           </Page>
         );

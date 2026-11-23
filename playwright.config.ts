@@ -2,7 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 import { testDatabaseServer } from './app/tests/database';
 
 const PORT = Number(process.env.E2E_PORT || 5299);
-const DATABASE = 'uteg_test_e2e';
+// Another port gets another database, so runs at the same time do not empty each other's.
+const DATABASE = `uteg_test_e2e_${PORT}`;
 const url = `http://localhost:${PORT}`;
 
 export default defineConfig({

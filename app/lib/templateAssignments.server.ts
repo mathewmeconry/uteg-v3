@@ -62,8 +62,8 @@ export async function unassignTemplate(
 }
 
 /**
- * The groups by the id of their template or the default one, in the order they first appear. Null
- * without templates.
+ * The groups with the id of their template or the default one. Keeps their order, so a template may
+ * come several times. Null without templates.
  */
 export async function groupByTemplate<Group extends { sex: Sex; category: string }>(
   competitionId: string,
@@ -77,8 +77,12 @@ export async function groupByTemplate<Group extends { sex: Sex; category: string
     assignments.find((item) => item.sex === sex && item.category === category)?.templateId ??
     fallback?.id ??
     null;
-  return [...Map.groupBy(groups, find)].map(([templateId, members]) => ({
-    templateId,
-    groups: members,
-  }));
+  const parts: { templateId: string | null; groups: Group[] }[] = [];
+  for (const group of groups) {
+    const templateId = find(group);
+    const last = parts.at(-1);
+    if (last?.templateId === templateId) last.groups.push(group);
+    else parts.push({ templateId, groups: [group] });
+  }
+  return parts;
 }

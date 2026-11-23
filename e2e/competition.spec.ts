@@ -202,7 +202,8 @@ test('a competition from the first login to the ranking', async ({ page, browser
     await reck.getByRole('tab', { name: 'Durchgang 1' }).click();
     const grade = reck.getByRole('listitem').filter({ hasText: 'Anna' });
     await grade.getByRole('textbox').fill('9.95');
-    await grade.getByRole('textbox').press('Enter');
+    // Nobody has to press a button.
+    await page.getByRole('heading', { level: 1 }).click();
     await expect(grade.getByText('Gespeichert: 9.95')).toBeVisible();
   });
 

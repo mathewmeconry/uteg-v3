@@ -8,6 +8,7 @@ import {
   createDraftStore,
   draftKey,
   getSlotState,
+  wasSent,
   type Drafts,
   type GradedSlot,
 } from './draftStore';
@@ -88,11 +89,14 @@ export function useGradeDrafts({
       return { fields, ...getSlotState(slot, { fields, draft, loadedAt }) };
     },
     change: store.change,
+    leave: store.leave,
     submit: (key: string) => afterAnswer(store.submit(key)),
     overwrite: (key: string, saved: SavedGrade | null) => afterAnswer(store.overwrite(key, saved)),
     discard(key: string) {
+      const draft = drafts.get(key);
       store.discard(key);
-      void refresh();
+      // It may have been saved after all.
+      if (draft && wasSent(draft)) void refresh();
     },
     retry,
   };

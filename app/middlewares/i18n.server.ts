@@ -12,7 +12,7 @@ export const languageCookie = createCookie('language', {
   maxAge: 60 * 60 * 24 * 365,
 });
 
-export function acceptedLanguage(header: string | null): Language {
+function acceptedLanguage(header: string | null): Language {
   const codes = (header ?? '')
     .split(',')
     .map((part) => {
