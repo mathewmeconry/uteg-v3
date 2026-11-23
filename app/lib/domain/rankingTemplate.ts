@@ -47,6 +47,8 @@ export const rankingTemplateSchema = z.object({
   /** Above each table. Empty: none, unless categories share pages and need one. */
   groupHeading: text.max(200).default(''),
   newPagePerCategory: z.boolean().default(true),
+  /** Where an uploaded cover goes. Only matters if every category starts on a new page. */
+  cover: z.enum(['once', 'eachCategory']).default('once'),
 });
 
 export type RankingTemplateOptions = z.infer<typeof rankingTemplateSchema>;

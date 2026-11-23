@@ -1,13 +1,15 @@
 import { EllipsisVerticalIcon, FileTextIcon, PlusIcon, TrashIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { data, Form, Link, redirect, useBlocker, useFetcher } from 'react-router';
+import { data, Form, Link, redirect, useBlocker } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/templates';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { EmptyState } from '~/components/EmptyState';
 import { FormField } from '~/components/FormField';
 import { PageHeader } from '~/components/PageHeader';
+import { AssignmentSection, AssignmentSummary } from '~/components/ranking/AssignmentSection';
+import { CoverSection } from '~/components/ranking/CoverSection';
 import { TemplateFields } from '~/components/ranking/TemplateFields';
 import { TemplatePreview, type PreviewGroup } from '~/components/ranking/TemplatePreview';
 import { SubmitButton } from '~/components/SubmitButton';
@@ -30,7 +32,10 @@ import {
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { competitionContext } from '~/context';
+import type { Sex } from '~/generated/prisma/enums';
+import { useActionErrors, useActionFetcher } from '~/hooks/useActionFetcher';
 import { useCompetition } from '~/hooks/useCompetition';
+import { findBrokenCovers, removeCover, setCover } from '~/lib/covers.server';
 import {
   defaultRankingTemplate,
   rankingTemplateSchema,
@@ -42,14 +47,22 @@ import { listRankingGroups } from '~/lib/ranking.server';
 import {
   createRankingTemplate,
   deleteRankingTemplate,
+  duplicateRankingTemplate,
   listRankingTemplates,
   setDefaultRankingTemplate,
   updateRankingTemplate,
 } from '~/lib/rankingTemplates.server';
+import { safeClientAction } from '~/lib/safeClientAction';
+import {
+  assignTemplate,
+  getCompetitionCategories,
+  unassignTemplate,
+} from '~/lib/templateAssignments.server';
 import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
+import { parseRankingGroup } from '~/pdf/request.server';
 
 const NEW = 'new';
 const NAME_LENGTH = 100;
@@ -63,6 +76,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   if (fallback && selected !== NEW && !templates.some((template) => template.id === selected)) {
     throw redirect(`/competitions/${id}/templates?template=${fallback.id}`);
   }
+  const brokenCovers = await findBrokenCovers(id);
   const groups = await Promise.all(
     contests.map(async (contest) =>
       (await listRankingGroups(id, contest.id))
@@ -76,12 +90,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ),
   );
   return {
-    templates: templates.map(({ id: templateId, name, isDefault, options }) => ({
-      id: templateId,
-      name,
-      isDefault,
-      options,
+    templates: templates.map((template) => ({
+      id: template.id,
+      name: template.name,
+      isDefault: template.isDefault,
+      options: template.options,
+      assignments: template.assignments,
+      coverPages: template.coverPages,
+      isCoverBroken: brokenCovers.has(template.id),
     })),
+    categories: getCompetitionCategories(contests),
     // Without templates the address may still name a deleted one.
     selected: templates.length > 0 || selected === NEW ? selected : null,
     previewGroups: groups.flat(),
@@ -91,7 +109,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
   const { id } = requireRole(context, 'EDITOR');
   const t = getT(context);
-  const formData = await readForm(request);
+  const formData = await readForm(request, { allowFiles: true });
   const page = `/competitions/${id}/templates`;
   const templateId = z.string().min(1).safeParse(formData.get('id')).data;
 
@@ -134,18 +152,62 @@ export async function action({ request, context }: Route.ActionArgs) {
         const templates = await listRankingTemplates(id);
         const source = templates.find((template) => template.id === templateId);
         if (!source) throw data(null, 404);
-        await createRankingTemplate(id, {
-          name: t('pdf:templates.copyName', { name: source.name }).slice(0, NAME_LENGTH),
-          options: source.options,
-        });
+        const name = t('pdf:templates.copyName', { name: source.name }).slice(0, NAME_LENGTH);
+        const copy = await duplicateRankingTemplate(id, source.id, name);
         enqueueToast(context, { type: 'success', message: t('pdf:templates.created') });
-        return { errors: undefined };
+        return redirect(`${page}?template=${copy.id}&focus=cover`);
+      }
+
+      case 'assign':
+      case 'unassign': {
+        if (!templateId) throw data(null, 400);
+        const group = parseRankingGroup(String(formData.get('group')));
+        try {
+          if (formData.get('intent') === 'unassign') {
+            await unassignTemplate(id, templateId, group);
+            return { errors: undefined };
+          }
+          const previous = await assignTemplate(id, templateId, group);
+          if (previous !== null) {
+            const category = `${group.category} ${t(`pdf:sex.${group.sex}`)}`;
+            const message = t('pdf:assignments.moved', { category, name: previous });
+            enqueueToast(context, { type: 'info', message });
+          }
+          return { errors: undefined };
+        } catch (error) {
+          return data({ error: domainErrorMessage(error, t) }, 400);
+        }
       }
 
       case 'setDefault': {
         if (!templateId) throw data(null, 400);
         await setDefaultRankingTemplate(id, templateId);
         enqueueToast(context, { type: 'success', message: t('pdf:templates.defaultSet') });
+        return { errors: undefined };
+      }
+
+      case 'cover': {
+        if (!templateId) throw data(null, 400);
+        const files = formData.getAll('page').filter((page) => page instanceof File);
+        try {
+          const pages = await Promise.all(files.map((file) => file.arrayBuffer()));
+          await setCover(
+            id,
+            templateId,
+            pages.map((page) => new Uint8Array(page)),
+          );
+        } catch (error) {
+          const message = domainErrorMessage(error, t);
+          return data({ errors: { cover: message } as Record<string, string> }, 400);
+        }
+        enqueueToast(context, { type: 'success', message: t('pdf:cover.saved') });
+        return { errors: undefined };
+      }
+
+      case 'removeCover': {
+        if (!templateId) throw data(null, 400);
+        await removeCover(id, templateId);
+        enqueueToast(context, { type: 'success', message: t('pdf:cover.removed') });
         return { errors: undefined };
       }
 
@@ -165,13 +227,17 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
+export const clientAction = safeClientAction;
+
 type Template = Route.ComponentProps['loaderData']['templates'][number];
 
 export default function Templates({ loaderData, actionData }: Route.ComponentProps) {
-  const { templates, selected, previewGroups } = loaderData;
+  const { templates, selected, categories, previewGroups } = loaderData;
   const { t } = useTranslation('pdf');
   const { canEdit } = useCompetition();
+  const errors = useActionErrors(actionData);
   const [discards, setDiscards] = useState(0);
+  const [isDirty, setIsDirty] = useState(false);
   const template = templates.find(({ id }) => id === selected);
   const createButton = canEdit && (
     <Button asChild>
@@ -196,7 +262,12 @@ export default function Templates({ loaderData, actionData }: Route.ComponentPro
         <ul className="mb-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {templates.map((item) => (
             <li key={item.id}>
-              <TemplateItem template={item} selected={item.id === selected} />
+              <TemplateItem
+                template={item}
+                selected={item.id === selected}
+                // The copy is opened, which would lose the changes.
+                canDuplicate={!isDirty}
+              />
             </li>
           ))}
         </ul>
@@ -214,23 +285,35 @@ export default function Templates({ loaderData, actionData }: Route.ComponentPro
           // A new template or another one starts over, and after discarding changes.
           key={`${selected} ${discards}`}
           onDiscard={() => setDiscards((count) => count + 1)}
+          onDirtyChange={setIsDirty}
           template={template}
+          templates={templates}
+          categories={categories}
           previewGroups={previewGroups}
-          errors={actionData?.errors}
+          errors={errors}
         />
       )}
     </>
   );
 }
 
-function TemplateItem({ template, selected }: { template: Template; selected: boolean }) {
+function TemplateItem({
+  template,
+  selected,
+  canDuplicate,
+}: {
+  template: Template;
+  selected: boolean;
+  canDuplicate: boolean;
+}) {
   const { t } = useTranslation(['pdf', 'common']);
   const { canEdit } = useCompetition();
-  const fetcher = useFetcher();
+  const { submit: post, pending } = useActionFetcher();
+  const isDuplicating = useRef(false);
   const { id, name, isDefault } = template;
 
   function submit(intent: string) {
-    void fetcher.submit({ intent, id }, { method: 'post' });
+    void post({ intent, id }, { method: 'post' });
   }
 
   return (
@@ -253,6 +336,7 @@ function TemplateItem({ template, selected }: { template: Template; selected: bo
         ) : (
           <span className="block truncate font-medium">{name}</span>
         )}
+        <AssignmentSummary assignments={template.assignments} />
       </div>
       {isDefault && <Badge variant="secondary">{t('templates.default')}</Badge>}
       {canEdit ? (
@@ -263,19 +347,32 @@ function TemplateItem({ template, selected }: { template: Template; selected: bo
                 variant="ghost"
                 size="icon"
                 aria-label={t('templates.actionsFor', { name })}
-                disabled={fetcher.state !== 'idle'}
+                disabled={pending}
               >
                 <EllipsisVerticalIcon aria-hidden />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent
+              align="end"
+              onCloseAutoFocus={(event) => {
+                // The cover of the copy gets the focus.
+                if (isDuplicating.current) event.preventDefault();
+                isDuplicating.current = false;
+              }}
+            >
               {!isDefault && (
                 <DropdownMenuItem onSelect={() => submit('setDefault')}>
                   {t('templates.setDefault')}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onSelect={() => submit('duplicate')}>
-                {t('templates.duplicate')}
+              <DropdownMenuItem
+                disabled={!canDuplicate}
+                onSelect={() => {
+                  isDuplicating.current = true;
+                  submit('duplicate');
+                }}
+              >
+                {canDuplicate ? t('templates.duplicate') : t('templates.duplicateSaveFirst')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -306,14 +403,20 @@ function TemplateItem({ template, selected }: { template: Template; selected: bo
 
 function TemplateEditor({
   template,
+  templates,
+  categories,
   previewGroups,
   errors,
   onDiscard,
+  onDirtyChange,
 }: {
   template: Template | undefined;
+  templates: Template[];
+  categories: Record<Sex, string[]>;
   previewGroups: PreviewGroup[];
-  errors: Record<string, string> | undefined;
+  errors: Record<string, string | undefined>;
   onDiscard: () => void;
+  onDirtyChange: (isDirty: boolean) => void;
 }) {
   const { t } = useTranslation(['pdf', 'common']);
   const { competition } = useCompetition();
@@ -328,34 +431,54 @@ function TemplateEditor({
   const isDirty =
     name.trim() !== saved.name || JSON.stringify(options) !== JSON.stringify(saved.options);
 
+  useEffect(() => {
+    onDirtyChange(isDirty);
+    return () => onDirtyChange(false);
+  }, [isDirty, onDirtyChange]);
+
   return (
     <div className="grid gap-6 xl:grid-cols-2">
-      <Form method="post" className="grid content-start gap-4">
-        {template && <input type="hidden" name="id" value={template.id} />}
-        <input type="hidden" name="options" value={JSON.stringify(options)} />
-        <FormField
-          label={t('form.name')}
-          name="name"
-          required
-          maxLength={NAME_LENGTH}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          error={errors?.name}
-        />
-        <TemplateFields options={options} onChange={setOptions} />
-        <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-3 border-t bg-background px-1 py-3">
-          <SubmitButton name="intent" value="save" disabled={!isValid}>
-            {template ? t('common:actions.save') : t('common:actions.create')}
-          </SubmitButton>
-          {!isValid && (
-            <p role="alert" className="text-sm text-destructive">
-              {t('common:errors.invalid')}
-            </p>
-          )}
-        </div>
-      </Form>
+      <div className="grid content-start gap-4">
+        <CoverSection template={template} options={options} onChange={setOptions} />
+        {template && (
+          <AssignmentSection
+            templateId={template.id}
+            templates={templates}
+            categories={categories}
+          />
+        )}
+        <Form method="post" className="grid content-start gap-4">
+          {template && <input type="hidden" name="id" value={template.id} />}
+          <input type="hidden" name="options" value={JSON.stringify(options)} />
+          <FormField
+            label={t('form.name')}
+            name="name"
+            required
+            maxLength={NAME_LENGTH}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            error={errors.name}
+          />
+          <TemplateFields options={options} onChange={setOptions} />
+          <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-3 border-t bg-background px-1 py-3">
+            <SubmitButton name="intent" value="save" disabled={!isValid}>
+              {template ? t('common:actions.save') : t('common:actions.create')}
+            </SubmitButton>
+            {!isValid && (
+              <p role="alert" className="text-sm text-destructive">
+                {t('common:errors.invalid')}
+              </p>
+            )}
+          </div>
+        </Form>
+      </div>
       <div className="xl:sticky xl:top-20 xl:self-start">
-        <TemplatePreview competitionId={competition.id} options={options} groups={previewGroups} />
+        <TemplatePreview
+          competitionId={competition.id}
+          template={template}
+          options={options}
+          groups={previewGroups}
+        />
       </div>
       <DiscardDialog
         when={isDirty}
