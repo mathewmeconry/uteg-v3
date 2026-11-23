@@ -34,7 +34,7 @@ describe('loader', () => {
     const b = await create(id, 'B');
     const load = (search = '') => callRoute(loader, { competitionId: id, role: 'VIEWER', search });
 
-    const result = await load();
+    const result = await load(`?template=${a.id}`);
     expect(result.templates).toMatchObject([
       { id: a.id, name: 'A', isDefault: true, options: { title: 'Titel' } },
       { id: b.id, name: 'B', isDefault: false },
@@ -45,7 +45,19 @@ describe('loader', () => {
     ]);
     expect((await load(`?template=${b.id}`)).selected).toBe(b.id);
     expect((await load('?template=new')).selected).toBe('new');
-    expect((await load('?template=unknown')).selected).toBe(a.id);
+    for (const search of ['', '?template=unknown']) {
+      expect((await load(search)).headers.get('Location')).toBe(
+        `/competitions/${id}/templates?template=${a.id}`,
+      );
+    }
+  });
+
+  it('selects nothing without templates', async () => {
+    const { id } = await createCompetition();
+    for (const search of ['', '?template=deleted']) {
+      const result = await callRoute(loader, { competitionId: id, role: 'VIEWER', search });
+      expect(result.selected).toBeNull();
+    }
   });
 
   it('is hidden from strangers', async () => {
@@ -83,12 +95,24 @@ describe('action', () => {
     [{ name: ' ', options: '{}' }, { name: 'Bitte ausfüllen' }],
     [{ name: 'A', options: '{"fontSize":99}' }, { 'options.fontSize': expect.any(String) }],
     [{ name: 'A', options: '{' }, { options: expect.any(String) }],
+    [{ name: 'A', options: '{"title":"\\u0000"}' }, { 'options.title': expect.any(String) }],
+    [
+      { name: 'A', options: JSON.stringify({ footer: 'a\n'.repeat(5) }) },
+      { 'options.footer': expect.any(String) },
+    ],
   ])('rejects %j', async (fields, errors) => {
     const { id } = await createCompetition();
     const result = await post(id, { intent: 'save', ...fields });
     expect(result.init.status).toBe(400);
     expect(result.data.errors).toMatchObject(errors);
     expect(await list(id)).toEqual([]);
+  });
+
+  it('answers NUL and other content types with 400', async () => {
+    const { id } = await createCompetition();
+    expect((await post(id, { intent: 'save', name: 'A\0', options: '{}' })).status).toBe(400);
+    const response = await callRoute(action, { competitionId: id, role: 'EDITOR', text: 'x' });
+    expect(response.status).toBe(400);
   });
 
   it('duplicates, sets the default and deletes', async () => {

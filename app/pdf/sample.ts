@@ -36,11 +36,13 @@ export function createSampleGroups(): RankingGroup[] {
     return {
       category,
       sex: 'FEMALE',
-      provisional: false,
+      status: null,
+      missingGrades: 0,
+      precision: 2,
       apparatus: APPARATUS,
       ...rankEntries(entries, APPARATUS, {
         tieBreak: APPARATUS,
-        precision: 3,
+        precision: 2,
         honourPercent: 50,
         honourRounding: 'round',
       }),

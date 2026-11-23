@@ -1,33 +1,38 @@
 import { crc32, deflateSync } from 'node:zlib';
-import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
-import { fillPlaceholders, rankingTemplateSchema } from '~/lib/domain/rankingTemplate';
-import { createI18n } from '~/lib/i18n';
-import { NAMESPACES } from '~/locales';
+import {
+  fillPlaceholders,
+  rankingTemplateSchema,
+  type RankingTemplateOptions,
+} from '~/lib/domain/rankingTemplate';
 import { findOverlaps, readPdf } from '~/tests/pdf';
-import { contentDisposition, pdfResponse } from './pdf.server';
-import { RankingDocument, type RankingDocumentProps, type RankingGroup } from './RankingDocument';
+import { renderPdf } from './render.server';
+import type { RankingDocumentProps, RankingGroup } from './RankingDocument';
+import { contentDisposition } from './response.server';
 import { createSampleGroups } from './sample';
 
 const PNG = createPng();
+const COMPETITION = { name: 'Gerätecup', location: 'Zürich', date: '9. Mai 2026' };
 
 async function render(
   options: object = {},
-  { groups = createSampleGroups(), ...props }: Partial<RankingDocumentProps> = {},
+  {
+    groups = createSampleGroups(),
+    ...props
+  }: Partial<Pick<RankingDocumentProps, 'groups' | 'logo' | 'competition'>> = {},
 ) {
-  const response = await pdfResponse(
-    createElement(RankingDocument, {
+  const pdf = await renderPdf({
+    type: 'ranking',
+    language: 'de',
+    props: {
       groups,
       options: rankingTemplateSchema.parse(options),
-      competition: { name: 'Gerätecup', location: 'Zürich', date: '9. Mai 2026' },
+      competition: COMPETITION,
       logo: null,
-      t: createI18n('de').getFixedT(null, NAMESPACES),
-      language: 'de',
       ...props,
-    }),
-    'Rangliste',
-  );
-  return readPdf(response);
+    },
+  });
+  return readPdf(pdf);
 }
 
 const [k5, k6] = createSampleGroups();
@@ -214,12 +219,104 @@ describe('ranking PDF', () => {
     expect(pages[1].text).toContain('Final K6');
   });
 
-  it('marks provisional and empty rankings', async () => {
-    const [provisional] = await render({}, { groups: [{ ...k5, provisional: true }] });
-    expect(provisional.text).toContain('Provisorisch');
-    const [empty] = await render({}, { groups: [{ ...k5, entries: [] }] });
-    expect(empty.text).toContain('Keine Resultate');
-    expect(empty.text).not.toContain('Provisorisch');
+  it('marks provisional, incomplete and empty rankings', async () => {
+    const text = async (group: Partial<RankingGroup>) =>
+      (await render({}, { groups: [{ ...k5, ...group }] }))[0].text;
+    expect(await text({ status: 'provisional' })).toContain('Provisorisch');
+    expect(await text({ status: 'incomplete' })).toContain('Unvollständig');
+    expect(await text({ missingGrades: 1 })).toContain('1 Note fehlt');
+    expect(await text({ missingGrades: 3 })).toContain('3 Noten fehlen');
+    const empty = await text({ entries: [] });
+    expect(empty).toContain('Keine Resultate');
+    expect(empty).not.toMatch(/Provisorisch|Unvollständig|fehl/);
+  });
+
+  it('prints the decimals the ranks are based on and highlights what is best then', async () => {
+    const group: RankingGroup = {
+      ...k5,
+      precision: 3,
+      best: { ...k5.best, reck: 9124 },
+      entries: k5.entries.map((entry, index) => ({
+        ...entry,
+        values: { ...entry.values, reck: 9124 - Math.min(index, 1) * 3 },
+      })),
+    };
+    const [page] = await render({ decimals: 2 }, { groups: [group] });
+    expect(page.items.filter(({ text }) => text === '9.12')).toEqual([]);
+    expect(page.items.filter(({ text }) => text === '9.124').map(({ bold }) => bold)).toEqual([
+      true,
+    ]);
+    expect(page.items.find(({ text }) => text === '9.121')).toMatchObject({ bold: false });
+  });
+
+  // Both made react-pdf add pages forever.
+  it.each(['portrait', 'landscape'] as const)(
+    'limits a long title, subtitle, heading and footer on %s pages',
+    async (orientation) => {
+      const competition = { ...COMPETITION, name: 'Wettkampf '.repeat(19) };
+      const long = '{competition} '.repeat(14);
+      const options = {
+        ...rankingTemplateSchema.parse({
+          orientation,
+          title: long,
+          subtitle: long,
+          groupHeading: long,
+          signatureLabels: Array.from({ length: 4 }, () => 'W'.repeat(100)),
+        }),
+        // More than the schema allows, and placeholders make it longer.
+        footer: `${'a\n'.repeat(100)}{competition}`,
+      } satisfies RankingTemplateOptions;
+      const pages = await readPdf(
+        await renderPdf({
+          type: 'ranking',
+          language: 'de',
+          props: { groups: createSampleGroups(), options, competition, logo: PNG },
+        }),
+      );
+      expect(pages.length).toBeLessThan(6);
+      for (const { items } of pages) expect(findOverlaps(items)).toEqual([]);
+    },
+  );
+
+  it('keeps a heading, its table header and the first row together', async () => {
+    for (let count = 34; count < 48; count++) {
+      const entries = Array.from({ length: count }, (_, index) => ({
+        ...k5.entries[0],
+        id: String(index),
+      }));
+      const pages = await render(
+        { newPagePerCategory: false },
+        {
+          groups: [
+            { ...k5, entries },
+            { ...k6, status: 'incomplete', missingGrades: 2 },
+          ],
+        },
+      );
+      const page = pages.find(({ items }) =>
+        items.some(({ text, bold }) => bold && text === 'K6 Turnerinnen'),
+      )!;
+      expect(page.text, `${count} rows`).toMatch(/Unvollständig.*Rang.*Maria-Alexandra/);
+    }
+  }, 30_000);
+
+  it('never adds a hyphen to a name', async () => {
+    const names = ['Anna-Katharina', 'Oberholzer-Niedermann', 'Wolfeschlegelsteinhausenberger'];
+    const entries = names.map((lastname, index) => ({ ...k5.entries[index], lastname }));
+    const [page] = await render(
+      { nameFormat: 'separate', fontSize: 16, columns: { location: true } },
+      { groups: [{ ...k5, entries }] },
+    );
+    const joined = page.items.map(({ text }) => text).join('');
+    const hyphens = [...names, ...entries.flatMap((e) => [e.firstname, e.clubName, e.clubLocation])]
+      .join('')
+      .split('-').length;
+    expect(
+      joined
+        .slice(joined.indexOf('Total'))
+        .replace(/\d+ \/ \d+$/, '')
+        .split('-'),
+    ).toHaveLength(hyphens);
   });
 
   it('repeats the headers on every page and never splits a row', async () => {
@@ -227,7 +324,7 @@ describe('ranking PDF', () => {
       k5.entries.map((entry) => ({ ...entry, id: `${copy}-${entry.id}` })),
     ).flat();
     const pages = await render(
-      { footer: 'Zeile\n'.repeat(5) + 'Ende' },
+      { footer: 'Zeile\n\n\n' + 'W M '.repeat(60) },
       { groups: [{ ...k5, entries }] },
     );
     expect(pages.length).toBeGreaterThan(2);

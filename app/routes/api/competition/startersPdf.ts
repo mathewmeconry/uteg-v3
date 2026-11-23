@@ -1,40 +1,39 @@
-import { createElement } from 'react';
 import { data } from 'react-router';
 import type { Route } from './+types/startersPdf';
 import { competitionContext, languageContext, type Context } from '~/context';
 import { listStarters } from '~/lib/starters.server';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
-import { pdfResponse } from '~/pdf/pdf.server';
-import { StartersDocument, type ClubGroup, type StarterRow } from '~/pdf/StartersDocument';
+import { readParams } from '~/pdf/request.server';
+import { pdfResponse } from '~/pdf/response.server';
+import type { ClubGroup, StarterRow } from '~/pdf/StartersDocument';
 
 /** All starters, or those with `?id=…&id=…`. */
 export function loader({ request, context }: Route.LoaderArgs) {
-  return startersPdf(context, new URL(request.url).searchParams);
+  return startersPdf(request, context);
 }
 
 /** The same as a form, for many ids. */
-export async function action({ request, context }: Route.ActionArgs) {
+export function action({ request, context }: Route.ActionArgs) {
   requireRole(context, 'VIEWER');
-  return startersPdf(context, await request.formData());
+  return startersPdf(request, context);
 }
 
-async function startersPdf(context: Context, params: URLSearchParams | FormData) {
+async function startersPdf(request: Request, context: Context) {
   const competition = context.get(competitionContext);
   const t = getT(context);
-  const ids = new Set(params.getAll('id').map(String));
+  const ids = new Set((await readParams(request)).getAll('id'));
   const all = await listStarters(competition.id);
   const starters = ids.size > 0 ? all.filter(({ id }) => ids.has(id)) : all;
   if (ids.size > 0 && starters.length !== ids.size) throw data(null, 404);
 
   return pdfResponse(
-    createElement(StartersDocument, {
-      clubs: groupByClub(starters),
-      competitionName: competition.name,
-      t,
+    {
+      type: 'starters',
       language: context.get(languageContext),
-    }),
-    `${t('pdf:starters.title')} ${competition.name}`,
+      props: { clubs: groupByClub(starters), competitionName: competition.name },
+    },
+    { name: `${t('pdf:starters.title')} ${competition.name}`, signal: request.signal, t },
   );
 }
 

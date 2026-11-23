@@ -68,7 +68,9 @@ export default {
       separate: 'Getrennte Spalten',
     },
     results: 'Resultate',
+    footerHint: 'Höchstens {{count}} Zeilen.',
     decimals: 'Nachkommastellen',
+    decimalsHint: 'Nie weniger als in der Wertung.',
     medalStyle: 'Medaillen',
     medalStyles: { letters: 'Buchstaben (G, S, B)', icons: 'Symbole', none: 'Keine' },
     highlightBest: 'Beste Noten pro Gerät hervorheben',
@@ -87,7 +89,12 @@ export default {
     total: 'Total',
     empty: 'Keine Resultate',
     provisional: 'Provisorisch – es wird noch geturnt',
+    incomplete: 'Unvollständig – es laufen noch Abteilungen',
+    missingGrades_one: '{{count}} Note fehlt und zählt als 0',
+    missingGrades_other: '{{count}} Noten fehlen und zählen als 0',
   },
+  unavailable:
+    'Das PDF konnte nicht erstellt werden, weil es zu gross ist oder gerade zu viele erstellt werden. Versuche es später nochmals oder mit weniger Inhalt.',
   division: '{{category}} {{sex}}, Abteilung {{number}}',
   sheets: {
     title: 'Notenblätter',

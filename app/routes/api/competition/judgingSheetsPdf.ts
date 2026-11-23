@@ -1,30 +1,29 @@
-import { createElement } from 'react';
 import { data } from 'react-router';
 import type { Route } from './+types/judgingSheetsPdf';
 import { competitionContext, languageContext, type Context } from '~/context';
 import { getGradingState } from '~/lib/judging.server';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
-import { JudgingSheetsDocument } from '~/pdf/JudgingSheetsDocument';
-import { pdfResponse } from '~/pdf/pdf.server';
-import { parseGround } from '~/pdf/request.server';
+import { parseGround, readParams } from '~/pdf/request.server';
+import { pdfResponse } from '~/pdf/response.server';
 
 /** `?division=<id>&division=…`, or `?ground=1&ground=…` for the divisions running there. */
 export function loader({ request, context }: Route.LoaderArgs) {
-  return judgingSheetsPdf(context, new URL(request.url).searchParams);
+  return judgingSheetsPdf(request, context);
 }
 
 /** The same as a form, for many divisions. */
-export async function action({ request, context }: Route.ActionArgs) {
+export function action({ request, context }: Route.ActionArgs) {
   requireRole(context, 'VIEWER');
-  return judgingSheetsPdf(context, await request.formData());
+  return judgingSheetsPdf(request, context);
 }
 
-async function judgingSheetsPdf(context: Context, params: URLSearchParams | FormData) {
+async function judgingSheetsPdf(request: Request, context: Context) {
   const competition = context.get(competitionContext);
   const t = getT(context);
-  const divisionIds = [...new Set(params.getAll('division').map(String))];
-  const grounds = [...new Set(params.getAll('ground').map((value) => parseGround(String(value))))];
+  const params = await readParams(request);
+  const divisionIds = [...new Set(params.getAll('division'))];
+  const grounds = [...new Set(params.getAll('ground').map(parseGround))];
   if (divisionIds.length === 0 && grounds.length === 0) throw data(null, 400);
   if (grounds.some((ground) => ground > competition.grounds)) throw data(null, 404);
 
@@ -36,13 +35,12 @@ async function judgingSheetsPdf(context: Context, params: URLSearchParams | Form
     })),
   ]);
   return pdfResponse(
-    createElement(JudgingSheetsDocument, {
-      grounds: states,
-      competitionName: competition.name,
-      t,
+    {
+      type: 'judgingSheets',
       language: context.get(languageContext),
-    }),
-    `${t('pdf:sheets.title')} ${competition.name}`,
+      props: { grounds: states, competitionName: competition.name },
+    },
+    { name: `${t('pdf:sheets.title')} ${competition.name}`, signal: request.signal, t },
   );
 }
 

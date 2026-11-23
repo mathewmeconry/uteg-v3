@@ -14,6 +14,7 @@ import {
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
 import {
+  MAX_FOOTER_LINES,
   PLACEHOLDERS,
   rankingTemplateSchema,
   type RankingTemplateOptions,
@@ -100,7 +101,11 @@ export function TemplateFields({
         {text('title')}
         {text('subtitle')}
         {text('groupHeading', t('form.groupHeadingHint'))}
-        <FormField label={t('form.footer')} error={errorOf('footer')}>
+        <FormField
+          label={t('form.footer')}
+          hint={t('form.footerHint', { count: MAX_FOOTER_LINES })}
+          error={errorOf('footer')}
+        >
           {(props) => (
             <Textarea
               {...props}
@@ -187,6 +192,7 @@ export function TemplateFields({
         <Columns>
           <SelectField
             label={t('form.decimals')}
+            hint={t('form.decimalsHint')}
             value={String(options.decimals)}
             items={[
               ['2', '2'],
@@ -244,17 +250,19 @@ function CheckField({
 
 function SelectField<Value extends string>({
   label,
+  hint,
   value,
   items,
   onChange,
 }: {
   label: string;
+  hint?: string;
   value: Value;
   items: [Value, string][];
   onChange: (value: Value) => void;
 }) {
   return (
-    <FormField label={label}>
+    <FormField label={label} hint={hint}>
       {(props) => (
         <Select value={value} onValueChange={(next) => onChange(next as Value)}>
           <SelectTrigger {...props} className="w-full">

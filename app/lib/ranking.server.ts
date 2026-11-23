@@ -68,6 +68,10 @@ export async function getRanking(
     options,
     /** Entries of running divisions are missing, or not final when provisional. */
     hasRunning: running > 0,
+    /** Grades that count as zero because they were never entered or deleted afterwards. */
+    missingGrades: entries
+      .map(({ grades }) => new Set(grades.map((grade) => grade.apparatus)))
+      .reduce((sum, graded) => sum + apparatus.filter((key) => !graded.has(key)).length, 0),
     lastUpdated: changes.length ? new Date(Math.max(...changes)) : null,
   };
 }

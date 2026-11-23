@@ -37,6 +37,7 @@ export async function readPdf(source: Response | Uint8Array) {
       items: texts,
       text: texts.map(({ text }) => text).join(' '),
       images: operators.fnArray.filter((operator) => operator === OPS.paintImageXObject).length,
+      links: (await page.getAnnotations()).flatMap(({ unsafeUrl }) => unsafeUrl ?? []),
       imageX: findImageX(operators),
       colors: operators.fnArray.flatMap((operator, index) =>
         operator === OPS.setFillRGBColor || operator === OPS.setStrokeRGBColor

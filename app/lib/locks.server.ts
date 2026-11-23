@@ -17,6 +17,11 @@ export async function lockAthletes(tx: Prisma.TransactionClient) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('athlete'))`;
 }
 
+/** For changing the config of a contest. Waits for everyone who computes with it. */
+export async function lockContest(tx: Prisma.TransactionClient, contestId: string) {
+  await tx.$executeRaw`SELECT id FROM contest WHERE id = ${contestId} FOR NO KEY UPDATE`;
+}
+
 /**
  * Keeps the state, lineups and progress of divisions still. Locked in one order, so transactions
  * locking several cannot block each other. Without ids all divisions of the competition.

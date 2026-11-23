@@ -14,6 +14,8 @@ export default {
   runningText: 'Die Rangliste ist nicht vollständig.',
   provisionalText: 'Die Rangliste ist provisorisch und kann sich noch ändern.',
   provisional: 'Provisorisch (laufende Abteilungen mitzählen)',
+  missingGrades_one: '{{count}} Note fehlt und zählt als 0',
+  missingGrades_other: '{{count}} Noten fehlen und zählen als 0',
   emptyTitle: 'Noch keine Resultate',
   emptyText: 'Sobald eine Abteilung dieser Kategorie beendet ist, erscheint hier die Rangliste.',
   lastUpdated: 'Letzte Note: {{date}}',

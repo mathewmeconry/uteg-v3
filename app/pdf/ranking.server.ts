@@ -1,12 +1,11 @@
-import { createElement } from 'react';
 import type { Sex } from '~/generated/prisma/client';
 import { getLogo } from '~/lib/assets.server';
 import type { RankingTemplateOptions } from '~/lib/domain/rankingTemplate';
 import { formatDateRange } from '~/lib/format';
 import { getRanking } from '~/lib/ranking.server';
 import type { Language, ServerT } from '~/locales';
-import { RankingDocument, type RankingGroup } from './RankingDocument';
-import { pdfResponse } from './pdf.server';
+import type { RankingGroup } from './RankingDocument';
+import { pdfResponse } from './response.server';
 
 type Competition = {
   id: string;
@@ -21,20 +20,33 @@ export async function loadRankingGroup(
   contestId: string,
   { category, sex, provisional }: { category: string; sex: Sex; provisional: boolean },
 ): Promise<RankingGroup> {
-  const ranking = await getRanking(competitionId, contestId, { category, sex, provisional });
-  return { ...ranking, category, sex, provisional: provisional && ranking.hasRunning };
+  const { hasRunning, options, ...ranking } = await getRanking(competitionId, contestId, {
+    category,
+    sex,
+    provisional,
+  });
+  const status = provisional ? 'provisional' : 'incomplete';
+  return {
+    ...ranking,
+    category,
+    sex,
+    status: hasRunning ? status : null,
+    precision: options.precision,
+  };
 }
 
 export async function rankingPdfResponse({
   competition,
   groups,
   options,
+  signal,
   t,
   language,
 }: {
   competition: Competition;
   groups: RankingGroup[];
   options: RankingTemplateOptions;
+  signal: AbortSignal;
   t: ServerT;
   language: Language;
 }) {
@@ -42,14 +54,16 @@ export async function rankingPdfResponse({
   const { name, location, startDate, endDate } = competition;
   const labels = groups.map(({ category, sex }) => `${category} ${t(`pdf:sex.${sex}`)}`);
   return pdfResponse(
-    createElement(RankingDocument, {
-      groups,
-      options,
-      competition: { name, location, date: formatDateRange(startDate, endDate, language) },
-      logo,
-      t,
+    {
+      type: 'ranking',
       language,
-    }),
-    [t('ranking:title'), ...(labels.length > 3 ? [] : labels), name].join(' '),
+      props: {
+        groups,
+        options,
+        competition: { name, location, date: formatDateRange(startDate, endDate, language) },
+        logo,
+      },
+    },
+    { name: [t('ranking:title'), ...(labels.length > 3 ? [] : labels), name].join(' '), signal, t },
   );
 }

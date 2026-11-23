@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
-import type { AccessKind } from '~/generated/prisma/client';
+import type { AccessKind, AccessLink } from '~/generated/prisma/client';
 import { getContestsApparatus } from '~/modules/registry';
+import { APP_ORIGIN } from './env.server';
 import { DomainError } from './errors';
 import { publish } from './events.server';
 import { lockCompetition } from './locks.server';
@@ -88,6 +89,11 @@ export async function resetAllTokens(competitionId: string, kind: AccessKind) {
     }
   });
   publish(competitionId, 'settings');
+}
+
+/** The address behind the QR code. Browsers never send the part after "#", so no log has the key. */
+export function accessUrl({ id, kind, token }: Pick<AccessLink, 'id' | 'kind' | 'token'>) {
+  return `${APP_ORIGIN}/${kind.toLowerCase()}/${id}#${token}`;
 }
 
 /** The link a token opens, null for unknown tokens and the wrong kind. */

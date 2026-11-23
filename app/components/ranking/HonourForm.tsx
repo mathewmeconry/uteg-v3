@@ -22,10 +22,16 @@ export function HonourForm({
   const id = useId();
   const fetcher = useFetcher<{ errors?: { percent?: string } }>();
   const [value, setValue] = useState(String(percent));
-  const error = fetcher.data?.errors?.percent;
+  const [submitted, setSubmitted] = useState<string>();
+  const error = value === submitted ? fetcher.data?.errors?.percent : undefined;
+  const isChanged = value.trim() === '' || Number(value.replace(',', '.')) !== percent;
 
   return (
-    <fetcher.Form method="post" className="flex flex-wrap items-center gap-x-2 gap-y-1">
+    <fetcher.Form
+      method="post"
+      className="flex flex-wrap items-center gap-x-2 gap-y-1"
+      onSubmit={() => setSubmitted(value)}
+    >
       <input type="hidden" name="sex" value={sex} />
       <input type="hidden" name="category" value={category} />
       <Label htmlFor={id}>{t('honourPercent')}</Label>
@@ -40,7 +46,7 @@ export function HonourForm({
         aria-invalid={Boolean(error)}
         aria-describedby={`${id}-hint`}
       />
-      {value !== String(percent) && (
+      {isChanged && (
         <SubmitButton size="sm" pending={fetcher.state !== 'idle'}>
           {t('common:actions.save')}
         </SubmitButton>

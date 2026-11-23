@@ -50,6 +50,7 @@ import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
+import { readForm } from '~/pdf/request.server';
 
 const NEW = 'new';
 const NAME_LENGTH = 100;
@@ -57,21 +58,24 @@ const NAME_LENGTH = 100;
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { id, contests } = context.get(competitionContext);
   const selected = new URL(request.url).searchParams.get('template');
-  const [templates, groups] = await Promise.all([
-    listRankingTemplates(id),
-    Promise.all(
-      contests.map(async (contest) =>
-        (await listRankingGroups(id, contest.id))
-          .filter(({ hasEnded }) => hasEnded)
-          .map(({ sex, category }): PreviewGroup => ({
-            contestId: contest.id,
-            contestName: contest.name,
-            sex,
-            category,
-          })),
-      ),
+  const templates = await listRankingTemplates(id);
+  // In the address, so the editor keeps its template when the default changes.
+  const fallback = templates.find(({ isDefault }) => isDefault);
+  if (fallback && selected !== NEW && !templates.some((template) => template.id === selected)) {
+    throw redirect(`/competitions/${id}/templates?template=${fallback.id}`);
+  }
+  const groups = await Promise.all(
+    contests.map(async (contest) =>
+      (await listRankingGroups(id, contest.id))
+        .filter(({ hasEnded }) => hasEnded)
+        .map(({ sex, category }): PreviewGroup => ({
+          contestId: contest.id,
+          contestName: contest.name,
+          sex,
+          category,
+        })),
     ),
-  ]);
+  );
   return {
     templates: templates.map(({ id: templateId, name, isDefault, options }) => ({
       id: templateId,
@@ -79,13 +83,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       isDefault,
       options,
     })),
-    selected:
-      selected === NEW
-        ? NEW
-        : (
-            templates.find((template) => template.id === selected) ??
-            templates.find(({ isDefault }) => isDefault)
-          )?.id,
+    // Without templates the address may still name a deleted one.
+    selected: templates.length > 0 || selected === NEW ? selected : null,
     previewGroups: groups.flat(),
   };
 }
@@ -93,7 +92,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
   const { id } = requireRole(context, 'EDITOR');
   const t = getT(context);
-  const formData = await request.formData();
+  const formData = await readForm(request);
   const page = `/competitions/${id}/templates`;
   const templateId = z.string().min(1).safeParse(formData.get('id')).data;
 
@@ -322,7 +321,9 @@ function TemplateEditor({
   const [name, setName] = useState(saved.name);
   const [options, setOptions] = useState<RankingTemplateOptions>(saved.options);
   const isValid = rankingTemplateSchema.safeParse(options).success;
-  const isDirty = name !== saved.name || JSON.stringify(options) !== JSON.stringify(saved.options);
+  // Saving trims the name.
+  const isDirty =
+    name.trim() !== saved.name || JSON.stringify(options) !== JSON.stringify(saved.options);
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">

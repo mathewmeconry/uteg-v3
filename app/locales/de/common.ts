@@ -144,6 +144,7 @@ export default {
     FORBIDDEN: 'Dafür fehlt dir die Berechtigung.',
     GRADES_MISSING: 'Es fehlen noch Noten.',
     GROUND_IN_USE: 'Der Wettkampfplatz wird noch verwendet.',
+    IMAGE_TOO_LARGE: 'Das Bild darf höchstens 4000 × 4000 Pixel gross sein.',
     INVALID_APPARATUS: 'Ungültiges Gerät.',
     INVALID_CATEGORY: 'Ungültige Kategorie.',
     INVALID_CONFIG: 'Ungültige Einstellungen.',

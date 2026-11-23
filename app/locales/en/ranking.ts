@@ -17,6 +17,8 @@ export default {
   runningText: 'The ranking is not complete.',
   provisionalText: 'The ranking is provisional and can still change.',
   provisional: 'Provisional (include running divisions)',
+  missingGrades_one: '{{count}} grade is missing and counts as 0',
+  missingGrades_other: '{{count}} grades are missing and count as 0',
   emptyTitle: 'No results yet',
   emptyText: 'The ranking appears here as soon as a division of this category has ended.',
   lastUpdated: 'Last grade: {{date}}',

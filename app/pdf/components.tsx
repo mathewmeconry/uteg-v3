@@ -1,8 +1,9 @@
 import { Image, Text, View, type ViewProps } from '@react-pdf/renderer';
-import { isValidElement, type ReactNode } from 'react';
+import { isValidElement, useRef, type ReactNode } from 'react';
 
 type Style = Extract<NonNullable<ViewProps['style']>, { length?: never }> | Record<string, unknown>;
 
+export const FONT = 'Roboto';
 const BORDER = '#d4d4d8';
 export const MUTED = '#52525b';
 
@@ -17,12 +18,25 @@ export function LogoImage({ logo, height = 36 }: { logo: Logo; height?: number }
   );
 }
 
+/** Cuts off text after some lines. */
+export function clamp(maxLines: number) {
+  return { maxLines, textOverflow: 'ellipsis' } as const;
+}
+
 /** A table column. Columns with `flex` share what the fixed ones leave. */
 export type Column = { width: number } | { flex: number };
 
-/** Where a long word may break: anywhere, but not just before its end. */
+/**
+ * Where a word may break: after its hyphens, and anywhere if it is long. The empty parts let
+ * react-pdf break without adding a hyphen, which would change names.
+ */
 export function breakWord(word: string, maxLength: number) {
-  return word.length > maxLength ? (word.match(/.{1,4}(?!.{1,2}$)/gu) ?? [word]) : [word];
+  return word
+    .split(/(?<=[-/])(?=.)/u)
+    .flatMap((part) =>
+      part.length > maxLength ? (part.match(/.{1,4}(?!.{1,2}$)/gu) ?? [part]) : [part],
+    )
+    .flatMap((part, index) => (index === 0 ? [part] : ['', part]));
 }
 
 /** Text in a column. Long text wraps inside of it. */
@@ -42,34 +56,64 @@ export function Cell({
       ? // minWidth 0, otherwise the longest word makes columns differ between rows.
         { flexGrow: column.flex, flexShrink: 1, flexBasis: 0, minWidth: 0 }
       : { width: column.width, flexShrink: 0, flexGrow: 0 };
+  const box = { ...size, paddingHorizontal: 3, paddingVertical: 2 };
+  if (isValidElement(children)) {
+    return <View style={{ ...box, alignItems: 'center' }}>{children}</View>;
+  }
   return (
-    <View
-      style={{
-        ...size,
-        alignItems: isValidElement(children) ? 'center' : 'stretch',
-        paddingHorizontal: 3,
-        paddingVertical: 2,
-      }}
+    <Text
+      hyphenationCallback={(word) => breakWord(word, 12)}
+      style={{ ...box, textAlign: align, ...style }}
     >
-      {isValidElement(children) ? (
-        children
-      ) : (
-        <Text
-          hyphenationCallback={(word) => breakWord(word, 12)}
-          style={{ textAlign: align, ...style }}
-        >
-          {children}
-        </Text>
+      {children}
+    </Text>
+  );
+}
+
+/**
+ * A table whose header is repeated on every page it continues on. The first row stays together
+ * with the header and with `title`. react-pdf's minPresenceAhead has no effect on tables that can
+ * break, so the start is one block and the repeated header is left out on its page.
+ */
+export function Table({
+  title,
+  header,
+  rows,
+}: {
+  title?: ReactNode;
+  header: ReactNode;
+  rows: ReactNode[];
+}) {
+  const startPage = useRef(0);
+  return (
+    <View style={{ marginBottom: 18 }}>
+      <View wrap={false}>
+        <View
+          render={({ pageNumber }) => {
+            startPage.current = pageNumber;
+            return null;
+          }}
+        />
+        {title}
+        {header}
+        {rows[0]}
+      </View>
+      {rows.length > 1 && (
+        <View>
+          <View
+            fixed
+            render={({ pageNumber }) => (pageNumber === startPage.current ? null : header)}
+          />
+          {rows.slice(1)}
+        </View>
       )}
     </View>
   );
 }
 
-/** Repeated on every page the table continues on. */
 export function HeaderRow({ style, children }: { style?: Style; children: ReactNode }) {
   return (
     <View
-      fixed
       style={{
         flexDirection: 'row',
         alignItems: 'center',

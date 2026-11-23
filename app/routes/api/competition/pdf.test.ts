@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { rankingTemplateSchema } from '~/lib/domain/rankingTemplate';
-import { getOrCreateJudgeLinks } from '~/lib/access.server';
+import { accessUrl, getOrCreateJudgeLinks } from '~/lib/access.server';
 import { createRankingTemplate } from '~/lib/rankingTemplates.server';
 import {
   createClub,
@@ -69,6 +69,10 @@ describe('ranking', () => {
     expect(pages).toHaveLength(2);
     expect(pages[1]).toContain('Keine Resultate');
 
+    expect(pages[1]).toContain('Unvollständig');
+    // Only the Reck grade of K5 is there.
+    expect(pages[0]).toContain('3 Noten fehlen');
+
     const provisional = await call(`?contest=${contest.id}&group=MALE:K6&provisional=1`);
     expect((await readText(provisional))[0]).toMatch(/Provisorisch.*Noah Frei/);
   });
@@ -110,6 +114,7 @@ describe('ranking', () => {
     expect(await status(`?contest=${contest.id}&group=FEMALE:K5&template=${template.id}`)).toBe(
       404,
     );
+    expect(await status('?contest=%00&group=FEMALE:K5')).toBe(404);
     expect(await status(`?contest=${contest.id}`)).toBe(400);
     expect(await status(`?contest=${contest.id}&group=K5`)).toBe(400);
   });
@@ -134,6 +139,13 @@ describe('ranking', () => {
     expect((await call([options], 'VIEWER')).status).toBe(403);
     expect((await call([['options', '{"fontSize":99}']])).status).toBe(400);
     expect((await call([['options', '{']])).status).toBe(400);
+    expect((await call([options, ['contest', '\0'], ['group', 'FEMALE:K5']])).status).toBe(400);
+    const text = await callRoute(ranking.action, {
+      competitionId: id,
+      role: 'EDITOR',
+      text: 'x',
+    });
+    expect(text.status).toBe(400);
     const other = await createCompetition();
     const foreign = await call([options, ['contest', other.contest.id], ['group', 'FEMALE:K5']]);
     expect(foreign.status).toBe(404);
@@ -385,9 +397,10 @@ describe('judging manual', () => {
     const ground = await readText(await call('?ground=2'));
     expect(ground).toHaveLength(5);
     expect(ground[4]).toContain('Barren · Wettkampfplatz 2');
-    const one = await readText(await call(`?link=${link.id}`));
+    const one = await readPdf(await call(`?link=${link.id}`));
     expect(one).toHaveLength(1);
-    expect(one[0]).toContain('Reck · Wettkampfplatz 1');
+    expect(one[0].text).toContain('Reck · Wettkampfplatz 1');
+    expect(one[0].links).toEqual([accessUrl(link)]);
   });
 
   it('denies viewers and hides foreign links', async () => {

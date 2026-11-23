@@ -42,6 +42,20 @@ describe('setLogo', () => {
     await setLogo(id, data.slice(0, -1));
   });
 
+  it('allows 4000 pixels and rejects more', async () => {
+    const { id } = await createCompetition();
+    const png = (width: number, height: number) => {
+      const data = new Uint8Array(24);
+      data.set([...PNG.slice(0, 8), 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+      new DataView(data.buffer).setUint32(16, width);
+      new DataView(data.buffer).setUint32(20, height);
+      return data;
+    };
+    await setLogo(id, png(4000, 4000));
+    expect(await errorCode(setLogo(id, png(4001, 10)))).toBe('IMAGE_TOO_LARGE');
+    expect(await errorCode(setLogo(id, png(10, 4001)))).toBe('IMAGE_TOO_LARGE');
+  });
+
   it('rejects an unknown competition', async () => {
     expect(await errorCode(setLogo('nope', PNG))).toBe('NOT_FOUND');
   });

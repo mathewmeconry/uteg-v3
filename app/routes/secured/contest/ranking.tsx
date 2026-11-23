@@ -18,7 +18,7 @@ import { competitionContext, contestContext } from '~/context';
 import type { Sex } from '~/generated/prisma/enums';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
-import { updateContestConfig } from '~/lib/contests.server';
+import { patchContestConfig } from '~/lib/contests.server';
 import { getHonourQuota } from '~/lib/domain/ranking';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { parseForm } from '~/lib/forms.server';
@@ -28,7 +28,8 @@ import { listRankingTemplates } from '~/lib/rankingTemplates.server';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
-import { egtConfigSchema } from '~/modules/egt/module';
+import { readForm } from '~/pdf/request.server';
+import { egtModule, type EgtConfig } from '~/modules/egt/module';
 
 const SEXES = ['FEMALE', 'MALE'] as const satisfies Sex[];
 
@@ -72,7 +73,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const t = getT(context);
   const invalid = t('ranking:honourInvalid');
   const { data: values, errors } = parseForm(
-    await request.formData(),
+    await readForm(request),
     z.object({
       sex: z.enum(SEXES),
       category: z.string(),
@@ -88,15 +89,15 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { sex, category, percent } = values;
   if (!contest.module.categories(sex).includes(category)) throw data(null, 404);
   // Only this module has the setting.
-  const config = egtConfigSchema.parse(contest.module.config);
+  if (contest.module.key !== egtModule.key) throw data(null, 404);
   try {
-    await updateContestConfig(competition.id, contest.id, {
+    await patchContestConfig<EgtConfig>(competition.id, contest.id, (config) => ({
       ...config,
       honourPercent: {
         ...config.honourPercent,
         [sex]: { ...config.honourPercent[sex], [category]: percent },
       },
-    });
+    }));
   } catch (error) {
     return data({ errors: { percent: domainErrorMessage(error, t) } }, 400);
   }
@@ -211,6 +212,13 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
           <TriangleAlertIcon aria-hidden />
           <AlertTitle>{t('runningTitle')}</AlertTitle>
           <AlertDescription>{t(provisional ? 'provisionalText' : 'runningText')}</AlertDescription>
+        </Alert>
+      )}
+
+      {ranking.missingGrades > 0 && (
+        <Alert className="mb-4 border-warning">
+          <TriangleAlertIcon aria-hidden />
+          <AlertTitle>{t('missingGrades', { count: ranking.missingGrades })}</AlertTitle>
         </Alert>
       )}
 

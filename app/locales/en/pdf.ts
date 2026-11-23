@@ -71,7 +71,9 @@ export default {
       separate: 'Separate columns',
     },
     results: 'Results',
+    footerHint: 'At most {{count}} lines.',
     decimals: 'Decimals',
+    decimalsHint: 'Never fewer than the scoring uses.',
     medalStyle: 'Medals',
     medalStyles: { letters: 'Letters (G, S, B)', icons: 'Symbols', none: 'None' },
     highlightBest: 'Highlight the best grade per apparatus',
@@ -90,7 +92,12 @@ export default {
     total: 'Total',
     empty: 'No results',
     provisional: 'Provisional – still competing',
+    incomplete: 'Incomplete – divisions are still running',
+    missingGrades_one: '{{count}} grade is missing and counts as 0',
+    missingGrades_other: '{{count}} grades are missing and count as 0',
   },
+  unavailable:
+    'The PDF could not be created because it is too large or too many are being created. Try again later or with less content.',
   division: '{{category}} {{sex}}, division {{number}}',
   sheets: {
     title: 'Judging sheets',

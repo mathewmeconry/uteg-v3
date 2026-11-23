@@ -3,7 +3,7 @@ import { getContestModule, getModule } from '~/modules/registry';
 import { selectQualifiers } from './domain/ranking';
 import { DomainError } from './errors';
 import { publish } from './events.server';
-import { lockCompetition } from './locks.server';
+import { lockCompetition, lockContest } from './locks.server';
 import { prisma } from './prisma.server';
 import { getRanking } from './ranking.server';
 
@@ -27,6 +27,26 @@ export async function updateContestConfig(
   await prisma.contest.update({
     where: { id: contest.id },
     data: { config: parseContestConfig(contest.module.key, config) },
+  });
+  publish(competitionId, 'settings');
+}
+
+/** Changes parts of the config, keeping what others change at the same time. */
+export async function patchContestConfig<Config = unknown>(
+  competitionId: string,
+  contestId: string,
+  change: (config: Config) => unknown,
+) {
+  await prisma.$transaction(async (tx) => {
+    await lockContest(tx, contestId);
+    const contest = await getContest(competitionId, contestId, tx);
+    // The config is validated by the module, which the caller knows.
+    const changed = change(contest.module.config as Config);
+    if (!changed) throw new DomainError('INVALID_CONFIG');
+    await tx.contest.update({
+      where: { id: contest.id },
+      data: { config: parseContestConfig(contest.module.key, changed) },
+    });
   });
   publish(competitionId, 'settings');
 }

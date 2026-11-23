@@ -65,16 +65,16 @@ export function RankingList({ entries, best, apparatus, options }: Ranking) {
 
   return (
     <>
-      <ol className="grid gap-2 md:hidden">
+      <ol className="grid grid-cols-1 gap-2 md:hidden">
         {entries.map((entry) => (
           <li key={entry.id} className="rounded-lg border bg-card p-3">
             <div className="flex items-start gap-3">
               <span className="min-w-7 text-lg font-bold tabular-nums">{entry.rank}</span>
               <div className="min-w-0 flex-1">
-                <p className="font-semibold break-words">
+                <p className="font-semibold wrap-anywhere">
                   {entry.firstname} {entry.lastname}
                 </p>
-                <p className="text-sm break-words text-muted-foreground">{entry.clubName}</p>
+                <p className="text-sm wrap-anywhere text-muted-foreground">{entry.clubName}</p>
               </div>
               <AwardIcon award={entry.award} />
               <span className="text-lg font-bold tabular-nums">
@@ -126,13 +126,13 @@ export function RankingList({ entries, best, apparatus, options }: Ranking) {
             {entries.map((entry) => (
               <TableRow key={entry.id}>
                 <TableCell className="text-right font-bold">{entry.rank}</TableCell>
-                <TableCell className="font-medium whitespace-normal">
+                <TableCell className="min-w-40 font-medium wrap-anywhere whitespace-normal">
                   {entry.firstname} {entry.lastname}
                   <span className="block font-normal text-muted-foreground lg:hidden">
                     {entry.clubName}
                   </span>
                 </TableCell>
-                <TableCell className="hidden whitespace-normal lg:table-cell">
+                <TableCell className="hidden min-w-40 wrap-anywhere whitespace-normal lg:table-cell">
                   {entry.clubName}
                 </TableCell>
                 {apparatus.map((key) => (

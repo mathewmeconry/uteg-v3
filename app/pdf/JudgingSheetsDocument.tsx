@@ -2,8 +2,17 @@ import { Document, Page, Text, View } from '@react-pdf/renderer';
 import type { Sex } from '~/generated/prisma/client';
 import type { GradingState } from '~/lib/judging.server';
 import type { ServerT } from '~/locales';
-import { Cell, HeaderRow, MUTED, PageNumber, Row, type Column } from './components';
-import { FONT } from './pdf.server';
+import {
+  Cell,
+  clamp,
+  FONT,
+  HeaderRow,
+  MUTED,
+  PageNumber,
+  Row,
+  Table,
+  type Column,
+} from './components';
 
 type Slot = GradingState['apparatus'][number]['rounds'][number]['slots'][number];
 
@@ -56,7 +65,7 @@ export function JudgingSheetsDocument({
         <Page key={`${ground}-${apparatus}-${round}`} size="A4" style={PAGE}>
           <View fixed style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
-              <Text style={{ flexShrink: 1, color: MUTED }}>{competitionName}</Text>
+              <Text style={{ ...clamp(2), flexShrink: 1, color: MUTED }}>{competitionName}</Text>
               <Text style={{ flexShrink: 0, color: MUTED }}>{t('ground', { number: ground })}</Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
@@ -67,7 +76,7 @@ export function JudgingSheetsDocument({
                 {t('round', { number: round + 1 })}
               </Text>
             </View>
-            <Text style={{ marginTop: 4 }}>
+            <Text style={{ ...clamp(6), marginTop: 4 }}>
               {divisions
                 .map(({ category, sex, number }) => divisionLabel({ category, sex, number }, t))
                 .join('  ·  ')}
@@ -104,22 +113,24 @@ function Sheet({ slots, t }: { slots: Slot[]; t: ServerT }) {
   } as const;
 
   return (
-    <View>
-      <HeaderRow>
-        <Cell column={NUMBER}>{t('pdf:sheets.number')}</Cell>
-        <Cell column={NAME}>{t('fields.name')}</Cell>
-        <Cell column={CLUB}>{t('fields.club')}</Cell>
-        <Cell column={CATEGORY}>{t('pdf:sheets.category')}</Cell>
-        {numbers.map((number) => (
-          <Cell key={number} column={gradeColumn} align="center">
-            {t('pdf:sheets.attempt', { number })}
+    <Table
+      header={
+        <HeaderRow>
+          <Cell column={NUMBER}>{t('pdf:sheets.number')}</Cell>
+          <Cell column={NAME}>{t('fields.name')}</Cell>
+          <Cell column={CLUB}>{t('fields.club')}</Cell>
+          <Cell column={CATEGORY}>{t('pdf:sheets.category')}</Cell>
+          {numbers.map((number) => (
+            <Cell key={number} column={gradeColumn} align="center">
+              {t('pdf:sheets.attempt', { number })}
+            </Cell>
+          ))}
+          <Cell column={gradeColumn} align="center">
+            {attempts > 1 ? t('pdf:sheets.final') : t('fields.grade')}
           </Cell>
-        ))}
-        <Cell column={gradeColumn} align="center">
-          {attempts > 1 ? t('pdf:sheets.final') : t('fields.grade')}
-        </Cell>
-      </HeaderRow>
-      {slots.map((slot, index) => {
+        </HeaderRow>
+      }
+      rows={slots.map((slot, index) => {
         const struck = { textDecoration: slot.withdrawn ? 'line-through' : 'none' } as const;
         return (
           <Row key={slot.entryId} style={{ minHeight: ROW_HEIGHT }}>
@@ -154,7 +165,7 @@ function Sheet({ slots, t }: { slots: Slot[]; t: ServerT }) {
           </Row>
         );
       })}
-    </View>
+    />
   );
 }
 

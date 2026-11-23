@@ -2,20 +2,26 @@ import { Circle, Document, Page, Svg, Text, View } from '@react-pdf/renderer';
 import type { Sex } from '~/generated/prisma/client';
 import { formatGrade } from '~/lib/domain/grade';
 import type { Award } from '~/lib/domain/ranking';
-import { fillPlaceholders, type RankingTemplateOptions } from '~/lib/domain/rankingTemplate';
+import {
+  fillPlaceholders,
+  MAX_FOOTER_LINES,
+  type RankingTemplateOptions,
+} from '~/lib/domain/rankingTemplate';
 import type { RankingResult } from '~/lib/ranking.server';
 import type { ServerT } from '~/locales';
 import {
   Cell,
+  clamp,
+  FONT,
   HeaderRow,
   LogoImage,
   MUTED,
   PageNumber,
   Row,
+  Table,
   type Column,
   type Logo,
 } from './components';
-import { FONT } from './pdf.server';
 
 type RankedEntry = Pick<
   RankingResult['entries'][number],
@@ -34,7 +40,11 @@ type RankedEntry = Pick<
 export type RankingGroup = {
   category: string;
   sex: Sex;
-  provisional: boolean;
+  /** Whether divisions are still running, and counted or not. */
+  status: 'provisional' | 'incomplete' | null;
+  missingGrades: number;
+  /** Decimals the ranks are based on. */
+  precision: 2 | 3;
   apparatus: readonly string[];
   best: RankingResult['best'];
   entries: RankedEntry[];
@@ -71,13 +81,6 @@ export function RankingDocument(props: RankingDocumentProps) {
 }
 
 function RankingPage({ groups, options, competition, logo, t }: RankingDocumentProps) {
-  const footerLines = options.footer
-    .split('\n')
-    .reduce(
-      (lines, line) =>
-        lines + Math.ceil(line.length / (options.orientation === 'portrait' ? 95 : 150)),
-      0,
-    );
   const fill = (pattern: string, filled = groups) =>
     fillPlaceholders(pattern, {
       category: [...new Set(filled.map(({ category }) => category))].join(', '),
@@ -87,6 +90,12 @@ function RankingPage({ groups, options, competition, logo, t }: RankingDocumentP
       date: competition.date,
     });
   const heading = options.groupHeading || (groups.length > 1 ? '{category} {sex}' : '');
+  const footer = fill(options.footer);
+  // At most, letters are up to 8pt wide.
+  const footerColumns = (PAGE_WIDTH[options.orientation] - 2 * MARGIN - 40) / 8;
+  const footerLines = footer
+    .split('\n')
+    .reduce((lines, line) => lines + Math.max(1, Math.ceil(line.length / footerColumns)), 0);
 
   return (
     <Page
@@ -97,35 +106,48 @@ function RankingPage({ groups, options, competition, logo, t }: RankingDocumentP
         fontSize: 9,
         paddingTop: 32,
         paddingHorizontal: MARGIN,
-        paddingBottom: 40 + Math.max(0, footerLines - 1) * 10,
+        paddingBottom: 40 + (Math.min(footerLines, MAX_FOOTER_LINES) - 1) * 10,
       }}
     >
+      {/* Limited, a head or footer that fills the page leaves no room for anything else. */}
       <PageHead {...{ options, logo }}>
-        <Text style={{ fontSize: 16, fontWeight: 700 }}>{fill(options.title)}</Text>
+        <Text style={{ ...clamp(2), fontSize: 16, fontWeight: 700 }}>{fill(options.title)}</Text>
         {options.subtitle !== '' && (
-          <Text style={{ fontSize: 12, marginTop: 2 }}>{fill(options.subtitle)}</Text>
+          <Text style={{ ...clamp(2), fontSize: 12, marginTop: 2 }}>{fill(options.subtitle)}</Text>
         )}
         {options.showDate && <Text style={{ marginTop: 3, color: MUTED }}>{competition.date}</Text>}
       </PageHead>
       {groups.map((group) => (
-        <View key={groupKey(group)} style={{ marginBottom: 18 }}>
-          {heading !== '' && (
-            <Text minPresenceAhead={70} style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
-              {fill(heading, [group])}
-            </Text>
-          )}
-          {group.provisional && (
-            <Text minPresenceAhead={60} style={{ fontWeight: 700, marginBottom: 4 }}>
-              {t('pdf:ranking.provisional')}
-            </Text>
-          )}
-          <RankingTable {...{ group, options, t }} />
-        </View>
+        <RankingTable
+          key={groupKey(group)}
+          {...{ group, options, t }}
+          title={
+            <>
+              {heading !== '' && (
+                <Text style={{ ...clamp(2), fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+                  {fill(heading, [group])}
+                </Text>
+              )}
+              {(group.status !== null || group.missingGrades > 0) && (
+                <Text style={{ fontWeight: 700, marginBottom: 4 }}>
+                  {[
+                    group.status && t(`pdf:ranking.${group.status}`),
+                    group.missingGrades > 0 &&
+                      t('pdf:ranking.missingGrades', { count: group.missingGrades }),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+              )}
+            </>
+          }
+        />
       ))}
       {options.signatureLabels.length > 0 && <Signatures labels={options.signatureLabels} />}
       <Text
         fixed
         style={{
+          ...clamp(MAX_FOOTER_LINES),
           position: 'absolute',
           bottom: 18,
           left: MARGIN,
@@ -134,7 +156,7 @@ function RankingPage({ groups, options, competition, logo, t }: RankingDocumentP
           color: MUTED,
         }}
       >
-        {fill(options.footer)}
+        {footer}
       </Text>
       {options.showPageNumbers && <PageNumber />}
     </Page>
@@ -171,11 +193,14 @@ function PageHead({
 }
 
 function RankingTable({
-  group: { apparatus, best, entries },
+  title,
+  group: { apparatus, best, entries, precision },
   options,
   t,
-}: Pick<RankingDocumentProps, 'options' | 't'> & { group: RankingGroup }) {
-  const { columns, nameFormat, decimals } = options;
+}: Pick<RankingDocumentProps, 'options' | 't'> & { title: React.ReactNode; group: RankingGroup }) {
+  const { columns, nameFormat } = options;
+  // With fewer, different totals and ranks would look the same.
+  const decimals = precision === 3 ? 3 : options.decimals;
   const rows = options.onlyAwarded ? entries.filter(({ award }) => award !== null) : entries;
   const oneName = nameFormat !== 'separate' && columns.firstname && columns.lastname;
   const gradeWidth = decimals === 3 ? 3.6 : 3;
@@ -273,39 +298,47 @@ function RankingTable({
     flexible ? { flex: width } : { width: width * fontSize + 6 };
 
   return (
-    <View>
-      <HeaderRow
-        style={{
-          ...rowStyle,
-          borderBottomColor: options.accentColor,
-          backgroundColor: options.accentColor,
-          color: getTextColor(options.accentColor),
-        }}
-      >
-        {shown.map((definition) => (
-          <Cell key={definition.key} column={toColumn(definition)} align={definition.align}>
-            {definition.label}
-          </Cell>
-        ))}
-      </HeaderRow>
-      {rows.map((entry) => (
-        <Row key={entry.id} style={rowStyle}>
+    <Table
+      title={title}
+      header={
+        <HeaderRow
+          style={{
+            ...rowStyle,
+            borderBottomColor: options.accentColor,
+            backgroundColor: options.accentColor,
+            color: getTextColor(options.accentColor),
+          }}
+        >
           {shown.map((definition) => (
-            <Cell
-              key={definition.key}
-              column={toColumn(definition)}
-              align={definition.align}
-              style={{ fontWeight: definition.bold?.(entry) ? 700 : 400 }}
-            >
-              {definition.value(entry)}
+            <Cell key={definition.key} column={toColumn(definition)} align={definition.align}>
+              {definition.label}
             </Cell>
           ))}
-        </Row>
-      ))}
-      {rows.length === 0 && (
-        <Text style={{ marginTop: 8, color: MUTED }}>{t('pdf:ranking.empty')}</Text>
-      )}
-    </View>
+        </HeaderRow>
+      }
+      rows={
+        rows.length === 0
+          ? [
+              <Text key="empty" style={{ marginTop: 8, color: MUTED }}>
+                {t('pdf:ranking.empty')}
+              </Text>,
+            ]
+          : rows.map((entry) => (
+              <Row key={entry.id} style={rowStyle}>
+                {shown.map((definition) => (
+                  <Cell
+                    key={definition.key}
+                    column={toColumn(definition)}
+                    align={definition.align}
+                    style={{ fontWeight: definition.bold?.(entry) ? 700 : 400 }}
+                  >
+                    {definition.value(entry)}
+                  </Cell>
+                ))}
+              </Row>
+            ))
+      }
+    />
   );
 }
 
@@ -350,7 +383,7 @@ function Signatures({ labels }: { labels: string[] }) {
             paddingTop: 3,
           }}
         >
-          <Text style={{ fontSize: 8, color: MUTED }}>{label}</Text>
+          <Text style={{ ...clamp(4), fontSize: 8, color: MUTED }}>{label}</Text>
         </View>
       ))}
     </View>

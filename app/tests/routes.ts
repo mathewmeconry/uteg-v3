@@ -19,12 +19,15 @@ export async function callRoute(
     role,
     search = '',
     form,
+    text,
   }: {
     competitionId: string;
     contestId?: string;
     role?: Role;
     search?: string;
     form?: [string, string][];
+    /** Sent instead of a form. */
+    text?: string;
   },
 ): Promise<any> {
   const user = await createUser();
@@ -36,7 +39,7 @@ export async function callRoute(
   for (const [name, value] of form ?? []) body.append(name, value);
   const request = new Request(
     `http://localhost/${search}`,
-    form ? { method: 'POST', body } : undefined,
+    form || text ? { method: 'POST', body: text ?? body } : undefined,
   );
   const params = { competitionId, contestId };
   const args = { request, params, context } as any;

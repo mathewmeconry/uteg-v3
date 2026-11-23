@@ -99,6 +99,25 @@ describe('honour percentage', () => {
     expect(k5).toBe(33);
   });
 
+  it('keeps other categories that are changed at the same time', async () => {
+    const { id, contest } = await createCompetition();
+    const categories = ['K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'K7'];
+    await Promise.all(
+      categories.map((category) =>
+        callRoute(action, {
+          competitionId: id,
+          contestId: contest.id,
+          role: 'EDITOR',
+          form: Object.entries({ sex: 'FEMALE', category, percent: '77' }),
+        }),
+      ),
+    );
+    const { module } = await getContest(id, contest.id);
+    expect(categories.map((item) => module.rankingOptions(item, 'FEMALE').honourPercent)).toEqual(
+      categories.map(() => 77),
+    );
+  });
+
   it('can only be changed by editors and for categories of the sex', async () => {
     expect((await post({ percent: '40' }, 'VIEWER')).result.status).toBe(403);
     expect((await post({ percent: '40', category: 'KH' })).result.status).toBe(404);

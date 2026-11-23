@@ -6,7 +6,7 @@ import { getDefaultRankingTemplate, listRankingTemplates } from '~/lib/rankingTe
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { loadRankingGroup, rankingPdfResponse } from '~/pdf/ranking.server';
-import { orNotFound, parseRankingGroup } from '~/pdf/request.server';
+import { orNotFound, parseRankingGroup, readParams } from '~/pdf/request.server';
 import { createSampleGroups } from '~/pdf/sample';
 
 /**
@@ -15,7 +15,7 @@ import { createSampleGroups } from '~/pdf/sample';
  */
 export async function loader({ request, context }: Route.LoaderArgs) {
   const competition = context.get(competitionContext);
-  const params = new URL(request.url).searchParams;
+  const params = await readParams(request);
   const contestId = params.get('contest');
   const groups = params.getAll('group');
   if (!contestId || groups.length === 0) throw data(null, 400);
@@ -24,6 +24,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     competition,
     groups: await loadGroups(competition.id, contestId, groups, params.get('provisional') === '1'),
     options: await getOptions(competition.id, params.get('template')),
+    signal: request.signal,
     t: getT(context),
     language: context.get(languageContext),
   });
@@ -32,19 +33,20 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 /** A preview of unsaved options, with the ranking `group` of `contest` or sample data. */
 export async function action({ request, context }: Route.ActionArgs) {
   const competition = requireRole(context, 'EDITOR');
-  const formData = await request.formData();
-  const options = rankingTemplateSchema.safeParse(parseJson(formData.get('options')));
+  const params = await readParams(request);
+  const options = rankingTemplateSchema.safeParse(parseJson(params.get('options')));
   if (!options.success) throw data(null, 400);
 
-  const contestId = formData.get('contest');
-  const group = formData.get('group');
+  const contestId = params.get('contest');
+  const group = params.get('group');
   return rankingPdfResponse({
     competition,
     groups:
-      typeof contestId === 'string' && typeof group === 'string'
+      contestId && group
         ? await loadGroups(competition.id, contestId, [group], false)
         : createSampleGroups(),
     options: options.data,
+    signal: request.signal,
     t: getT(context),
     language: context.get(languageContext),
   });
@@ -74,9 +76,9 @@ async function getOptions(competitionId: string, templateId: string | null) {
   return template.options;
 }
 
-function parseJson(value: FormDataEntryValue | null): unknown {
+function parseJson(value: string | null): unknown {
   try {
-    return typeof value === 'string' ? JSON.parse(value) : undefined;
+    return value === null ? undefined : JSON.parse(value);
   } catch {
     return undefined;
   }

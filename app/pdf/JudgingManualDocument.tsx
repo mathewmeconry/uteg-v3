@@ -1,9 +1,8 @@
-import { Document, Page, Path, Rect, Svg, Text, View } from '@react-pdf/renderer';
+import { Document, Link, Page, Path, Rect, Svg, Text, View } from '@react-pdf/renderer';
 import QRCode from 'qrcode';
 import type { ReactNode } from 'react';
 import type { ServerT } from '~/locales';
-import { MUTED } from './components';
-import { FONT } from './pdf.server';
+import { clamp, FONT, MUTED } from './components';
 
 export type ManualLink = { id: string; ground: number; apparatus: string; url: string };
 
@@ -37,7 +36,7 @@ export function JudgingManualDocument({
             size="A4"
             style={{ fontFamily: FONT, fontSize: 11, lineHeight: 1.35, padding: 45 }}
           >
-            <Text style={{ fontSize: 9, color: MUTED }}>{competitionName}</Text>
+            <Text style={{ ...clamp(2), fontSize: 9, color: MUTED }}>{competitionName}</Text>
             <Text style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.35 }}>
               {t('pdf:manual.title')}
             </Text>
@@ -45,7 +44,10 @@ export function JudgingManualDocument({
 
             <Section title={t('pdf:manual.login')}>
               <View style={{ flexDirection: 'row', gap: 18, alignItems: 'center' }}>
-                <PdfQrCode value={link.url} />
+                {/* Also a link, for those who get the manual by mail. */}
+                <Link src={link.url}>
+                  <PdfQrCode value={link.url} />
+                </Link>
                 <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, gap: 8 }}>
                   <Step number={1}>{t('pdf:manual.login1')}</Step>
                   <Step number={2}>{t('pdf:manual.login2', { apparatus, ground })}</Step>
