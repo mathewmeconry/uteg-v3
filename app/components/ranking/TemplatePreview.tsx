@@ -28,10 +28,12 @@ const toKey = ({ contestId, sex, category }: PreviewGroup) => `${contestId} ${se
 /** The PDF with the options as they are in the form, rendered by the server. */
 export function TemplatePreview({
   competitionId,
+  template,
   options,
   groups,
 }: {
   competitionId: string;
+  template: { id: string; coverPages: string[] } | undefined;
   options: RankingTemplateOptions;
   groups: PreviewGroup[];
 }) {
@@ -39,7 +41,7 @@ export function TemplatePreview({
   const id = useId();
   const [source, setSource] = useState(SAMPLE);
   const showContest = new Set(groups.map(({ contestId }) => contestId)).size > 1;
-  const { url, status } = usePreview(competitionId, options, source);
+  const { url, status } = usePreview(competitionId, options, source, template);
 
   return (
     <section aria-label={t('preview.title')} className="grid gap-3">
@@ -95,7 +97,15 @@ export function TemplatePreview({
   );
 }
 
-function usePreview(competitionId: string, options: RankingTemplateOptions, source: string) {
+function usePreview(
+  competitionId: string,
+  options: RankingTemplateOptions,
+  source: string,
+  template: { id: string; coverPages: string[] } | undefined,
+) {
+  const templateId = template?.id;
+  // Pages of a replaced cover have other ids.
+  const cover = template?.coverPages.join();
   const [url, setUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
   const serialized = JSON.stringify(options);
@@ -109,6 +119,7 @@ function usePreview(competitionId: string, options: RankingTemplateOptions, sour
       setStatus('loading');
       const body = new FormData();
       body.set('options', serialized);
+      if (templateId && cover) body.set('template', templateId);
       if (source !== SAMPLE) {
         const [contestId, group] = source.split(' ');
         body.set('contest', contestId);
@@ -135,7 +146,7 @@ function usePreview(competitionId: string, options: RankingTemplateOptions, sour
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [competitionId, serialized, source]);
+  }, [competitionId, serialized, source, templateId, cover]);
 
   useEffect(() => {
     if (!url) return;

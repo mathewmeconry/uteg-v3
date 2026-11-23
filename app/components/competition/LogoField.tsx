@@ -4,6 +4,24 @@ import { useTranslation } from 'react-i18next';
 import { FormField } from '~/components/FormField';
 import { Button } from '~/components/ui/button';
 
+/**
+ * Uploads the picture as it is shown, without metadata, which the server would leave out. What
+ * cannot be drawn stays as it is, the server then says why it is no logo.
+ */
+async function replaceWithDrawing(input: HTMLInputElement, file: File) {
+  try {
+    const { drawLogo } = await import('~/lib/images.client');
+    const drawing = await drawLogo(file);
+    // Something else may have been chosen meanwhile.
+    if (!drawing || input.files?.[0] !== file) return;
+    const transfer = new DataTransfer();
+    transfer.items.add(drawing);
+    input.files = transfer.files;
+  } catch {
+    // Stays as it is.
+  }
+}
+
 /** File input of the logo with a preview of the chosen file. */
 export function LogoField({ error, required }: { error?: string; required?: boolean }) {
   const { t } = useTranslation('competition');
@@ -18,7 +36,7 @@ export function LogoField({ error, required }: { error?: string; required?: bool
   }, [preview]);
 
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-1 gap-3">
       <FormField label={t('fields.logo')} hint={t('fields.logoHint')} error={error}>
         {(props) => (
           // The input covers the box, so it can be clicked and files can be dropped on it.
@@ -48,6 +66,7 @@ export function LogoField({ error, required }: { error?: string; required?: bool
                 const file = event.target.files?.[0];
                 setFileName(file?.name);
                 setPreview(file ? URL.createObjectURL(file) : null);
+                if (file) void replaceWithDrawing(event.target, file);
               }}
             />
           </div>

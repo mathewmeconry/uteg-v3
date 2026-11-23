@@ -24,9 +24,16 @@ import {
 import type { Sex } from '~/generated/prisma/enums';
 
 type Group = { sex: Sex; category: string };
+type Template = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  assignments: Group[];
+  isCoverBroken: boolean;
+};
 
-// Select items need a value.
-const BUILT_IN = 'default';
+/** Each category with its own template. */
+const AUTO = 'auto';
 
 const toKey = ({ sex, category }: Group) => `${sex}:${category}`;
 
@@ -44,15 +51,32 @@ export function RankingExport({
   groups: Group[];
   current: Group;
   provisional: boolean;
-  templates: { id: string; name: string; isDefault: boolean }[];
+  templates: Template[];
 }) {
   const { t } = useTranslation(['ranking', 'pdf', 'common']);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
+  // Until the user picks one, it follows the selected categories.
+  const [pickedTemplate, setPickedTemplate] = useState<string | null>(null);
+
+  const hasAssignments = templates.some(({ assignments }) => assignments.length > 0);
+  const findTemplate = (key: string) =>
+    templates.find(({ assignments }) => assignments.some((item) => toKey(item) === key)) ??
+    templates.find(({ isDefault }) => isDefault);
+  const suggested =
+    selected.length > 1 && hasAssignments
+      ? AUTO
+      : findTemplate(selected.length === 1 ? selected[0] : '')?.id;
+  const template = pickedTemplate ?? suggested;
+  const used =
+    template === AUTO ? selected.map(findTemplate) : [templates.find(({ id }) => id === template)];
 
   function onOpenChange(next: boolean) {
     const key = toKey(current);
-    if (next) setSelected(groups.some((group) => toKey(group) === key) ? [key] : []);
+    if (next) {
+      setSelected(groups.some((group) => toKey(group) === key) ? [key] : []);
+      setPickedTemplate(null);
+    }
     setOpen(next);
   }
 
@@ -83,6 +107,7 @@ export function RankingExport({
           </DialogHeader>
           <input type="hidden" name="contest" value={contestId} />
           {provisional && <input type="hidden" name="provisional" value="1" />}
+          {template && <input type="hidden" name="template" value={template} />}
           {/* In the order of the list, not of the clicks. */}
           {groups
             .map(toKey)
@@ -118,7 +143,24 @@ export function RankingExport({
           {templates.length > 0 && (
             <div className="grid gap-2">
               <Label htmlFor="ranking-template">{t('export.template')}</Label>
-              <TemplateSelect templates={templates} />
+              <Select value={template} onValueChange={setPickedTemplate}>
+                <SelectTrigger id="ranking-template" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {hasAssignments && <SelectItem value={AUTO}>{t('export.auto')}</SelectItem>}
+                  {templates.map(({ id, name }) => (
+                    <SelectItem key={id} value={id}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {used.some((item) => item?.isCoverBroken) && (
+                <p role="alert" className="text-sm text-destructive">
+                  {t('pdf:cover.broken')}
+                </p>
+              )}
             </div>
           )}
           <DialogFooter className="sm:items-center">
@@ -132,30 +174,5 @@ export function RankingExport({
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function TemplateSelect({
-  templates,
-}: {
-  templates: { id: string; name: string; isDefault: boolean }[];
-}) {
-  const [value, setValue] = useState(templates.find(({ isDefault }) => isDefault)?.id ?? BUILT_IN);
-  return (
-    <>
-      <input type="hidden" name="template" value={value === BUILT_IN ? '' : value} />
-      <Select value={value} onValueChange={setValue}>
-        <SelectTrigger id="ranking-template" className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {templates.map(({ id, name }) => (
-            <SelectItem key={id} value={id}>
-              {name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </>
   );
 }

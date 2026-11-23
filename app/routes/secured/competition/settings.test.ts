@@ -10,8 +10,9 @@ import {
   truncateTables,
 } from '~/tests/helpers';
 import { action } from './settings';
+import { createJpeg } from '~/tests/images';
 
-const JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+const JPEG = createJpeg();
 
 const DETAILS = {
   intent: 'details',

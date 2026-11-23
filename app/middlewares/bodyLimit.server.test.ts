@@ -23,6 +23,7 @@ describe('bodyLimitMiddleware', () => {
     ['/competitions/c/starters/import.data', 20 * MB, 200],
     ['/competitions/c/starters/import/_.data', 20 * MB, 200],
     ['/competitions/c/settings.data?_routes=x', 5 * MB, 200],
+    ['/competitions/c/templates.data', 11 * MB, 200],
     ['/competitions/new.data', 5 * MB, 200],
     ['/competitions/c/contests/k/settings', 5 * MB, 413],
   ])('on %s answers %s bytes with %s', async (path, length, expected) => {

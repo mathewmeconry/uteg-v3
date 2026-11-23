@@ -93,12 +93,13 @@ model Competition {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members          Member[]
-  contests         Contest[]
-  starters         Starter[]
-  accessLinks      AccessLink[]
-  assets           Asset[]
-  rankingTemplates RankingTemplate[]
+  members             Member[]
+  contests            Contest[]
+  starters            Starter[]
+  accessLinks         AccessLink[]
+  assets              Asset[]
+  rankingTemplates    RankingTemplate[]
+  templateAssignments TemplateAssignment[]
 
   @@map("competition")
 }
@@ -127,6 +128,12 @@ model Asset {
 
   logoOf Competition? @relation("CompetitionLogo")
 
+  // A page of a template's cover.
+  templateId String?
+  template   RankingTemplate? @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  position   Int              @default(0)
+
+  @@index([templateId])
   @@index([competitionId])
   @@map("asset")
 }
@@ -157,16 +164,33 @@ model Contest {
 
 /// How ranking PDFs look. `options` is validated by rankingTemplateSchema.
 model RankingTemplate {
-  id            String      @id @default(ulid())
+  id            String               @id @default(ulid())
   competitionId String
-  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  competition   Competition          @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   name          String
-  isDefault     Boolean     @default(false)
+  isDefault     Boolean              @default(false)
   options       Json
-  updatedAt     DateTime    @updatedAt
+  updatedAt     DateTime             @updatedAt
+  // The pages in front of the ranking.
+  coverPages    Asset[]
+  assignments   TemplateAssignment[]
 
   @@index([competitionId])
   @@map("ranking_template")
+}
+
+/// The template that rankings of a category and sex are printed with, in all contests.
+model TemplateAssignment {
+  competitionId String
+  competition   Competition     @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  sex           Sex
+  category      String
+  templateId    String
+  template      RankingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@id([competitionId, sex, category])
+  @@index([templateId])
+  @@map("template_assignment")
 }
 
 // ── Starters ─────────────────────────────────────────────────────────────────

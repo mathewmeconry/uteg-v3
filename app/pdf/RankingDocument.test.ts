@@ -19,14 +19,13 @@ async function render(
   {
     groups = createSampleGroups(),
     ...props
-  }: Partial<Pick<RankingDocumentProps, 'groups' | 'logo' | 'competition'>> = {},
+  }: { groups?: RankingGroup[] } & Partial<Pick<RankingDocumentProps, 'logo' | 'competition'>> = {},
 ) {
   const pdf = await renderPdf({
     type: 'ranking',
     language: 'de',
     props: {
-      groups,
-      options: rankingTemplateSchema.parse(options),
+      sections: [{ groups, options: rankingTemplateSchema.parse(options), cover: [] }],
       competition: COMPETITION,
       logo: null,
       ...props,
@@ -270,7 +269,11 @@ describe('ranking PDF', () => {
         await renderPdf({
           type: 'ranking',
           language: 'de',
-          props: { groups: createSampleGroups(), options, competition, logo: PNG },
+          props: {
+            sections: [{ groups: createSampleGroups(), options, cover: [] }],
+            competition,
+            logo: PNG,
+          },
         }),
       );
       expect(pages.length).toBeLessThan(6);
