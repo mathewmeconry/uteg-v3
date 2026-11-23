@@ -2,6 +2,7 @@ import type { Grade, Prisma } from '~/generated/prisma/client';
 import { getContestModule, getContestsApparatus } from '~/modules/registry';
 import type { InputRule } from '~/modules/types';
 import { aggregate, isAttempt, isGrade } from './domain/grade';
+import { isSameGrade } from './domain/gradeInput';
 import { getCurrentRound, isEnded } from './domain/progress';
 import {
   compareDivisions,
@@ -22,7 +23,19 @@ export type GradeInput = {
   value?: number;
   /** Thousandths. The final grade is computed from all of them. */
   attempts?: number[];
+  /**
+   * The saved grade that was shown when the input started. Given, a grade that was saved since is
+   * not overwritten, so a request that arrives late cannot replace a newer one.
+   */
+  previous?: GradeVersion | null;
+  /** The same for every repetition of a request. */
+  requestId?: string;
+  /** Requests of the same device that got no answer and may be replaced. */
+  supersedes?: string[];
 };
+
+/** With the id, because a deleted grade that is entered again starts with the same version. */
+export type GradeVersion = { id: string; version: number };
 
 /** Judges may only grade what their tablet shows, editors also before and after the division. */
 export type GradeScope = { kind: 'editor' } | { kind: 'judge'; ground: number; apparatus: string };
@@ -46,33 +59,49 @@ export type JudgingSlot = JudgingRound['slots'][number];
 export async function getJudgingState(competitionId: string, ground: number, apparatus?: string) {
   const divisions = await loadDivisions(competitionId, { ground, state: 'RUNNING' });
   const keys = apparatus ? [apparatus] : await getApparatusOrder(competitionId);
+  const ended = await prisma.division.findMany({
+    where: { ground, state: 'ENDED', contest: { competitionId } },
+    select: { id: true },
+  });
 
   return {
     ground,
     divisions: divisions.map(toSummary),
-    apparatus: keys.map((key) => {
-      const here = divisions.filter((division) => division.apparatus.includes(key));
-      const unfinished = here.filter((division) => completed(division, key) < division.rounds);
-      const currentRound = unfinished.length
-        ? Math.min(...unfinished.map((division) => completed(division, key)))
-        : null;
-      return {
-        apparatus: key,
-        status: here.length === 0 ? 'WAITING' : currentRound === null ? 'FINISHED' : 'JUDGING',
-        currentRound,
-        /** The divisions to confirm the current round for. */
-        divisionIds: unfinished
-          .filter((division) => completed(division, key) === currentRound)
-          .map(({ id }) => id),
-        rounds: Array.from({ length: getRoundCount(here, key) }, (_, round) => {
-          const isOver = currentRound === null || round < currentRound;
-          const divisionsInRound = isOver
-            ? here
-            : here.filter((division) => completed(division, key) <= round);
-          return { round, slots: getSlots(divisionsInRound, key, round) };
-        }),
-      } as const;
-    }),
+    /** Tells a division that ended from one that was stopped. */
+    endedIds: ended.map(({ id }) => id),
+    apparatus: keys.map((key) => toApparatusState(divisions, key)),
+  };
+}
+
+/** How long a display shows the last grades after the last division ended. */
+const DISPLAY_LINGER_MS = 5 * 60_000;
+
+/**
+ * What the displays on a ground show: the running divisions, or the ones that ended a moment ago.
+ * The round is the one of the slowest division.
+ */
+export async function getDisplayState(competitionId: string, ground: number, now = new Date()) {
+  const running = await loadDivisions(competitionId, { ground, state: 'RUNNING' });
+  const ended = running.length
+    ? []
+    : await loadDivisions(competitionId, {
+        ground,
+        state: 'ENDED',
+        endedAt: { gt: new Date(now.getTime() - DISPLAY_LINGER_MS) },
+      });
+  const divisions = running.length ? running : ended;
+  const lastRound = (division: LoadedDivision) =>
+    Math.min(getCurrentRound(division.progress), division.rounds - 1);
+  const hidesAt = Math.max(...ended.map(({ endedAt }) => Number(endedAt) + DISPLAY_LINGER_MS));
+
+  return {
+    divisionIds: divisions.map(({ id }) => id),
+    round: divisions.length ? Math.min(...divisions.map(lastRound)) : 0,
+    /** Null while divisions run or nothing is shown. */
+    hidesInMs: ended.length ? hidesAt - now.getTime() : null,
+    apparatus: (await getApparatusOrder(competitionId))
+      .map((key) => toApparatusState(divisions, key))
+      .filter(({ status }) => status !== 'WAITING'),
   };
 }
 
@@ -122,23 +151,37 @@ export async function saveGrades(
         : 1,
   );
   const saved = await prisma.$transaction(async (tx) => {
+    const ids = grades.map(({ entryId }) => entryId);
     await lockContestConfigs(tx, competitionId);
-    const entries = await lockGradedEntries(
-      tx,
-      competitionId,
-      grades.map(({ entryId }) => entryId),
-    );
+    const entries = await lockGradedEntries(tx, competitionId, ids);
+    // Two devices grading the same entry take turns, the second one sees the first one's grade.
+    await tx.$queryRaw`
+      SELECT id FROM entry WHERE id = ANY(${ids}::text[]) ORDER BY id FOR NO KEY UPDATE`;
+    const stored = await tx.grade.findMany({ where: { entryId: { in: ids } } });
     const result = new Map<GradeInput, Grade>();
     for (const input of sorted) {
       const { entryId, apparatus } = input;
       const entry = entries.find(({ id }) => id === entryId);
       const data = computeGrade(input, getGradeableRule(entry, apparatus, scope));
+      const current =
+        stored.find((grade) => grade.entryId === entryId && grade.apparatus === apparatus) ?? null;
+      const { requestId = null, supersedes = [] } = input;
+      const isRepeated = requestId !== null && current?.requestId === requestId;
+      const isOwn = current?.requestId != null && supersedes.includes(current.requestId);
+      const isExpected =
+        input.previous === undefined || isSameVersion(current, input.previous) || isOwn;
+      if (current && (isRepeated || (!isExpected && isSameGrade(current, data)))) {
+        result.set(input, current);
+        continue;
+      }
+      if (!isExpected) throw new DomainError('GRADE_CHANGED');
+      // Saving the same value counts as well: a late request must not replace it.
       result.set(
         input,
         await tx.grade.upsert({
           where: { entryId_apparatus: { entryId, apparatus } },
-          create: { entryId, apparatus, ...data },
-          update: data,
+          create: { entryId, apparatus, requestId, ...data },
+          update: { ...data, requestId, version: { increment: 1 } },
         }),
       );
     }
@@ -148,10 +191,13 @@ export async function saveGrades(
   return saved;
 }
 
-/** Judges may correct the grades of confirmed rounds but not delete them. */
+/**
+ * Judges may correct the grades of confirmed rounds but not delete them. `previous` is the grade
+ * that was shown, see GradeInput.
+ */
 export async function deleteGrade(
   competitionId: string,
-  { entryId, apparatus }: { entryId: string; apparatus: string },
+  { entryId, apparatus, previous }: { entryId: string; apparatus: string; previous?: GradeVersion },
   scope: GradeScope,
 ) {
   await prisma.$transaction(async (tx) => {
@@ -160,7 +206,12 @@ export async function deleteGrade(
     if (scope.kind === 'judge' && isConfirmed(entry, apparatus)) {
       throw new DomainError('ROUND_NOT_CURRENT');
     }
-    await tx.grade.deleteMany({ where: { entryId, apparatus } });
+    const where = { entryId, apparatus };
+    const { count } = await tx.grade.deleteMany({ where: { ...where, ...previous } });
+    // Already deleted is fine.
+    if (count === 0 && (await tx.grade.count({ where })) > 0) {
+      throw new DomainError('GRADE_CHANGED');
+    }
   });
   publish(competitionId, 'grades');
 }
@@ -327,6 +378,30 @@ async function loadDivisions(
     .toSorted(compareDivisions);
 }
 
+function toApparatusState(divisions: readonly LoadedDivision[], key: string) {
+  const here = divisions.filter((division) => division.apparatus.includes(key));
+  const unfinished = here.filter((division) => completed(division, key) < division.rounds);
+  const currentRound = unfinished.length
+    ? Math.min(...unfinished.map((division) => completed(division, key)))
+    : null;
+  return {
+    apparatus: key,
+    status: here.length === 0 ? 'WAITING' : currentRound === null ? 'FINISHED' : 'JUDGING',
+    currentRound,
+    /** The divisions to confirm the current round for. */
+    divisionIds: unfinished
+      .filter((division) => completed(division, key) === currentRound)
+      .map(({ id }) => id),
+    rounds: Array.from({ length: getRoundCount(here, key) }, (_, round) => {
+      const isOver = currentRound === null || round < currentRound;
+      const divisionsInRound = isOver
+        ? here
+        : here.filter((division) => completed(division, key) <= round);
+      return { round, slots: getSlots(divisionsInRound, key, round) };
+    }),
+  } as const;
+}
+
 function completed(division: LoadedDivision, apparatus: string) {
   return division.progress.find((row) => row.apparatus === apparatus)?.completedRounds ?? 0;
 }
@@ -369,8 +444,17 @@ function getSlots(divisions: readonly LoadedDivision[], apparatus: string, round
       clubName: starter.club.name,
       withdrawn: entry.withdrawnAt !== null,
       inputRule: division.module.inputRule(apparatus, division.category),
+      /** Decimals the ranking and the displays show. */
+      precision: division.module.rankingOptions(division.category, division.sex).precision,
       grade: grade
-        ? { value: grade.value, attempts: grade.attempts, updatedAt: grade.updatedAt }
+        ? {
+            id: grade.id,
+            version: grade.version,
+            requestId: grade.requestId,
+            value: grade.value,
+            attempts: grade.attempts,
+            updatedAt: grade.updatedAt,
+          }
         : null,
     };
   });
@@ -408,6 +492,10 @@ function getGradeableRule(
     throw new DomainError('INVALID_APPARATUS');
   }
   return module.inputRule(apparatus, entry.category ?? entry.division?.category ?? '');
+}
+
+function isSameVersion(a: GradeVersion | null, b: GradeVersion | null) {
+  return a?.id === b?.id && a?.version === b?.version;
 }
 
 function computeGrade({ value, attempts = [] }: GradeInput, rule: InputRule) {

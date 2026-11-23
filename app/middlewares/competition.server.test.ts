@@ -57,6 +57,14 @@ describe('authMiddleware', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it('sends them back to the page, not to its data', async () => {
+    const request = new Request('http://localhost/competitions/c.data?a=1&_routes=x');
+    const { error } = await run(authMiddleware, contextFor(null), {}, request);
+    expect((error as Response).headers.get('Location')).toBe(
+      '/login?redirectTo=%2Fcompetitions%2Fc%3Fa%3D1',
+    );
+  });
+
   it('answers event streams with 401', async () => {
     const request = new Request('http://localhost/api/events/c', {
       headers: { Accept: 'text/event-stream' },

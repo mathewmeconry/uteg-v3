@@ -1,6 +1,10 @@
 export default {
   title: 'Notenanzeigen',
   screenTitle: 'Notenanzeige',
+  waitingTitle: 'Gleich geht es los',
+  waitingText: 'Die Noten erscheinen, sobald eine Abteilung startet.',
+  next: 'Danach',
+  pause: 'Pause',
   links: {
     intro: 'Eine Notenanzeige zeigt auf einem Bildschirm die neusten Noten eines Wettkampfplatzes.',
     name: 'Anzeige {{code}}',

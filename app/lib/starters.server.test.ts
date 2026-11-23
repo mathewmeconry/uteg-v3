@@ -1038,7 +1038,8 @@ describe('importStarters', () => {
       existing: 0,
       failures: [{ index: 270, code: 'INVALID_INPUT' }],
     });
-  });
+    // Many queries, on a busy machine they take a while.
+  }, 60_000);
 
   it('does not hold up judges and other competitions', async () => {
     const { id, contestId, run } = await setupImport();

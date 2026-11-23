@@ -1,5 +1,5 @@
-import { useEffect, type ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useContext, useEffect, type ReactNode } from 'react';
+import { I18nContext, useTranslation } from 'react-i18next';
 import {
   isRouteErrorResponse,
   Links,
@@ -8,6 +8,7 @@ import {
   Scripts,
   ScrollRestoration,
   useNavigation,
+  type ShouldRevalidateFunctionArgs,
 } from 'react-router';
 import font from '@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2?url';
 import type { Route } from './+types/root';
@@ -38,6 +39,14 @@ export const middleware: Route.MiddlewareFunction[] = [
 
 export function loader({ context }: Route.LoaderArgs) {
   return { language: context.get(languageContext) };
+}
+
+// Judges and displays stay on one page. A refresh that fails, e.g. offline, must not replace it.
+export function shouldRevalidate({
+  currentUrl,
+  defaultShouldRevalidate,
+}: ShouldRevalidateFunctionArgs) {
+  return defaultShouldRevalidate && !/^\/(judge|display)\//.test(currentUrl.pathname);
 }
 
 export const links: Route.LinksFunction = () => [
@@ -88,10 +97,12 @@ export function Layout({ children }: { children: ReactNode }) {
 }
 
 export default function App({ loaderData: { language } }: Route.ComponentProps) {
-  const { i18n } = useTranslation();
+  // useTranslation returns another i18n after every change, which would undo the language switch of
+  // judges and displays.
+  const i18n = useContext(I18nContext)?.i18n;
 
   useEffect(() => {
-    if (i18n.language !== language) void i18n.changeLanguage(language);
+    if (i18n && i18n.language !== language) void i18n.changeLanguage(language);
   }, [language, i18n]);
 
   return <Outlet />;

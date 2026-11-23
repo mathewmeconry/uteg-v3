@@ -35,7 +35,7 @@ pnpm typecheck
 pnpm lint
 pnpm test:ci       # needs the database, uses its own uteg_test
 pnpm knip
-pnpm e2e
+pnpm e2e           # a whole competition in Chromium (pnpm exec playwright install chromium)
 ```
 
 ## Production
