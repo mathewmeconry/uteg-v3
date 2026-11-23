@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Prisma, Role } from '~/generated/prisma/client';
+import { insertLogo } from './assets.server';
 import { parseContestConfig } from './contests.server';
 import { DomainError } from './errors';
 import { publish } from './events.server';
@@ -53,6 +54,7 @@ export async function createCompetition(
   input: CompetitionDetails & {
     contests: { module: string; name?: string; config?: unknown }[];
     members?: MemberInput[];
+    logo?: Uint8Array<ArrayBuffer> | null;
   },
 ) {
   const details = parseDetails(input);
@@ -73,6 +75,7 @@ export async function createCompetition(
       },
     });
     for (const member of input.members ?? []) await insertMember(tx, competition.id, member);
+    if (input.logo) await insertLogo(tx, competition.id, input.logo);
     return competition;
   });
 }
@@ -130,6 +133,17 @@ export function listMembers(competitionId: string) {
   });
 }
 
+/** The addresses that have no account and cannot become members. */
+export async function findUnknownEmails(emails: readonly string[]) {
+  const normalized = emails.map(normalizeEmail);
+  const users = await prisma.user.findMany({
+    where: { email: { in: normalized } },
+    select: { email: true },
+  });
+  const known = new Set(users.map(({ email }) => email));
+  return normalized.filter((email) => !known.has(email));
+}
+
 export async function addMember(competitionId: string, input: MemberInput) {
   const member = await prisma.$transaction(async (tx) => {
     await lockCompetition(tx, competitionId);
@@ -165,13 +179,17 @@ function parseDetails(input: CompetitionDetails) {
   return result.data;
 }
 
+/** better-auth stores emails in lower case. */
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
 async function insertMember(
   tx: Prisma.TransactionClient,
   competitionId: string,
   { email, role }: MemberInput,
 ) {
-  // better-auth stores emails in lower case.
-  const user = await tx.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+  const user = await tx.user.findUnique({ where: { email: normalizeEmail(email) } });
   if (!user) throw new DomainError('USER_NOT_FOUND');
   const existing = await tx.member.findUnique({
     where: { competitionId_userId: { competitionId, userId: user.id } },
