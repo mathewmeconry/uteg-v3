@@ -442,7 +442,10 @@ function TemplateEditor({
   return (
     <div className="grid grid-cols-1 gap-x-10 gap-y-6 xl:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]">
       <div className="grid grid-cols-1 content-start gap-6">
-        <CoverSection template={template} options={options} onChange={setOptions} />
+        {/* A new one cannot have a cover yet. */}
+        <div className={template ? undefined : 'order-last'}>
+          <CoverSection template={template} options={options} onChange={setOptions} />
+        </div>
         {template && (
           <AssignmentSection
             templateId={template.id}
