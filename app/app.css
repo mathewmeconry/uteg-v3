@@ -22,7 +22,7 @@
   --secondary-foreground: oklch(0.28 0.035 210);
   --muted: oklch(0.953 0.007 200);
   --muted-foreground: oklch(0.465 0.022 210);
-  --accent: oklch(0.93 0.026 205);
+  --accent: oklch(0.932 0.02 208);
   --accent-foreground: oklch(0.27 0.045 210);
   --destructive: oklch(0.52 0.2 25);
   --success: oklch(0.47 0.12 150);
@@ -45,7 +45,7 @@
   --sidebar-foreground: oklch(0.31 0.032 210);
   --sidebar-primary: oklch(0.44 0.078 212);
   --sidebar-primary-foreground: oklch(0.99 0.004 200);
-  --sidebar-accent: oklch(0.902 0.024 206);
+  --sidebar-accent: oklch(0.9 0.02 208);
   --sidebar-accent-foreground: oklch(0.23 0.045 212);
   --sidebar-border: oklch(0.885 0.014 205);
   --sidebar-ring: oklch(0.55 0.1 212);
@@ -71,10 +71,10 @@
     --success: oklch(0.77 0.15 150);
     --success-foreground: oklch(0.2 0.035 160);
     --warning: oklch(0.84 0.15 85);
-    --ink: oklch(0.145 0.02 212);
-    --ink-foreground: oklch(0.965 0.007 200);
-    --ink-muted: oklch(0.75 0.025 205);
-    --ink-accent: oklch(0.25 0.03 212);
+    --ink: oklch(0.275 0.047 212);
+    --ink-foreground: oklch(0.975 0.008 200);
+    --ink-muted: oklch(0.8 0.03 205);
+    --ink-accent: oklch(0.36 0.055 212);
     --gold: oklch(0.84 0.14 88);
     --silver: oklch(0.83 0.012 230);
     --bronze: oklch(0.72 0.11 55);
@@ -143,7 +143,8 @@
 @utility font-display {
   font-stretch: 78%;
   font-weight: 750;
-  letter-spacing: -0.005em;
+  /* Its spaces are too narrow for large text. */
+  word-spacing: 0.09em;
 }
 
 /* Grades, ranks and counts: digits of equal width, so they line up and don't jump. */

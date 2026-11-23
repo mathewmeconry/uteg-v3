@@ -1,4 +1,4 @@
-import { ChevronRightIcon } from 'lucide-react';
+import { ArrowLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -27,7 +27,11 @@ export function PageHeader({
           <ol className="-my-1 flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
             {breadcrumbs.map(({ to, label }, index) => (
               <Fragment key={to}>
-                {index > 0 && <ChevronRightIcon aria-hidden className="size-4" />}
+                {index > 0 ? (
+                  <ChevronRightIcon aria-hidden className="size-4" />
+                ) : (
+                  <ArrowLeftIcon aria-hidden className="size-4" />
+                )}
                 <li>
                   <Link
                     to={to}

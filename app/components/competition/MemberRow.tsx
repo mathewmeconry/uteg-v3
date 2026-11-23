@@ -41,8 +41,14 @@ export function MemberRow({
 
   return (
     <li className="flex flex-wrap items-center gap-3 py-3">
-      <div className="min-w-0 flex-1 basis-60">
-        <p className="flex items-center gap-2 font-medium">
+      <span
+        aria-hidden
+        className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-sm font-bold text-accent-foreground uppercase"
+      >
+        {email[0]}
+      </span>
+      <div className="min-w-0 flex-1 basis-48">
+        <p className="flex items-center gap-2 font-semibold">
           <span className="truncate">{email}</span>
           {isSelf && <Badge variant="secondary">{t('members.you')}</Badge>}
         </p>
@@ -51,7 +57,7 @@ export function MemberRow({
         )}
       </div>
       {canManage ? (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 max-sm:ml-12">
           <RoleSelect
             value={pendingRole ?? role}
             ref={roleSelect}

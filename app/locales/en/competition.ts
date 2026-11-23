@@ -13,6 +13,7 @@ export default {
     groundsHint: 'Every ground has its own apparatus and its own judge links.',
     logo: 'Logo',
     logoHint: 'PNG or JPEG, at most 5 MB and 4000 × 4000 pixels',
+    logoChoose: 'Choose an image or drop it here',
     logoClear: 'Clear selection',
     modules: 'Modules',
   },

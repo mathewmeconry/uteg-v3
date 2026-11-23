@@ -2,11 +2,12 @@ import { TriangleAlertIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Form, useNavigation, useRevalidator } from 'react-router';
+import { FormActions } from '~/components/FormActions';
 import { FormField } from '~/components/FormField';
+import { Section, Sections } from '~/components/Section';
 import { SubmitButton } from '~/components/SubmitButton';
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
 import { Button } from '~/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -60,54 +61,47 @@ export function EgtSettingsForm({
   }
 
   return (
-    <Form method="post" className="grid grid-cols-1 gap-6">
+    <Form method="post" className="grid max-w-5xl grid-cols-1 gap-4">
       <input type="hidden" name="config" value={JSON.stringify(config)} />
       <input type="hidden" name="version" value={base.version} />
 
       {/* What changes meanwhile would look like it was made on an outdated version. */}
-      <fieldset disabled={isSaving} className="grid grid-cols-1 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('honour.title')}</CardTitle>
-            <CardDescription>{t('honour.text')}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-6">
-            <HonourPercentFields
-              value={config.honourPercent}
-              onChange={(honourPercent) => setConfig({ ...config, honourPercent })}
-              disabled={!canEdit}
-            />
-            <FormField label={t('honour.rounding')}>
-              {(props) => (
-                <Select
-                  value={config.honourRounding}
-                  disabled={!canEdit || isSaving}
-                  onValueChange={(honourRounding: EgtConfig['honourRounding']) =>
-                    setConfig({ ...config, honourRounding })
-                  }
-                >
-                  <SelectTrigger {...props} className="w-full max-w-sm min-w-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROUNDINGS.map((rounding) => (
-                      <SelectItem key={rounding} value={rounding}>
-                        {t(`honour.roundingOptions.${rounding}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </FormField>
-          </CardContent>
-        </Card>
+      <fieldset disabled={isSaving} className="min-w-0">
+        <Sections>
+          <Section title={t('honour.title')} description={t('honour.text')}>
+            <div className="grid grid-cols-1 gap-5">
+              <HonourPercentFields
+                value={config.honourPercent}
+                onChange={(honourPercent) => setConfig({ ...config, honourPercent })}
+                disabled={!canEdit}
+              />
+              <FormField label={t('honour.rounding')}>
+                {(props) => (
+                  <Select
+                    value={config.honourRounding}
+                    disabled={!canEdit || isSaving}
+                    onValueChange={(honourRounding: EgtConfig['honourRounding']) =>
+                      setConfig({ ...config, honourRounding })
+                    }
+                  >
+                    <SelectTrigger {...props} className="w-full max-w-md min-w-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROUNDINGS.map((rounding) => (
+                        <SelectItem key={rounding} value={rounding}>
+                          {t(`honour.roundingOptions.${rounding}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </FormField>
+            </div>
+          </Section>
 
-        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('ranking.title')}</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-6">
+          <Section title={t('ranking.title')}>
+            <div className="grid grid-cols-1 gap-5">
               <FormField label={t('ranking.precision')}>
                 {(props) => (
                   <Select
@@ -117,7 +111,7 @@ export function EgtSettingsForm({
                       setConfig({ ...config, precision: value === '3' ? 3 : 2 })
                     }
                   >
-                    <SelectTrigger {...props} className="w-full max-w-sm min-w-0">
+                    <SelectTrigger {...props} className="w-full max-w-md min-w-0">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -130,34 +124,30 @@ export function EgtSettingsForm({
                   </Select>
                 )}
               </FormField>
-              <section className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <div className="grid gap-1">
-                  <h3 className="text-sm font-medium">{t('ranking.tieBreak')}</h3>
-                  <p className="text-sm text-muted-foreground">{t('ranking.tieBreakText')}</p>
+                  <h3 className="text-sm font-semibold">{t('ranking.tieBreak')}</h3>
+                  <p className="max-w-prose text-sm text-muted-foreground">
+                    {t('ranking.tieBreakText')}
+                  </p>
                 </div>
                 <TieBreakList
                   value={config.tieBreak}
                   onChange={(tieBreak) => setConfig({ ...config, tieBreak })}
                   disabled={!canEdit}
                 />
-              </section>
-            </CardContent>
-          </Card>
+              </div>
+            </div>
+          </Section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('vault.title')}</CardTitle>
-              <CardDescription>{t('vault.text')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <VaultFields config={config} onChange={setConfig} disabled={!canEdit || isSaving} />
-            </CardContent>
-          </Card>
-        </div>
+          <Section title={t('vault.title')} description={t('vault.text')}>
+            <VaultFields config={config} onChange={setConfig} disabled={!canEdit || isSaving} />
+          </Section>
+        </Sections>
       </fieldset>
 
       {affected.recompute + affected.keep > 0 && (
-        <Alert className="border-warning">
+        <Alert variant="warning">
           <TriangleAlertIcon aria-hidden />
           <AlertTitle>{t('vault.warningTitle')}</AlertTitle>
           <AlertDescription>
@@ -179,7 +169,10 @@ export function EgtSettingsForm({
         </Alert>
       )}
       {canEdit && (
-        <SubmitButton className="justify-self-start">{t('common:actions.save')}</SubmitButton>
+        <FormActions>
+          <SubmitButton>{t('common:actions.save')}</SubmitButton>
+          {isDirty && <p className="text-sm text-muted-foreground">{t('unsaved')}</p>}
+        </FormActions>
       )}
     </Form>
   );

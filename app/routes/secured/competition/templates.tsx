@@ -6,6 +6,7 @@ import { z } from 'zod';
 import type { Route } from './+types/templates';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { EmptyState } from '~/components/EmptyState';
+import { FormActions } from '~/components/FormActions';
 import { FormField } from '~/components/FormField';
 import { PageHeader } from '~/components/PageHeader';
 import { TemplateFields } from '~/components/ranking/TemplateFields';
@@ -236,8 +237,8 @@ function TemplateItem({ template, selected }: { template: Template; selected: bo
   return (
     <div
       className={cn(
-        'flex min-h-14 items-center gap-2 rounded-lg border bg-card pl-4',
-        selected && 'border-primary ring-1 ring-primary',
+        'relative flex min-h-13 items-center gap-1 rounded-lg border bg-card pl-4 hover:bg-accent',
+        selected && 'border-primary bg-accent ring-1 ring-primary',
       )}
     >
       <div className="min-w-0 flex-1 py-2">
@@ -246,7 +247,8 @@ function TemplateItem({ template, selected }: { template: Template; selected: bo
             to={`?template=${id}`}
             preventScrollReset
             aria-current={selected ? 'true' : undefined}
-            className="block truncate font-medium hover:underline"
+            // The whole box opens it.
+            className="block truncate font-semibold outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
           >
             {name}
           </Link>
@@ -262,6 +264,7 @@ function TemplateItem({ template, selected }: { template: Template; selected: bo
               <Button
                 variant="ghost"
                 size="icon"
+                className="relative"
                 aria-label={t('templates.actionsFor', { name })}
                 disabled={fetcher.state !== 'idle'}
               >
@@ -289,7 +292,7 @@ function TemplateItem({ template, selected }: { template: Template; selected: bo
               <Button
                 variant="ghost"
                 size="icon"
-                className="mr-2"
+                className="relative mr-1.5"
                 aria-label={`${t('common:actions.delete')}: ${name}`}
               >
                 <TrashIcon aria-hidden />
@@ -329,8 +332,8 @@ function TemplateEditor({
     name.trim() !== saved.name || JSON.stringify(options) !== JSON.stringify(saved.options);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-2">
-      <Form method="post" className="grid content-start gap-4">
+    <div className="grid grid-cols-1 gap-x-10 gap-y-6 xl:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]">
+      <Form method="post" className="grid content-start gap-6">
         {template && <input type="hidden" name="id" value={template.id} />}
         <input type="hidden" name="options" value={JSON.stringify(options)} />
         <FormField
@@ -343,7 +346,7 @@ function TemplateEditor({
           error={errors?.name}
         />
         <TemplateFields options={options} onChange={setOptions} />
-        <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-3 border-t bg-background px-1 py-3">
+        <FormActions>
           <SubmitButton name="intent" value="save" disabled={!isValid}>
             {template ? t('common:actions.save') : t('common:actions.create')}
           </SubmitButton>
@@ -352,9 +355,9 @@ function TemplateEditor({
               {t('common:errors.invalid')}
             </p>
           )}
-        </div>
+        </FormActions>
       </Form>
-      <div className="xl:sticky xl:top-20 xl:self-start">
+      <div className="xl:sticky xl:top-8 xl:self-start">
         <TemplatePreview competitionId={competition.id} options={options} groups={previewGroups} />
       </div>
       <DiscardDialog

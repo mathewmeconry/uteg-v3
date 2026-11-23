@@ -33,7 +33,7 @@ export function HonourPercentFields({
   const allPercent = all === '' ? NaN : Number(all);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-5">
       {!disabled && (
         <div className="grid gap-2">
           <FieldLabel htmlFor={allId}>{t('honour.all')}</FieldLabel>
@@ -63,8 +63,8 @@ export function HonourPercentFields({
       )}
       {SEXES.map((sex) => (
         <fieldset key={sex} disabled={disabled}>
-          <legend className="mb-3 font-medium">{t(`common:sex.${sex}`)}</legend>
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+          <legend className="mb-2 font-semibold">{t(`common:sex.${sex}`)}</legend>
+          <div className="grid grid-cols-4 gap-x-2 gap-y-3 sm:grid-cols-8 [&_label]:font-normal [&_label]:text-muted-foreground">
             {getCategories(sex).map((category) => {
               const percent = value[sex][category] ?? DEFAULT_HONOUR_PERCENT;
               return (
@@ -74,10 +74,12 @@ export function HonourPercentFields({
                     <>
                       {category}
                       <span className="sr-only">{t(`common:sex.${sex}`)}</span>
-                      <span className="font-normal text-muted-foreground">%</span>
+                      <span>%</span>
                     </>
                   }
                   {...PERCENT_INPUT}
+                  // Without arrows, the column is too narrow for them.
+                  className="[appearance:textfield] px-2 text-center tabular-nums [&::-webkit-inner-spin-button]:appearance-none"
                   required
                   value={Number.isNaN(percent) ? '' : percent}
                   onChange={({ target }) =>

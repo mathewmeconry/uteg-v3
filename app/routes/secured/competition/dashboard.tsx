@@ -41,7 +41,8 @@ function LatestGrades({ grades }: { grades: LatestGrade[] }) {
             <div className="min-w-0 text-sm leading-snug">
               <p className="truncate font-semibold">{`${firstname} ${lastname}`}</p>
               <p className="truncate text-muted-foreground">
-                {category} {t(`common:apparatus.${apparatus}` as 'common:apparatus.reck')}, {clubName}
+                {category} {t(`common:apparatus.${apparatus}` as 'common:apparatus.reck')},{' '}
+                {clubName}
               </p>
             </div>
             <p className="figure shrink-0 text-xl">{grade}</p>
@@ -69,7 +70,7 @@ export default function Dashboard({
       <PageHeader
         title={t('common:nav.dashboard')}
         description={`${competition.location}, ${dates}`}
-        actions={<ConnectionBadge status={status} />}
+        status={<ConnectionBadge status={status} />}
       />
       <div className={cn('grid gap-7', !hasGrades && 'max-w-4xl')}>
         {starters > 0 && (

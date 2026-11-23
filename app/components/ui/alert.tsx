@@ -9,9 +9,9 @@ const alertVariants = cva(
       variant: {
         default: 'bg-card text-card-foreground',
         destructive:
-          'border-destructive/40 bg-[color-mix(in_oklch,var(--destructive)_8%,var(--card))] text-foreground *:data-[slot=alert-description]:text-foreground [&>svg]:text-destructive',
+          'border-destructive/40 bg-[color-mix(in_oklab,var(--destructive)_8%,var(--card))] text-foreground *:data-[slot=alert-description]:text-foreground [&>svg]:text-destructive',
         warning:
-          'border-warning bg-[color-mix(in_oklch,var(--warning)_14%,var(--card))] text-foreground *:data-[slot=alert-description]:text-foreground [&>svg]:text-warning-foreground dark:[&>svg]:text-warning',
+          'border-warning bg-[color-mix(in_oklab,var(--warning)_14%,var(--card))] text-foreground *:data-[slot=alert-description]:text-foreground [&>svg]:text-warning-foreground dark:[&>svg]:text-warning',
       },
     },
     defaultVariants: {

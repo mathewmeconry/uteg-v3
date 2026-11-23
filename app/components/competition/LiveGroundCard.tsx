@@ -72,7 +72,7 @@ function ApparatusCell({ item }: { item: LiveGround['apparatus'][number] }) {
   const isFinished = status === 'FINISHED';
 
   return (
-    <li className="bg-card px-4 py-3 sm:max-2xl:odd:last:col-span-2">
+    <li className="bg-card px-4 py-3 sm:max-2xl:last:odd:col-span-2">
       <div className="flex min-h-6 flex-wrap items-center justify-between gap-x-3">
         <h4 className="font-semibold">
           {t(`common:apparatus.${apparatus}` as 'common:apparatus.reck')}
@@ -97,7 +97,8 @@ function ApparatusCell({ item }: { item: LiveGround['apparatus'][number] }) {
       {latest.length === 0 ? (
         <p className="mt-1 text-sm text-muted-foreground">{t('dashboard.noGrades')}</p>
       ) : (
-        <ul className="mt-1.5 grid gap-1.5">
+        // The last of an odd number is twice as wide, see above.
+        <ul className="mt-1.5 grid gap-1.5 sm:max-2xl:in-[li:last-child:nth-child(odd)]:grid-cols-2 sm:max-2xl:in-[li:last-child:nth-child(odd)]:gap-x-8">
           {latest.map(({ entryId, firstname, lastname, clubName, grade }, index) => (
             <li
               key={entryId}

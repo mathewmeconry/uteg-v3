@@ -15,8 +15,6 @@ export function getPhase({ starters, divisions }: Counts): Phase {
   return PENDING > 0 ? 'continue' : 'ended';
 }
 
-export type Timing = 'past' | 'today' | 'upcoming';
-
 /** Competition dates are plain days stored at midnight UTC, today is the day in Switzerland. */
 export function getTiming({ startDate, endDate }: { startDate: Date; endDate: Date }, now: Date) {
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich' }).format(now);

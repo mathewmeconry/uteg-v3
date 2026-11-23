@@ -67,7 +67,7 @@ export default function ContestSettings({ loaderData, actionData }: Route.Compon
       <PageHeader
         title={t('contestTitle')}
         description={canEdit ? name : `${name}. ${t('readOnly')}`}
-        actions={<ConnectionBadge status={status} />}
+        status={<ConnectionBadge status={status} />}
       />
       {module === 'egt' && (
         <EgtSettingsForm

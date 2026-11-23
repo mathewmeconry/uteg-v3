@@ -79,10 +79,7 @@ export default function CompetitionLayout({ loaderData }: Route.ComponentProps) 
       <CompetitionSidebar />
       <SidebarInset className="min-w-0">
         <Header name={loaderData.competition.name} />
-        <div
-          id="content"
-          className="mx-auto w-full max-w-[90rem] px-4 pt-5 pb-12 md:px-8 md:pt-8"
-        >
+        <div id="content" className="mx-auto w-full max-w-[90rem] px-4 pt-5 pb-12 md:px-8 md:pt-8">
           <Outlet />
         </div>
       </SidebarInset>

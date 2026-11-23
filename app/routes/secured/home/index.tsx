@@ -107,7 +107,11 @@ function TodayCard({ competition }: { competition: Competition }) {
         {phase && (
           <StatusBadge
             tone={phase === 'running' ? 'live' : 'neutral'}
-            className={phase === 'running' ? undefined : 'border-ink-accent bg-ink-accent text-ink-foreground'}
+            className={
+              phase === 'running'
+                ? undefined
+                : 'border-ink-accent bg-ink-accent text-ink-foreground'
+            }
           >
             {t(`home.status.${phase}`)}
           </StatusBadge>
@@ -143,7 +147,10 @@ function CompetitionRow({ competition }: { competition: Competition }) {
       to={`/competitions/${id}`}
       className="flex items-center gap-4 p-3 outline-offset-[-2px] hover:bg-muted sm:pr-4"
     >
-      <DateBlock date={startDate} className={phase ? undefined : 'bg-muted text-muted-foreground'} />
+      <DateBlock
+        date={startDate}
+        className={phase ? undefined : 'bg-muted text-muted-foreground'}
+      />
       <div className="min-w-0 flex-1">
         <p className="font-semibold wrap-anywhere">{name}</p>
         <p className="text-sm text-muted-foreground">

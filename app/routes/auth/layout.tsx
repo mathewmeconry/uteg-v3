@@ -25,10 +25,10 @@ function Rings() {
       className="absolute inset-x-0 top-0 mx-auto hidden h-[78%] lg:block"
     >
       <g fill="none" strokeLinecap="round">
-        <path d="M55 0v232M145 0v232" strokeWidth="5" className="stroke-ink-accent" />
-        <path d="M55 214v20M145 214v20" strokeWidth="9" className="stroke-brand" />
-        <circle cx="55" cy="274" r="36" strokeWidth="10" className="stroke-brand" />
-        <circle cx="145" cy="274" r="36" strokeWidth="10" className="stroke-brand" />
+        <path d="M45 0v232M155 0v232" strokeWidth="5" className="stroke-ink-accent" />
+        <path d="M45 214v20M155 214v20" strokeWidth="9" className="stroke-brand" />
+        <circle cx="45" cy="274" r="36" strokeWidth="10" className="stroke-brand" />
+        <circle cx="155" cy="274" r="36" strokeWidth="10" className="stroke-brand" />
       </g>
     </svg>
   );

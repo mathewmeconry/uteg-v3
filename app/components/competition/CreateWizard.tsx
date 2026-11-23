@@ -1,4 +1,4 @@
-import { Trash2Icon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, Trash2Icon } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Form } from 'react-router';
@@ -6,7 +6,6 @@ import { z } from 'zod';
 import { FormField } from '~/components/FormField';
 import { SubmitButton } from '~/components/SubmitButton';
 import { Button } from '~/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '~/components/ui/card';
 import { Checkbox } from '~/components/ui/checkbox';
 import { FieldError, FieldLabel } from '~/components/ui/field';
 import type { MemberInput } from '~/lib/competitions.server';
@@ -142,15 +141,11 @@ export function CreateWizard({
       />
       <input type="hidden" name="members" value={JSON.stringify(members)} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h2 ref={heading} tabIndex={-1} className="text-lg outline-none">
-              {t(`wizard.steps.${step}`)}
-            </h2>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="rounded-xl border bg-card">
+        <div className="p-5 sm:p-7">
+          <h2 ref={heading} tabIndex={-1} className="mb-5 font-display text-xl outline-none">
+            {t(`wizard.steps.${step}`)}
+          </h2>
           <Section step="general" current={step}>
             <CompetitionFields errors={errors} />
             <LogoField error={errors.logo} />
@@ -159,7 +154,7 @@ export function CreateWizard({
           <Section step="setup" current={step}>
             <GroundsField error={errors.grounds} />
             <fieldset className="grid gap-3">
-              <legend className="mb-3 text-sm font-medium">{t('fields.modules')}</legend>
+              <legend className="mb-2 text-sm font-semibold">{t('fields.modules')}</legend>
               {MODULES.map((module) => (
                 <FieldLabel
                   key={module}
@@ -298,14 +293,16 @@ export function CreateWizard({
               </dl>
             </div>
           )}
-        </CardContent>
-        <CardFooter className="justify-between gap-3 border-t">
+        </div>
+        <div className="sticky bottom-0 flex items-center justify-between gap-3 rounded-b-xl border-t bg-card px-5 py-4 sm:px-7">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             disabled={index === 0}
+            className="-ml-3.5 disabled:invisible"
             onClick={() => goTo(STEPS[index - 1])}
           >
+            <ArrowLeftIcon aria-hidden />
             {t('common:actions.back')}
           </Button>
           {step === 'review' ? (
@@ -313,10 +310,11 @@ export function CreateWizard({
           ) : (
             <Button key="next" type="submit">
               {t('common:actions.next')}
+              <ArrowRightIcon aria-hidden />
             </Button>
           )}
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </Form>
   );
 }
@@ -326,11 +324,11 @@ function StepList({ current, onSelect }: { current: Step; onSelect: (step: Step)
   const index = STEPS.indexOf(current);
 
   return (
-    <div className="mb-6 grid gap-2">
+    <div className="mb-5 grid gap-2">
       <p className="text-sm text-muted-foreground sm:sr-only" aria-live="polite">
         {t('wizard.progress', { step: index + 1, count: STEPS.length })}
       </p>
-      <ol className="grid grid-cols-5 gap-2">
+      <ol className="grid grid-cols-5 gap-1.5 sm:gap-3">
         {STEPS.map((step, position) => (
           <li key={step} aria-current={step === current ? 'step' : undefined}>
             <button
@@ -338,13 +336,24 @@ function StepList({ current, onSelect }: { current: Step; onSelect: (step: Step)
               disabled={position >= index}
               onClick={() => onSelect(step)}
               className={cn(
-                'flex w-full flex-col gap-2 border-t-4 py-2 text-left text-sm enabled:cursor-pointer enabled:hover:text-primary',
-                position <= index ? 'border-primary' : 'border-border text-muted-foreground',
+                'group w-full rounded-sm text-left text-sm enabled:cursor-pointer enabled:hover:text-primary max-sm:py-3',
+                position > index && 'text-muted-foreground',
                 step === current && 'font-semibold',
               )}
             >
-              <span className="sr-only sm:not-sr-only sm:truncate">
-                {`${position + 1}. ${t(`wizard.steps.${step}`)}`}
+              <span
+                aria-hidden
+                className={cn(
+                  'block h-1.5 rounded-sm bg-primary/15',
+                  position < index && 'bg-primary',
+                  step === current && 'bg-primary',
+                )}
+              />
+              <span className="sr-only sm:not-sr-only sm:mt-2 sm:flex sm:items-center sm:gap-1.5">
+                {position < index && (
+                  <CheckIcon aria-hidden className="size-4 shrink-0 text-success" />
+                )}
+                <span className="truncate">{`${position + 1}. ${t(`wizard.steps.${step}`)}`}</span>
               </span>
             </button>
           </li>

@@ -92,8 +92,10 @@ export default function NewCompetition({ actionData }: Route.ComponentProps) {
   return (
     <>
       <title>{`${t('new')} · UTEG`}</title>
-      <PageHeader title={t('new')} />
-      <CreateWizard ownEmail={email} errors={actionData?.errors} />
+      <div className="mx-auto max-w-3xl">
+        <PageHeader title={t('new')} breadcrumbs={[{ to: '/home', label: t('listTitle') }]} />
+        <CreateWizard ownEmail={email} errors={actionData?.errors} />
+      </div>
     </>
   );
 }

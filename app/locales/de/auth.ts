@@ -17,7 +17,11 @@ export default {
   },
   profile: {
     title: 'Profil',
+    languageLabel: 'Sprache der Oberfläche',
     emailTitle: 'E-Mail-Adresse',
+    emailText: 'Damit meldest du dich an.',
+    emailSave: 'E-Mail-Adresse ändern',
+    passwordText: 'Andere Geräte werden danach abgemeldet.',
     passwordTitle: 'Passwort ändern',
     currentPassword: 'Aktuelles Passwort',
     newPassword: 'Neues Passwort',

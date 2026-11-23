@@ -94,13 +94,15 @@ export function RankingExport({
             const keys = groups.filter((group) => group.sex === sex);
             if (keys.length === 0) return null;
             return (
-              <FieldSet key={sex} className="gap-2">
-                <FieldLegend variant="label">{t(`common:sex.${sex}`)}</FieldLegend>
+              <FieldSet key={sex} className="gap-0">
+                <FieldLegend variant="label" className="mb-0">
+                  {t(`common:sex.${sex}`)}
+                </FieldLegend>
                 <div className="grid grid-cols-3 gap-x-4 sm:grid-cols-4">
                   {keys.map((group) => {
                     const key = toKey(group);
                     return (
-                      <Label key={key} className="min-h-11">
+                      <Label key={key} className="min-h-11 font-normal">
                         <Checkbox
                           checked={selected.includes(key)}
                           onCheckedChange={(checked) => select(key, checked === true)}
@@ -119,7 +121,7 @@ export function RankingExport({
               <TemplateSelect templates={templates} />
             </div>
           )}
-          <DialogFooter className="items-center">
+          <DialogFooter className="sm:items-center">
             {selected.length === 0 && (
               <p className="text-sm text-muted-foreground">{t('export.noneSelected')}</p>
             )}

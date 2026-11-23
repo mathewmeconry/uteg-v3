@@ -9,9 +9,9 @@ const STYLES: Record<StatusTone, string> = {
   neutral: 'border-border bg-card text-muted-foreground',
   // Brand yellow-green is only for what is happening right now.
   live: 'bg-brand text-brand-foreground',
-  done: 'bg-[color-mix(in_oklch,var(--success)_13%,var(--card))] text-success',
+  done: 'bg-[color-mix(in_oklab,var(--success)_13%,var(--card))] text-success',
   warning: 'bg-warning text-warning-foreground',
-  danger: 'bg-[color-mix(in_oklch,var(--destructive)_12%,var(--card))] text-destructive',
+  danger: 'bg-[color-mix(in_oklab,var(--destructive)_12%,var(--card))] text-destructive',
 };
 
 /** A state in a word, with an icon so that it is not only a colour. */

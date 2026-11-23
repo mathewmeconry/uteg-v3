@@ -10,6 +10,7 @@ export default {
     groundsHint: 'Jeder Platz hat eigene Geräte und eigene Zugänge für die Wertungsrichter.',
     logo: 'Logo',
     logoHint: 'PNG oder JPEG, höchstens 5 MB und 4000 × 4000 Pixel',
+    logoChoose: 'Bild auswählen oder hierher ziehen',
     logoClear: 'Auswahl aufheben',
     modules: 'Module',
   },

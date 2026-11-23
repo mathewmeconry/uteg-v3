@@ -65,7 +65,7 @@ export function NextSteps({
               {isDone && <span className="sr-only">{t('steps.done')}</span>}
             </span>
             <div className="min-w-0 flex-1 basis-40">
-              <p className={cn('font-semibold', isCurrent && 'font-display text-lg leading-tight')}>
+              <p className={isCurrent ? 'font-display text-lg leading-tight' : 'font-semibold'}>
                 {t(`steps.${step}`)}
               </p>
               {!isDone && (

@@ -8,9 +8,12 @@ it.each([
   ['running', 5, [2, 1, 1]],
   ['continue', 5, [1, 0, 1]],
   ['ended', 5, [0, 0, 2]],
-] as const)('%s with %i starters and divisions %j', (phase, starters, [PENDING, RUNNING, ENDED]) => {
-  expect(getPhase({ starters, divisions: { PENDING, RUNNING, ENDED } })).toBe(phase);
-});
+] as const)(
+  '%s with %i starters and divisions %j',
+  (phase, starters, [PENDING, RUNNING, ENDED]) => {
+    expect(getPhase({ starters, divisions: { PENDING, RUNNING, ENDED } })).toBe(phase);
+  },
+);
 
 it.each([
   ['upcoming', '2026-05-08T21:59:00Z'],

@@ -166,7 +166,7 @@ export function TemplateFields({
       </Section>
 
       <Section title={t('form.columns')}>
-        <Columns>
+        <div className="grid grid-cols-2 gap-4">
           {COLUMNS.map((column) => (
             <CheckField
               key={column}
@@ -175,7 +175,7 @@ export function TemplateFields({
               onChange={(checked) => set('columns', { ...options.columns, [column]: checked })}
             />
           ))}
-        </Columns>
+        </div>
         <SelectField
           label={t('form.nameFormat')}
           value={options.nameFormat}
@@ -220,8 +220,10 @@ export function TemplateFields({
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <FieldSet className="gap-4 rounded-lg border bg-card p-4">
-      <FieldLegend className="float-left mb-0 w-full">{title}</FieldLegend>
+    <FieldSet className="gap-4 border-t pt-5">
+      <FieldLegend className="float-left mb-0 w-full font-display font-bold data-[variant=legend]:text-lg">
+        {title}
+      </FieldLegend>
       {children}
     </FieldSet>
   );
@@ -241,7 +243,7 @@ function CheckField({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <Label className="leading-normal pointer-coarse:min-h-11">
+    <Label className="leading-normal font-normal pointer-coarse:-my-2 pointer-coarse:min-h-11">
       <Checkbox checked={checked} onCheckedChange={(value) => onChange(value === true)} />
       {label}
     </Label>

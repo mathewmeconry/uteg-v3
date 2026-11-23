@@ -10,8 +10,8 @@ import { PageHeader } from '~/components/PageHeader';
 import { HonourForm } from '~/components/ranking/HonourForm';
 import { RankingExport } from '~/components/ranking/RankingExport';
 import { RankingList } from '~/components/ranking/RankingList';
+import { Toolbar } from '~/components/Toolbar';
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
-import { Button } from '~/components/ui/button';
 import { Label } from '~/components/ui/label';
 import { Switch } from '~/components/ui/switch';
 import { competitionContext, contestContext } from '~/context';
@@ -25,6 +25,7 @@ import { parseForm, readForm } from '~/lib/forms.server';
 import { formatDateTime } from '~/lib/format';
 import { getRanking, listRankingGroups } from '~/lib/ranking.server';
 import { listRankingTemplates } from '~/lib/rankingTemplates.server';
+import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
@@ -107,21 +108,48 @@ export async function action({ request, context }: Route.ActionArgs) {
 function ChoiceLink({
   params,
   selected,
+  isEmpty = false,
   children,
 }: {
   params: Record<string, string>;
   selected: boolean;
+  /** There is nothing to see yet. */
+  isEmpty?: boolean;
   children: ReactNode;
 }) {
   const [current] = useSearchParams();
   const next = new URLSearchParams(current);
   for (const [name, value] of Object.entries(params)) next.set(name, value);
   return (
-    <Button asChild variant={selected ? 'default' : 'outline'}>
-      <Link to={`?${next}`} preventScrollReset aria-current={selected ? 'true' : undefined}>
-        {children}
-      </Link>
-    </Button>
+    <Link
+      to={`?${next}`}
+      preventScrollReset
+      aria-current={selected ? 'true' : undefined}
+      className={cn(
+        'inline-flex h-8 items-center justify-center rounded-md px-3 text-sm font-semibold outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 pointer-coarse:h-11',
+        isEmpty && 'font-normal text-muted-foreground',
+        selected &&
+          'bg-ink text-ink-foreground hover:bg-ink dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary',
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function ChoiceNav({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <nav aria-label={label} className={cn('flex gap-1 rounded-lg border bg-card p-1', className)}>
+      {children}
+    </nav>
   );
 }
 
@@ -156,6 +184,7 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
           ranking.lastUpdated &&
           t('lastUpdated', { date: formatDateTime(ranking.lastUpdated, i18n.language) })
         }
+        status={<ConnectionBadge status={status} />}
         actions={
           <RankingExport
             competitionId={competition.id}
@@ -168,25 +197,33 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
         }
       />
 
-      <div className="mb-4 grid gap-3">
-        <nav aria-label={t('common:fields.sex')} className="flex flex-wrap gap-2">
+      <Toolbar className="mb-2 gap-x-3">
+        <ChoiceNav label={t('common:fields.sex')} className="max-sm:w-full max-sm:*:flex-1">
           {SEXES.map((item) => (
             <ChoiceLink key={item} params={{ sex: item, category }} selected={item === sex}>
               {t(`common:sex.${item}`)}
             </ChoiceLink>
           ))}
-        </nav>
-        <nav aria-label={t('common:fields.category')} className="flex flex-wrap gap-2">
+        </ChoiceNav>
+        <ChoiceNav
+          label={t('common:fields.category')}
+          className="max-sm:grid max-sm:w-full max-sm:grid-cols-4"
+        >
           {categories.map((item) => (
-            <ChoiceLink key={item} params={{ sex, category: item }} selected={item === category}>
+            <ChoiceLink
+              key={item}
+              params={{ sex, category: item }}
+              selected={item === category}
+              isEmpty={!groups.some((group) => group.sex === sex && group.category === item)}
+            >
               {item}
             </ChoiceLink>
           ))}
-        </nav>
-      </div>
+        </ChoiceNav>
+      </Toolbar>
 
-      <div className="mb-4 flex flex-wrap items-center gap-x-8 gap-y-2">
-        <Label htmlFor={provisionalId} className="min-h-11 leading-normal">
+      <Toolbar>
+        <Label htmlFor={provisionalId} className="min-h-11 leading-normal font-normal">
           <Switch id={provisionalId} checked={provisional} onCheckedChange={toggleProvisional} />
           {t('provisional')}
         </Label>
@@ -203,11 +240,10 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
             {t('honourPercent')}: {honourPercent} · {hint}
           </p>
         )}
-        <ConnectionBadge status={status} />
-      </div>
+      </Toolbar>
 
       {ranking.hasRunning && (
-        <Alert className="mb-4 border-warning">
+        <Alert variant="warning" className="mb-4">
           <TriangleAlertIcon aria-hidden />
           <AlertTitle>{t('runningTitle')}</AlertTitle>
           <AlertDescription>{t(provisional ? 'provisionalText' : 'runningText')}</AlertDescription>
@@ -215,7 +251,7 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
       )}
 
       {ranking.missingGrades > 0 && (
-        <Alert className="mb-4 border-warning">
+        <Alert variant="warning" className="mb-4">
           <TriangleAlertIcon aria-hidden />
           <AlertTitle>{t('missingGrades', { count: ranking.missingGrades })}</AlertTitle>
         </Alert>
