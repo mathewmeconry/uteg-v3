@@ -26,12 +26,15 @@ export function useGradeDrafts({
   slots,
   loadedAt,
   status,
+  survivesOffline = false,
 }: {
   url: string;
   prefix: string;
   slots: readonly GradedSlot[];
   loadedAt: number;
   status: ConnectionStatus;
+  /** The page keeps its data when loading fails. Others would be replaced by an error page. */
+  survivesOffline?: boolean;
 }) {
   const { revalidate } = useRevalidator();
   const [store] = useState(() =>
@@ -68,7 +71,7 @@ export function useGradeDrafts({
   // be saved as well. Not awaited, because a saved draft is shown until the data has arrived.
   async function afterAnswer(answer: Promise<GradeResult>) {
     const result = await answer;
-    void revalidate();
+    if (survivesOffline || result.ok || result.code !== 'OFFLINE') void revalidate();
     return result;
   }
 
@@ -87,7 +90,7 @@ export function useGradeDrafts({
     overwrite: (key: string, saved: SavedGrade | null) => afterAnswer(store.overwrite(key, saved)),
     discard(key: string) {
       store.discard(key);
-      void revalidate();
+      if (survivesOffline || status === 'open') void revalidate();
     },
     retry,
   };
