@@ -37,9 +37,9 @@ export function RoundsSheet({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="h-14 px-5 text-lg">
+        <Button variant="outline" className="@md:h-14 @md:px-5 @md:text-lg">
           <ListOrderedIcon aria-hidden />
-          {t('list.all')}
+          <span className="@max-md:sr-only">{t('list.all')}</span>
         </Button>
       </SheetTrigger>
       <SheetContent

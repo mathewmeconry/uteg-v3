@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { useDelayedRound, useIsExpired } from './useDisplayTimers';
+import { useIsExpired, useShown } from './useDisplayTimers';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -11,55 +11,33 @@ afterEach(() => {
 
 const advance = (ms: number) => act(() => vi.advanceTimersByTime(ms));
 
-describe('useDelayedRound', () => {
-  function render(round: number, ids = ['d1']) {
-    return renderHook(
-      (props: { round: number; ids: string[] }) => useDelayedRound(props.round, props.ids),
-      { initialProps: { round, ids } },
-    );
-  }
-
-  it('shows the current round at once after a reload', () => {
-    expect(render(2).result.current).toBe(2);
+describe('useShown', () => {
+  const live = (...values: (number | null)[]) => ({
+    round: 0,
+    divisionIds: ['d1'],
+    apparatus: [
+      {
+        apparatus: 'reck',
+        rounds: [
+          values.map((value, index) => ({
+            entryId: `${index}`,
+            withdrawn: false,
+            grade: value === null ? null : { value },
+          })),
+        ],
+      },
+    ],
   });
 
-  it('waits 30 seconds with the next round', () => {
-    const { result, rerender } = render(0);
-    rerender({ round: 1, ids: ['d1'] });
-    expect(result.current).toBe(0);
-    advance(29_999);
-    // Every live update renders again and must not start over.
-    rerender({ round: 1, ids: ['d1'] });
-    expect(result.current).toBe(0);
-    advance(1);
-    expect(result.current).toBe(1);
-    rerender({ round: 2, ids: ['d1'] });
-    expect(result.current).toBe(1);
-    advance(30_000);
-    expect(result.current).toBe(2);
-  });
-
-  it('catches up when several rounds pass meanwhile', () => {
-    const { result, rerender } = render(0);
-    rerender({ round: 1, ids: ['d1'] });
+  it('shows new grades one after the other, live updates do not start over', () => {
+    const { result, rerender } = renderHook(useShown, { initialProps: live(null, null) });
+    rerender(live(1, null));
+    expect(result.current.steps.reck.count).toBe(1);
     advance(20_000);
-    rerender({ round: 2, ids: ['d1'] });
+    rerender(live(1, 2));
+    expect(result.current.steps.reck.count).toBe(1);
     advance(10_000);
-    expect(result.current).toBe(2);
-  });
-
-  it('shows other and restarted divisions at once', () => {
-    const { result, rerender } = render(3);
-    rerender({ round: 0, ids: ['d1'] });
-    expect(result.current).toBe(0);
-    rerender({ round: 2, ids: ['d2'] });
-    expect(result.current).toBe(2);
-  });
-
-  it('shows the first round at once after waiting', () => {
-    const { result, rerender } = render(0, []);
-    rerender({ round: 1, ids: ['d1'] });
-    expect(result.current).toBe(1);
+    expect(result.current.steps.reck.count).toBe(2);
   });
 });
 

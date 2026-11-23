@@ -20,13 +20,16 @@ type Slot = {
 export function ApparatusPanel({
   apparatus,
   slots,
+  count,
 }: {
   apparatus: string;
   slots: readonly Slot[];
+  /** Of the grades that are shown already. */
+  count: number;
 }) {
   const { t } = useTranslation('display');
   const name = useApparatusName()(apparatus);
-  const { current, next } = selectStarters(slots);
+  const { current, next } = selectStarters(slots, count);
   // Two lines next to the grade hold about this much.
   const isLongName = current && `${current.firstname} ${current.lastname}`.length > 22;
 
@@ -60,11 +63,11 @@ export function ApparatusPanel({
             </div>
             <p
               // A new element for every grade, so that it lights up.
-              key={`${current.entryId} ${current.grade?.value}`}
+              key={`${current.entryId} ${count > 0} ${current.grade?.value}`}
               className="new-grade shrink-0 figure leading-none text-brand"
               style={{ fontSize: size(50, 18) }}
             >
-              {current.grade && formatGrade(current.grade.value, current.precision)}
+              {count > 0 && current.grade && formatGrade(current.grade.value, current.precision)}
             </p>
           </div>
         ) : (

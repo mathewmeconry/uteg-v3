@@ -210,10 +210,10 @@ export function Tablet({
         <div className="@container grid min-w-0 grid-cols-1 gap-4">
           {notices}
           {unsavedGrades}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="font-display text-2xl">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-display text-xl @md:text-2xl">
               {t('roundOf', { number: currentRound + 1, total: rounds.length })}
-              <span className="ml-3 font-sans text-lg font-normal text-muted-foreground [font-stretch:100%]">
+              <span className="ml-3 font-sans text-base @md:text-lgfont-normal text-muted-foreground [font-stretch:100%]">
                 {data.divisions
                   .filter(({ id }) => data.divisionIds.includes(id))
                   .map(

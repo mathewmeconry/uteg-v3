@@ -3,8 +3,25 @@
 /* Self-hosted, weight and width axis. Licence: SIL OFL. */
 @import '@fontsource-variable/archivo/wdth.css';
 
-/* Light and dark follow the system, there is no switch. */
-@custom-variant dark (@media (prefers-color-scheme: dark));
+/* Follows the system, unless the user chose a theme, see lib/theme.ts. */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *) {
+      @slot;
+    }
+  }
+  &:where([data-theme='dark'], [data-theme='dark'] *) {
+    @slot;
+  }
+}
+
+[data-theme='light'] {
+  color-scheme: light !important;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark !important;
+}
 
 /* What the colours are for: docs/DESIGN.md */
 :root {
@@ -52,8 +69,8 @@
   --sidebar-ring: oklch(0.55 0.1 212);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+:root {
+  @variant dark {
     --background: oklch(0.19 0.016 212);
     --foreground: oklch(0.955 0.007 200);
     --card: oklch(0.232 0.02 212);

@@ -1,30 +1,18 @@
 import { useEffect, useState } from 'react';
+import { advance, showAll } from './displayState';
 
-const ROUND_DELAY_MS = 30_000;
-
-/**
- * The round to show: stays on the previous one for 30 seconds, so the last grades can be read. The
- * first round of other divisions and the round after a reload are shown at once.
- */
-export function useDelayedRound(round: number, divisionIds: readonly string[]) {
-  const [shown, setShown] = useState({ round, divisionIds, isOver: false });
-  const isSameCompetitors = divisionIds.some((id) => shown.divisionIds.includes(id));
-  const isDelayed = isSameCompetitors && round > shown.round && !shown.isOver;
-
-  const isCurrent =
-    round === shown.round && divisionIds.join() === shown.divisionIds.join() && !shown.isOver;
-  if (!isDelayed && !isCurrent) setShown({ round, divisionIds, isOver: false });
+/** What the display shows of the live data, so that every grade can be read. */
+export function useShown(live: Parameters<typeof advance>[1]) {
+  const [shown, setShown] = useState(() => showAll(live, Date.now()));
 
   useEffect(() => {
-    if (!isDelayed) return;
-    const timer = setTimeout(
-      () => setShown((state) => ({ ...state, isOver: true })),
-      ROUND_DELAY_MS,
-    );
-    return () => clearTimeout(timer);
-  }, [isDelayed]);
+    const update = () => setShown((current) => advance(current, live, Date.now()));
+    update();
+    const timer = setInterval(update, 1_000);
+    return () => clearInterval(timer);
+  }, [live]);
 
-  return isDelayed ? shown.round : round;
+  return shown;
 }
 
 /** Whether `hidesInMs` has passed since it was loaded, also without a connection. */
