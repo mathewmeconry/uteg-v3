@@ -17,3 +17,17 @@ export async function safeClientAction({ serverAction }: { serverAction: () => P
     return data({ failed }, failed);
   }
 }
+
+/**
+ * The same for forms that save by themselves, see useActionSave. They keep the page also when the
+ * session has ended, nobody expects to leave it while typing.
+ */
+export async function autosaveClientAction(args: { serverAction: () => Promise<unknown> }) {
+  try {
+    return await safeClientAction(args);
+  } catch (error) {
+    const target = error instanceof Response ? error.headers.get('Location') : null;
+    if (!target?.startsWith('/login')) throw error;
+    return data({ failed: 401 }, 401);
+  }
+}

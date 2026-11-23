@@ -2,6 +2,7 @@ import { CircleCheckBigIcon, HourglassIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRevalidator } from 'react-router';
+import { isUntouched } from '~/components/grading/draftStore';
 import { useGradeDrafts } from '~/components/grading/useGradeDrafts';
 import { EmptyState } from '~/components/EmptyState';
 import type { ConnectionStatus } from '~/hooks/useLiveUpdates';
@@ -98,7 +99,7 @@ export function Tablet({
   const past = pastSlots.find(({ entryId }) => entryId === pastEntryId);
   const current = past ?? slots.find(({ entryId }) => entryId === resolved?.view);
   const unsaved = [...drafts.drafts.values()].filter(
-    (draft) => !draft.confirmed && draft.entryId !== current?.entryId,
+    (draft) => !draft.confirmed && !isUntouched(draft) && draft.entryId !== current?.entryId,
   );
 
   function moveTo(view: string, fromReview = false) {
@@ -167,7 +168,10 @@ export function Tablet({
       slot={past}
       slots={[past]}
       drafts={drafts}
-      onMove={() => setPastEntryId(null)}
+      onMove={() => {
+        setPastEntryId(null);
+        setPosition((now) => now && { ...now, takeFocus: true });
+      }}
     />
   );
 

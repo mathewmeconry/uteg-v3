@@ -9,7 +9,7 @@ const modules: Record<string, ContestModule> = {
 /** A contest's module bound to its validated config. */
 export type BoundModule = ReturnType<typeof bindModule>;
 
-export function bindModule<Config>(module: ContestModule<Config>, rawConfig: unknown) {
+function bindModule<Config>(module: ContestModule<Config>, rawConfig: unknown) {
   const config = module.configSchema.parse(rawConfig);
   return {
     key: module.key,

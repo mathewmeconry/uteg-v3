@@ -66,6 +66,27 @@ describe('the middlewares of every request', () => {
   });
 
   it.each([
+    ['en', 'de', 'Save'],
+    ['de', 'en', 'Speichern'],
+  ])('prefer the language of the user (%s) to the one of the browser (%s)', async (...args) => {
+    const [language, browser, text] = args;
+    const { headers } = await auth.api.signUpEmail({
+      body: { email: 'a@example.com', name: 'A', password: 'only-for-tests', language },
+      returnHeaders: true,
+    });
+    const response = await send('/', {
+      ...SAME_ORIGIN,
+      Cookie: authCookies({ headers })
+        .getSetCookie()
+        .map((cookie) => cookie.split(';')[0])
+        .join('; '),
+      'Accept-Language': browser,
+    });
+    const toasts = response.headers.getSetCookie().find((cookie) => cookie.startsWith('toasts='));
+    expect(decodeURIComponent(toasts!)).toContain(`"${text}"`);
+  });
+
+  it.each([
     ['a NUL byte', '/a%00', SAME_ORIGIN, 404],
     ['a large body', '/', { ...SAME_ORIGIN, 'Content-Length': '2000000' }, 413],
     ['a body without length', '/', { ...SAME_ORIGIN, 'Transfer-Encoding': 'chunked' }, 411],

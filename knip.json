@@ -1,6 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "tags": ["-lintignore"],
-  "ignoreFiles": ["app/generated/**/*", "app/components/ui/*"],
-  "ignoreIssues": { "app/components/ui/*": ["exports"] }
+  "ignoreFiles": ["app/components/ui/*"],
+  "ignoreIssues": { "app/components/ui/*": ["exports"] },
+  "ignoreDependencies": ["shadcn"]
 }

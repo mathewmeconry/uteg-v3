@@ -129,18 +129,17 @@ export default {
       'You see the first person of the round. Enter the grade and tap “{{next}}”: the grade is saved and the next person appears.',
     grading2: 'With “{{back}}” you can correct earlier grades of the round.',
     grading3:
-      'Where several attempts count (vault), enter every attempt. The final grade is computed. 0 is a grade too.',
+      'Where several attempts count (vault), enter every attempt with at most two decimals. The final grade is computed, you can also enter it directly. 0 is a grade too.',
     grading4:
-      'At the end of the round you see all grades. Check them and confirm the round. Then the list of the next round appears.',
-    pause: 'Pause',
+      'After the last person tap “{{review}}” to see all grades. Tap a person to change their grade. If everything is right, tap “{{confirm}}”. Then the list of the next round appears.',
     pause1:
-      'If nobody is at your apparatus in a round, confirm the pause so that the competition can go on.',
-    overview: 'All rounds',
+      'If nobody is at your apparatus in a round, tap “{{confirm}}” so that the competition can go on.',
     overview1:
-      'The overview shows the lists of all rounds at your apparatus and whose turn it is now.',
+      'This button shows who starts at your apparatus in which round. You can also correct a grade of a confirmed round there.',
     changes: 'Changes',
     changes1:
       'When someone is added or withdrawn, a notice appears. Withdrawn starters stay in the list, struck through, and need no grade.',
-    changes2: 'If the connection is lost, your input is kept. Simply reload the page.',
+    changes2:
+      'If the connection is lost, your input is kept on the device and sent by itself when the connection is back. With “{{continue}}” you can go on judging. Do not reload the page without a connection.',
   },
 } satisfies Translation<typeof de>;

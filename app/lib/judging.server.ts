@@ -42,7 +42,7 @@ export type GradeScope = { kind: 'editor' } | { kind: 'judge'; ground: number; a
 
 export type JudgingState = Awaited<ReturnType<typeof getJudgingState>>;
 export type GradingState = Awaited<ReturnType<typeof getGradingState>>;
-export type JudgingRound = JudgingState['apparatus'][number]['rounds'][number];
+type JudgingRound = JudgingState['apparatus'][number]['rounds'][number];
 export type JudgingSlot = JudgingRound['slots'][number];
 
 // ── State ────────────────────────────────────────────────────────────────────

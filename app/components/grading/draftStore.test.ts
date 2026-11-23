@@ -84,12 +84,24 @@ describe('typing', () => {
   });
 
   it('leaves nothing behind when the saved grade is typed again', () => {
-    const { store, storage } = setup();
+    const { store, storage, state } = setup();
     const slot = createSlot(saved(9100));
     store.change(slot, slot.grade, typed('9.2'));
     store.change(slot, slot.grade, typed('9,1'));
-    expect(store.getSnapshot().size).toBe(0);
+    expect(state(slot).isDirty).toBe(false);
     expect(storage.items.size).toBe(0);
+    store.leave(KEY);
+    expect(store.getSnapshot().size).toBe(0);
+  });
+
+  it('is not rewritten on the way to another value', () => {
+    const { store, state } = setup();
+    const slot = createSlot(saved(9000));
+    store.change(slot, slot.grade, typed('9'));
+    store.reconcile([slot], 1);
+    expect(store.getSnapshot().get(KEY)?.fields).toEqual(typed('9'));
+    store.change(slot, slot.grade, typed('9.5'));
+    expect(state(slot)).toMatchObject({ isDirty: true, evaluated: { grade: value(9500) } });
   });
 
   it('works without storage', () => {
@@ -195,6 +207,19 @@ describe('submitting', () => {
     expect(state(loaded)).toMatchObject({ isDirty: true, isConflict: false });
     await store.submit(KEY);
     expect(requests[1]).toMatchObject({ previous: { version: 1 }, supersedes: [] });
+  });
+
+  it('is no conflict with the next input before the data has it', async () => {
+    const { store, requests, state } = setup();
+    const slot = createSlot();
+    store.change(slot, null, typed('9'));
+    await store.submit(KEY);
+    const before = state(slot, 99).saved;
+    store.change(slot, before, typed('9.5'));
+    store.reconcile([slot], 99);
+    expect(state(slot, 99)).toMatchObject({ isConflict: false, saved: value(9000) });
+    await store.submit(KEY);
+    expect(requests[1]).toMatchObject({ grade: value(9500), previous: { version: 1 } });
   });
 
   it('sends a double tap once', async () => {

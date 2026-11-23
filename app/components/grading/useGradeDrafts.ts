@@ -88,6 +88,7 @@ export function useGradeDrafts({
       return { fields, ...getSlotState(slot, { fields, draft, loadedAt }) };
     },
     change: store.change,
+    leave: store.leave,
     submit: (key: string) => afterAnswer(store.submit(key)),
     overwrite: (key: string, saved: SavedGrade | null) => afterAnswer(store.overwrite(key, saved)),
     discard(key: string) {

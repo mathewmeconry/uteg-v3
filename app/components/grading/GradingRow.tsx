@@ -1,5 +1,5 @@
 import { SaveIcon, Trash2Icon, UndoIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type FocusEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { fullName, type TabletSlot } from '~/components/judging/types';
@@ -13,7 +13,7 @@ import { GradeInputs } from './GradeInputs';
 import { ConflictNotice, RejectedNotice, SaveState } from './SaveState';
 import type { GradeDrafts } from './useGradeDrafts';
 
-/** One starter in the grading tables. Every row is saved on its own. */
+/** One starter in the grading tables. Saves by itself when the row is left, or with Enter. */
 export function GradingRow({
   slot,
   position,
@@ -28,6 +28,7 @@ export function GradingRow({
   const { t } = useTranslation(['judging', 'common']);
   const apparatusName = useApparatusName();
   const [showRequired, setShowRequired] = useState(false);
+  const [isActive, setIsActive] = useState(false);
   const state = drafts.get(slot);
   /** The grade in the open delete dialog, also when another one is saved meanwhile. */
   const [shown, setShown] = useState(state.saved);
@@ -36,13 +37,26 @@ export function GradingRow({
   const isEditable = canEdit && !slot.withdrawn;
 
   function save() {
-    if (state.isSaving || state.isConflict) return;
-    if (!state.evaluated.grade) setShowRequired(true);
-    else if (state.isDirty) void drafts.submit(key);
+    if (!state.isDirty || state.isConflict) return;
+    if (state.evaluated.grade) void drafts.submit(key);
+    else setShowRequired(true);
+  }
+
+  function onBlur({ currentTarget, target, relatedTarget }: FocusEvent) {
+    if (currentTarget.contains(relatedTarget)) return;
+    // The window lost the focus, the field did not: the value may be half typed.
+    if (document.activeElement === target) return;
+    setIsActive(false);
+    // Clearing a field does not delete a grade.
+    if (state.evaluated.isEmpty && !state.wasSent && !state.isConflict) drafts.discard(key);
+    else save();
+    drafts.leave(key);
   }
 
   return (
     <li
+      onFocus={({ target }) => target instanceof HTMLInputElement && setIsActive(true)}
+      onBlur={onBlur}
       className={cn(
         'flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2',
         state.isDirty && 'bg-warning/15',
@@ -69,7 +83,6 @@ export function GradingRow({
             rule={slot.inputRule}
             name={name}
             showRequired={showRequired && state.isDirty}
-            disabled={state.isSaving}
             onChange={(fields) => {
               setShowRequired(false);
               drafts.change(slot, state.saved, fields);
@@ -78,21 +91,29 @@ export function GradingRow({
           />
           <SaveState state={state} className="w-48 text-sm" />
           <div className="flex gap-1">
-            <Button
-              size="icon"
-              variant={state.isDirty ? 'default' : 'outline'}
-              disabled={!state.isDirty || state.isSaving || state.isConflict}
-              aria-label={t('grading.saveRow', { name })}
-              onClick={save}
-            >
-              <SaveIcon aria-hidden />
-            </Button>
+            {/* Typed before a reload, or refused: that does not save by itself. */}
+            {state.isDirty &&
+              !isActive &&
+              !state.isSaving &&
+              !state.isWaiting &&
+              !state.isConflict &&
+              state.evaluated.grade && (
+                <Button
+                  size="icon"
+                  aria-label={t('grading.saveRow', { name })}
+                  onClick={() => void drafts.submit(key)}
+                >
+                  <SaveIcon aria-hidden />
+                </Button>
+              )}
             {state.isDirty ? (
               <Button
                 size="icon"
                 variant="outline"
                 disabled={state.isSaving}
                 aria-label={t('grading.discardRow', { name })}
+                // Safari does not focus buttons, it would look like leaving the row.
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
                   if (!state.wasSent || window.confirm(t('discardSent', { name }))) {
                     drafts.discard(key);

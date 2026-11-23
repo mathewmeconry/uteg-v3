@@ -53,6 +53,10 @@ export default {
     groupAccess: 'Access',
     groupAdmin: 'Administration',
   },
+  saveStatus: {
+    error: 'Not saved',
+    retry: 'Try again',
+  },
   fields: {
     birthYear: 'Year of birth',
     category: 'Category',

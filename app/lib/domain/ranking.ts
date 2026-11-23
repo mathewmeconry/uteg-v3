@@ -5,7 +5,7 @@ export type Award = 'GOLD' | 'SILVER' | 'BRONZE' | 'HONOUR';
 
 export type RankingInput = { id: string; grades: Partial<Record<string, number>> };
 
-export type Ranked<Entry extends RankingInput> = Entry & {
+type Ranked<Entry extends RankingInput> = Entry & {
   rank: number;
   total: number;
   award: Award | null;
