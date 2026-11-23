@@ -94,7 +94,10 @@ export async function resetAllTokens(competitionId: string, kind: AccessKind) {
 export async function resolveToken(token: string | null | undefined, kind: AccessKind) {
   // Prisma ignores undefined filters and would return any link.
   if (!token) return null;
-  return prisma.accessLink.findFirst({ where: { token, kind } });
+  return prisma.accessLink.findFirst({
+    where: { token, kind },
+    include: { competition: { select: { name: true } } },
+  });
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

@@ -146,6 +146,7 @@ export default {
     FILE_TOO_LARGE: 'The file is too large.',
     FORBIDDEN: 'You are not allowed to do this.',
     GRADES_MISSING: 'Some grades are missing.',
+    GRADE_CHANGED: 'The grade was changed elsewhere in the meantime.',
     GROUND_IN_USE: 'The ground is still in use.',
     INVALID_APPARATUS: 'Invalid apparatus.',
     INVALID_CATEGORY: 'Invalid category.',

@@ -143,6 +143,7 @@ export default {
     FILE_TOO_LARGE: 'Die Datei ist zu gross.',
     FORBIDDEN: 'Dafür fehlt dir die Berechtigung.',
     GRADES_MISSING: 'Es fehlen noch Noten.',
+    GRADE_CHANGED: 'Die Note wurde inzwischen anderswo geändert.',
     GROUND_IN_USE: 'Der Wettkampfplatz wird noch verwendet.',
     INVALID_APPARATUS: 'Ungültiges Gerät.',
     INVALID_CATEGORY: 'Ungültige Kategorie.',
