@@ -195,8 +195,7 @@ test('a competition from the first login to the ranking', async ({ page, browser
 
   await test.step('correct a grade after the end', async () => {
     const row = page.getByRole('listitem').filter({ hasText: WOMEN.category });
-    await row.getByRole('button', { name: 'Weitere Aktionen' }).click();
-    await page.getByRole('menuitem', { name: 'Noteneingabe' }).click();
+    await row.getByRole('link', { name: 'Noteneingabe' }).click();
     await page.waitForURL('**/grading');
     const reck = page.getByRole('region', { name: 'Reck' });
     await reck.getByRole('tab', { name: 'Durchgang 1' }).click();

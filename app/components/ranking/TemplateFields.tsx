@@ -1,8 +1,8 @@
+import { ChevronDownIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormField } from '~/components/FormField';
 import { Checkbox } from '~/components/ui/checkbox';
-import { FieldLegend, FieldSet } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import {
@@ -218,14 +218,34 @@ export function TemplateFields({
   );
 }
 
-export function Section({ title, children }: { title: string; children: ReactNode }) {
+/** Collapsed unless `defaultOpen`. Its title is red when something in it is wrong. */
+export function Section({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <FieldSet className="gap-4 border-t pt-5">
-      <FieldLegend className="float-left mb-0 w-full font-display font-bold data-[variant=legend]:text-lg">
+    <details
+      // Opening one closes the others.
+      name="template-section"
+      open={defaultOpen}
+      className="group rounded-xl border bg-card has-aria-invalid:border-destructive"
+    >
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 rounded-xl px-4 font-display text-lg group-open:rounded-b-none group-has-aria-invalid:text-destructive hover:bg-accent [&::-webkit-details-marker]:hidden">
         {title}
-      </FieldLegend>
-      {children}
-    </FieldSet>
+        <ChevronDownIcon
+          aria-hidden
+          className="size-5 text-muted-foreground transition-transform group-open:rotate-180"
+        />
+      </summary>
+      <div role="group" aria-label={title} className="grid grid-cols-1 gap-4 border-t p-4">
+        {children}
+      </div>
+    </details>
   );
 }
 

@@ -1,5 +1,5 @@
 import { PlusIcon, QrCodeIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CopyButton } from '~/components/CopyButton';
 import { FormField } from '~/components/FormField';
@@ -69,15 +69,27 @@ export function CreateDisplayDialog({ grounds }: { grounds: number }) {
   );
 }
 
-export function QrDialog({ name, url }: { name: string; url: string }) {
+/** One code on its own, so that no other is scanned. */
+export function QrDialog({
+  name,
+  url,
+  trigger,
+}: {
+  name: string;
+  url: string;
+  /** Instead of a button. */
+  trigger?: ReactNode;
+}) {
   const { t } = useTranslation(['display', 'common']);
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" aria-label={t('links.qrFor', { name })}>
-          <QrCodeIcon aria-hidden />
-          {t('links.qr')}
-        </Button>
+        {trigger ?? (
+          <Button variant="outline" size="sm" aria-label={t('links.qrFor', { name })}>
+            <QrCodeIcon aria-hidden />
+            {t('links.qr')}
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

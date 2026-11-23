@@ -2,6 +2,7 @@ import { ExternalLinkIcon, FileTextIcon, RotateCcwIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { CopyButton } from '~/components/CopyButton';
+import { QrDialog } from '~/components/links/DisplayDialogs';
 import { QrCode } from '~/components/QrCode';
 import { Button } from '~/components/ui/button';
 import type de from '~/locales/de/common';
@@ -15,10 +16,18 @@ export function JudgeLinkCard({ link, manualUrl }: { link: JudgeLink; manualUrl:
 
   return (
     <li className="flex gap-3 bg-card p-4 sm:gap-4">
-      <QrCode
-        value={link.url}
-        label={t('links.qr', { name })}
-        className="size-28 shrink-0 min-[360px]:size-36 sm:size-40 lg:size-48"
+      <QrDialog
+        name={name}
+        url={link.url}
+        trigger={
+          <button type="button" className="shrink-0 cursor-pointer self-start">
+            <QrCode
+              value={link.url}
+              label={t('links.qr', { name })}
+              className="size-28 min-[360px]:size-36 sm:size-40 lg:size-48"
+            />
+          </button>
+        }
       />
       <div className="grid max-w-56 min-w-0 flex-1 content-start gap-1.5">
         <h2 className="mb-1 font-display text-xl leading-tight">{apparatus}</h2>
