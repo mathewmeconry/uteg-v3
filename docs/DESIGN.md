@@ -89,6 +89,11 @@ Archivo variable (self-hosted, SIL OFL), one family in two cuts.
 - **`SelectionBar`**: ink bar with what can be done with the chosen rows, main action `brand`.
 - **`StepBar`**: steps of a wizard. **`RadioChips`**: few choices of a form, one tap instead of a
   select. **`DateField`**: dates in the language of the app.
+- **`FileDrop`**: a file input to click or drop on, in a `FormField`.
+- **Judging tablet**: one person at a time, buttons at least 56px (`data-touch="large"` on the page),
+  main action 80px. Solid green is saved, solid yellow is not yet.
+- **Display**: ink, the newest grade in lime and as large as it gets, sizes follow the panel.
+- **Focus**: full `ring` colour, on `bg-ink` a white outline with a gap. Set in `app.css`.
 - **`SaveStatus`**: `idle`, `saving`, `saved`, `error` with retry, for forms that save by themselves.
   In `PageHeader status` or next to the field. No toast on top of it.
 - **Toast**: result of an action whose effect is not visible where one looks.
