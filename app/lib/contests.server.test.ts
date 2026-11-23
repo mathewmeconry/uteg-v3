@@ -163,6 +163,46 @@ describe('changed vault rules', () => {
     }
   });
 
+  it('do not deadlock with saved grades and confirmed rounds', async () => {
+    const { id, contest } = await createCompetition();
+    const division = await createDivision(contest.id, { state: 'RUNNING' });
+    const entryIds: string[] = [];
+    for (let index = 0; index < 20; index++) {
+      const { entry } = await createStarter(id, {
+        divisionId: division.id,
+        lineupId: division.lineup('sprung'),
+      });
+      entryIds.push(entry.id);
+      await addVault(entry.id, 9000, [8000, 9000]);
+    }
+    const save = (ids: string[]) =>
+      saveGrades(
+        id,
+        ids.map((entryId) => ({ entryId, apparatus: 'sprung', attempts: [8000, 9000] })),
+        { kind: 'judge', ground: 1, apparatus: 'sprung' },
+      );
+    const confirm = (apparatus: string) =>
+      confirmRound(id, { ground: 1, apparatus, round: 0, divisionIds: [division.id] });
+
+    for (let step = 0; step < 6; step++) {
+      const [last, other] = step % 2 ? [AVERAGE, egtModule.defaultConfig] : [];
+      await Promise.all([
+        updateContestConfig(id, contest.id, last ?? egtModule.defaultConfig),
+        save(entryIds),
+        confirm('sprung'),
+        confirm('reck'),
+        updateContestConfig(id, contest.id, other ?? AVERAGE),
+        save(entryIds.toReversed()),
+        confirm('sprung'),
+      ]);
+      // Whichever config came last, every grade follows it.
+      const { module } = await getContest(id, contest.id);
+      const isAverage = module.inputRule('sprung', 'K5').aggregation === 'AVG';
+      const grades = await prisma.grade.findMany({ where: { entryId: { in: entryIds } } });
+      expect(new Set(grades.map(({ value }) => value))).toEqual(new Set([isAverage ? 8500 : 9000]));
+    }
+  });
+
   it('wait for a grade that is being saved', async () => {
     const { id, contest, entry } = await setup();
     await addVault(entry.id, 9000, [8000, 9000]);
