@@ -17,37 +17,3 @@ export async function safeClientAction({ serverAction }: { serverAction: () => P
     return data({ failed }, failed);
   }
 }
-
-/** The form field that names a request of useActionSave. */
-export const AUTOSAVE_FIELD = 'autosaveId';
-
-/** What the actions answered, by request. Fetchers forget it when their form is gone. */
-export const autosaveAnswers = new Map<string, unknown>();
-
-/**
- * The same for forms that save by themselves, see useActionSave. They keep the page also when the
- * session has ended, nobody expects to leave it while typing.
- */
-export async function autosaveClientAction({
-  request,
-  serverAction,
-}: {
-  request: Request;
-  serverAction: () => Promise<unknown>;
-}) {
-  const id = (await request.clone().formData()).get(AUTOSAVE_FIELD);
-  let answer;
-  try {
-    answer = await safeClientAction({ serverAction });
-  } catch (error) {
-    const target = error instanceof Response ? error.headers.get('Location') : null;
-    if (!target?.startsWith('/login')) throw error;
-    answer = data({ failed: 401 }, 401);
-  }
-  if (typeof id === 'string') autosaveAnswers.set(id, isData(answer) ? answer.data : answer);
-  return answer;
-}
-
-function isData(value: unknown): value is { data: unknown } {
-  return typeof value === 'object' && value !== null && 'init' in value && 'data' in value;
-}

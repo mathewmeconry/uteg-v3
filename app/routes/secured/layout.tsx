@@ -1,6 +1,5 @@
 import { Outlet } from 'react-router';
 import type { Route } from './+types/layout';
-import { AutosaveGuard } from '~/components/AutosaveGuard';
 import { getUser } from '~/lib/auth/auth.server';
 import { authMiddleware } from '~/middlewares/auth.server';
 
@@ -12,10 +11,5 @@ export function loader({ context }: Route.LoaderArgs) {
 }
 
 export default function SecuredLayout() {
-  return (
-    <>
-      <AutosaveGuard />
-      <Outlet />
-    </>
-  );
+  return <Outlet />;
 }

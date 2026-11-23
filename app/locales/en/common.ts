@@ -53,7 +53,6 @@ export default {
     groupAccess: 'Access',
     groupAdmin: 'Administration',
   },
-  leaveUnsaved: 'There are changes that could not be saved. Leave anyway?',
   saveStatus: {
     error: 'Not saved',
     retry: 'Try again',
