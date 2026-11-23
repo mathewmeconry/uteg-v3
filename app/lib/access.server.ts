@@ -102,6 +102,22 @@ export async function createAccessCookie(linkId: string, kind: AccessKind, token
   return accessCookie(linkId).serialize(token);
 }
 
+/** Answers AccessGate, which posts the key of a link. */
+export async function logIn(request: Request, linkId: string, kind: AccessKind) {
+  const formData = await request.formData().catch(() => null);
+  if (!formData) throw new Response(null, { status: 400 });
+  const cookie = await createAccessCookie(linkId, kind, formData.get('token'));
+  if (!cookie) throw new Response(null, { status: 403 });
+
+  const headers = new Headers({ 'Set-Cookie': cookie });
+  // Too many would exceed the header size that servers accept. Browsers send the oldest first.
+  const others = getCookieLinkIds(request).filter((id) => id !== linkId);
+  for (const id of others.slice(0, -(MAX_COOKIES - 1))) {
+    headers.append('Set-Cookie', await accessCookie(id).serialize('', { maxAge: 0 }));
+  }
+  return new Response(null, { status: 204, headers });
+}
+
 /** The link that the request's cookie opens. Null without one, after a reset, for another kind. */
 export async function resolveAccess(request: Request, linkId: string, kind: AccessKind) {
   const token: unknown = await accessCookie(linkId).parse(request.headers.get('Cookie'));
@@ -110,10 +126,8 @@ export async function resolveAccess(request: Request, linkId: string, kind: Acce
 
 /** Whether a cookie of the request opens any link of the competition. */
 export async function hasAccessToCompetition(request: Request, competitionId: string) {
-  const header = request.headers.get('Cookie') ?? '';
-  const ids = new Set([...header.matchAll(COOKIE_NAMES)].map(([, id]) => id));
   const links = await prisma.accessLink.findMany({
-    where: { id: { in: [...ids] }, competitionId },
+    where: { id: { in: getCookieLinkIds(request) }, competitionId },
   });
   for (const { id, kind } of links) if (await resolveAccess(request, id, kind)) return true;
   return false;
@@ -124,6 +138,13 @@ export async function hasAccessToCompetition(request: Request, competitionId: st
 const LINK_ID = /^\w{26}$/;
 const COOKIE_PREFIX = 'uteg_access_';
 const COOKIE_NAMES = new RegExp(`${COOKIE_PREFIX}(\\w{26})=`, 'g');
+const MAX_COOKIES = 30;
+
+/** The links the request has a cookie for, valid or not. */
+function getCookieLinkIds(request: Request) {
+  const header = request.headers.get('Cookie') ?? '';
+  return [...new Set([...header.matchAll(COOKIE_NAMES)].map(([, id]) => id))];
+}
 
 function accessCookie(linkId: string) {
   return createCookie(COOKIE_PREFIX + linkId, {
@@ -131,7 +152,7 @@ function accessCookie(linkId: string) {
     httpOnly: true,
     sameSite: 'lax',
     secure: APP_ORIGIN.startsWith('https:'),
-    maxAge: 60 * 60 * 24 * 365,
+    maxAge: 60 * 60 * 24 * 14,
   });
 }
 

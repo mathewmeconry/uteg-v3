@@ -13,6 +13,10 @@ export const securityHeadersMiddleware: MiddlewareFunction<Response> = async (
     'Referrer-Policy',
     isAccessPage ? 'no-referrer' : 'strict-origin-when-cross-origin',
   );
+  // The rest of a rejected body is not worth receiving, see bodyLimitMiddleware.
+  if (response.status === 413 || response.status === 411) {
+    response.headers.set('Connection', 'close');
+  }
   response.headers.set('X-Content-Type-Options', 'nosniff');
   // Same origin, so pages can show a PDF preview.
   response.headers.set('X-Frame-Options', 'SAMEORIGIN');
