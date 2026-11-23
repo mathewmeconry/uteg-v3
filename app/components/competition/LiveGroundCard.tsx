@@ -104,7 +104,7 @@ function ApparatusCell({ item }: { item: LiveGround['apparatus'][number] }) {
                 className={cn('flex items-end justify-between gap-3', index > 0 && 'max-sm:hidden')}
               >
                 <div className="min-w-0 leading-snug">
-                  {isEarlier && (
+                  {isEarlier && item.round !== latest[index - 1]?.round && (
                     <p className="text-xs text-muted-foreground">
                       {t('common:round', { number: item.round })}
                     </p>

@@ -93,7 +93,7 @@ export function RankingList({ entries, best, apparatus, options }: Ranking) {
               <p className="text-sm wrap-anywhere text-muted-foreground">{entry.clubName}</p>
               <dl className="mt-0.5 flex flex-wrap gap-x-3 text-sm tabular-nums">
                 {apparatus.map((key) => (
-                  <div key={key} className="flex items-baseline gap-1">
+                  <div key={key} className="flex items-baseline gap-1.5">
                     <dt className="text-xs text-muted-foreground">
                       <abbr title={t(`common:apparatus.${key as 'reck'}`)} className="no-underline">
                         {t(`common:apparatusShort.${key as 'reck'}`)}

@@ -76,6 +76,7 @@ export function StarterDialog({
   const formError = useActionError(result);
   const isDone = Boolean(result && 'ok' in result);
   const formRef = useRef<HTMLFormElement>(null);
+  const isSent = useRef(false);
   const addsAnother = useRef(false);
 
   useEffect(() => {
@@ -83,14 +84,15 @@ export function StarterDialog({
   }, [errors]);
 
   useEffect(() => {
-    if (!isDone) return;
+    if (!isDone || fetcher.state !== 'idle' || !isSent.current) return;
+    isSent.current = false;
     if (!addsAnother.current) return onClose();
     // Most come from a list of one club and category.
     setPerson(({ sex }) => ({ ...NEW_PERSON, sex }));
     setLinked(null);
     formRef.current?.querySelector<HTMLElement>('[name="firstname"]')?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per answer
-  }, [result]);
+  }, [result, fetcher.state]);
 
   function change(field: keyof Person, value: string) {
     setPerson((previous) => ({ ...previous, [field]: value }) as Person);
@@ -155,6 +157,7 @@ export function StarterDialog({
           method="post"
           className="flex min-h-0 flex-1 flex-col"
           noValidate
+          onSubmit={() => (isSent.current = true)}
         >
           <input type="hidden" name="intent" value={starter ? 'update' : 'create'} />
           <input type="hidden" name="contestId" value={options.id} />
@@ -263,13 +266,19 @@ export function StarterDialog({
           </div>
 
           <DialogFooter className="flex-row flex-wrap justify-end border-t p-4 sm:px-6">
-            <Button type="button" variant="outline" onClick={onClose} className="max-sm:px-3">
+            <Button
+              type="button"
+              variant="outline"
+              // Three buttons are too many for phones, there is a cross as well.
+              className={starter ? undefined : 'max-sm:hidden'}
+              onClick={onClose}
+            >
               {t('common:actions.cancel')}
             </Button>
             {/* Before the other one, the first is what Enter presses. */}
             <SubmitButton
               pending={fetcher.state !== 'idle'}
-              className="order-last"
+              className="order-last max-sm:px-3"
               onClick={() => (addsAnother.current = false)}
             >
               {starter ? t('common:actions.save') : t('common:actions.add')}
@@ -278,7 +287,7 @@ export function StarterDialog({
               <SubmitButton
                 pending={fetcher.state !== 'idle'}
                 variant="outline"
-                className="max-sm:px-3"
+                className="max-sm:px-2.5"
                 onClick={() => (addsAnother.current = true)}
               >
                 {t('addAnother')}

@@ -91,7 +91,7 @@ export default function Judges({ loaderData: { links } }: Route.ComponentProps) 
         {grounds.map((ground) => (
           <TabsContent key={ground} value={String(ground)} className="grid gap-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <Button asChild>
+              <Button asChild className="h-auto min-h-10 max-w-full whitespace-normal">
                 <a href={`${manualUrl}?ground=${ground}`} target="_blank" rel="noreferrer">
                   <FileTextIcon aria-hidden />
                   {t('links.manualGround', { number: ground })}
@@ -114,7 +114,7 @@ export default function Judges({ loaderData: { links } }: Route.ComponentProps) 
                 />
               )}
             </div>
-            <ul className="grid gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-2 md:last:*:odd:col-span-2">
+            <ul className="grid gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-2 md:*:last:odd:col-span-2">
               {links
                 .filter((link) => link.ground === ground)
                 .map((link) => (

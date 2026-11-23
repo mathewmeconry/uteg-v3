@@ -18,9 +18,9 @@ export function JudgeLinkCard({ link, manualUrl }: { link: JudgeLink; manualUrl:
       <QrCode
         value={link.url}
         label={t('links.qr', { name })}
-        className="size-36 shrink-0 sm:size-48"
+        className="size-28 shrink-0 min-[360px]:size-36 sm:size-40 lg:size-48"
       />
-      <div className="grid min-w-0 flex-1 content-start gap-1.5">
+      <div className="grid max-w-56 min-w-0 flex-1 content-start gap-1.5">
         <h2 className="mb-1 font-display text-xl leading-tight">{apparatus}</h2>
         <Button asChild variant="outline" size="sm">
           <a

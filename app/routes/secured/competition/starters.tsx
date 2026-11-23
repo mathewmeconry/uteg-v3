@@ -303,7 +303,9 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
       <Button variant="outline" asChild>
         <Link to={contests.length > 1 ? `import?contest=${contest.id}` : 'import'}>
           <UploadIcon aria-hidden />
-          {t('common:actions.import')}
+          <span className={starters.length > 0 ? 'max-sm:sr-only' : undefined}>
+            {t('common:actions.import')}
+          </span>
         </Link>
       </Button>
       <Button onClick={() => setDialog({ type: 'create' })}>
@@ -332,7 +334,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
                     disabled={rows.length === 0}
                   >
                     <DownloadIcon aria-hidden />
-                    {t('common:actions.export')}
+                    <span className="max-sm:sr-only">{t('common:actions.export')}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

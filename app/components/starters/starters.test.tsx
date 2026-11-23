@@ -233,6 +233,26 @@ describe('StarterDialog', () => {
     }
   });
 
+  it('stays open for the next person, with the same club', async () => {
+    const user = userEvent.setup();
+    const { onClose, submitted } = renderStarterDialog(undefined, { ok: true });
+    await user.click(screen.getByLabelText('Verein'));
+    await user.click(screen.getByRole('option', { name: /TV Chur/ }));
+    for (const count of [1, 2]) {
+      await user.type(screen.getByLabelText('Vorname'), 'Anna');
+      await user.selectOptions(screen.getByLabelText('Geschlecht'), 'FEMALE');
+      await user.click(screen.getByRole('button', { name: 'Hinzufügen und nächste' }));
+      await waitFor(() => expect(submitted).toHaveBeenCalledTimes(count));
+      await waitFor(() => expect(screen.getByLabelText('Vorname')).toHaveValue(''));
+    }
+    expect(screen.getByLabelText('Geschlecht')).toHaveValue('FEMALE');
+    expect(screen.getByLabelText('Verein')).toHaveTextContent('TV Chur');
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  });
+
   it('only picks a suggestion that is marked in the current list', async () => {
     const user = userEvent.setup();
     renderStarterDialog();

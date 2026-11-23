@@ -62,14 +62,14 @@ export function DivisionRow({
           className="relative after:absolute after:-inset-3.5"
         />
       </span>
-      <div className="grid min-w-0 flex-1 gap-x-4 gap-y-1.5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.3fr)_15.5rem]">
+      <div className="grid min-w-0 flex-1 gap-x-4 gap-y-1.5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center xl:grid-cols-[minmax(0,1fr)_13.5rem_minmax(0,1.6fr)_14.5rem]">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 pt-2 md:order-1 md:pt-0">
           <h2 className="font-semibold">
             {division.category} {t(`common:sex.${division.sex}`)}
           </h2>
           <span className="text-muted-foreground">{t('number', { number: division.number })}</span>
         </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 md:order-3 lg:order-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 md:order-3 xl:order-2">
           <DivisionStateBadge state={state} />
           {state === 'RUNNING' && (
             <span className="text-sm tabular-nums">
@@ -77,13 +77,13 @@ export function DivisionRow({
             </span>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground md:order-4 lg:order-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground max-sm:-mr-11 md:order-4 md:col-span-2 xl:order-3 xl:col-span-1">
           <span className="inline-flex items-center gap-1.5">
-            <MapPinIcon aria-hidden className="size-4 shrink-0" />
+            <MapPinIcon aria-hidden className="size-4 shrink-0 max-sm:hidden" />
             {t('common:ground', { number: division.ground })}
           </span>
           <span className="inline-flex items-center gap-1.5 tabular-nums">
-            <UsersIcon aria-hidden className="size-4 shrink-0" />
+            <UsersIcon aria-hidden className="size-4 shrink-0 max-sm:hidden" />
             {t('common:starterCount', { count: starterCount })}
           </span>
           {unassignedCount > 0 && (
@@ -92,7 +92,7 @@ export function DivisionRow({
             </StatusBadge>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2 md:order-2 md:row-span-2 md:justify-end lg:order-4 lg:row-span-1">
+        <div className="flex flex-wrap items-center gap-2 md:order-2 md:row-span-2 md:justify-end xl:order-4 xl:row-span-1">
           {canEdit &&
             (state === 'RUNNING' ? (
               <Button

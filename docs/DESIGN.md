@@ -52,7 +52,8 @@ Archivo variable (self-hosted, SIL OFL), one family in two cuts.
 
 - `font-display`: narrow and heavy, for titles and the name of a competition.
 - `figure`: narrow, bold, tabular, for grades, ranks and counts. Every table has tabular numerals.
-- Text: 16px, 14px in forms and tables, 12px only for labels of figures.
+- Text: 16px, 15px (`text-sm`) in forms, tables and buttons, 13px (`text-xs`) for table heads and
+  labels of figures.
 - Page 28/32px, section 18px, card title 18–20px. Sentence case, never all caps.
 - Weights: 400 text, 600 names, labels and buttons. Regular for hints and checkbox labels.
 
@@ -65,7 +66,8 @@ Archivo variable (self-hosted, SIL OFL), one family in two cuts.
 ## Page anatomy
 
 - **Shell**: sidebar with the competition switcher, then the work in order (Vorbereitung, Wettkampf,
-  Auswertung, Verwaltung), account at the bottom. Phones: ink bar with menu, name, account.
+  Auswertung, Verwaltung), account at the bottom. Below 1024px (phones, upright tablets): ink bar
+  with menu, name, account, 56px high. Sticky elements use `top-14 lg:top-0`.
 - **`PageHeader`**: breadcrumbs (sub pages only), title, `status` (connection, state), description,
   actions on the right with the main one last.
 - **`Toolbar`**: filters and settings of the list below.
@@ -84,6 +86,9 @@ Archivo variable (self-hosted, SIL OFL), one family in two cuts.
 - **`EmptyState`**: what is missing, why, and the one next step.
 - **`StatusBadge`**: `neutral` planned, `live` running, `done`, `warning`, `danger`.
   `DivisionStateBadge` uses it.
+- **`SelectionBar`**: ink bar with what can be done with the chosen rows, main action `brand`.
+- **`StepBar`**: steps of a wizard. **`RadioChips`**: few choices of a form, one tap instead of a
+  select. **`DateField`**: dates in the language of the app.
 - **`SaveStatus`**: `idle`, `saving`, `saved`, `error` with retry, for forms that save by themselves.
   In `PageHeader status` or next to the field. No toast on top of it.
 - **Toast**: result of an action whose effect is not visible where one looks.

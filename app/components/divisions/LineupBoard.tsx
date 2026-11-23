@@ -343,12 +343,7 @@ export function LineupBoard({
           }
         >
           {columns.map(({ id }) => (
-            <Button
-              key={id}
-              variant={id === UNASSIGNED ? 'onInk' : 'brand'}
-              className="px-3"
-              onClick={() => moveSelection(id)}
-            >
+            <Button key={id} variant="onInk" className="px-3" onClick={() => moveSelection(id)}>
               {columnName(id)}
             </Button>
           ))}

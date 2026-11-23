@@ -349,7 +349,7 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
                           onClick={() => openDialog('stop', selectedIds)}
                         >
                           <SquareIcon aria-hidden />
-                          {t('common:actions.stop')}
+                          <span className="max-sm:sr-only">{t('common:actions.stop')}</span>
                         </Button>
                       )}
                       {canEdit && selected.some(({ state }) => state !== 'RUNNING') && (
@@ -359,13 +359,13 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
                           onClick={() => openDialog('delete', selectedIds)}
                         >
                           <TrashIcon aria-hidden />
-                          {t('common:actions.delete')}
+                          <span className="max-sm:sr-only">{t('common:actions.delete')}</span>
                         </Button>
                       )}
                       <Button asChild size="sm" variant="onInk">
                         <a href={sheetsHref(selectedIds)} target="_blank" rel="noreferrer">
                           <FileTextIcon aria-hidden />
-                          {t('sheets.selected')}
+                          <span className="max-sm:sr-only">{t('sheets.selected')}</span>
                         </a>
                       </Button>
                       <Button

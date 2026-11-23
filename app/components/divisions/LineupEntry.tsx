@@ -129,7 +129,7 @@ export function LineupEntry({
         )}
       </span>
       {canMove && ordered && (
-        <span className="flex shrink-0 text-muted-foreground *:w-7">
+        <span className="flex shrink-0 text-muted-foreground *:w-7 max-[359px]:hidden">
           <Button
             variant="ghost"
             size="icon-sm"
