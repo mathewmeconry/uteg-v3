@@ -113,6 +113,7 @@ export function LineupEntry({
         {canMove ? (
           <Link
             to={editUrl}
+            state={{ returnBack: true }}
             aria-label={t('lineups.edit', { name })}
             className="flex flex-col justify-center rounded-sm hover:underline pointer-coarse:min-h-11"
           >

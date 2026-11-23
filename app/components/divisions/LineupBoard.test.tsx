@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nextProvider } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import { createI18n } from '~/lib/i18n';
 import { LineupBoard } from './LineupBoard';
 import { UNASSIGNED, type Move } from './lineupMoves';
@@ -34,6 +34,10 @@ const props = {
   columnName: (id: string) => ({ reck: 'Reck', boden: 'Boden' })[id] ?? 'Nicht eingeteilt',
 };
 
+function LocationState() {
+  return <output>{JSON.stringify(useLocation().state)}</output>;
+}
+
 function renderBoard({
   clubId = null,
   canEdit = true,
@@ -43,6 +47,7 @@ function renderBoard({
     <I18nextProvider i18n={createI18n('de')}>
       <MemoryRouter>
         <LineupBoard {...props} clubId={clubId} canEdit={canEdit} onMove={onMove} />
+        <LocationState />
       </MemoryRouter>
     </I18nextProvider>,
   );
@@ -86,6 +91,12 @@ describe('LineupBoard', () => {
     const link = screen.getByRole('link', { name: 'L a bearbeiten' });
     expect(link).toHaveAttribute('href', '/starters?edit=s-a');
     expect(screen.queryByRole('link', { name: 'L w bearbeiten' })).not.toBeInTheDocument();
+  });
+
+  it('asks the starters page to come back after editing', async () => {
+    renderBoard();
+    await userEvent.click(screen.getByRole('link', { name: 'L a bearbeiten' }));
+    expect(screen.getByText('{"returnBack":true}')).toBeInTheDocument();
   });
 
   it('selects everyone of a list except the withdrawn', async () => {
