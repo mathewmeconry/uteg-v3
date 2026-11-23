@@ -1,6 +1,6 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { createRoutesStub } from 'react-router';
 import type { TabletSlot } from '~/components/judging/types';
@@ -60,18 +60,21 @@ const saves: typeof fetch = async (url, init) => {
 
 let show: (slot: TabletSlot) => void;
 
-function setup(initial: TabletSlot) {
-  const capture = (set: typeof show) => (show = (slot) => act(() => set(slot)));
+function setup(...initial: TabletSlot[]) {
+  const capture = (set: (slots: TabletSlot[]) => void) => {
+    show = (slot) => act(() => set([slot]));
+  };
   function Page() {
-    const [slot, setSlot] = useState(initial);
-    const slots = useMemo(() => [slot], [slot]);
+    const [slots, setSlots] = useState(initial);
     const drafts = useGradeDrafts({ url: URL, prefix: 'test', slots, loadedAt: 0, status: 'open' });
-    capture(setSlot);
+    capture(setSlots);
     return (
       <>
         <GradingSaveStatus drafts={drafts} />
         <ul>
-          <GradingRow slot={slot} position={1} drafts={drafts} canEdit />
+          {slots.map((slot) => (
+            <GradingRow key={slot.entryId} slot={slot} position={1} drafts={drafts} canEdit />
+          ))}
         </ul>
         <button>elsewhere</button>
       </>
@@ -122,6 +125,99 @@ it('saves with Enter and stays in the field', async () => {
   await user.type(input(), '9.6{Enter}');
   await saved('9.60');
   expect(values()).toEqual([9500, 9600]);
+});
+
+describe('with the keyboard only', () => {
+  const people = ['Anna', 'Bea', 'Cleo'];
+  const rows = people.map((name) => createSlot({ entryId: name, firstname: name }));
+  const field = (name: string) => screen.getByLabelText<HTMLInputElement>(`Note ${name} Frei`);
+
+  it.each(['{Tab}', '{Enter}'])('enters a whole table with %s', async (key) => {
+    const user = setup(...rows);
+    await user.click(field('Anna'));
+    await user.keyboard(`9.4${key}`);
+    expect(field('Bea')).toHaveFocus();
+    await user.keyboard(`9.5${key}`);
+    expect(field('Cleo')).toHaveFocus();
+    await user.keyboard(`9.6${key}`);
+    await saved('9.60');
+    expect(values()).toEqual([9400, 9500, 9600]);
+    expect(people.map((name) => field(name).value)).toEqual(['9.4', '9.5', '9.6']);
+  });
+
+  it('skips withdrawn starters with Enter', async () => {
+    const [anna, bea, cleo] = rows;
+    const user = setup(anna, { ...bea, withdrawn: true }, cleo);
+    await user.click(field('Anna'));
+    await user.keyboard('9.4{Enter}');
+    expect(field('Cleo')).toHaveFocus();
+  });
+
+  it('goes through the attempts with Enter', async () => {
+    const [anna, bea] = rows.map((slot) => ({ ...slot, inputRule: VAULT }));
+    const user = setup(anna, bea);
+    await user.click(screen.getByLabelText('1. Versuch Anna Frei'));
+    await user.keyboard('9{Enter}');
+    expect(screen.getByLabelText('2. Versuch Anna Frei')).toHaveFocus();
+    await user.keyboard('8{Enter}');
+    expect(screen.getByLabelText('1. Versuch Bea Frei')).toHaveFocus();
+    await saved('9.00');
+  });
+
+  it('stays at an invalid value with Enter', async () => {
+    const user = setup(...rows);
+    await user.click(field('Anna'));
+    await user.keyboard('94{Enter}');
+    expect(field('Anna')).toHaveFocus();
+    expect(values()).toEqual([]);
+  });
+
+  it('undoes with Escape', async () => {
+    const user = setup(createSlot({ grade: grade(9000) }));
+    await user.clear(input());
+    await user.keyboard('8{Escape}');
+    expect(input()).toHaveValue('9.00');
+    expect(input()).toHaveFocus();
+    await user.tab();
+    expect(values()).toEqual([]);
+  });
+
+  it('deletes with Alt+Delete, after asking', async () => {
+    const user = setup(createSlot({ grade: grade(9000) }));
+    await user.click(input());
+    await user.keyboard('{Alt>}{Delete}{/Alt}');
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('9.00');
+  });
+
+  it('does not load the page again in untouched rows', async () => {
+    const user = setup(...rows);
+    for (let step = 0; step < 6; step++) await user.tab();
+    expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe('the header', () => {
+  const header = () => screen.getAllByRole('status')[0];
+
+  it('does not say saved before the server confirmed it', async () => {
+    send.mockImplementation((url) =>
+      url === URL ? Promise.reject(new TypeError('offline')) : Promise.resolve(new Response('ok')),
+    );
+    const user = setup(createSlot());
+    await user.type(input(), '9.5');
+    await user.click(elsewhere());
+    expect(await screen.findByText('1 Note ist noch nicht gespeichert')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Eingabe für Anna Frei verwerfen' }));
+    expect(header()).not.toHaveTextContent(/^Gespeichert$/);
+  });
+
+  it('counts rows that need attention', async () => {
+    const user = setup(createSlot());
+    await user.type(input(), '95');
+    expect(header()).toBeEmptyDOMElement();
+    await user.click(elsewhere());
+    expect(header()).toHaveTextContent('1 Note ist noch nicht gespeichert');
+  });
 });
 
 it('never saves a value that is still being typed', async () => {

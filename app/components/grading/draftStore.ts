@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { evaluateFields, isSameGrade, type GradeFields } from '~/lib/domain/gradeInput';
+import { evaluateFields, isSameGrade, toFields, type GradeFields } from '~/lib/domain/gradeInput';
 import {
   createRequestId,
   type GradeRequest,
@@ -37,6 +37,8 @@ export type Draft = z.infer<typeof draftSchema> & {
   /** Why the server refused it. Not sent again by itself. */
   rejected: Exclude<(GradeResult & { ok: false })['code'], 'OFFLINE' | 'GONE'> | null;
   saving: boolean;
+  /** The field was not left yet. */
+  typing: boolean;
   /** The last attempt to send it got no answer. */
   failed: boolean;
   /** What this device saved last, while typing again before the data has it. */
@@ -61,6 +63,13 @@ export type Drafts = ReadonlyMap<string, Draft>;
 type Storage = Pick<globalThis.Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>;
 
 const MAX_UNANSWERED = 100;
+const NOTHING_SENT = {
+  queued: false,
+  requestId: null,
+  unanswered: [],
+  saving: false,
+  failed: false,
+};
 
 export function draftKey({ apparatus, entryId }: { apparatus: string; entryId: string }) {
   return `${apparatus}:${entryId}`;
@@ -94,8 +103,6 @@ export function createDraftStore({
   let drafts: Drafts = new Map();
   const listeners = new Set<() => void>();
   const running = new Map<string, Promise<GradeResult>>();
-  /** Being typed. */
-  const active = new Set<string>();
 
   function set(key: string, draft: Draft | null) {
     const next = new Map(drafts);
@@ -123,8 +130,25 @@ export function createDraftStore({
     }
   }
 
+  /** Back to what is saved, which the loaded data may not have yet. */
+  function drop(key: string) {
+    const draft = drafts.get(key);
+    if (!draft?.lastSaved) return set(key, null);
+    const { lastSaved } = draft;
+    set(key, {
+      ...draft,
+      fields: toFields(lastSaved.grade, draft.inputRule),
+      ...NOTHING_SENT,
+      typing: false,
+      rejected: null,
+      lastSaved: null,
+      confirmed: lastSaved,
+    });
+  }
+
   async function sendDraft(key: string): Promise<GradeResult> {
     const draft = drafts.get(key);
+    if (draft?.confirmed) return { ok: true, savedAt: draft.confirmed.savedAt };
     const grade = draft && evaluateFields(draft.fields, draft.inputRule).grade;
     if (!draft || !grade) return { ok: false, code: 'INVALID_GRADE' };
 
@@ -171,12 +195,8 @@ export function createDraftStore({
 
   async function submit(key: string): Promise<GradeResult> {
     const previous = running.get(key);
-    const promise = (previous ?? Promise.resolve()).then(() => {
-      const draft = drafts.get(key);
-      // Confirmed while waiting for the previous attempt.
-      if (draft?.confirmed) return { ok: true, savedAt: draft.confirmed.savedAt } as const;
-      return sendDraft(key);
-    });
+    // It may be confirmed while waiting for the previous attempt.
+    const promise = previous ? previous.then(() => sendDraft(key)) : sendDraft(key);
     running.set(key, promise);
     try {
       return await promise;
@@ -205,6 +225,7 @@ export function createDraftStore({
         if (restored.has(key)) continue;
         restored.set(key, {
           ...parsed.data,
+          typing: false,
           rejected: null,
           saving: false,
           failed: parsed.data.queued,
@@ -222,7 +243,6 @@ export function createDraftStore({
       const key = draftKey(slot);
       const existing = drafts.get(key);
       const open = existing?.confirmed ? undefined : existing;
-      active.add(key);
       const unanswered = [
         ...(open?.unanswered ?? []),
         ...(open?.requestId ? [open.requestId] : []),
@@ -237,6 +257,7 @@ export function createDraftStore({
         queued: false,
         requestId: null,
         unanswered: unanswered.slice(-MAX_UNANSWERED),
+        typing: true,
         rejected: null,
         saving: open?.saving ?? false,
         failed: false,
@@ -260,16 +281,14 @@ export function createDraftStore({
       return submit(key);
     },
 
-    discard(key: string) {
-      active.delete(key);
-      set(key, null);
-    },
+    discard: drop,
 
     /** Typing has ended. Until then also what equals the saved grade stays as it was typed. */
     leave(key: string) {
-      active.delete(key);
       const draft = drafts.get(key);
-      if (draft && !draft.confirmed && isUntouched(draft)) set(key, null);
+      if (!draft || draft.confirmed) return;
+      if (isUntouched(draft)) drop(key);
+      else patch(key, { typing: false });
     },
 
     async retry() {
@@ -298,7 +317,7 @@ export function createDraftStore({
           grade &&
           isSameGrade(grade, saved) &&
           !wasSent(draft) &&
-          !active.has(key)
+          !draft.typing
         ) {
           set(key, null);
         } else if (saved?.requestId && draft.unanswered.includes(saved.requestId)) {

@@ -8,6 +8,7 @@ import {
   createDraftStore,
   draftKey,
   getSlotState,
+  wasSent,
   type Drafts,
   type GradedSlot,
 } from './draftStore';
@@ -92,8 +93,10 @@ export function useGradeDrafts({
     submit: (key: string) => afterAnswer(store.submit(key)),
     overwrite: (key: string, saved: SavedGrade | null) => afterAnswer(store.overwrite(key, saved)),
     discard(key: string) {
+      const draft = drafts.get(key);
       store.discard(key);
-      void refresh();
+      // It may have been saved after all.
+      if (draft && wasSent(draft)) void refresh();
     },
     retry,
   };

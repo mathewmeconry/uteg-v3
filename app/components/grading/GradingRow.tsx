@@ -1,5 +1,5 @@
 import { SaveIcon, Trash2Icon, UndoIcon } from 'lucide-react';
-import { useState, type FocusEvent } from 'react';
+import { useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { fullName, type TabletSlot } from '~/components/judging/types';
@@ -13,7 +13,10 @@ import { GradeInputs } from './GradeInputs';
 import { ConflictNotice, RejectedNotice, SaveState } from './SaveState';
 import type { GradeDrafts } from './useGradeDrafts';
 
-/** One starter in the grading tables. Saves by itself when the row is left, or with Enter. */
+/**
+ * One starter in the grading tables. Saves by itself when the row is left, Enter goes to the next
+ * one. Escape takes back what was typed, Alt+Delete asks to delete the grade.
+ */
 export function GradingRow({
   slot,
   position,
@@ -35,6 +38,8 @@ export function GradingRow({
   const key = draftKey(slot);
   const name = fullName(slot);
   const isEditable = canEdit && !slot.withdrawn;
+  const row = useRef<HTMLLIElement>(null);
+  const isCleared = state.isDirty && state.evaluated.isEmpty && !state.wasSent && !state.isConflict;
 
   function save() {
     if (!state.isDirty || state.isConflict) return;
@@ -48,13 +53,42 @@ export function GradingRow({
     if (document.activeElement === target) return;
     setIsActive(false);
     // Clearing a field does not delete a grade.
-    if (state.evaluated.isEmpty && !state.wasSent && !state.isConflict) drafts.discard(key);
+    if (isCleared) drafts.discard(key);
     else save();
     drafts.leave(key);
   }
 
+  function undo() {
+    if (!state.wasSent || window.confirm(t('discardSent', { name }))) drafts.discard(key);
+  }
+
+  /** Leaves the row for the next one, which saves it. */
+  function goToNext() {
+    if (state.isConflict) return;
+    if (state.isDirty && !isCleared && !state.evaluated.grade) return setShowRequired(true);
+    let next = row.current?.nextElementSibling;
+    while (next && !next.querySelector('input')) next = next.nextElementSibling;
+    const input = next?.querySelector('input');
+    if (!input) return save();
+    input.focus();
+    input.select();
+  }
+
+  function onKeyDown(event: KeyboardEvent) {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    if (event.key === 'Escape' && state.isDirty && !state.isSaving) undo();
+    if (event.key === 'Delete' && event.altKey && !state.isDirty) {
+      event.preventDefault();
+      row.current?.querySelector<HTMLElement>('[data-delete]')?.click();
+    }
+  }
+
   return (
+    // Only passes on what happens in the fields.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <li
+      ref={row}
+      onKeyDown={onKeyDown}
       onFocus={({ target }) => target instanceof HTMLInputElement && setIsActive(true)}
       onBlur={onBlur}
       className={cn(
@@ -87,7 +121,7 @@ export function GradingRow({
               setShowRequired(false);
               drafts.change(slot, state.saved, fields);
             }}
-            onSubmit={save}
+            onSubmit={goToNext}
           />
           <SaveState state={state} className="w-48 text-sm" />
           <div className="flex gap-1">
@@ -114,11 +148,10 @@ export function GradingRow({
                 aria-label={t('grading.discardRow', { name })}
                 // Safari does not focus buttons, it would look like leaving the row.
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  if (!state.wasSent || window.confirm(t('discardSent', { name }))) {
-                    drafts.discard(key);
-                  }
-                }}
+                // Between two fields it would be where Enter or Space hits it by mistake.
+                tabIndex={-1}
+                aria-keyshortcuts="Escape"
+                onClick={undo}
               >
                 <UndoIcon aria-hidden />
               </Button>
@@ -130,6 +163,9 @@ export function GradingRow({
                     size="icon"
                     variant="outline"
                     disabled={!state.saved}
+                    tabIndex={-1}
+                    data-delete
+                    aria-keyshortcuts="Alt+Delete"
                     aria-label={t('grading.deleteRow', { name })}
                     onClick={() => setShown(state.saved)}
                   >

@@ -54,6 +54,8 @@ jobs:
         run: pnpm run typecheck
       - name: Run ESLint
         run: pnpm run lint
+      - name: Look for unused code
+        run: pnpm run knip
       - name: Run tests
         run: pnpm run test:ci
       - name: Build

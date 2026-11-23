@@ -200,7 +200,6 @@ describe('submitting', () => {
     const slot = createSlot();
     store.change(slot, null, typed('9.1'));
     const saving = store.submit(KEY);
-    await Promise.resolve();
     store.change(slot, null, typed('9.15'));
     await saving;
     const loaded = createSlot(saved(9100, 1, requests[0].requestId));
@@ -220,6 +219,22 @@ describe('submitting', () => {
     expect(state(slot, 99)).toMatchObject({ isConflict: false, saved: value(9000) });
     await store.submit(KEY);
     expect(requests[1]).toMatchObject({ grade: value(9500), previous: { version: 1 } });
+  });
+
+  it.each(['leave', 'discard'] as const)('stays saved after %s of the next input', async (end) => {
+    const { store, state } = setup();
+    const slot = createSlot();
+    store.change(slot, null, typed('9'));
+    await store.submit(KEY);
+    store.change(slot, state(slot, 99).saved, typed(end === 'leave' ? '9.00' : '8'));
+    store[end](KEY);
+    expect(state(slot, 99)).toMatchObject({ saved: value(9000), isDirty: false });
+    // Editing again starts from it.
+    store.change(slot, state(slot, 99).saved, typed('9.5'));
+    expect(state(slot, 99).isConflict).toBe(false);
+    store.discard(KEY);
+    store.reconcile([createSlot(saved(9000))], 100);
+    expect(store.getSnapshot().size).toBe(0);
   });
 
   it('sends a double tap once', async () => {

@@ -7,7 +7,7 @@ import { lockCompetition } from './locks.server';
 import { cleanPng } from './png.server';
 import { prisma } from './prisma.server';
 
-export const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 const MAX_LOGO_PIXELS = 4000;
 
 const SIGNATURES = [

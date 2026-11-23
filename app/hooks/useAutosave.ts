@@ -6,43 +6,54 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type FocusEvent,
   type KeyboardEvent,
 } from 'react';
-import { useFetcher, useFormAction } from 'react-router';
-import { createAutosaver, type AutosaveStatus, type SaveResult } from '~/lib/autosave';
-
-const IDLE: AutosaveStatus = { state: 'idle', isConflict: false };
+import { useFetcher, useFormAction, useRevalidator } from 'react-router';
+import { createAutosaver, type Saved, type SaveResult } from '~/lib/autosave';
 
 /**
- * Saves what the user enters by itself: a moment after the last change, and at once when a field is
- * left, on Enter (spread `formProps`), in another tab and when the page is left. Show the result
- * with `<SaveStatus state={state} message={message} onRetry={flush} />`.
+ * Keeps the value of a form and saves it by itself: a moment after the last change, and at once
+ * when a field is left, on Enter (spread `formProps`) and when the tab is hidden. Show the result
+ * with `<SaveStatus state={state} message={message} onRetry={retry} />`. AutosaveGuard keeps the
+ * page until it is saved.
  *
- * `value` is what is entered and `saved` what the server has. `save` may be an action, see
- * useActionSave. With a conflict nothing is sent any more until `resolveConflict`.
+ * `saved` is what the server has, with its version. An unchanged form takes over what others
+ * save. A changed one has a `conflict` and sends nothing until `resolveConflict`. `save` may be an
+ * action, see useActionSave.
  */
 export function useAutosave<Value>({
-  value,
   saved,
-  isValid = true,
+  version,
+  isValid = () => true,
   isEqual = isSameJson,
   save,
 }: {
-  value: Value;
   saved: Value;
-  /** Invalid values are not sent. */
-  isValid?: boolean;
+  version?: string;
+  /** Invalid values are not sent. Must not change. */
+  isValid?: (value: Value) => boolean;
   isEqual?: (a: Value, b: Value) => boolean;
-  save: (value: Value) => Promise<SaveResult>;
+  /** `base` is what the user started from. The server refuses when it has another version. */
+  save: (value: Value, base: Saved<Value>) => Promise<SaveResult>;
 }) {
-  const [saver] = useState(() => createAutosaver({ saved, isEqual, save }));
-  const status = useSyncExternalStore(saver.subscribe, saver.getStatus, () => IDLE);
+  const { revalidate } = useRevalidator();
+  const [saver] = useState(() =>
+    createAutosaver({
+      saved: { value: saved, version },
+      isEqual,
+      isValid,
+      save,
+      onConflict: () => void revalidate(),
+    }),
+  );
+  const { value, state, message, conflict } = useSyncExternalStore(
+    saver.subscribe,
+    saver.getSnapshot,
+    saver.getSnapshot,
+  );
 
-  // The newest one, e.g. with the version that the last save returned.
   useEffect(() => saver.setSave(save), [saver, save]);
-  useEffect(() => saver.setSaved(saved), [saver, saved]);
-  useEffect(() => saver.change(value, isValid), [saver, value, isValid]);
+  useEffect(() => saver.setSaved({ value: saved, version }), [saver, saved, version]);
 
   useEffect(() => {
     saver.start();
@@ -66,12 +77,18 @@ export function useAutosave<Value>({
   }, [saver]);
 
   return {
-    ...status,
-    flush: saver.flush,
+    value,
+    setValue: saver.change,
+    state,
+    message,
+    /** What somebody else saved. */
+    conflict,
     resolveConflict: saver.resolveConflict,
+    flush: saver.flush,
+    retry: saver.retry,
     /** For the element around the fields. */
     formProps: {
-      onBlur: (_event: FocusEvent) => saver.flush(),
+      onBlur: saver.flush,
       onKeyDown(event: KeyboardEvent) {
         if (event.key === 'Enter' && event.target instanceof HTMLInputElement) saver.flush();
       },
@@ -85,16 +102,16 @@ type ActionAnswer = {
   errors?: Record<string, string | undefined>;
   failed?: number;
   conflict?: boolean;
+  version?: string;
 } | null;
 
 /**
- * A `save` for useAutosave that posts to an action with autosaveClientAction. The action returns
- * `{ error }` or `{ errors }` when it refuses, and `{ conflict: true, error }` when somebody else
- * changed it since. Resolves when the page has the new data, so the next save sees the new version.
- * `toFields` adds that version, it is not part of the value.
+ * A `save` for useAutosave that posts to an action with autosaveClientAction. The action gets the
+ * version of `base` and returns `{ error }` or `{ errors }` when it refuses, and
+ * `{ conflict: true, error }` when there is a newer one. Resolves when the page has the new data.
  */
 export function useActionSave<Value>(
-  toFields: (value: Value) => Record<string, string | string[]>,
+  toFields: (value: Value, base: Saved<Value>) => Record<string, string | string[]>,
   { action }: { action?: string } = {},
 ) {
   const fetcher = useFetcher<ActionAnswer>();
@@ -114,13 +131,14 @@ export function useActionSave<Value>(
     resolve.current = null;
   });
 
-  const isMounted = useRef(false);
-  useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
+  useEffect(
+    () => () => {
+      // The form is gone, so is the answer.
+      resolve.current?.({ ok: false, reason: 'offline' });
+      resolve.current = null;
+    },
+    [],
+  );
 
   useEffect(() => {
     if (fetcher.state !== 'idle' || handled.current === answers) return;
@@ -130,20 +148,19 @@ export function useActionSave<Value>(
 
   const { submit } = fetcher;
   return useCallback(
-    (value: Value) =>
+    (value: Value, base: Saved<Value>) =>
       new Promise<SaveResult>((done) => {
         resolve.current = done;
         const body = new URLSearchParams(
-          Object.entries(toFields(value)).flatMap(([name, entry]) =>
+          Object.entries(toFields(value, base)).flatMap(([name, entry]) =>
             [entry].flat().map((item) => [name, item]),
           ),
         );
-        void submit(body, { method: 'post', action: url }).then(() => {
-          // Nobody sees the answer any more, but what changed meanwhile is still sent.
-          if (!isMounted.current) return done({ ok: true });
+        submit(body, { method: 'post', action: url }).then(
           // The router shows its data in a transition too, the answer must not be seen before.
-          startTransition(() => setAnswers((count) => count + 1));
-        });
+          () => startTransition(() => setAnswers((count) => count + 1)),
+          () => done({ ok: false, reason: 'offline' }),
+        );
       }),
     [submit, toFields, url],
   );
@@ -156,11 +173,11 @@ function isSameJson(a: unknown, b: unknown) {
 }
 
 function toResult(answer: ActionAnswer): SaveResult {
-  const { error, errors, failed, conflict } = answer ?? {};
+  const { error, errors, failed, conflict, version } = answer ?? {};
   if (conflict) return { ok: false, reason: 'conflict', message: error };
   const message = error ?? Object.values(errors ?? {}).find(Boolean);
   if (error || errors) return { ok: false, reason: 'refused', message };
-  if (!failed) return { ok: true };
+  if (!failed) return { ok: true, version };
   const isRefused = failed >= 400 && failed < 500 && failed !== 408 && failed !== 429;
   return { ok: false, reason: isRefused ? 'refused' : 'offline' };
 }

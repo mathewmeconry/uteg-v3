@@ -50,6 +50,7 @@ export default {
     groupAccess: 'Zugänge',
     groupAdmin: 'Verwaltung',
   },
+  leaveUnsaved: 'Es gibt Änderungen, die nicht gespeichert werden konnten. Trotzdem verlassen?',
   saveStatus: {
     error: 'Nicht gespeichert',
     retry: 'Nochmals versuchen',

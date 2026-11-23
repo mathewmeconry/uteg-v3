@@ -60,8 +60,9 @@ export async function action({ request, context }: Route.ActionArgs) {
   competition or contest id first.
 - Layouts need a loader, otherwise client navigations skip their middleware.
 - Forms: `FormField`, `SubmitButton`, `ConfirmDialog`. Several forms on a page send `intent`.
-- Forms of existing things save by themselves: `useAutosave` with `useActionSave`,
-  `export const clientAction = autosaveClientAction` and `SaveStatus`. Grades have their own store.
+- Forms of existing things save by themselves: `useAutosave` (with the version of what it shows) and
+  `useActionSave`, `export const clientAction = autosaveClientAction` and `SaveStatus`. Actions
+  compare the version and return `{ conflict: true }`. Grades have their own store.
 - `useCompetition()` gives the competition, contests, `role`, `canEdit` and `isOwner` to components.
 - Live pages call `useLiveUpdates('/api/events/<id>')` (judges `/api/judge/<linkId>/events`, displays
   `/api/display/<linkId>/events`) and show `<ConnectionBadge status={…} />`. Services call `publish`.
