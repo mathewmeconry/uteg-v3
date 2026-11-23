@@ -2,7 +2,7 @@ import type { Grade, Prisma } from '~/generated/prisma/client';
 import { getContestModule, getContestsApparatus } from '~/modules/registry';
 import type { InputRule } from '~/modules/types';
 import { aggregate, isAttempt, isGrade } from './domain/grade';
-import { isSameGrade, type StoredGrade } from './domain/gradeInput';
+import { isSameGrade } from './domain/gradeInput';
 import { getCurrentRound, isEnded } from './domain/progress';
 import {
   compareDivisions,
@@ -24,11 +24,18 @@ export type GradeInput = {
   /** Thousandths. The final grade is computed from all of them. */
   attempts?: number[];
   /**
-   * The saved grade that was shown when the input started. Given, a grade that someone else saved
-   * since is not overwritten.
+   * The saved grade that was shown when the input started. Given, a grade that was saved since is
+   * not overwritten, so a request that arrives late cannot replace a newer one.
    */
-  previous?: StoredGrade | null;
+  previous?: GradeVersion | null;
+  /** The same for every repetition of a request. */
+  requestId?: string;
+  /** Requests of the same device that got no answer and may be replaced. */
+  supersedes?: string[];
 };
+
+/** With the id, because a deleted grade that is entered again starts with the same version. */
+export type GradeVersion = { id: string; version: number };
 
 /** Judges may only grade what their tablet shows, editors also before and after the division. */
 export type GradeScope = { kind: 'editor' } | { kind: 'judge'; ground: number; apparatus: string };
@@ -157,18 +164,23 @@ export async function saveGrades(
       const data = computeGrade(input, getGradeableRule(entry, apparatus, scope));
       const current =
         stored.find((grade) => grade.entryId === entryId && grade.apparatus === apparatus) ?? null;
-      const isUnchanged =
-        input.previous === undefined ||
-        isSameGrade(current, input.previous) ||
-        // Sent again because the first response got lost.
-        isSameGrade(current, data);
-      if (!isUnchanged) throw new DomainError('GRADE_CHANGED');
+      const { requestId = null, supersedes = [] } = input;
+      const isRepeated = requestId !== null && current?.requestId === requestId;
+      const isOwn = current?.requestId != null && supersedes.includes(current.requestId);
+      const isExpected =
+        input.previous === undefined || isSameVersion(current, input.previous) || isOwn;
+      if (current && (isRepeated || (!isExpected && isSameGrade(current, data)))) {
+        result.set(input, current);
+        continue;
+      }
+      if (!isExpected) throw new DomainError('GRADE_CHANGED');
+      // Saving the same value counts as well: a late request must not replace it.
       result.set(
         input,
         await tx.grade.upsert({
           where: { entryId_apparatus: { entryId, apparatus } },
-          create: { entryId, apparatus, ...data },
-          update: data,
+          create: { entryId, apparatus, requestId, ...data },
+          update: { ...data, requestId, version: { increment: 1 } },
         }),
       );
     }
@@ -178,10 +190,13 @@ export async function saveGrades(
   return saved;
 }
 
-/** Judges may correct the grades of confirmed rounds but not delete them. */
+/**
+ * Judges may correct the grades of confirmed rounds but not delete them. `previous` is the grade
+ * that was shown, see GradeInput.
+ */
 export async function deleteGrade(
   competitionId: string,
-  { entryId, apparatus }: { entryId: string; apparatus: string },
+  { entryId, apparatus, previous }: { entryId: string; apparatus: string; previous?: GradeVersion },
   scope: GradeScope,
 ) {
   await prisma.$transaction(async (tx) => {
@@ -190,7 +205,12 @@ export async function deleteGrade(
     if (scope.kind === 'judge' && isConfirmed(entry, apparatus)) {
       throw new DomainError('ROUND_NOT_CURRENT');
     }
-    await tx.grade.deleteMany({ where: { entryId, apparatus } });
+    const where = { entryId, apparatus };
+    const { count } = await tx.grade.deleteMany({ where: { ...where, ...previous } });
+    // Already deleted is fine.
+    if (count === 0 && (await tx.grade.count({ where })) > 0) {
+      throw new DomainError('GRADE_CHANGED');
+    }
   });
   publish(competitionId, 'grades');
 }
@@ -426,7 +446,14 @@ function getSlots(divisions: readonly LoadedDivision[], apparatus: string, round
       /** Decimals the ranking and the displays show. */
       precision: division.module.rankingOptions(division.category, division.sex).precision,
       grade: grade
-        ? { value: grade.value, attempts: grade.attempts, updatedAt: grade.updatedAt }
+        ? {
+            id: grade.id,
+            version: grade.version,
+            requestId: grade.requestId,
+            value: grade.value,
+            attempts: grade.attempts,
+            updatedAt: grade.updatedAt,
+          }
         : null,
     };
   });
@@ -464,6 +491,10 @@ function getGradeableRule(
     throw new DomainError('INVALID_APPARATUS');
   }
   return module.inputRule(apparatus, entry.category ?? entry.division?.category ?? '');
+}
+
+function isSameVersion(a: GradeVersion | null, b: GradeVersion | null) {
+  return a?.id === b?.id && a?.version === b?.version;
 }
 
 function computeGrade({ value, attempts = [] }: GradeInput, rule: InputRule) {

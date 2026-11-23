@@ -58,6 +58,8 @@ const save = (entryId: string, patch: object = {}) => ({
   apparatus: 'reck',
   grade: { value: 9100, attempts: [] },
   previous: null,
+  requestId: 'r1',
+  supersedes: [],
   ...patch,
 });
 
@@ -104,6 +106,9 @@ describe('saving a grade', () => {
     [{ grade: { value: '9000', attempts: [] } }, 'INVALID_INPUT'],
     [{ grade: undefined }, 'INVALID_INPUT'],
     [{ previous: undefined }, 'INVALID_INPUT'],
+    [{ requestId: undefined }, 'INVALID_INPUT'],
+    [{ requestId: 'a\u0000' }, 'INVALID_INPUT'],
+    [{ entryId: 'a\u0000' }, 'INVALID_INPUT'],
     [{ intent: 'other' }, 'INVALID_INPUT'],
     [{ intent: 'delete' }, 'INVALID_INPUT'],
   ])('refuses %j', async (patch, code) => {

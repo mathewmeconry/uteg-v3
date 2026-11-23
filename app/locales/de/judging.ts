@@ -16,6 +16,7 @@ export default {
   },
   roundOf: 'Durchgang {{number}} von {{total}}',
   position: '{{position}} von {{total}}',
+  pastRound: 'Dieser Durchgang ist schon bestätigt.',
   nextUp: 'Danach: {{name}}',
   lastOfRound: 'Letzte Person in diesem Durchgang',
   withdrawn: 'Abgemeldet',
@@ -45,9 +46,11 @@ export default {
     saving: 'Wird gespeichert …',
     unsaved: 'Noch nicht gespeichert',
     waiting: 'Wird gesendet, sobald die Verbindung zurück ist',
-    failedTitle: 'Nicht gespeichert: keine Verbindung',
+    failedTitle: 'Keine Antwort vom Server',
     failedText:
-      'Die Note ist auf diesem Gerät gesichert und wird automatisch gesendet. Du kannst weitermachen.',
+      'Ob die Note gespeichert ist, ist noch unklar. Sie ist auf diesem Gerät gesichert und wird automatisch nochmals gesendet. Du kannst weitermachen.',
+    conflictSaved: 'Anderswo geändert, gespeichert ist {{saved}}',
+    conflictGone: 'Die gespeicherte Note wurde anderswo gelöscht',
     rejectedTitle: 'Nicht gespeichert',
     stoppedText:
       'Die Abteilung läuft hier nicht mehr oder die Person wurde verschoben. Deine Eingabe bleibt auf diesem Gerät gesichert.',
@@ -66,6 +69,8 @@ export default {
   unsavedText: 'Die Eingaben sind auf diesem Gerät gesichert.',
   discard: 'Verwerfen',
   discardConfirm: 'Eingabe für {{name}} verwerfen?',
+  discardSent:
+    'Die Eingabe für {{name}} wurde schon gesendet und kann trotz Verwerfen noch gespeichert werden. Prüfe danach die Note. Verwerfen?',
   toReview: 'Kontrolle',
   toReviewAgain: 'Zurück zur Kontrolle',
   review: {
@@ -75,9 +80,11 @@ export default {
     confirm: 'Durchgang bestätigen',
     blocked_one: 'Es fehlt noch {{count}} Note.',
     blocked_other: 'Es fehlen noch {{count}} Noten.',
+    unsent_one: '{{count}} Note ist noch nicht gesendet.',
+    unsent_other: '{{count}} Noten sind noch nicht gesendet.',
     missingText:
       'Die Abteilung kann so nicht enden. Melde es der Wettkampfleitung, sie kann die Noten eintragen. Bestätige danach nochmals.',
-    failed: 'Nicht bestätigt: keine Verbindung. Versuche es nochmals.',
+    failed: 'Keine Antwort vom Server. Bestätige nochmals, doppeltes Bestätigen schadet nicht.',
   },
   pause: {
     title: 'Pause',
@@ -94,6 +101,8 @@ export default {
   notices: {
     label: 'Änderungen',
     added: '{{name}} ist neu dabei.',
+    addedLate:
+      '{{name}} ist neu dabei, aber Durchgang {{round}} ist schon bestätigt. Bitte beim Rechnungsbüro melden. Die Note kann unter «Alle Durchgänge» eingetragen werden.',
     removed: '{{name}} startet hier nicht mehr.',
     withdrawn: '{{name}} wurde abgemeldet.',
     restored: '{{name}} startet wieder.',

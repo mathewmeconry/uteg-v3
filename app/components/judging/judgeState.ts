@@ -18,6 +18,8 @@ type DivisionName = Omit<TabletState['divisions'][number], 'id'>;
 
 export type Notice =
   | { kind: 'added' | 'withdrawn' | 'removed' | 'restored'; id: string; name: string }
+  /** Added to a round (0-based) that is already confirmed. */
+  | { kind: 'addedLate'; id: string; name: string; round: number }
   | { kind: 'started' | 'stopped'; id: string; division: DivisionName };
 
 /** What judges have to be told about a change while they judge. */
@@ -36,16 +38,21 @@ export function getNotices(before: TabletState, after: TabletState): Notice[] {
       notices.push({ kind: 'stopped', id: `${division.id}:stopped`, division });
     }
   }
-  if (before.status !== 'JUDGING' || after.status !== 'JUDGING') return notices;
+  if (before.status === 'WAITING' || after.status === 'WAITING') return notices;
 
   const slotsBefore = byEntry(before);
   const slotsAfter = byEntry(after);
-  const add = (kind: 'added' | 'withdrawn' | 'removed' | 'restored', slot: Slot) =>
-    notices.push({
-      kind,
-      id: `${slot.entryId}:${kind}`,
-      name: `${slot.firstname} ${slot.lastname}`,
-    });
+  const add = (kind: 'added' | 'withdrawn' | 'removed' | 'restored', slot: Slot) => {
+    const name = `${slot.firstname} ${slot.lastname}`;
+    const round = after.rounds.find(({ slots }) => slots.includes(slot))?.round;
+    const isConfirmed =
+      round !== undefined && (after.currentRound === null || round < after.currentRound);
+    if ((kind === 'added' || kind === 'restored') && isConfirmed) {
+      notices.push({ kind: 'addedLate', id: `${slot.entryId}:addedLate`, name, round });
+    } else {
+      notices.push({ kind, id: `${slot.entryId}:${kind}`, name });
+    }
+  };
 
   // Otherwise whole divisions come and go from the lists, see getJudgingState.
   const isComparable =
@@ -66,11 +73,18 @@ export function getNotices(before: TabletState, after: TabletState): Notice[] {
   return notices;
 }
 
-/** Adds notices and drops the ones they contradict, e.g. "added" after "removed". */
-export function mergeNotices(notices: readonly Notice[], added: readonly Notice[]): Notice[] {
+/** Adds notices and drops the ones that are over, e.g. "stopped" when the division runs again. */
+export function mergeNotices(
+  notices: readonly Notice[],
+  added: readonly Notice[],
+  { divisions }: Pick<TabletState, 'divisions'>,
+): Notice[] {
   const subject = ({ id }: Notice) => id.slice(0, id.lastIndexOf(':'));
   const replaced = new Set(added.map(subject));
-  return [...notices.filter((notice) => !replaced.has(subject(notice))), ...added];
+  const isOver = (notice: Notice) =>
+    replaced.has(subject(notice)) ||
+    (notice.kind === 'stopped' && divisions.some(({ id }) => id === subject(notice)));
+  return [...notices.filter((notice) => !isOver(notice)), ...added];
 }
 
 /** Whether the tablet waits because what it judged has ended. */

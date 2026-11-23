@@ -27,6 +27,7 @@ export function RoundsSheet({
   currentRound: number | null;
   currentId?: string;
   drafts: GradeDrafts;
+  /** Only for starters of the current and of confirmed rounds. */
   onSelect: (entryId: string) => void;
 }) {
   const { t } = useTranslation(['judging', 'common']);
@@ -42,10 +43,10 @@ export function RoundsSheet({
       </SheetTrigger>
       <SheetContent className="w-full gap-0 sm:max-w-md">
         <SheetHeader className="border-b">
-          <SheetTitle className="text-lg">{t('list.all')}</SheetTitle>
+          <SheetTitle className="pr-6 text-lg">{t('list.all')}</SheetTitle>
           <SheetDescription>{t('list.allText')}</SheetDescription>
         </SheetHeader>
-        <div className="grid gap-6 overflow-y-auto p-4">
+        <div className="grid grid-cols-1 gap-6 overflow-y-auto p-4">
           {rounds.map(({ round, slots }) => {
             const isCurrent = round === currentRound;
             const isDone = currentRound === null || round < currentRound;
@@ -61,8 +62,9 @@ export function RoundsSheet({
                   slots={slots}
                   drafts={drafts}
                   currentId={isCurrent ? currentId : undefined}
+                  showMissing={isDone}
                   onSelect={
-                    isCurrent
+                    isCurrent || isDone
                       ? (entryId) => {
                           onSelect(entryId);
                           setOpen(false);

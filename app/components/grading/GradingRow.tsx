@@ -29,6 +29,8 @@ export function GradingRow({
   const apparatusName = useApparatusName();
   const [showRequired, setShowRequired] = useState(false);
   const state = drafts.get(slot);
+  /** The grade in the open delete dialog, also when another one is saved meanwhile. */
+  const [shown, setShown] = useState(state.saved);
   const key = draftKey(slot);
   const name = fullName(slot);
   const isEditable = canEdit && !slot.withdrawn;
@@ -91,7 +93,11 @@ export function GradingRow({
                 variant="outline"
                 disabled={state.isSaving}
                 aria-label={t('grading.discardRow', { name })}
-                onClick={() => drafts.discard(key)}
+                onClick={() => {
+                  if (!state.wasSent || window.confirm(t('discardSent', { name }))) {
+                    drafts.discard(key);
+                  }
+                }}
               >
                 <UndoIcon aria-hidden />
               </Button>
@@ -104,6 +110,7 @@ export function GradingRow({
                     variant="outline"
                     disabled={!state.saved}
                     aria-label={t('grading.deleteRow', { name })}
+                    onClick={() => setShown(state.saved)}
                   >
                     <Trash2Icon aria-hidden />
                   </Button>
@@ -111,11 +118,17 @@ export function GradingRow({
                 title={t('grading.deleteTitle')}
                 description={t('grading.deleteText', {
                   name,
-                  grade: state.saved ? formatEntered(state.saved.value) : '',
+                  grade: shown ? formatEntered(shown.value) : '',
                   apparatus: apparatusName(slot.apparatus),
                 })}
                 confirmLabel={t('common:actions.delete')}
-                fields={{ intent: 'delete', entryId: slot.entryId, apparatus: slot.apparatus }}
+                fields={{
+                  intent: 'delete',
+                  entryId: slot.entryId,
+                  apparatus: slot.apparatus,
+                  gradeId: shown?.id ?? '',
+                  version: String(shown?.version),
+                }}
               />
             )}
           </div>

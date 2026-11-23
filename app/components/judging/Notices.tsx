@@ -14,6 +14,9 @@ export function Notices({
   const { t } = useTranslation('judging');
 
   function text(notice: Notice) {
+    if (notice.kind === 'addedLate') {
+      return t('notices.addedLate', { name: notice.name, round: notice.round + 1 });
+    }
     if ('name' in notice) return t(`notices.${notice.kind}`, { name: notice.name });
     const { category, sex, number } = notice.division;
     const division = t('division', { category, number, sex: t(`sexShort.${sex}`) });
@@ -28,7 +31,7 @@ export function Notices({
           className="flex items-center gap-3 rounded-lg bg-warning px-4 py-2 text-warning-foreground"
         >
           <BellIcon aria-hidden className="size-5 shrink-0" />
-          <p className="flex-1 font-medium">{text(notice)}</p>
+          <p className="min-w-0 flex-1 font-medium wrap-anywhere">{text(notice)}</p>
           <Button
             variant="ghost"
             size="icon"

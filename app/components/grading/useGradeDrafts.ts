@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { useRevalidator } from 'react-router';
 import type { ConnectionStatus } from '~/hooks/useLiveUpdates';
-import { toFields, type StoredGrade } from '~/lib/domain/gradeInput';
-import { sendGradeRequest, type GradeResult } from '~/lib/gradeRequests';
+import { toFields } from '~/lib/domain/gradeInput';
+import { sendGradeRequest, type GradeResult, type SavedGrade } from '~/lib/gradeRequests';
 import {
   createDraftStore,
   draftKey,
@@ -64,11 +64,11 @@ export function useGradeDrafts({
     if (status === 'open') retry();
   }, [status, retry]);
 
-  // Whatever the answer was, the newest data belongs on the screen. Not awaited, because a saved
-  // draft is shown until the data has arrived.
+  // Whatever the answer was, the newest data belongs on the screen: without an answer the grade may
+  // be saved as well. Not awaited, because a saved draft is shown until the data has arrived.
   async function afterAnswer(answer: Promise<GradeResult>) {
     const result = await answer;
-    if (result.ok || result.code !== 'OFFLINE') void revalidate();
+    void revalidate();
     return result;
   }
 
@@ -84,8 +84,11 @@ export function useGradeDrafts({
     },
     change: store.change,
     submit: (key: string) => afterAnswer(store.submit(key)),
-    overwrite: (key: string, saved: StoredGrade | null) => afterAnswer(store.overwrite(key, saved)),
-    discard: store.discard,
+    overwrite: (key: string, saved: SavedGrade | null) => afterAnswer(store.overwrite(key, saved)),
+    discard(key: string) {
+      store.discard(key);
+      void revalidate();
+    },
     retry,
   };
 }

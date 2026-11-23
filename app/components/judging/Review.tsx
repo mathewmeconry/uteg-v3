@@ -19,6 +19,18 @@ export type Confirmation = {
   confirm: () => void;
 };
 
+/** The grade that was entered, also when it is not sent yet. */
+function ReviewGrade({ state }: { state: ReturnType<GradeDrafts['get']> }) {
+  const { t } = useTranslation('judging');
+  const grade = state.isDirty && !state.isConflict ? state.evaluated.grade : state.saved;
+  if (!grade) return <Badge variant="destructive">{t('review.missing')}</Badge>;
+  return (
+    <span className={cn('text-2xl font-black tabular-nums', state.isDirty && 'text-destructive')}>
+      {formatEntered(grade.value)}
+    </span>
+  );
+}
+
 /** All grades of the round before it is confirmed. Without starters it is a pause. */
 export function Review({
   slots,
@@ -45,9 +57,9 @@ export function Review({
   }, []);
 
   const rows = slots.map((slot) => ({ slot, state: drafts.get(slot) }));
-  const open = rows.filter(
-    ({ slot, state }) => !slot.withdrawn && (state.isDirty || state.saved === null),
-  ).length;
+  const expected = rows.filter(({ slot }) => !slot.withdrawn);
+  const unsent = expected.filter(({ state }) => state.isDirty).length;
+  const missing = expected.filter(({ state }) => !state.isDirty && state.saved === null).length;
 
   return (
     <div className="grid grid-cols-1 gap-6">
@@ -70,13 +82,13 @@ export function Review({
             <button
               type="button"
               disabled={slot.withdrawn}
-              className="flex min-h-14 w-full items-center gap-3 rounded-lg border bg-card px-3 py-2 text-left hover:enabled:bg-accent"
+              className="flex min-h-14 w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-card px-3 py-2 text-left hover:enabled:bg-accent"
               onClick={() => onEdit(slot.entryId)}
             >
               <span className="w-8 text-right text-muted-foreground tabular-nums">
                 {index + 1}.
               </span>
-              <span className={cn('min-w-0 flex-1', slot.withdrawn && 'line-through')}>
+              <span className={cn('min-w-0 flex-1 basis-32', slot.withdrawn && 'line-through')}>
                 <span className="block text-xl font-bold wrap-anywhere">{fullName(slot)}</span>
                 <span className="block truncate text-muted-foreground">
                   {slot.clubName} · {slot.category} {t(`sexShort.${slot.sex}`)}
@@ -87,13 +99,7 @@ export function Review({
               ) : (
                 <>
                   {state.isDirty && <SaveState state={state} className="text-sm" />}
-                  {state.saved ? (
-                    <span className="text-2xl font-black tabular-nums">
-                      {formatEntered(state.saved.value)}
-                    </span>
-                  ) : (
-                    <Badge variant="destructive">{t('review.missing')}</Badge>
-                  )}
+                  <ReviewGrade state={state} />
                   <PencilIcon aria-hidden className="size-5 shrink-0 text-muted-foreground" />
                 </>
               )}
@@ -119,14 +125,19 @@ export function Review({
         </Warning>
       )}
       <div className="flex flex-wrap items-center justify-end gap-4">
-        {open > 0 && (
+        {missing > 0 && (
           <p className="text-lg font-medium text-destructive">
-            {t('review.blocked', { count: open })}
+            {t('review.blocked', { count: missing })}
+          </p>
+        )}
+        {unsent > 0 && (
+          <p className="text-lg font-medium text-destructive">
+            {t('review.unsent', { count: unsent })}
           </p>
         )}
         <Button
-          className="h-16 px-6 text-xl"
-          disabled={open > 0 || confirmation.isConfirming || !isReady}
+          className="h-auto min-h-16 px-6 py-2 text-xl whitespace-normal"
+          disabled={missing + unsent > 0 || confirmation.isConfirming || !isReady}
           onClick={confirmation.confirm}
         >
           {confirmation.isConfirming ? (

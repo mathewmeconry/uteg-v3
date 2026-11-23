@@ -30,7 +30,14 @@ function createSlot(entryId: string, patch: Partial<TabletSlot> = {}): TabletSlo
   };
 }
 
-const grade = (value: number) => ({ value, attempts: [], updatedAt: new Date(0) });
+const grade = (value: number, version = 1) => ({
+  id: 'g1',
+  version,
+  requestId: null,
+  value,
+  attempts: [],
+  updatedAt: new Date(0),
+});
 
 function createData(slots: TabletSlot[], patch: Partial<TabletData> = {}): TabletData {
   return {
@@ -84,6 +91,14 @@ function setup(initial: TabletData) {
 
 const send = vi.fn<typeof fetch>();
 const reply = (body: object) => Promise.resolve(Response.json(body));
+const bodies = () => send.mock.calls.map(([, init]) => JSON.parse(init!.body as string));
+const unreachable = () => Promise.reject(new TypeError('Failed to fetch'));
+/** The server saves everything. */
+const saves: typeof fetch = (_, init) => {
+  const { intent, grade: sent, requestId } = JSON.parse(init!.body as string);
+  const saved = { id: 'g1', version: 2, requestId, ...sent };
+  return reply({ ok: true, savedAt: 1, grade: intent === 'save' ? saved : undefined });
+};
 const input = () => screen.getByLabelText<HTMLInputElement>('Note');
 const heading = () => screen.getAllByRole('heading', { level: 2 })[0].textContent;
 const click = async (name: string) => {
@@ -96,7 +111,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
   send.mockReset();
-  send.mockImplementation(() => reply({ ok: true, savedAt: 1 }));
+  send.mockImplementation(saves);
   vi.stubGlobal('fetch', send);
 });
 
@@ -124,6 +139,8 @@ describe('one starter at a time', () => {
       apparatus: 'reck',
       grade: { value: 9250, attempts: [] },
       previous: null,
+      requestId: expect.any(String),
+      supersedes: [],
     });
   });
 
@@ -169,7 +186,7 @@ describe('a lost connection', () => {
     type('9.1');
     await click('Weiter');
     expect(heading()).toBe('Anna Frei');
-    expect(screen.getByText('Nicht gespeichert: keine Verbindung')).toBeVisible();
+    expect(screen.getByText('Keine Antwort vom Server')).toBeVisible();
     expect(localStorage.getItem(`grade:${LINK}:reck:Anna`)).toContain('9.1');
 
     await click('Trotzdem weiter');
@@ -177,12 +194,46 @@ describe('a lost connection', () => {
     type('9.5');
     expect(screen.getByText('1 Note ist noch nicht gespeichert')).toBeVisible();
 
-    send.mockImplementation(() => reply({ ok: true, savedAt: 1 }));
+    send.mockImplementation(saves);
     await act(() => vi.advanceTimersByTimeAsync(5_000));
     expect(screen.queryByText('1 Note ist noch nicht gespeichert')).toBeNull();
     expect(localStorage.getItem(`grade:${LINK}:reck:Anna`)).toBeNull();
     // The other one was not submitted yet.
     expect(input()).toHaveValue('9.5');
+  });
+
+  it('sends the last input also when it is the saved grade again', async () => {
+    send.mockImplementation(unreachable);
+    setup(createData([createSlot('Anna', { grade: grade(8500, 3) }), createSlot('Bea')]));
+    fireEvent.click(screen.getAllByRole('button', { name: /Anna Frei/ })[0]);
+    type('9');
+    await click('Weiter');
+    type('8.5');
+    expect(screen.getByText('Noch nicht gespeichert')).toBeVisible();
+    send.mockImplementation(saves);
+    await click('Weiter');
+    const [first, second] = bodies();
+    expect(second).toMatchObject({
+      grade: { value: 8500 },
+      previous: { id: 'g1', version: 3 },
+      supersedes: [first.requestId],
+    });
+    expect(heading()).toBe('Bea Frei');
+  });
+
+  it('shows what is not sent yet in the review', async () => {
+    send.mockImplementation(unreachable);
+    setup(createData([createSlot('Anna'), createSlot('Bea')]));
+    type('9.1');
+    await click('Weiter');
+    await click('Trotzdem weiter');
+    show(createData([createSlot('Anna'), createSlot('Bea', { withdrawn: true })]));
+    await click('Kontrolle');
+    expect(heading()).toBe('Kontrolle');
+    expect(screen.getAllByText('9.10').length).toBeGreaterThan(0);
+    expect(screen.getByText('1 Note ist noch nicht gesendet.')).toBeVisible();
+    expect(screen.queryByText(/fehlt noch/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Durchgang bestätigen' })).toBeDisabled();
   });
 
   it('restores what was typed before a reload', () => {
@@ -231,6 +282,44 @@ describe('changes from elsewhere', () => {
     expect(screen.getByText(/Anna Frei:/)).toHaveTextContent('Anna Frei: 9.10');
     show(data);
     expect(input()).toHaveValue('9.1');
+  });
+
+  it('says nothing about a stop any more when the division runs again', () => {
+    const data = createData([createSlot('Anna')]);
+    const none = { divisions: [], divisionIds: [], rounds: [] };
+    setup(data);
+    show(createData([], { status: 'WAITING', currentRound: null, ...none }));
+    show(data);
+    expect(screen.queryByText(/wurde gestoppt/)).toBeNull();
+  });
+
+  it('asks about a conflict in a round that is already confirmed', async () => {
+    setup(createData([createSlot('Anna')]));
+    type('9.6');
+    const saved = [createSlot('Anna', { grade: grade(9100) })];
+    show(createData(saved, { currentRound: 1 }));
+    expect(heading()).toBe('Pause');
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Anna Frei: 9.60');
+    expect(alert).toHaveTextContent('gespeichert ist 9.10');
+    await click('Meine Eingabe speichern');
+    expect(bodies()).toMatchObject([{ grade: { value: 9600 }, previous: { version: 1 } }]);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('lets the judge grade a starter that was added to a confirmed round', async () => {
+    const anna = createSlot('Anna', { grade: grade(9000) });
+    setup(createData([anna], { currentRound: 1 }));
+    show(createData([anna, createSlot('Late')], { currentRound: 1 }));
+    expect(screen.getByText(/Durchgang 1 ist schon bestätigt/)).toBeVisible();
+    await click('Alle Durchgänge');
+    expect(screen.getByText('Fehlt')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /Late Frei/ }));
+    expect(screen.getByText('Dieser Durchgang ist schon bestätigt.')).toBeVisible();
+    type('8.8');
+    await click('Speichern');
+    expect(bodies()).toMatchObject([{ entryId: 'Late', grade: { value: 8800 } }]);
+    expect(heading()).toBe('Pause');
   });
 
   it('is finished after the end and moves on with the next division', () => {
@@ -310,6 +399,6 @@ describe('the end of a round', () => {
     setup(createData([]));
     await act(() => vi.advanceTimersByTimeAsync(1_000));
     await click('Durchgang bestätigen');
-    expect(screen.getByRole('alert')).toHaveTextContent('Nicht bestätigt: keine Verbindung');
+    expect(screen.getByRole('alert')).toHaveTextContent('Keine Antwort vom Server');
   });
 });

@@ -41,18 +41,16 @@ export async function loader({ request, params: { linkId } }: Route.LoaderArgs) 
   };
 }
 
-const keepLastData = createLastData<Awaited<ReturnType<typeof loader>>>();
+const lastData = createLastData<Awaited<ReturnType<typeof loader>>>();
 
 export function clientLoader({ params: { linkId }, serverLoader }: Route.ClientLoaderArgs) {
-  return keepLastData(linkId, serverLoader);
+  return lastData.load(linkId, serverLoader);
 }
-// The first data is needed as well, in case the connection is lost right after.
-clientLoader.hydrate = true as const;
 
-export default function Judge({
-  loaderData: { competitionName, ground, tablet },
-  params: { linkId },
-}: Route.ComponentProps) {
+export default function Judge({ loaderData, params: { linkId } }: Route.ComponentProps) {
+  const { competitionName, ground, tablet } = loaderData;
+  useEffect(() => lastData.remember(linkId, loaderData), [linkId, loaderData]);
+
   const { t } = useTranslation(['judging', 'common']);
   const api = `/api/judge/${linkId}`;
   const stream = useLiveUpdates(`${api}/events`);

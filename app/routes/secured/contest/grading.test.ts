@@ -26,6 +26,7 @@ async function setup(role: Role = 'EDITOR', state: 'PENDING' | 'RUNNING' | 'ENDE
     lineupId: division.lineup('reck'),
     grades: { reck: 9000 },
   });
+  const grade = await prisma.grade.findFirstOrThrow({ where: { entryId: entry.id } });
   const user = await createUser();
   await addMember(id, user.id, role);
   const context = new RouterContextProvider();
@@ -37,13 +38,15 @@ async function setup(role: Role = 'EDITOR', state: 'PENDING' | 'RUNNING' | 'ENDE
       entryId: entry.id,
       apparatus: 'reck',
       grade: { value: 9500, attempts: [] },
-      previous: { value: 9000, attempts: [] },
+      previous: { id: grade.id, version: grade.version },
+      requestId: 'r1',
+      supersedes: [],
       ...patch,
     };
     const request = new Request('http://localhost', { method: 'POST', body: JSON.stringify(body) });
     return (await saveAction({ request, context, params: {} } as any)).json();
   };
-  return { id, contest, division, entry, context, save };
+  return { id, contest, division, entry, grade, context, save };
 }
 
 function post(run: typeof action | typeof divisionAction, context: any, fields: string[][]) {
@@ -104,13 +107,26 @@ describe('editing', () => {
     expect(await save({ entryId: other.entry.id })).toEqual({ ok: false, code: 'NOT_FOUND' });
   });
 
-  it('deletes a grade', async () => {
-    const { entry, context } = await setup();
-    await post(divisionAction, context, [
-      ['intent', 'delete'],
-      ['entryId', entry.id],
-      ['apparatus', 'reck'],
-    ]);
+  it('deletes the grade that was shown', async () => {
+    const { entry, grade, context, save } = await setup();
+    const remove = (version?: number) =>
+      post(divisionAction, context, [
+        ['intent', 'delete'],
+        ['entryId', entry.id],
+        ['apparatus', 'reck'],
+        ...(version
+          ? [
+              ['gradeId', grade.id],
+              ['version', String(version)],
+            ]
+          : []),
+      ]);
+    await save();
+    await remove();
+    await remove(1);
+    expect(toasts(context)).toEqual(['error', 'error']);
+    expect(await prisma.grade.findFirst()).toMatchObject({ value: 9500 });
+    await remove(2);
     expect(await prisma.grade.count()).toBe(0);
   });
 

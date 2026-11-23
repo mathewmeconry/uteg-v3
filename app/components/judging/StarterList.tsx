@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { GradeDrafts } from '~/components/grading/useGradeDrafts';
+import { Badge } from '~/components/ui/badge';
 import { formatEntered } from '~/lib/domain/gradeInput';
 import { cn } from '~/lib/utils';
 import { fullName, type TabletSlot } from './types';
@@ -9,11 +10,14 @@ export function StarterList({
   slots,
   drafts,
   currentId,
+  showMissing = false,
   onSelect,
 }: {
   slots: readonly TabletSlot[];
   drafts: GradeDrafts;
   currentId?: string;
+  /** Marks starters without a grade. */
+  showMissing?: boolean;
   onSelect?: (entryId: string) => void;
 }) {
   const { t } = useTranslation(['judging', 'common']);
@@ -25,7 +29,9 @@ export function StarterList({
     <ol className="flex flex-col gap-1">
       {slots.map((slot, index) => {
         const isCurrent = slot.entryId === currentId;
-        const { saved, isDirty } = drafts.get(slot);
+        const { saved, isDirty, isWaiting, evaluated } = drafts.get(slot);
+        // Submitted and waiting for the connection.
+        const grade = isWaiting ? evaluated.grade : saved;
         const content = (
           <>
             <span className="w-7 shrink-0 text-right text-muted-foreground tabular-nums">
@@ -41,7 +47,10 @@ export function StarterList({
               <span className="text-sm text-muted-foreground">{t('withdrawn')}</span>
             ) : (
               <span className={cn('font-bold tabular-nums', isDirty && 'text-destructive')}>
-                {saved && formatEntered(saved.value)}
+                {grade && formatEntered(grade.value)}
+                {showMissing && !grade && (
+                  <Badge variant="destructive">{t('review.missing')}</Badge>
+                )}
                 {isDirty && <span aria-label={t('save.unsaved')}> •</span>}
               </span>
             )}

@@ -18,14 +18,17 @@ export function StarterForm({
   slot,
   slots,
   drafts,
-  fromReview,
+  fromReview = false,
+  isPast = false,
   onMove,
 }: {
   slot: TabletSlot;
-  /** The round. */
+  /** The round, only the starter itself when `isPast`. */
   slots: readonly TabletSlot[];
   drafts: GradeDrafts;
-  fromReview: boolean;
+  fromReview?: boolean;
+  /** A single grade of a confirmed round. */
+  isPast?: boolean;
   onMove: (view: 'review' | string) => void;
 }) {
   const { t } = useTranslation(['judging', 'common']);
@@ -73,28 +76,32 @@ export function StarterForm({
         submit();
       }}
     >
-      <div className="grid gap-2">
-        <p className="font-medium text-muted-foreground">
-          {t('position', { position: index + 1, total: slots.length })}
-        </p>
-        <Progress
-          aria-label={t('position', { position: index + 1, total: slots.length })}
-          value={((index + 1) / slots.length) * 100}
-        />
-      </div>
+      {isPast ? (
+        <p className="font-medium text-destructive">{t('pastRound')}</p>
+      ) : (
+        <div className="grid gap-2">
+          <p className="font-medium text-muted-foreground">
+            {t('position', { position: index + 1, total: slots.length })}
+          </p>
+          <Progress
+            aria-label={t('position', { position: index + 1, total: slots.length })}
+            value={((index + 1) / slots.length) * 100}
+          />
+        </div>
+      )}
 
       <div className="grid gap-2 text-center">
         <h2
           ref={heading}
           tabIndex={-1}
           className={cn(
-            'text-4xl font-black break-words outline-none sm:text-6xl',
+            'text-4xl font-black wrap-anywhere outline-none @2xl:text-6xl',
             slot.withdrawn && 'text-muted-foreground line-through',
           )}
         >
           {fullName(slot)}
         </h2>
-        <p className="text-xl sm:text-2xl">
+        <p className="text-xl wrap-anywhere @2xl:text-2xl">
           {slot.clubName} ·{' '}
           <span className="font-bold">
             {slot.category} {t(`sexShort.${slot.sex}`)}
@@ -110,7 +117,7 @@ export function StarterForm({
           <p>{t('withdrawnText')}</p>
         </div>
       ) : (
-        <div className="mx-auto grid w-full max-w-xl gap-4">
+        <div className="mx-auto grid w-full max-w-xl grid-cols-1 gap-4">
           <GradeInputs
             large
             fields={state.fields}
@@ -155,25 +162,33 @@ export function StarterForm({
           type="button"
           variant="outline"
           className="h-16 px-6 text-xl"
-          disabled={!previous || state.isSaving}
-          onClick={() => previous && onMove(previous.entryId)}
+          disabled={!(previous || isPast) || state.isSaving}
+          onClick={() => onMove(previous?.entryId ?? 'review')}
         >
           <ArrowLeftIcon aria-hidden className="size-6" />
           {t('common:actions.back')}
         </Button>
         <Button
           type="submit"
-          className="h-16 grow px-6 text-xl sm:max-w-80"
+          className="h-auto min-h-16 grow px-6 py-2 text-xl whitespace-normal @2xl:max-w-80"
           disabled={state.isSaving || state.isConflict}
         >
           {state.isSaving && <LoaderCircleIcon aria-hidden className="size-6 animate-spin" />}
-          {fromReview ? t('toReviewAgain') : next ? t('common:actions.next') : t('toReview')}
+          {isPast
+            ? t('common:actions.save')
+            : fromReview
+              ? t('toReviewAgain')
+              : next
+                ? t('common:actions.next')
+                : t('toReview')}
           <ArrowRightIcon aria-hidden className="size-6" />
         </Button>
       </div>
-      <p className="truncate text-center text-lg text-muted-foreground">
-        {next ? t('nextUp', { name: fullName(next) }) : t('lastOfRound')}
-      </p>
+      {!isPast && (
+        <p className="truncate text-center text-lg text-muted-foreground">
+          {next ? t('nextUp', { name: fullName(next) }) : t('lastOfRound')}
+        </p>
+      )}
     </form>
   );
 }

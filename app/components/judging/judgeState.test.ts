@@ -46,6 +46,16 @@ describe('getNotices', () => {
     expect(kinds(withdrawn, state)).toEqual(['restored a Frei']);
   });
 
+  it('tells when the round of an added starter is already confirmed', () => {
+    const late = { currentRound: 1 };
+    const notices = getNotices(createState(late), createState(late, ['a', 'b', 'c']));
+    expect(notices).toEqual([{ kind: 'addedLate', id: 'c:addedLate', name: 'c Frei', round: 0 }]);
+    const finished = { status: 'FINISHED', currentRound: null } as const;
+    expect(getNotices(createState(finished), createState(finished, ['a', 'b', 'c']))).toMatchObject(
+      [{ kind: 'addedLate', round: 0 }],
+    );
+  });
+
   it('stays quiet when a starter only moves to another round', () => {
     const moved = createState({
       rounds: [
@@ -90,7 +100,16 @@ describe('mergeNotices', () => {
     const added = { kind: 'added', id: 'a:added', name: 'A' } as const;
     const withdrawn = { kind: 'withdrawn', id: 'a:withdrawn', name: 'A' } as const;
     const other = { kind: 'added', id: 'b:added', name: 'B' } as const;
-    expect(mergeNotices([added, other], [withdrawn])).toEqual([other, withdrawn]);
+    expect(mergeNotices([added, other], [withdrawn], { divisions: [] })).toEqual([
+      other,
+      withdrawn,
+    ]);
+  });
+
+  it('forgets that a division was stopped when it runs again', () => {
+    const stopped = { kind: 'stopped', id: 'd1:stopped', division: division('d1') } as const;
+    expect(mergeNotices([stopped], [], { divisions: [] })).toEqual([stopped]);
+    expect(mergeNotices([stopped], [], { divisions: [division('d1')] })).toEqual([]);
   });
 });
 

@@ -19,6 +19,7 @@ export default {
   },
   roundOf: 'Round {{number}} of {{total}}',
   position: '{{position}} of {{total}}',
+  pastRound: 'This round is already confirmed.',
   nextUp: 'Next: {{name}}',
   lastOfRound: 'Last one in this round',
   withdrawn: 'Withdrawn',
@@ -47,8 +48,11 @@ export default {
     saving: 'Saving …',
     unsaved: 'Not saved yet',
     waiting: 'Will be sent when the connection is back',
-    failedTitle: 'Not saved: no connection',
-    failedText: 'The grade is kept on this device and sent automatically. You can carry on.',
+    failedTitle: 'No answer from the server',
+    failedText:
+      'It is not clear yet whether the grade is saved. It is kept on this device and sent again automatically. You can carry on.',
+    conflictSaved: 'Changed elsewhere, saved is {{saved}}',
+    conflictGone: 'The saved grade was deleted elsewhere',
     rejectedTitle: 'Not saved',
     stoppedText:
       'The division no longer runs here or the person was moved. Your input is kept on this device.',
@@ -67,6 +71,8 @@ export default {
   unsavedText: 'The input is kept on this device.',
   discard: 'Discard',
   discardConfirm: 'Discard the input for {{name}}?',
+  discardSent:
+    'The input for {{name}} was already sent and may still be saved although you discard it. Check the grade afterwards. Discard?',
   toReview: 'Review',
   toReviewAgain: 'Back to the review',
   review: {
@@ -76,9 +82,11 @@ export default {
     confirm: 'Confirm round',
     blocked_one: '{{count}} grade is missing.',
     blocked_other: '{{count}} grades are missing.',
+    unsent_one: '{{count}} grade is not sent yet.',
+    unsent_other: '{{count}} grades are not sent yet.',
     missingText:
       'The division cannot end like this. Tell the competition office, they can enter the grades. Then confirm again.',
-    failed: 'Not confirmed: no connection. Try again.',
+    failed: 'No answer from the server. Confirm again, confirming twice does no harm.',
   },
   pause: {
     title: 'Pause',
@@ -95,6 +103,8 @@ export default {
   notices: {
     label: 'Changes',
     added: '{{name}} was added.',
+    addedLate:
+      '{{name}} was added, but round {{round}} is already confirmed. Please tell the competition office. The grade can be entered under “All rounds”.',
     removed: '{{name}} no longer starts here.',
     withdrawn: '{{name}} was withdrawn.',
     restored: '{{name}} starts again.',

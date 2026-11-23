@@ -1,5 +1,5 @@
 import { HourglassIcon } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data } from 'react-router';
 import type { Route } from './+types/display';
@@ -44,18 +44,16 @@ export async function loader({ request, params: { linkId } }: Route.LoaderArgs) 
   };
 }
 
-const keepLastData = createLastData<Awaited<ReturnType<typeof loader>>>();
+const lastData = createLastData<Awaited<ReturnType<typeof loader>>>();
 
 export function clientLoader({ params: { linkId }, serverLoader }: Route.ClientLoaderArgs) {
-  return keepLastData(linkId, serverLoader);
+  return lastData.load(linkId, serverLoader);
 }
-// The first data is needed as well, in case the connection is lost right after.
-clientLoader.hydrate = true as const;
 
-export default function Display({
-  loaderData: { competitionName, ground, round, divisionIds, hidesInMs, apparatus },
-  params: { linkId },
-}: Route.ComponentProps) {
+export default function Display({ loaderData, params: { linkId } }: Route.ComponentProps) {
+  const { competitionName, ground, round, divisionIds, hidesInMs, apparatus } = loaderData;
+  useEffect(() => lastData.remember(linkId, loaderData), [linkId, loaderData]);
+
   const { t } = useTranslation(['display', 'common']);
   const stream = useLiveUpdates(`/api/display/${linkId}/events`);
   const status = useIsOnline() ? stream : 'lost';

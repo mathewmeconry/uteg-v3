@@ -90,7 +90,7 @@ export function Warning({ title, children }: { title: string; children?: ReactNo
   return (
     <div
       role="alert"
-      className="grid gap-2 rounded-lg border-2 border-destructive bg-card px-4 py-3"
+      className="grid grid-cols-1 gap-2 rounded-lg border-2 border-destructive bg-card px-4 py-3 wrap-anywhere [&_button]:h-auto [&_button]:min-h-11 [&_button]:whitespace-normal"
     >
       <p className="flex items-center gap-2 text-lg font-bold text-destructive">
         <TriangleAlertIcon aria-hidden className="size-5 shrink-0" />
