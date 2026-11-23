@@ -1,6 +1,6 @@
-import { useEffect, useEffectEvent } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useBlocker, type Blocker } from 'react-router';
+import { useBlocker } from 'react-router';
 import { openAutosavers } from '~/lib/autosave';
 
 /**
@@ -16,23 +16,31 @@ export function AutosaveGuard() {
       historyAction === 'REPLACE';
     return !isSamePage && isUnsaved();
   });
+  const isBusy = useRef(false);
+  // Going somewhere else meanwhile replaces the target.
+  const latest = useRef(blocker);
 
-  const onBlocked = useEffectEvent(async ({ proceed, reset }: BlockedBlocker) => {
+  const onBlocked = useEffectEvent(async () => {
+    if (isBusy.current) return;
+    isBusy.current = true;
     await Promise.all([...openAutosavers].map((saver) => saver.settle()));
-    if (!isUnsaved() || window.confirm(t('leaveUnsaved'))) proceed();
-    else reset();
+    const mayLeave = !isUnsaved() || window.confirm(t('leaveUnsaved'));
+    isBusy.current = false;
+    const { current } = latest;
+    if (current.state !== 'blocked') return;
+    if (mayLeave) current.proceed();
+    else current.reset();
   });
 
   useEffect(() => {
-    if (blocker.state === 'blocked') void onBlocked(blocker);
+    latest.current = blocker;
+    if (blocker.state === 'blocked') void onBlocked();
   }, [blocker]);
 
   return null;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-type BlockedBlocker = Extract<Blocker, { state: 'blocked' }>;
 
 function isUnsaved() {
   return [...openAutosavers].some((saver) => saver.isUnsaved());

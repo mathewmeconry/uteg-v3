@@ -2,7 +2,6 @@ import {
   startTransition,
   useCallback,
   useEffect,
-  useEffectEvent,
   useRef,
   useState,
   useSyncExternalStore,
@@ -10,6 +9,9 @@ import {
 } from 'react';
 import { useFetcher, useFormAction, useRevalidator } from 'react-router';
 import { createAutosaver, type Saved, type SaveResult } from '~/lib/autosave';
+import { createRequestId } from '~/lib/gradeRequests';
+import { isServerReachable } from '~/lib/reachable';
+import { AUTOSAVE_FIELD, autosaveAnswers } from '~/lib/safeClientAction';
 
 /**
  * Keeps the value of a form and saves it by itself: a moment after the last change, and at once
@@ -24,12 +26,15 @@ import { createAutosaver, type Saved, type SaveResult } from '~/lib/autosave';
 export function useAutosave<Value>({
   saved,
   version,
+  loadedAt,
   isValid = () => true,
   isEqual = isSameJson,
   save,
 }: {
   saved: Value;
   version?: string;
+  /** Server time before `saved` was loaded. */
+  loadedAt?: number;
   /** Invalid values are not sent. Must not change. */
   isValid?: (value: Value) => boolean;
   isEqual?: (a: Value, b: Value) => boolean;
@@ -39,11 +44,14 @@ export function useAutosave<Value>({
   const { revalidate } = useRevalidator();
   const [saver] = useState(() =>
     createAutosaver({
-      saved: { value: saved, version },
+      saved: { value: saved, version, loadedAt },
       isEqual,
       isValid,
       save,
-      onConflict: () => void revalidate(),
+      // A failing loader would replace the form with the error page.
+      async onConflict() {
+        if (await isServerReachable()) await revalidate();
+      },
     }),
   );
   const { value, state, message, conflict } = useSyncExternalStore(
@@ -53,7 +61,10 @@ export function useAutosave<Value>({
   );
 
   useEffect(() => saver.setSave(save), [saver, save]);
-  useEffect(() => saver.setSaved({ value: saved, version }), [saver, saved, version]);
+  useEffect(
+    () => saver.setSaved({ value: saved, version, loadedAt }),
+    [saver, saved, version, loadedAt],
+  );
 
   useEffect(() => {
     saver.start();
@@ -103,64 +114,60 @@ type ActionAnswer = {
   failed?: number;
   conflict?: boolean;
   version?: string;
+  savedAt?: number;
 } | null;
 
 /**
  * A `save` for useAutosave that posts to an action with autosaveClientAction. The action gets the
  * version of `base` and returns `{ error }` or `{ errors }` when it refuses, and
- * `{ conflict: true, error }` when there is a newer one. Resolves when the page has the new data.
+ * `{ conflict: true, error }` when there is a newer one. After saving it returns
+ * `{ version, savedAt: Date.now() }`. Resolves when the page has the new data.
  */
 export function useActionSave<Value>(
   toFields: (value: Value, base: Saved<Value>) => Record<string, string | string[]>,
   { action }: { action?: string } = {},
 ) {
-  const fetcher = useFetcher<ActionAnswer>();
+  const fetcher = useFetcher();
   // Not the default of the fetcher: when the page is left, that is already the next page.
   const ownAction = useFormAction();
   const url = action ?? ownAction;
-  const [answers, setAnswers] = useState(0);
-  const handled = useRef(0);
-  const resolve = useRef<((result: SaveResult) => void) | null>(null);
-  const lastData = useRef<ActionAnswer | undefined>(undefined);
-
-  const onAnswer = useEffectEvent(() => {
-    // Without data of its own the fetcher still has the one from before.
-    const answer = fetcher.data === lastData.current ? null : fetcher.data;
-    lastData.current = fetcher.data;
-    resolve.current?.(toResult(answer ?? null));
-    resolve.current = null;
-  });
-
-  useEffect(
-    () => () => {
-      // The form is gone, so is the answer.
-      resolve.current?.({ ok: false, reason: 'offline' });
-      resolve.current = null;
-    },
-    [],
-  );
+  const [answered, setAnswered] = useState<string | null>(null);
+  const pending = useRef<{ id: string; done: () => void } | null>(null);
+  const isMounted = useRef(false);
 
   useEffect(() => {
-    if (fetcher.state !== 'idle' || handled.current === answers) return;
-    handled.current = answers;
-    onAnswer();
-  }, [answers, fetcher.state]);
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      // Of a request that was answered, but is not shown any more. Others still get theirs.
+      if (pending.current && autosaveAnswers.has(pending.current.id)) pending.current.done();
+    };
+  }, []);
+
+  // The answer comes before the page has the new data.
+  useEffect(() => {
+    if (fetcher.state === 'idle' && pending.current?.id === answered) pending.current?.done();
+  }, [answered, fetcher.state]);
 
   const { submit } = fetcher;
   return useCallback(
     (value: Value, base: Saved<Value>) =>
-      new Promise<SaveResult>((done) => {
-        resolve.current = done;
+      new Promise<SaveResult>((resolve) => {
+        const id = createRequestId();
+        function done() {
+          if (pending.current?.id === id) pending.current = null;
+          resolve(takeResult(id));
+        }
+        pending.current = { id, done };
+        const fields = Object.entries({ ...toFields(value, base), [AUTOSAVE_FIELD]: id });
         const body = new URLSearchParams(
-          Object.entries(toFields(value, base)).flatMap(([name, entry]) =>
-            [entry].flat().map((item) => [name, item]),
-          ),
+          fields.flatMap(([name, entry]) => [entry].flat().map((item) => [name, item])),
         );
-        submit(body, { method: 'post', action: url }).then(
+        submit(body, { method: 'post', action: url }).then(() => {
+          if (!isMounted.current) done();
           // The router shows its data in a transition too, the answer must not be seen before.
-          () => startTransition(() => setAnswers((count) => count + 1)),
-          () => done({ ok: false, reason: 'offline' }),
-        );
+          else startTransition(() => setAnswered(id));
+        }, done);
       }),
     [submit, toFields, url],
   );
@@ -172,12 +179,16 @@ function isSameJson(a: unknown, b: unknown) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-function toResult(answer: ActionAnswer): SaveResult {
-  const { error, errors, failed, conflict, version } = answer ?? {};
+function takeResult(id: string): SaveResult {
+  // Interrupted, or it never reached the action.
+  if (!autosaveAnswers.has(id)) return { ok: false, reason: 'offline' };
+  const answer = autosaveAnswers.get(id) as ActionAnswer | undefined;
+  autosaveAnswers.delete(id);
+  const { error, errors, failed, conflict, version, savedAt } = answer ?? {};
   if (conflict) return { ok: false, reason: 'conflict', message: error };
   const message = error ?? Object.values(errors ?? {}).find(Boolean);
   if (error || errors) return { ok: false, reason: 'refused', message };
-  if (!failed) return { ok: true, version };
+  if (!failed) return { ok: true, version, savedAt };
   const isRefused = failed >= 400 && failed < 500 && failed !== 408 && failed !== 429;
   return { ok: false, reason: isRefused ? 'refused' : 'offline' };
 }

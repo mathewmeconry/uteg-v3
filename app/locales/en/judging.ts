@@ -124,6 +124,7 @@ export default {
   },
   grading: {
     text: 'Running divisions',
+    keys: 'Grades are saved by themselves. Enter: next person · Esc: discard input · Alt+Delete or Alt+Backspace: delete grade',
     nothingRuns: 'No division is running on this ground',
     nothingRunsText: 'Start a division to enter grades here.',
     toDivisions: 'To the divisions',

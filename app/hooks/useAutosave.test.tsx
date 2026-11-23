@@ -20,6 +20,9 @@ let requests: string[];
 let answer: (() => unknown) | null;
 /** The request arrives, but not its answer. */
 let loseAnswer: boolean;
+/** What the answers wait for. */
+let delay: Promise<unknown> | null;
+let isHealthy: boolean;
 
 function Page() {
   const loaded = useLoaderData<typeof stored>();
@@ -65,6 +68,7 @@ async function open() {
             errorElement: <p>error page</p>,
             action: ({ request }) =>
               autosaveClientAction({
+                request,
                 async serverAction() {
                   const fields = new URLSearchParams(await request.text());
                   requests.push(`${fields.get('name')} ${fields.get('version')}`);
@@ -74,7 +78,9 @@ async function open() {
                   }
                   stored = { name: fields.get('name')!, version: stored.version + 1 };
                   if (loseAnswer) throw new TypeError('Failed to fetch');
-                  return null;
+                  const { version } = stored;
+                  await delay;
+                  return { version: String(version), savedAt: 0 };
                 },
               }),
           },
@@ -118,6 +124,9 @@ beforeEach(() => {
   requests = [];
   answer = null;
   loseAnswer = false;
+  delay = null;
+  isHealthy = true;
+  vi.stubGlobal('fetch', async () => new Response(null, { status: isHealthy ? 200 : 502 }));
   confirm.mockReset();
   vi.stubGlobal('confirm', confirm);
   vi.useFakeTimers();
@@ -220,6 +229,41 @@ describe('when somebody else saves', () => {
   });
 });
 
+it('keeps the page when the conflict cannot be loaded, and asks later', async () => {
+  await open();
+  stored = { name: 'x', version: 2 };
+  isHealthy = false;
+  type('b');
+  await advance(900);
+  expect(status()).toBe('error');
+  expect(input()).toHaveValue('b');
+  expect(screen.queryByText(/somebody saved/)).toBeNull();
+  isHealthy = true;
+  await press('retry');
+  expect(screen.getByText('somebody saved x')).toBeVisible();
+});
+
+it('sends what changed during a request when the form is gone', async () => {
+  const router = await open();
+  let respond = () => {};
+  delay = new Promise<void>((resolve) => (respond = resolve));
+  type('b');
+  await advance(900);
+  type('c');
+  // It takes too long and the user does not want to wait.
+  confirm.mockReturnValue(true);
+  await act(async () => {
+    void router.navigate('/other');
+    await vi.advanceTimersByTimeAsync(10);
+  });
+  await advance(10_500);
+  expect(screen.getByText('other page')).toBeInTheDocument();
+  respond();
+  await advance(50);
+  expect(requests).toEqual(['b 1', 'c 2']);
+  expect(stored.name).toBe('c');
+});
+
 describe('without an answer', () => {
   it('keeps the page and tries again', async () => {
     await open();
@@ -304,6 +348,22 @@ describe('leaving the page', () => {
     confirm.mockReturnValueOnce(true);
     await leave(router);
     expect(screen.getByText('other page')).toBeInTheDocument();
+  });
+
+  it('asks once when it is tried several times, and goes where it was tried last', async () => {
+    const router = await open();
+    answer = () => Promise.reject(new TypeError('Failed to fetch'));
+    type('b');
+    await advance(900);
+    confirm.mockReturnValue(true);
+    await act(async () => {
+      void router.navigate('/other');
+      void router.navigate('/other');
+      void router.navigate('/login');
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('login page')).toBeInTheDocument();
   });
 
   it('asks when the value is invalid', async () => {

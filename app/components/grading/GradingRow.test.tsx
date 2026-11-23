@@ -164,6 +164,26 @@ describe('with the keyboard only', () => {
     await saved('9.00');
   });
 
+  it('goes on with Enter where the next row has a final grade instead of attempts', async () => {
+    const [anna, bea] = rows.map((slot) => ({ ...slot, inputRule: VAULT }));
+    const user = setup(anna, { ...bea, grade: grade(9500) });
+    await user.click(screen.getByLabelText('1. Versuch Anna Frei'));
+    await user.keyboard('9{Enter}8{Enter}');
+    expect(screen.getByLabelText('Endnote Bea Frei')).toHaveFocus();
+    await saved('9.00');
+    expect(values()).toEqual([9000]);
+  });
+
+  it('deletes with Alt+Backspace, for keyboards without Delete, and comes back', async () => {
+    const user = setup(createSlot({ grade: grade(9000) }));
+    await user.click(input());
+    await user.keyboard('{Alt>}{Backspace}{/Alt}');
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('9.00');
+    await user.keyboard('{Escape}');
+    await vi.waitFor(() => expect(input()).toHaveFocus());
+    expect(input()).toHaveValue('9.00');
+  });
+
   it('stays at an invalid value with Enter', async () => {
     const user = setup(...rows);
     await user.click(field('Anna'));
@@ -312,6 +332,39 @@ it('asks about a conflict instead of saving', async () => {
   await user.click(elsewhere());
   expect(values()).toEqual([]);
   expect(screen.getByText('Gespeichert ist 9.50. Deine Eingabe: 8.00.')).toBeVisible();
+});
+
+describe('a grade typed before a reload', () => {
+  async function reload() {
+    const user = setup(createSlot());
+    await user.type(input(), '9');
+    cleanup();
+    send.mockClear();
+    return setup(createSlot());
+  }
+
+  it('is not saved by passing through', async () => {
+    const user = await reload();
+    await user.click(input());
+    await user.tab();
+    await user.click(elsewhere());
+    expect(values()).toEqual([]);
+    expect(input()).toHaveValue('9');
+  });
+
+  it('is saved when it was changed since', async () => {
+    const user = await reload();
+    await user.type(input(), '.5');
+    await user.click(elsewhere());
+    await saved('9.50');
+    expect(values()).toEqual([9500]);
+  });
+
+  it('is saved with Enter', async () => {
+    const user = await reload();
+    await user.type(input(), '{Enter}');
+    await saved('9.00');
+  });
 });
 
 it('offers to save what was typed before a reload', async () => {

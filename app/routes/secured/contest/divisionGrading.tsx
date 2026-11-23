@@ -84,6 +84,9 @@ export default function DivisionGrading({ loaderData }: Route.ComponentProps) {
         }
       />
       <div className="grid gap-6">
+        {canEdit && (
+          <p className="text-sm text-muted-foreground pointer-coarse:hidden">{t('grading.keys')}</p>
+        )}
         {apparatus.map(({ apparatus: key, rounds }) => (
           <GradingTable
             key={`${division.id}-${key}`}

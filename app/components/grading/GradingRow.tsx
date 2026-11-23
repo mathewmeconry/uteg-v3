@@ -15,7 +15,7 @@ import type { GradeDrafts } from './useGradeDrafts';
 
 /**
  * One starter in the grading tables. Saves by itself when the row is left, Enter goes to the next
- * one. Escape takes back what was typed, Alt+Delete asks to delete the grade.
+ * one. Escape takes back what was typed, Alt+Delete or Alt+Backspace asks to delete the grade.
  */
 export function GradingRow({
   slot,
@@ -38,6 +38,7 @@ export function GradingRow({
   const key = draftKey(slot);
   const name = fullName(slot);
   const isEditable = canEdit && !slot.withdrawn;
+  const isTyping = drafts.drafts.get(key)?.typing ?? false;
   const row = useRef<HTMLLIElement>(null);
   const isCleared = state.isDirty && state.evaluated.isEmpty && !state.wasSent && !state.isConflict;
 
@@ -52,6 +53,7 @@ export function GradingRow({
     // The window lost the focus, the field did not: the value may be half typed.
     if (document.activeElement === target) return;
     setIsActive(false);
+    if (!isTyping) return;
     // Clearing a field does not delete a grade.
     if (isCleared) drafts.discard(key);
     else save();
@@ -67,17 +69,20 @@ export function GradingRow({
     if (state.isConflict) return;
     if (state.isDirty && !isCleared && !state.evaluated.grade) return setShowRequired(true);
     let next = row.current?.nextElementSibling;
-    while (next && !next.querySelector('input')) next = next.nextElementSibling;
-    const input = next?.querySelector('input');
-    if (!input) return save();
-    input.focus();
-    input.select();
+    while (next && !findInput(next)) next = next.nextElementSibling;
+    const input = findInput(next);
+    // Typed before a reload: passing through does not save it, Enter does.
+    if (!input || !isTyping) save();
+    input?.focus();
+    input?.select();
   }
 
   function onKeyDown(event: KeyboardEvent) {
     if (!(event.target instanceof HTMLInputElement)) return;
     if (event.key === 'Escape' && state.isDirty && !state.isSaving) undo();
-    if (event.key === 'Delete' && event.altKey && !state.isDirty) {
+    // Some keyboards have only one of them.
+    const isDelete = event.key === 'Delete' || event.key === 'Backspace';
+    if (isDelete && event.altKey && !state.isDirty) {
       event.preventDefault();
       row.current?.querySelector<HTMLElement>('[data-delete]')?.click();
     }
@@ -165,13 +170,18 @@ export function GradingRow({
                     disabled={!state.saved}
                     tabIndex={-1}
                     data-delete
-                    aria-keyshortcuts="Alt+Delete"
+                    aria-keyshortcuts="Alt+Delete Alt+Backspace"
                     aria-label={t('grading.deleteRow', { name })}
                     onClick={() => setShown(state.saved)}
                   >
                     <Trash2Icon aria-hidden />
                   </Button>
                 }
+                onCloseAutoFocus={(event) => {
+                  // The button is disabled without a grade.
+                  event.preventDefault();
+                  findInput(row.current)?.focus();
+                }}
                 title={t('grading.deleteTitle')}
                 description={t('grading.deleteText', {
                   name,
@@ -207,4 +217,11 @@ export function GradingRow({
       )}
     </li>
   );
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** The first field that can be typed in. Attempts are disabled next to a final grade. */
+function findInput(element: Element | null | undefined) {
+  return element?.querySelector<HTMLInputElement>('input:not(:disabled):not([readonly])') ?? null;
 }

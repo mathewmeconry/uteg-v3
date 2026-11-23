@@ -207,7 +207,73 @@ describe('when somebody else saves', () => {
   });
 });
 
+describe('data that was loaded before the own save', () => {
+  it('is ignored', async () => {
+    const { saver, answer, value, type } = setup();
+    await type('b');
+    await answer({ ok: true, version: '2', savedAt: 100 });
+    saver.setSaved({ value: 'a', version: '1', loadedAt: 99 });
+    expect(value()).toBe('b');
+    expect(saver.isUnsaved()).toBe(false);
+    saver.setSaved({ value: 'x', version: '3', loadedAt: 100 });
+    expect(value()).toBe('x');
+  });
+
+  it('is ignored as well when it arrives during the request', async () => {
+    const { saver, answer, value, sent, type } = setup();
+    await type('b');
+    saver.setSaved({ value: 'x', version: '0', loadedAt: 50 });
+    await answer({ ok: true, version: '2', savedAt: 100 });
+    expect(value()).toBe('b');
+    await type('c');
+    expect(sent()).toEqual(['b 1', 'c 2']);
+  });
+});
+
+describe('a request without any answer', () => {
+  it('is given up after a while and sent again', async () => {
+    const { sent, state, type } = setup();
+    await type('b');
+    await advance(15_000);
+    expect(state()).toBe('error');
+    await advance(5_000);
+    expect(sent()).toEqual(['b 1', 'b 1']);
+  });
+
+  it('does not hold up leaving the page for long', async () => {
+    const { saver } = setup();
+    let isSettled = false;
+    saver.change('b');
+    void saver.settle().then(() => (isSettled = true));
+    await advance(9_999);
+    expect(isSettled).toBe(false);
+    await advance(1);
+    expect(isSettled).toBe(true);
+    expect(saver.isUnsaved()).toBe(true);
+  });
+});
+
 describe('a conflict the server found', () => {
+  it('is over when the server goes back', async () => {
+    const { saver, server, conflict, sent, state } = setup();
+    saver.change('b');
+    server('x', '2');
+    expect(conflict()).toBe('x');
+    server('a', '1');
+    expect(conflict()).toBeNull();
+    expect(state()).not.toBe('error');
+    await advance(0);
+    expect(sent()).toEqual(['b 1']);
+  });
+
+  it('asks again for what the server has when it could not be loaded', async () => {
+    const { saver, answer, onConflict, type } = setup();
+    await type('b');
+    await answer(CONFLICT);
+    saver.retry();
+    expect(onConflict).toHaveBeenCalledTimes(2);
+  });
+
   it('shows what the server has as soon as it is loaded', async () => {
     const { answer, server, conflict, onConflict, sent, type } = setup();
     await type('b');
@@ -384,6 +450,21 @@ describe('when the page is left', () => {
     await type('');
     await saver.settle();
     expect(saver.isUnsaved()).toBe(true);
+  });
+
+  it.each([
+    ['saved', { ok: true, version: '2' }, 'c 2'],
+    ['lost', OFFLINE, 'c 1'],
+  ] as const)('also sends what changed during a request that is %s', async (_, result, last) => {
+    const { saver, sent, answer, type } = setup();
+    await type('b');
+    saver.change('c');
+    saver.dispose();
+    await answer(result);
+    expect(sent()).toEqual(['b 1', last]);
+    await answer(OFFLINE);
+    await advance(60_000);
+    expect(sent()).toHaveLength(2);
   });
 
   it('sends what is left and does not try again', async () => {

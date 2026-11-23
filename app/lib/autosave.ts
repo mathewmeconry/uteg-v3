@@ -1,13 +1,13 @@
 export type SaveResult =
-  /** With the version it now has, unless the page is loaded again anyway. */
-  | { ok: true; version?: string }
+  /** With the version it now has and the server time after it. Data loaded before is ignored. */
+  | { ok: true; version?: string; savedAt?: number }
   /** Without an answer it may have been saved or not. It is sent again by itself. */
   | { ok: false; reason: 'offline' }
   /** Refused, or somebody else changed it since. Only another value is sent. */
   | { ok: false; reason: 'refused' | 'conflict'; message?: string };
 
-/** What the server has, and its version if it has one. */
-export type Saved<Value> = { value: Value; version?: string };
+/** What the server has, its version if it has one and the server time before it was loaded. */
+export type Saved<Value> = { value: Value; version?: string; loadedAt?: number };
 
 export type AutosaveSnapshot<Value> = {
   value: Value;
@@ -19,6 +19,9 @@ export type AutosaveSnapshot<Value> = {
 
 const DELAY_MS = 800;
 const RETRY_MS = 5_000;
+const REQUEST_TIMEOUT_MS = 15_000;
+/** How long leaving the page waits for requests. */
+const SETTLE_MS = 10_000;
 
 export type Autosaver = {
   flush: () => void;
@@ -58,6 +61,8 @@ export function createAutosaver<Value>({
   /** What arrived while a request was running. */
   let waiting: Saved<Value> | null = null;
   let isSending = false;
+  /** Server time of the last save. */
+  let savedAt = -Infinity;
   /** Sent without an answer, so the server may have it. */
   let unanswered: { value: Value } | null = null;
   let refused: { value: Value } | null = null;
@@ -76,11 +81,24 @@ export function createAutosaver<Value>({
 
   const isDirty = () => unanswered !== null || !isEqual(value, base.value);
   const isBlocked = () => snapshot.conflict !== null || isOutdated || !isValid(value);
+  const isOlder = ({ loadedAt }: Saved<Value>) => loadedAt !== undefined && loadedAt < savedAt;
   const isRefused = () => refused !== null && isEqual(refused.value, value);
 
   function schedule(ms: number) {
     clearTimeout(timer);
     if (!isDisposed) timer = setTimeout(() => void run(), ms);
+  }
+
+  /** Never rejects, and answers in the end. */
+  async function send(sent: Value): Promise<SaveResult> {
+    const offline: SaveResult = { ok: false, reason: 'offline' };
+    let timeout;
+    const tooLate = new Promise<SaveResult>((resolve) => {
+      timeout = setTimeout(() => resolve(offline), REQUEST_TIMEOUT_MS);
+    });
+    const result = await Promise.race([save(sent, base).catch(() => offline), tooLate]);
+    clearTimeout(timeout);
+    return result;
   }
 
   async function run() {
@@ -90,16 +108,15 @@ export function createAutosaver<Value>({
     const sentBase = base;
     isSending = true;
     update({ state: 'saving', message: undefined });
-    const result = await save(sent, sentBase).catch((): SaveResult => {
-      return { ok: false, reason: 'offline' };
-    });
+    const result = await send(sent);
     isSending = false;
     handle(result, sent, sentBase);
     const arrived = waiting;
     waiting = null;
-    if (arrived) receive(arrived);
-    // Changed while it was sent.
-    if (!isSending && result.ok && isDirty()) await run();
+    if (arrived && !isOlder(arrived)) receive(arrived);
+    // Changed while it was sent. When the form is gone there is no later.
+    if (!isSending && isDirty() && (result.ok || (isDisposed && !isEqual(value, sent))))
+      await run();
     else if (!isEqual(value, sent)) schedule(0);
     for (const done of settled.splice(0)) done();
   }
@@ -107,6 +124,7 @@ export function createAutosaver<Value>({
   function handle(result: SaveResult, sent: Value, sentBase: Saved<Value>) {
     if (result.ok) {
       base = { value: sent, version: result.version ?? sentBase.version };
+      savedAt = result.savedAt ?? savedAt;
       unanswered = null;
       refused = null;
       update({ state: isEqual(value, sent) ? 'saved' : 'idle' });
@@ -139,8 +157,9 @@ export function createAutosaver<Value>({
       base = next;
       if (isOwn) unanswered = null;
       isOutdated = false;
-      if (wasOutdated) update({ state: 'idle', message: undefined });
-      if (wasOutdated || isOwn) schedule(0);
+      const wasBlocked = wasOutdated || snapshot.conflict !== null;
+      if (wasBlocked) update({ state: 'idle', message: undefined, conflict: null });
+      if (wasBlocked || isOwn) schedule(0);
     } else if (!isDirty()) {
       base = next;
       value = next.value;
@@ -173,16 +192,15 @@ export function createAutosaver<Value>({
     /** What the server has now. */
     setSaved(next: Saved<Value>) {
       if (isSending) waiting = next;
-      else if (next.version !== base.version || !isEqual(next.value, base.value) || isOutdated) {
-        receive(next);
-      }
+      else if (!isOlder(next)) receive(next);
     },
     /** Without waiting: leaving the field, Enter, another tab. */
     flush: () => void run(),
     /** The user wants it, e.g. after signing in again. */
     retry() {
       refused = null;
-      void run();
+      if (isOutdated) onConflict();
+      else void run();
     },
     /** The user decided which of the two counts. */
     resolveConflict(choice: 'own' | 'saved') {
@@ -197,7 +215,11 @@ export function createAutosaver<Value>({
     /** Saves what can be saved. Resolves when nothing is being sent any more. */
     async settle() {
       void run();
-      if (isSending) await new Promise<void>((resolve) => settled.push(resolve));
+      if (!isSending) return;
+      await new Promise<void>((resolve) => {
+        settled.push(resolve);
+        setTimeout(resolve, SETTLE_MS);
+      });
     },
     start() {
       isDisposed = false;

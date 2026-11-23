@@ -122,6 +122,11 @@ export default function Grading({ loaderData }: Route.ComponentProps) {
         />
       ) : (
         <div className="grid gap-6">
+          {canEdit && (
+            <p className="text-sm text-muted-foreground pointer-coarse:hidden">
+              {t('grading.keys')}
+            </p>
+          )}
           <p className="text-muted-foreground">
             {t('grading.text')}:{' '}
             {divisions
