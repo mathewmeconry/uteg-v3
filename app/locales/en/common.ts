@@ -59,6 +59,7 @@ export default {
     collapse: 'Collapse navigation',
     expand: 'Expand navigation',
   },
+  chooseDate: 'Choose a date',
   saveStatus: {
     error: 'Not saved',
     retry: 'Try again',

@@ -56,6 +56,7 @@ export default {
     collapse: 'Navigation einklappen',
     expand: 'Navigation ausklappen',
   },
+  chooseDate: 'Datum wählen',
   saveStatus: {
     error: 'Nicht gespeichert',
     retry: 'Nochmals versuchen',

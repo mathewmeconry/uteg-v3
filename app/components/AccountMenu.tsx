@@ -12,15 +12,23 @@ import {
 } from '~/components/ui/dropdown-menu';
 import { SidebarMenuButton } from '~/components/ui/sidebar';
 
-/** An icon, or a whole row of the sidebar with the address and a second line. */
-export function AccountMenu({ email, detail }: { email: string; detail?: string }) {
+/** An icon, or a whole row of the sidebar. `detail` is a second line, e.g. the role. */
+export function AccountMenu({
+  email,
+  detail,
+  variant = 'icon',
+}: {
+  email: string;
+  detail?: string;
+  variant?: 'icon' | 'row';
+}) {
   const { t } = useTranslation();
   const submit = useSubmit();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        {detail ? (
+        {variant === 'row' ? (
           <SidebarMenuButton size="lg" aria-label={`${t('nav.account')}: ${email}`}>
             <span
               aria-hidden
@@ -46,8 +54,9 @@ export function AccountMenu({ email, detail }: { email: string; detail?: string 
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">
-        <DropdownMenuLabel className="truncate font-normal text-muted-foreground">
-          {email}
+        <DropdownMenuLabel className="font-normal">
+          <span className="block truncate">{email}</span>
+          {detail && <span className="block truncate text-muted-foreground">{detail}</span>}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>

@@ -7,6 +7,7 @@ import { CompetitionSidebar } from '~/components/CompetitionSidebar';
 import { Button } from '~/components/ui/button';
 import { SidebarInset, SidebarProvider, useSidebar } from '~/components/ui/sidebar';
 import { competitionContext } from '~/context';
+import type { Role } from '~/generated/prisma/enums';
 import { useUser } from '~/hooks/useUser';
 import { getUser } from '~/lib/auth/auth.server';
 import { listCompetitions } from '~/lib/competitions.server';
@@ -44,14 +45,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   };
 }
 
-/** Only on phones, elsewhere the sidebar has everything. */
-function Header({ name }: { name: string }) {
+/** Without a sidebar, on phones and upright tablets. */
+function Header({ name, role }: { name: string; role: Role }) {
   const { t } = useTranslation();
   const { toggleSidebar } = useSidebar();
   const { email } = useUser();
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center gap-1 bg-ink px-1.5 text-ink-foreground md:hidden">
+    <header className="sticky top-0 z-10 flex h-14 items-center gap-1 bg-ink px-1.5 text-ink-foreground lg:hidden">
       <Button
         variant="ghost"
         size="icon"
@@ -68,7 +69,7 @@ function Header({ name }: { name: string }) {
       >
         <span className="truncate">{name}</span>
       </Link>
-      <AccountMenu email={email} />
+      <AccountMenu email={email} detail={t(`role.${role}`)} />
     </header>
   );
 }
@@ -78,7 +79,7 @@ export default function CompetitionLayout({ loaderData }: Route.ComponentProps) 
     <SidebarProvider defaultOpen={loaderData.sidebarOpen}>
       <CompetitionSidebar />
       <SidebarInset className="min-w-0">
-        <Header name={loaderData.competition.name} />
+        <Header name={loaderData.competition.name} role={loaderData.role} />
         <div id="content" className="mx-auto w-full max-w-[90rem] px-4 pt-5 pb-12 md:px-8 md:pt-8">
           <Outlet />
         </div>

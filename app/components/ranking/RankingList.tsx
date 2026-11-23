@@ -72,38 +72,40 @@ export function RankingList({ entries, best, apparatus, options }: Ranking) {
         {entries.map((entry, index) => (
           <li
             key={entry.id}
-            className={cn('px-3 py-3', isLimit(index) && 'border-b-2 border-b-primary')}
+            className={cn(
+              'flex gap-2 py-2 pr-3 pl-2 leading-snug',
+              isLimit(index) && 'border-b-2 border-b-primary',
+            )}
           >
-            <div className="flex items-start gap-3">
-              <span className="figure min-w-7 text-2xl leading-none">{entry.rank}</span>
-              <div className="min-w-0 flex-1 leading-snug">
-                <p className="font-semibold wrap-anywhere">
+            <span className="figure w-7 shrink-0 text-right text-xl leading-tight">
+              {entry.rank}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start gap-2">
+                <p className="min-w-0 flex-1 font-semibold wrap-anywhere">
                   {entry.firstname} {entry.lastname}
                 </p>
-                <p className="text-sm wrap-anywhere text-muted-foreground">{entry.clubName}</p>
+                <AwardIcon award={entry.award} />
+                <span className="figure text-xl leading-tight">
+                  {formatGrade(entry.total, precision)}
+                </span>
               </div>
-              <AwardIcon award={entry.award} />
-              <span className="figure text-2xl leading-none">
-                {formatGrade(entry.total, precision)}
-              </span>
+              <p className="text-sm wrap-anywhere text-muted-foreground">{entry.clubName}</p>
+              <dl className="mt-0.5 flex flex-wrap gap-x-3 text-sm tabular-nums">
+                {apparatus.map((key) => (
+                  <div key={key} className="flex items-baseline gap-1">
+                    <dt className="text-xs text-muted-foreground">
+                      <abbr title={t(`common:apparatus.${key as 'reck'}`)} className="no-underline">
+                        {t(`common:apparatusShort.${key as 'reck'}`)}
+                      </abbr>
+                    </dt>
+                    <dd>
+                      <Grade value={entry.values[key]} best={best[key]} precision={precision} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
-            <dl
-              className="mt-2 grid gap-1 pl-10 text-sm tabular-nums"
-              style={{ gridTemplateColumns: `repeat(${apparatus.length}, minmax(0, 1fr))` }}
-            >
-              {apparatus.map((key) => (
-                <div key={key}>
-                  <dt className="text-xs text-muted-foreground">
-                    <abbr title={t(`common:apparatus.${key as 'reck'}`)} className="no-underline">
-                      {t(`common:apparatusShort.${key as 'reck'}`)}
-                    </abbr>
-                  </dt>
-                  <dd>
-                    <Grade value={entry.values[key]} best={best[key]} precision={precision} />
-                  </dd>
-                </div>
-              ))}
-            </dl>
           </li>
         ))}
       </ol>

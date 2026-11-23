@@ -201,7 +201,7 @@ export function CompetitionSidebar() {
       <SidebarHeader>
         <CompetitionSwitcher />
       </SidebarHeader>
-      <SidebarContent className="gap-0">
+      <SidebarContent className="gap-0 pb-4">
         {contest && contests.length > 1 && <ContestSelect contestId={contest.id} />}
         <Group
           items={[{ to: base, label: t('nav.dashboard'), icon: LayoutDashboardIcon, end: true }]}
@@ -251,16 +251,17 @@ export function CompetitionSidebar() {
           ]}
         />
       </SidebarContent>
-      <SidebarFooter
-        className={cn(
-          'flex-row items-center gap-1 border-t border-sidebar-border',
-          state === 'collapsed' && !isMobile && 'flex-col',
-        )}
-      >
-        <div className="min-w-0 flex-1">
-          <AccountMenu email={email} detail={t(`role.${role}`)} />
-        </div>
-        {!isMobile && (
+      {/* The drawer opens over a bar that has the account. */}
+      {!isMobile && (
+        <SidebarFooter
+          className={cn(
+            'flex-row items-center gap-1 border-t border-sidebar-border',
+            state === 'collapsed' && 'flex-col',
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <AccountMenu variant="row" email={email} detail={t(`role.${role}`)} />
+          </div>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -269,8 +270,8 @@ export function CompetitionSidebar() {
           >
             <PanelLeftIcon aria-hidden className="text-muted-foreground" />
           </Button>
-        )}
-      </SidebarFooter>
+        </SidebarFooter>
+      )}
     </Sidebar>
   );
 }

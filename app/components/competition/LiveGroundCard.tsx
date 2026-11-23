@@ -68,7 +68,7 @@ export function LiveGroundCard({
 
 function ApparatusCell({ item }: { item: LiveGround['apparatus'][number] }) {
   const { t } = useTranslation(['competition', 'common']);
-  const { apparatus, status, round, rounds, graded, total, latest } = item;
+  const { apparatus, status, round, graded, total, latest } = item;
   const isFinished = status === 'FINISHED';
 
   return (
@@ -83,14 +83,10 @@ function ApparatusCell({ item }: { item: LiveGround['apparatus'][number] }) {
           </StatusBadge>
         ) : (
           <p className="text-sm text-muted-foreground tabular-nums">
-            <span className="sr-only">{t('dashboard.roundOf', { round, rounds })}, </span>
-            {total === 0 ? (
-              t('dashboard.pause')
-            ) : (
-              <span className={cn(graded === total && 'font-semibold text-success')}>
-                {t('dashboard.gradedOf', { graded, total })}
-              </span>
-            )}
+            {t('common:round', { number: round })}:{' '}
+            <span className={cn(total > 0 && graded === total && 'font-semibold text-success')}>
+              {total === 0 ? t('dashboard.pause') : t('dashboard.gradedOf', { graded, total })}
+            </span>
           </p>
         )}
       </div>
@@ -99,22 +95,32 @@ function ApparatusCell({ item }: { item: LiveGround['apparatus'][number] }) {
       ) : (
         // The last of an odd number is twice as wide, see above.
         <ul className="mt-1.5 grid gap-1.5 sm:max-2xl:in-[li:last-child:nth-child(odd)]:grid-cols-2 sm:max-2xl:in-[li:last-child:nth-child(odd)]:gap-x-8">
-          {latest.map(({ entryId, firstname, lastname, clubName, grade }, index) => (
-            <li
-              key={entryId}
-              // The one before is only interesting where there is room.
-              className={cn(
-                'flex items-center justify-between gap-3',
-                index > 0 && 'max-sm:hidden',
-              )}
-            >
-              <div className="min-w-0 text-sm leading-snug">
-                <p className="truncate">{`${firstname} ${lastname}`}</p>
-                <p className="truncate text-muted-foreground">{clubName}</p>
-              </div>
-              <span className="figure text-xl">{grade}</span>
-            </li>
-          ))}
+          {latest.map((item, index) => {
+            const isEarlier = !isFinished && item.round < round;
+            return (
+              <li
+                key={`${item.entryId} ${item.round}`}
+                // The one before is only interesting where there is room.
+                className={cn(
+                  'flex items-end justify-between gap-3',
+                  index > 0 && 'max-sm:hidden',
+                )}
+              >
+                <div className="min-w-0 leading-snug">
+                  {isEarlier && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('common:round', { number: item.round })}
+                    </p>
+                  )}
+                  <p className="truncate">{`${item.firstname} ${item.lastname}`}</p>
+                  <p className="truncate text-sm text-muted-foreground">{item.clubName}</p>
+                </div>
+                <span className={cn('figure text-xl', isEarlier && 'text-muted-foreground')}>
+                  {item.grade}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </li>
