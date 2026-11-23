@@ -1,5 +1,5 @@
 import { EllipsisVerticalIcon, FileTextIcon, PlusIcon, TrashIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data, Form, Link, redirect, useBlocker } from 'react-router';
 import { z } from 'zod';
@@ -427,6 +427,7 @@ function TemplateEditor({
     name: template?.name ?? '',
     options: template?.options ?? defaultRankingTemplate,
   };
+  const formId = useId();
   const [name, setName] = useState(saved.name);
   const [options, setOptions] = useState<RankingTemplateOptions>(saved.options);
   const isValid = rankingTemplateSchema.safeParse(options).success;
@@ -441,11 +442,19 @@ function TemplateEditor({
 
   return (
     <div className="grid grid-cols-1 gap-x-10 gap-y-6 xl:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]">
-      <div className="grid grid-cols-1 content-start gap-6">
-        {/* A new one cannot have a cover yet. */}
-        <div className={template ? undefined : 'order-last'}>
-          <CoverSection template={template} options={options} onChange={setOptions} />
-        </div>
+      <div className="grid grid-cols-1 content-start gap-3">
+        <FormField
+          label={t('form.name')}
+          name="name"
+          // Cover and categories have forms of their own, so they are not inside of this one.
+          form={formId}
+          required
+          maxLength={NAME_LENGTH}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          error={errors.name}
+        />
+        <CoverSection template={template} options={options} onChange={setOptions} />
         {template && (
           <AssignmentSection
             templateId={template.id}
@@ -453,18 +462,9 @@ function TemplateEditor({
             categories={categories}
           />
         )}
-        <Form method="post" className="grid grid-cols-1 content-start gap-6">
+        <Form id={formId} method="post" className="grid grid-cols-1 content-start gap-3">
           {template && <input type="hidden" name="id" value={template.id} />}
           <input type="hidden" name="options" value={JSON.stringify(options)} />
-          <FormField
-            label={t('form.name')}
-            name="name"
-            required
-            maxLength={NAME_LENGTH}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            error={errors.name}
-          />
           <TemplateFields options={options} onChange={setOptions} />
           <FormActions>
             <SubmitButton name="intent" value="save" disabled={!isValid}>

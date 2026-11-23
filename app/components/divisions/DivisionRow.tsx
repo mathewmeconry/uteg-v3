@@ -20,7 +20,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import type { Division } from './divisionList';
@@ -62,22 +61,26 @@ export function DivisionRow({
           className="relative after:absolute after:-inset-3.5"
         />
       </span>
-      <div className="grid min-w-0 flex-1 gap-x-4 gap-y-1.5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center xl:grid-cols-[minmax(0,1fr)_13.5rem_minmax(0,1.6fr)_14.5rem]">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 pt-2 md:order-1 md:pt-0">
-          <h2 className="font-semibold">
-            {division.category} {t(`common:sex.${division.sex}`)}
-          </h2>
-          <span className="text-muted-foreground">{t('number', { number: division.number })}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 md:order-3 xl:order-2">
-          <DivisionStateBadge state={state} />
-          {state === 'RUNNING' && (
-            <span className="text-sm tabular-nums">
-              {t('roundOf', { round: round + 1, rounds })}
+      <div className="grid min-w-0 flex-1 gap-x-4 gap-y-1.5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 pt-2 lg:pt-0">
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <h2 className="font-semibold">
+              {division.category} {t(`common:sex.${division.sex}`)}
+            </h2>
+            <span className="text-muted-foreground">
+              {t('number', { number: division.number })}
             </span>
-          )}
+          </div>
+          <span className="flex flex-wrap items-center gap-x-2">
+            <DivisionStateBadge state={state} />
+            {state === 'RUNNING' && (
+              <span className="text-sm tabular-nums">
+                {t('roundOf', { round: round + 1, rounds })}
+              </span>
+            )}
+          </span>
         </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground max-sm:-mr-11 md:order-4 md:col-span-2 xl:order-3 xl:col-span-1">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground max-sm:-mr-11">
           <span className="inline-flex items-center gap-1.5">
             <MapPinIcon aria-hidden className="size-4 shrink-0 max-sm:hidden" />
             {t('common:ground', { number: division.ground })}
@@ -92,7 +95,7 @@ export function DivisionRow({
             </StatusBadge>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2 md:order-2 md:row-span-2 md:justify-end xl:order-4 xl:row-span-1">
+        <div className="flex flex-wrap items-center gap-2 pt-1 max-sm:-mr-11 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:justify-end xl:pt-0">
           {canEdit &&
             (state === 'RUNNING' ? (
               <Button
@@ -127,46 +130,48 @@ export function DivisionRow({
               {t('lineups.short')}
             </Link>
           </Button>
-        </div>
-      </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="icon" variant="ghost" aria-label={t('actionsFor', { name })}>
-            <EllipsisVerticalIcon aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
-            <Link to={`${division.id}/grading`}>
+          <Button asChild size="sm" variant="outline">
+            <Link to={`${division.id}/grading`} aria-label={`${t('common:nav.grading')}: ${name}`}>
               <ClipboardPenIcon aria-hidden />
               {t('common:nav.grading')}
             </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <a href={sheetsHref} target="_blank" rel="noreferrer">
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={sheetsHref}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`${t('sheets.print')}: ${name}`}
+            >
               <FileTextIcon aria-hidden />
-              {t('sheets.print')}
+              {t('sheets.title')}
             </a>
-          </DropdownMenuItem>
-          {canEdit && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => onAction('ground')}>
-                <MapPinIcon aria-hidden />
-                {t('ground.title')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                variant="destructive"
-                disabled={state === 'RUNNING'}
-                onSelect={() => onAction('delete')}
-              >
-                <TrashIcon aria-hidden />
-                {t('common:actions.delete')}
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </Button>
+        </div>
+      </div>
+      {canEdit && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon" variant="ghost" aria-label={t('actionsFor', { name })}>
+              <EllipsisVerticalIcon aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => onAction('ground')}>
+              <MapPinIcon aria-hidden />
+              {t('ground.title')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={state === 'RUNNING'}
+              onSelect={() => onAction('delete')}
+            >
+              <TrashIcon aria-hidden />
+              {t('common:actions.delete')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </li>
   );
 }

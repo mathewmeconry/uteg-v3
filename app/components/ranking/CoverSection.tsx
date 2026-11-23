@@ -26,8 +26,9 @@ export function CoverSection({
   onChange: (options: RankingTemplateOptions) => void;
 }) {
   const { t } = useTranslation(['pdf', 'common']);
+  const [searchParams] = useSearchParams();
   return (
-    <Section title={t('cover.title')}>
+    <Section title={t('cover.title')} defaultOpen={searchParams.get('focus') === 'cover'}>
       {template ? (
         <Cover template={template} options={options} onChange={onChange} />
       ) : (
