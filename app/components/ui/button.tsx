@@ -16,7 +16,7 @@ const buttonVariants = cva(
         // On ink surfaces.
         brand: 'bg-brand text-brand-foreground hover:bg-brand/85',
         onInk: 'bg-ink-accent text-ink-foreground hover:bg-ink-foreground/25',
-        link: 'text-primary underline-offset-4 hover:underline',
+        link: 'text-primary underline underline-offset-4 hover:no-underline',
       },
       size: {
         default: 'h-10 px-4 py-2 has-[>svg]:px-3.5',

@@ -27,87 +27,84 @@
 :root {
   color-scheme: light dark;
   --radius: 0.5rem;
-  --background: oklch(0.974 0.005 200);
-  --foreground: oklch(0.23 0.028 210);
+  /* Chroma and hue of the graphite. Change these and --brand for another look. */
+  --tint: 0.015 260;
+  --tint-soft: 0.005 260;
+  --background: oklch(0.975 var(--tint-soft));
+  --foreground: oklch(0.23 var(--tint));
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.23 0.028 210);
+  --card-foreground: oklch(0.23 var(--tint));
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.23 0.028 210);
-  --primary: oklch(0.44 0.078 212);
-  --primary-foreground: oklch(0.99 0.004 200);
-  --secondary: oklch(0.935 0.012 205);
-  --secondary-foreground: oklch(0.28 0.035 210);
-  --muted: oklch(0.953 0.007 200);
-  --muted-foreground: oklch(0.465 0.022 210);
-  --accent: oklch(0.932 0.02 208);
-  --accent-foreground: oklch(0.27 0.045 210);
-  --destructive: oklch(0.52 0.2 25);
+  --popover-foreground: oklch(0.23 var(--tint));
+  --primary: oklch(0.33 var(--tint));
+  --primary-foreground: oklch(0.99 var(--tint-soft));
+  --secondary: oklch(0.935 var(--tint-soft));
+  --secondary-foreground: oklch(0.28 var(--tint));
+  --muted: oklch(0.953 var(--tint-soft));
+  --muted-foreground: oklch(0.465 var(--tint));
+  --accent: oklch(0.925 var(--tint-soft));
+  --accent-foreground: oklch(0.27 var(--tint));
+  /* Pinker than --brand, so they are not mixed up. */
+  --destructive: oklch(0.5 0.2 18);
   --destructive-foreground: oklch(0.99 0 0);
   --success: oklch(0.47 0.12 150);
   --success-foreground: oklch(0.99 0 0);
   --warning: oklch(0.82 0.16 82);
   --warning-foreground: oklch(0.33 0.07 70);
-  --brand: oklch(0.89 0.2 122);
-  --brand-foreground: oklch(0.23 0.04 210);
-  --ink: oklch(0.275 0.047 212);
-  --ink-foreground: oklch(0.975 0.008 200);
-  --ink-muted: oklch(0.8 0.03 205);
-  --ink-accent: oklch(0.36 0.055 212);
+  --brand: oklch(0.78 0.16 35);
+  --brand-foreground: oklch(0.2 var(--tint));
+  --ink: oklch(0.27 var(--tint));
+  --ink-foreground: oklch(0.975 var(--tint-soft));
+  --ink-muted: oklch(0.8 var(--tint-soft));
+  --ink-accent: oklch(0.36 var(--tint));
   --gold: oklch(0.67 0.135 80);
   --silver: oklch(0.63 0.018 230);
   --bronze: oklch(0.58 0.115 52);
-  --border: oklch(0.895 0.011 205);
-  --input: oklch(0.65 0.022 208);
-  --ring: oklch(0.55 0.1 212);
-  --sidebar: oklch(0.948 0.01 203);
-  --sidebar-foreground: oklch(0.31 0.032 210);
-  --sidebar-primary: oklch(0.44 0.078 212);
-  --sidebar-primary-foreground: oklch(0.99 0.004 200);
-  --sidebar-accent: oklch(0.9 0.02 208);
-  --sidebar-accent-foreground: oklch(0.23 0.045 212);
-  --sidebar-border: oklch(0.885 0.014 205);
-  --sidebar-ring: oklch(0.55 0.1 212);
+  --border: oklch(0.89 var(--tint-soft));
+  --input: oklch(0.63 var(--tint));
+  --ring: oklch(0.5 var(--tint));
+  --sidebar: oklch(0.948 var(--tint-soft));
+  --sidebar-foreground: oklch(0.31 var(--tint));
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.895 var(--tint-soft));
+  --sidebar-accent-foreground: oklch(0.23 var(--tint));
+  --sidebar-border: oklch(0.885 var(--tint-soft));
+  --sidebar-ring: var(--ring);
 }
 
 :root {
   @variant dark {
-    --background: oklch(0.19 0.016 212);
-    --foreground: oklch(0.955 0.007 200);
-    --card: oklch(0.232 0.02 212);
-    --card-foreground: oklch(0.955 0.007 200);
-    --popover: oklch(0.265 0.024 212);
-    --popover-foreground: oklch(0.955 0.007 200);
-    --primary: oklch(0.8 0.095 200);
-    --primary-foreground: oklch(0.2 0.035 212);
-    --secondary: oklch(0.3 0.026 212);
-    --secondary-foreground: oklch(0.955 0.007 200);
-    --muted: oklch(0.268 0.021 212);
-    --muted-foreground: oklch(0.755 0.02 205);
-    --accent: oklch(0.325 0.034 210);
-    --accent-foreground: oklch(0.975 0.006 200);
-    --destructive: oklch(0.7 0.18 25);
-    --destructive-foreground: oklch(0.19 0.04 25);
+    --background: oklch(0.185 var(--tint-soft));
+    --foreground: oklch(0.955 var(--tint-soft));
+    --card: oklch(0.232 var(--tint-soft));
+    --card-foreground: oklch(0.955 var(--tint-soft));
+    --popover: oklch(0.265 var(--tint));
+    --popover-foreground: oklch(0.955 var(--tint-soft));
+    --primary: oklch(0.88 var(--tint));
+    --primary-foreground: oklch(0.2 var(--tint));
+    --secondary: oklch(0.3 var(--tint));
+    --secondary-foreground: oklch(0.955 var(--tint-soft));
+    --muted: oklch(0.268 var(--tint));
+    --muted-foreground: oklch(0.755 var(--tint));
+    --accent: oklch(0.325 var(--tint));
+    --accent-foreground: oklch(0.975 var(--tint-soft));
+    --destructive: oklch(0.68 0.2 18);
+    --destructive-foreground: oklch(0.19 0.04 18);
     --success: oklch(0.77 0.15 150);
     --success-foreground: oklch(0.2 0.035 160);
     --warning: oklch(0.84 0.15 85);
-    --ink: oklch(0.275 0.047 212);
-    --ink-foreground: oklch(0.975 0.008 200);
-    --ink-muted: oklch(0.8 0.03 205);
-    --ink-accent: oklch(0.36 0.055 212);
     --gold: oklch(0.84 0.14 88);
     --silver: oklch(0.83 0.012 230);
     --bronze: oklch(0.72 0.11 55);
-    --border: oklch(0.335 0.024 212);
-    --input: oklch(0.535 0.03 212);
-    --ring: oklch(0.72 0.1 200);
-    --sidebar: oklch(0.165 0.015 212);
-    --sidebar-foreground: oklch(0.87 0.014 205);
-    --sidebar-primary: oklch(0.8 0.095 200);
-    --sidebar-primary-foreground: oklch(0.2 0.035 212);
-    --sidebar-accent: oklch(0.285 0.032 210);
-    --sidebar-accent-foreground: oklch(0.975 0.006 200);
-    --sidebar-border: oklch(0.29 0.022 212);
-    --sidebar-ring: oklch(0.72 0.1 200);
+    --border: oklch(0.335 var(--tint));
+    --input: oklch(0.535 var(--tint));
+    --ring: oklch(0.75 var(--tint));
+    --sidebar: oklch(0.165 var(--tint-soft));
+    --sidebar-foreground: oklch(0.87 var(--tint-soft));
+    --sidebar-accent: oklch(0.285 var(--tint));
+    --sidebar-accent-foreground: oklch(0.975 var(--tint-soft));
+    --sidebar-border: oklch(0.29 var(--tint));
   }
 }
 
@@ -263,7 +260,7 @@
   --tw-ring-color: var(--ring);
 }
 
-/* On ink a white line with a gap, also around lime buttons. */
+/* On ink a white line with a gap, also around coral buttons. */
 [class~='bg-ink'] :focus-visible {
   outline: 3px solid var(--ink-foreground);
   outline-offset: 2px;

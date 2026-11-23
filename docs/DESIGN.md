@@ -1,7 +1,7 @@
 # UTEG design
 
 Users: volunteers in a gym office on competition day, judges on tablets, spectators at displays.
-Confident, sporty, calm. The identity is the gym: hanging rings, chalk, petrol mats, and one signal
+Confident, sporty, calm. The identity is the gym: hanging rings, chalk, graphite, and one signal
 colour.
 
 ## Principles
@@ -36,10 +36,10 @@ Tokens in `app/app.css`, light and dark. Text meets 4.5:1, control borders and i
 | `background`, `card`, `popover` | Page (chalk), lists and fields, what floats |
 | `muted` | Table heads, empty states |
 | `foreground`, `muted-foreground` | Text, secondary text |
-| `primary` (petrol) | The main action, links, progress, selection |
+| `primary` (graphite) | The main action, links (underlined), progress, selection |
 | `accent` | Hover, the current row or step, date blocks |
-| `ink` + `ink-*` (deep petrol) | Brand surfaces: top bar, competition switcher, sign-in, today's card |
-| `brand` (lime) | Only for **now** and **best**: running, best grade, the action on ink, loading bar |
+| `ink` + `ink-*` (dark graphite) | Brand surfaces: top bar, competition switcher, sign-in, today's card |
+| `brand` (coral) | Only for **now** and **best**: running, best grade, the action on ink, loading bar |
 | `success`, `warning`, `destructive` | Done, needs attention, error or destructive |
 | `gold`, `silver`, `bronze` | Medals |
 | `border`, `input`, `ring` | Hairlines, control borders, focus |
@@ -92,7 +92,7 @@ Archivo variable (self-hosted, SIL OFL), one family in two cuts.
 - **`FileDrop`**: a file input to click or drop on, in a `FormField`.
 - **Judging tablet**: one person at a time, buttons at least 56px (`data-touch="large"` on the page),
   main action 80px. Solid green is saved, solid yellow is not yet.
-- **Display**: ink, the newest grade in lime and as large as it gets, sizes follow the panel.
+- **Display**: ink, the newest grade in coral and as large as it gets, sizes follow the panel.
 - **Focus**: full `ring` colour, on `bg-ink` a white outline with a gap. Set in `app.css`.
 - **`SaveStatus`**: `idle`, `saving`, `saved`, `error` with retry, for forms that save by themselves.
   In `PageHeader status` or next to the field. No toast on top of it.
@@ -101,7 +101,7 @@ Archivo variable (self-hosted, SIL OFL), one family in two cuts.
 - **Choice** (few options that change the view): segmented links like in the ranking, options
   without content are regular and grey.
 - **`RoundMeter`**: progress of a division, one segment per round.
-- **Loading**: the lime bar under the top edge, after 150ms. `Skeleton` only for parts loaded later.
+- **Loading**: the coral bar under the top edge, after 150ms. `Skeleton` only for parts loaded later.
 - **Motion**: 150–200ms colour and opacity only; `prefers-reduced-motion` switches everything off.
 
 ## Texts

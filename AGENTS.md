@@ -82,7 +82,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 - Prefer `function` declarations. Default-export page components.
 - Validate inputs with zod `safeParse`. Errors users can cause are `DomainError`s.
 - Pages follow `docs/DESIGN.md`. Colours only through the tokens in `app.css`, which also define the dark theme (follows the
-  system). Touch targets are at least 44px on touch devices, set in `app.css`.
+  system unless chosen). Touch targets are at least 44px on touch devices, set in `app.css`.
 - Comments explain why, not what. No `console.log`; don't log tokens or names.
 - Tests sit next to the code: `*.test.ts` runs in node, `*.test.tsx` in jsdom. Services are tested
   against the real test database. `TEST_DB_NAME=uteg_test_x` gives a parallel run its own.
