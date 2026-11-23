@@ -72,6 +72,8 @@ async function setup() {
     </I18nextProvider>,
   );
   await screen.findByText('|ab');
+  // Runs the effect that sets `move`.
+  await settle();
   loader.mockClear();
   return router;
 }
