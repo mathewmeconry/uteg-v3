@@ -63,7 +63,12 @@ export function LineupEntry({
 
   const text = (
     <>
-      <span className={cn('block truncate font-medium', entry.withdrawn && 'line-through')}>
+      <span
+        className={cn(
+          'line-clamp-2 leading-snug font-semibold wrap-anywhere',
+          entry.withdrawn && 'line-through',
+        )}
+      >
         {name}
       </span>
       <span className="block truncate text-xs text-muted-foreground">
@@ -78,8 +83,8 @@ export function LineupEntry({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       data-entry={entry.id}
       className={cn(
-        'flex min-h-11 items-center gap-1 rounded-md border bg-background px-1 py-1',
-        selected && 'border-primary bg-accent',
+        'group/entry relative mx-1 flex min-h-11 items-center gap-0.5 rounded-md bg-card py-0.5 hover:bg-muted max-[359px]:pointer-coarse:flex-wrap',
+        selected && 'bg-accent hover:bg-accent',
         isDragging && 'opacity-40',
       )}
     >
@@ -89,7 +94,7 @@ export function LineupEntry({
             ref={setActivatorNodeRef}
             variant="ghost"
             size="icon-sm"
-            className="cursor-grab touch-none px-0"
+            className="w-7 cursor-grab touch-none px-0 text-muted-foreground"
             {...attributes}
             {...listeners}
             aria-label={t('lineups.drag', { name })}
@@ -100,12 +105,12 @@ export function LineupEntry({
             checked={selected}
             onCheckedChange={(checked) => onSelect(checked === true)}
             aria-label={t('lineups.select', { name })}
-            className="relative mx-1.5 after:absolute after:-inset-x-2 after:-inset-y-3.5"
+            className="relative mx-1.5 after:absolute after:-inset-x-2 after:-inset-y-3.5 pointer-coarse:mx-3 pointer-coarse:after:-inset-x-3.5"
           />
         </>
       )}
       {ordered && (
-        <span className="w-6 shrink-0 text-right text-sm text-muted-foreground tabular-nums">
+        <span className="figure w-6 shrink-0 text-right text-sm text-muted-foreground">
           {position && `${position}.`}
         </span>
       )}
@@ -124,7 +129,8 @@ export function LineupEntry({
         )}
       </span>
       {canMove && ordered && (
-        <span className="flex shrink-0">
+        // Without touch only while pointing at the entry, the lists are narrow.
+        <span className="flex shrink-0 rounded-md bg-inherit text-muted-foreground group-focus-within/entry:pointer-events-auto group-focus-within/entry:opacity-100 group-hover/entry:pointer-events-auto group-hover/entry:opacity-100 *:w-7 max-[359px]:pointer-coarse:w-full max-[359px]:pointer-coarse:justify-end not-any-pointer-coarse:absolute not-any-pointer-coarse:inset-y-0 not-any-pointer-coarse:right-0 not-any-pointer-coarse:items-center not-any-pointer-coarse:not-group-hover/entry:not-group-focus-within/entry:pointer-events-none not-any-pointer-coarse:not-group-hover/entry:not-group-focus-within/entry:opacity-0">
           <Button
             variant="ghost"
             size="icon-sm"

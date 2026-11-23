@@ -5,6 +5,7 @@ import { EmptyState } from '~/components/EmptyState';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import type { ContestOptions } from '~/lib/contestOptions.server';
+import { cn } from '~/lib/utils';
 import {
   invalidFields,
   isDivisionUnknown,
@@ -62,7 +63,7 @@ export function ImportReview({
           </div>
           <div
             aria-hidden
-            className={`hidden items-end gap-2 px-2 text-sm font-medium @5xl:grid ${GRID}`}
+            className={`hidden items-end gap-2 px-2 text-xs font-semibold text-muted-foreground @5xl:grid ${GRID}`}
           >
             <span />
             <span>{t('common:fields.stvId')}</span>
@@ -74,7 +75,7 @@ export function ImportReview({
             <span>{t('common:fields.category')}</span>
             <span>{t('division')}</span>
           </div>
-          <ul className="grid gap-3 @5xl:gap-0 @5xl:divide-y @5xl:rounded-xl @5xl:border @5xl:bg-card">
+          <ul className="grid gap-3 @5xl:gap-0 @5xl:divide-y @5xl:overflow-hidden @5xl:rounded-xl @5xl:border @5xl:bg-card">
             {rows.map((row, index) => (
               <Row
                 key={row.key}
@@ -129,9 +130,14 @@ const Row = memo(function Row({
 
   return (
     <li
-      className={`grid grid-cols-2 items-start gap-2 rounded-xl border bg-card p-3 @2xl:grid-cols-4 @5xl:rounded-none @5xl:border-0 @5xl:bg-transparent @5xl:p-2 ${GRID}`}
+      className={cn(
+        'relative grid grid-cols-2 items-start gap-2 rounded-xl border bg-card p-3 @2xl:grid-cols-4 @5xl:rounded-none @5xl:border-0 @5xl:bg-transparent @5xl:p-2',
+        GRID,
+        invalid.length > 0 &&
+          'border-destructive/40 bg-[color-mix(in_oklab,var(--destructive)_6%,var(--card))] @5xl:bg-[color-mix(in_oklab,var(--destructive)_6%,var(--card))]',
+      )}
     >
-      <span className="self-center font-medium text-muted-foreground @5xl:text-right @5xl:text-sm">
+      <span className="col-span-full flex min-h-8 items-center font-semibold text-muted-foreground @5xl:col-span-1 @5xl:min-h-10 @5xl:justify-end @5xl:text-sm @5xl:font-normal">
         <span className="@5xl:hidden">{t('import.row', { row: number })}</span>
         <span aria-hidden className="hidden @5xl:inline">
           {number}
@@ -149,7 +155,7 @@ const Row = memo(function Row({
         type="button"
         variant="ghost"
         size="icon"
-        className="order-last w-full @5xl:order-none @5xl:w-auto"
+        className="absolute top-1.5 right-13 @5xl:static"
         aria-label={t('import.swap', { row: number })}
         onClick={() => dispatch({ type: 'swap', key: row.key })}
       >
@@ -200,7 +206,7 @@ const Row = memo(function Row({
         variant="ghost"
         size="icon"
         data-remove
-        className="order-last w-full @5xl:w-auto"
+        className="absolute top-1.5 right-1.5 @5xl:static"
         aria-label={t('import.removeRow', { row: number })}
         onClick={() => onRemove(row.key, index)}
       >

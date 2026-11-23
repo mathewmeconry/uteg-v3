@@ -1,5 +1,9 @@
+import { ListFilterIcon, SearchIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
+import { Badge } from '~/components/ui/badge';
+import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import {
   Select,
@@ -8,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { cn } from '~/lib/utils';
 import { SORT_KEYS, type Division } from './divisionList';
 
 // Radix does not allow empty values.
@@ -26,6 +31,8 @@ export function DivisionFilters({
 }) {
   const { t } = useTranslation(['divisions', 'common']);
   const [params, setParams] = useSearchParams();
+  // Only on phones, elsewhere they are always shown.
+  const [isOpen, setIsOpen] = useState(false);
 
   function set(key: string, value: string) {
     setParams(
@@ -68,40 +75,62 @@ export function DivisionFilters({
       ]),
     },
   ];
+  const activeCount = filters.filter(({ key }) => params.has(key)).length;
 
   return (
     <div
       role="group"
       aria-label={t('filters.label')}
-      className="mb-4 grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-3 xl:grid-cols-6"
+      className="mb-4 flex flex-wrap items-center gap-2"
     >
-      <div className="grid min-w-0 gap-1">
-        <span aria-hidden className="text-xs text-muted-foreground">
-          {t('filters.search')}
-        </span>
+      <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+        <SearchIcon
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+        />
         <Input
           type="search"
           aria-label={t('filters.search')}
+          placeholder={t('filters.search')}
           value={search}
           onChange={(event) => onSearch(event.target.value)}
-          className="bg-card"
+          className="pl-9"
         />
       </div>
-      {filters.map(({ key, label, options }) => (
+      <Button
+        variant="outline"
+        className="sm:hidden"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <ListFilterIcon aria-hidden />
+        {t('common:actions.filter')}
+        {activeCount > 0 && <Badge>{activeCount}</Badge>}
+      </Button>
+      <div
+        className={cn(
+          'flex flex-wrap gap-2 max-sm:grid max-sm:w-full max-sm:grid-cols-1',
+          !isOpen && 'max-sm:hidden',
+        )}
+      >
+        {filters.map(({ key, label, options }) => (
+          <FilterSelect
+            key={key}
+            label={label}
+            value={params.get(key) ?? ALL}
+            isActive={params.has(key)}
+            options={[[ALL, t('filters.all')], ...options]}
+            onChange={(value) => set(key, value)}
+          />
+        ))}
         <FilterSelect
-          key={key}
-          label={label}
-          value={params.get(key) ?? ALL}
-          options={[[ALL, t('filters.all')], ...options]}
-          onChange={(value) => set(key, value)}
+          label={t('filters.sort')}
+          value={params.get('sort') ?? SORT_KEYS[0]}
+          isActive={false}
+          options={SORT_KEYS.map((key) => [key, t(`filters.sortKeys.${key}`)])}
+          onChange={(value) => set('sort', value)}
         />
-      ))}
-      <FilterSelect
-        label={t('filters.sort')}
-        value={params.get('sort') ?? SORT_KEYS[0]}
-        options={SORT_KEYS.map((key) => [key, t(`filters.sortKeys.${key}`)])}
-        onChange={(value) => set('sort', value)}
-      />
+      </div>
     </div>
   );
 }
@@ -110,30 +139,36 @@ function FilterSelect({
   label,
   value,
   options,
+  isActive,
   onChange,
 }: {
   label: string;
   value: string;
   options: string[][];
+  isActive: boolean;
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="grid min-w-0 gap-1">
-      <span aria-hidden className="text-xs text-muted-foreground">
-        {label}
-      </span>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger aria-label={label} className="w-full bg-card">
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger
+        aria-label={label}
+        className={cn(
+          'gap-1.5 max-sm:w-full',
+          isActive ? 'border-primary bg-accent font-semibold' : undefined,
+        )}
+      >
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="font-normal text-muted-foreground">{label}:</span>
           <SelectValue />
-        </SelectTrigger>
-        <SelectContent position="popper">
-          {options.map(([key, text]) => (
-            <SelectItem key={key} value={key}>
-              {text}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+        </span>
+      </SelectTrigger>
+      <SelectContent position="popper">
+        {options.map(([key, text]) => (
+          <SelectItem key={key} value={key}>
+            {text}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

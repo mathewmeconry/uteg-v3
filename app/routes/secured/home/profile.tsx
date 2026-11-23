@@ -4,8 +4,8 @@ import { z } from 'zod';
 import type { Route } from './+types/profile';
 import { FormField } from '~/components/FormField';
 import { PageHeader } from '~/components/PageHeader';
+import { Section, Sections } from '~/components/Section';
 import { SubmitButton } from '~/components/SubmitButton';
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -140,106 +140,101 @@ export default function Profile({ loaderData, actionData }: Route.ComponentProps
     <>
       <title>{`${t('profile.title')} · UTEG`}</title>
       <PageHeader title={t('profile.title')} />
-      <div className="grid max-w-lg gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('common:fields.language')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form method="post" className="grid gap-4">
-              <FormField label={t('common:fields.language')}>
-                {(props) => (
-                  <Select name="language" defaultValue={loaderData.language ?? 'de'}>
-                    <SelectTrigger {...props}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LANGUAGES.map((language) => (
-                        <SelectItem key={language} value={language}>
-                          {t(`common:language.${language}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </FormField>
-              <SubmitButton name="intent" value="language">
-                {t('common:actions.save')}
-              </SubmitButton>
-            </Form>
-          </CardContent>
-        </Card>
+      <Sections>
+        <Section title={t('common:fields.language')}>
+          <Form method="post" className="flex max-w-md items-end gap-3">
+            <FormField label={t('profile.languageLabel')}>
+              {(props) => (
+                <Select name="language" defaultValue={loaderData.language ?? 'de'}>
+                  <SelectTrigger {...props}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map((language) => (
+                      <SelectItem key={language} value={language}>
+                        {t(`common:language.${language}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </FormField>
+            <SubmitButton name="intent" value="language" variant="outline">
+              {t('common:actions.save')}
+            </SubmitButton>
+          </Form>
+        </Section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('profile.emailTitle')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form method="post" className="grid gap-4">
-              <FormField
-                label={t('common:fields.email')}
-                error={errors.email}
-                name="email"
-                type="email"
-                autoComplete="email"
-                defaultValue={loaderData.email}
-                required
-              />
-              <FormField
-                label={t('profile.currentPassword')}
-                error={errors.emailPassword}
-                name="emailPassword"
-                type="password"
-                autoComplete="current-password"
-                required
-              />
-              <SubmitButton name="intent" value="email">
-                {t('common:actions.save')}
-              </SubmitButton>
-            </Form>
-          </CardContent>
-        </Card>
+        <Section title={t('profile.emailTitle')} description={t('profile.emailText')}>
+          <Form method="post" className="grid max-w-md gap-5">
+            <FormField
+              label={t('common:fields.email')}
+              error={errors.email}
+              name="email"
+              type="email"
+              autoComplete="email"
+              defaultValue={loaderData.email}
+              required
+            />
+            <FormField
+              label={t('profile.currentPassword')}
+              error={errors.emailPassword}
+              name="emailPassword"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+            <SubmitButton
+              name="intent"
+              value="email"
+              variant="outline"
+              className="justify-self-start"
+            >
+              {t('profile.emailSave')}
+            </SubmitButton>
+          </Form>
+        </Section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('profile.passwordTitle')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form method="post" className="grid gap-4">
-              <FormField
-                label={t('profile.currentPassword')}
-                error={errors.currentPassword}
-                name="currentPassword"
-                type="password"
-                autoComplete="current-password"
-                required
-              />
-              <FormField
-                label={t('profile.newPassword')}
-                hint={t('passwordHint')}
-                error={errors.newPassword}
-                name="newPassword"
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                maxLength={128}
-                required
-              />
-              <FormField
-                label={t('repeatPassword')}
-                error={errors.repeatPassword}
-                name="repeatPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-              />
-              <SubmitButton name="intent" value="password">
-                {t('common:actions.save')}
-              </SubmitButton>
-            </Form>
-          </CardContent>
-        </Card>
-      </div>
+        <Section title={t('profile.passwordTitle')} description={t('profile.passwordText')}>
+          <Form method="post" className="grid max-w-md gap-5">
+            <FormField
+              label={t('profile.currentPassword')}
+              error={errors.currentPassword}
+              name="currentPassword"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+            <FormField
+              label={t('profile.newPassword')}
+              hint={t('passwordHint')}
+              error={errors.newPassword}
+              name="newPassword"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={128}
+              required
+            />
+            <FormField
+              label={t('repeatPassword')}
+              error={errors.repeatPassword}
+              name="repeatPassword"
+              type="password"
+              autoComplete="new-password"
+              required
+            />
+            <SubmitButton
+              name="intent"
+              value="password"
+              variant="outline"
+              className="justify-self-start"
+            >
+              {t('profile.passwordTitle')}
+            </SubmitButton>
+          </Form>
+        </Section>
+      </Sections>
     </>
   );
 }

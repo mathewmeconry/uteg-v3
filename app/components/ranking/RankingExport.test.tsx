@@ -34,7 +34,7 @@ async function open(templates: ReturnType<typeof template>[], current: typeof K1
       />
     </I18nextProvider>,
   );
-  await userEvent.click(screen.getByRole('button', { name: 'PDF' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Als PDF drucken' }));
 }
 
 /** What the form sends. */

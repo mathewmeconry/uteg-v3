@@ -16,9 +16,10 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { GripVerticalIcon, XIcon } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { GripVerticalIcon } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SelectionBar } from '~/components/SelectionBar';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import { cn } from '~/lib/utils';
@@ -39,6 +40,21 @@ const pointerCollisions: CollisionDetection = (args) => {
     args.droppableContainers.some(
       (container) => container.id === id && container.data.current?.isColumn,
     );
+  // This list is sticky, dnd-kit would expect it to scroll with the page.
+  const unassigned = args.droppableContainers.find(({ id }) => id === UNASSIGNED);
+  const rect = unassigned?.node.current?.getBoundingClientRect();
+  const pointer = args.pointerCoordinates;
+  if (
+    rect &&
+    pointer &&
+    pointer.x >= rect.left &&
+    pointer.x <= rect.right &&
+    pointer.y >= rect.top &&
+    pointer.y <= rect.bottom
+  ) {
+    return [{ id: UNASSIGNED }];
+  }
+
   const hits = pointerWithin(args);
   if (hits.length === 0) return closestCorners(args);
   const column = hits.find(({ id }) => isColumn(id));
@@ -294,6 +310,8 @@ export function LineupBoard({
     );
   }
 
+  const unassigned = columns.filter(({ id }) => id === UNASSIGNED);
+  const targets = columns.filter(({ id }) => id !== UNASSIGNED);
   const activeEntry = activeId === null ? undefined : byId.get(activeId);
 
   return (
@@ -310,12 +328,29 @@ export function LineupBoard({
       onDragEnd={onDragEnd}
       onDragCancel={stopDragging}
     >
-      <div className="grid items-start gap-4 grid-cols-[minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)]">
-        <div className="xl:sticky xl:top-18">
-          {columns.filter(({ id }) => id === UNASSIGNED).map(renderColumn)}
-        </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] items-start gap-4">
-          {columns.filter(({ id }) => id !== UNASSIGNED).map(renderColumn)}
+      {/* The unassigned stay next to the lists they are moved to, which are in as many columns as
+          have room. */}
+      <div className="@container">
+        <div
+          className={cn(
+            'grid grid-cols-[minmax(0,1fr)] gap-3 @2xl:grid-cols-2 @3xl:grid-cols-3',
+            columns.length % 2 === 1
+              ? '@min-[66rem]:grid-cols-[repeat(var(--lists),minmax(0,1fr))]'
+              : '@min-[80rem]:grid-cols-[repeat(var(--lists),minmax(0,1fr))]',
+          )}
+          style={{ '--lists': columns.length, '--targets': targets.length } as CSSProperties}
+        >
+          {unassigned.map(renderColumn)}
+          <div
+            className={cn(
+              'grid grid-cols-[minmax(0,1fr)] content-start items-start gap-3 @2xl:col-[2/-1] @3xl:grid-cols-2',
+              columns.length % 2 === 1
+                ? '@min-[66rem]:grid-cols-[repeat(var(--targets),minmax(0,1fr))]'
+                : '@min-[80rem]:grid-cols-[repeat(var(--targets),minmax(0,1fr))]',
+            )}
+          >
+            {targets.map(renderColumn)}
+          </div>
         </div>
       </div>
 
@@ -329,31 +364,30 @@ export function LineupBoard({
       </DragOverlay>
 
       {selected.length > 0 && (
-        <div
+        <SelectionBar
           role="group"
           aria-label={t('lineups.selection')}
-          className="sticky bottom-3 z-[5] mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-primary bg-card p-2 shadow-lg"
+          clearLabel={t('clearSelection')}
+          onClear={() => {
+            setSelection(new Set());
+            const column = findColumn(columns, selected[0]);
+            document
+              .querySelector<HTMLElement>(`[data-column="${column?.id}"] h2`)
+              ?.focus({ preventScroll: true });
+          }}
+          text={
+            <>
+              <strong aria-live="polite">{t('selected', { count: selected.length })}</strong>
+              <span className="block text-ink-muted">{t('lineups.moveTo')}</span>
+            </>
+          }
         >
-          <span className="px-2 text-sm font-medium" aria-live="polite">
-            {t('selected', { count: selected.length })}
-          </span>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-label={t('clearSelection')}
-            onClick={() => setSelection(new Set())}
-          >
-            <XIcon aria-hidden />
-          </Button>
-          <span className="w-full px-2 text-sm text-muted-foreground sm:w-auto">
-            {t('lineups.moveTo')}
-          </span>
           {columns.map(({ id }) => (
-            <Button key={id} size="sm" variant="outline" onClick={() => moveSelection(id)}>
+            <Button key={id} variant="onInk" className="px-3" onClick={() => moveSelection(id)}>
               {columnName(id)}
             </Button>
           ))}
-        </div>
+        </SelectionBar>
       )}
     </DndContext>
   );
@@ -387,25 +421,29 @@ function LineupColumn({
       aria-labelledby={headingId}
       data-column={id}
       style={{ minHeight }}
-      className={cn('rounded-xl border bg-card', isOver && 'border-primary')}
+      className={cn(
+        'rounded-xl border bg-card',
+        id === UNASSIGNED && '@2xl:sticky @2xl:top-17 @2xl:self-start lg:@2xl:top-3',
+        isOver && 'border-primary ring-2 ring-primary/30',
+      )}
     >
-      <header className="flex min-h-11 items-center gap-2 border-b px-4 py-1">
+      <header className="flex min-h-11 items-center gap-2.5 rounded-t-xl border-b bg-muted px-3 py-1">
         {checkbox}
         <h2
           id={headingId}
           // Gets the focus after a move.
           tabIndex={-1}
-          className="min-w-0 flex-1 truncate rounded-sm font-semibold"
+          className="min-w-0 flex-1 truncate rounded-sm font-display text-lg"
         >
           {name}
         </h2>
-        <span className="text-sm text-muted-foreground tabular-nums">{count}</span>
+        <span className="figure text-lg">{count}</span>
       </header>
       <SortableContext id={id} items={shownIds} strategy={verticalListSortingStrategy}>
         <ol
           className={cn(
-            'grid min-h-16 grid-cols-[minmax(0,1fr)] content-start gap-1 p-2',
-            id === UNASSIGNED && 'max-h-[45dvh] overflow-y-auto xl:max-h-[calc(100dvh-9rem)]',
+            'grid min-h-14 grid-cols-[minmax(0,1fr)] content-start gap-px py-1',
+            id === UNASSIGNED && 'max-h-[45dvh] overflow-y-auto @2xl:max-h-[calc(100dvh-13rem)]',
           )}
         >
           {children}

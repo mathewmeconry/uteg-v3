@@ -34,11 +34,11 @@ export function StarterList({
         const grade = isWaiting ? evaluated.grade : saved;
         const content = (
           <>
-            <span className="w-7 shrink-0 text-right text-muted-foreground tabular-nums">
+            <span className="figure w-7 shrink-0 text-right text-muted-foreground">
               {index + 1}.
             </span>
             <span className={cn('min-w-0 flex-1', slot.withdrawn && 'line-through')}>
-              <span className="block truncate font-medium">{fullName(slot)}</span>
+              <span className="block truncate font-semibold">{fullName(slot)}</span>
               <span className="block truncate text-sm text-muted-foreground">
                 {slot.clubName} · {slot.category} {t(`sexShort.${slot.sex}`)}
               </span>
@@ -46,7 +46,7 @@ export function StarterList({
             {slot.withdrawn ? (
               <span className="text-sm text-muted-foreground">{t('withdrawn')}</span>
             ) : (
-              <span className={cn('font-bold tabular-nums', isDirty && 'text-destructive')}>
+              <span className={cn('figure text-xl', isDirty && 'text-destructive')}>
                 {grade && formatEntered(grade.value)}
                 {showMissing && !grade && (
                   <Badge variant="destructive">{t('review.missing')}</Badge>
@@ -57,15 +57,15 @@ export function StarterList({
           </>
         );
         const className = cn(
-          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',
-          isCurrent && 'bg-primary text-primary-foreground [&_span]:text-primary-foreground',
+          'flex min-h-14 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left',
+          isCurrent && 'bg-ink text-ink-foreground [&_span]:text-ink-foreground',
         );
         return (
           <li key={slot.entryId} aria-current={isCurrent ? 'true' : undefined}>
             {onSelect && !slot.withdrawn ? (
               <button
                 type="button"
-                className={cn(className, 'min-h-11', !isCurrent && 'hover:bg-accent')}
+                className={cn(className, !isCurrent && 'hover:bg-accent')}
                 onClick={() => onSelect(slot.entryId)}
               >
                 {content}

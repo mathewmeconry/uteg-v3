@@ -74,8 +74,8 @@ export function ImportFiles({
           void read(event.dataTransfer.files);
         }}
       >
-        <UploadIcon aria-hidden className="size-8 text-muted-foreground" />
-        <span className="font-medium">{t('import.drop')}</span>
+        <UploadIcon aria-hidden className="size-7 text-primary" />
+        <span className="font-semibold">{t('import.drop')}</span>
         <span className="text-sm text-muted-foreground">
           {t('import.limits', { size: MAX_FILE_MB, rows: MAX_IMPORT_ROWS })}
         </span>
@@ -102,12 +102,9 @@ export function ImportFiles({
         )}
       </div>
       {files.length > 0 && (
-        <ul className="grid gap-2">
+        <ul className="divide-y rounded-xl border bg-card">
           {files.map(({ id, name, starters, skippedSheets, error }) => (
-            <li
-              key={id}
-              className="flex items-center gap-3 rounded-md border bg-card py-1 pr-1 pl-3"
-            >
+            <li key={id} className="flex items-center gap-3 py-2 pr-1 pl-4">
               <FileSpreadsheetIcon aria-hidden className="size-5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1 text-sm">
                 <p className="truncate font-medium">{name}</p>
@@ -136,8 +133,10 @@ export function ImportFiles({
         </ul>
       )}
 
-      <p className="text-sm text-muted-foreground">{t('import.columnsHint')}</p>
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl bg-muted p-4">
+        <p className="min-w-0 flex-1 basis-72 text-sm text-muted-foreground">
+          {t('import.columnsHint')}
+        </p>
         <Button variant="outline" asChild>
           <a href="/templates/UTEG-Import-Vorlage.xlsx" download>
             <DownloadIcon aria-hidden />

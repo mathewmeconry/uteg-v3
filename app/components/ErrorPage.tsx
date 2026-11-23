@@ -10,8 +10,8 @@ export function ErrorPage({ status, detail }: { status: number; detail?: string 
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-4 p-6 text-center">
       <Logo className="size-12" />
-      <p className="text-6xl font-black tabular-nums">{status}</p>
-      <h1 className="text-2xl font-bold">{t(`errors.${kind}Title`)}</h1>
+      <p className="figure text-7xl leading-none">{status}</p>
+      <h1 className="font-display text-2xl">{t(`errors.${kind}Title`)}</h1>
       <p className="max-w-prose text-muted-foreground">{t(`errors.${kind}Text`)}</p>
       {detail && <pre className="max-w-full overflow-auto text-left text-sm">{detail}</pre>}
       <div className="flex flex-wrap justify-center gap-2">

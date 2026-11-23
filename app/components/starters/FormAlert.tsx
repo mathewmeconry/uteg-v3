@@ -1,3 +1,4 @@
+import { TriangleAlertIcon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { Alert, AlertDescription } from '~/components/ui/alert';
 
@@ -8,6 +9,7 @@ export function FormAlert({ message }: { message: string }) {
 
   return (
     <Alert ref={ref} variant="destructive" tabIndex={-1}>
+      <TriangleAlertIcon aria-hidden />
       <AlertDescription>{message}</AlertDescription>
     </Alert>
   );

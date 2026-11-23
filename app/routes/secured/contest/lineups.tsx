@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, InfoIcon, TriangleAlertIcon, UsersIcon } from 'lucide-react';
+import { InfoIcon, TriangleAlertIcon, UsersIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data, Link } from 'react-router';
@@ -109,23 +109,25 @@ export default function Lineups({ loaderData }: Route.ComponentProps) {
   return (
     <>
       <title>{`${t('lineupsTitle')} ${name} · UTEG`}</title>
-      <Button asChild variant="link" className="mb-1 h-auto px-0 has-[>svg]:px-0">
-        <Link to="../divisions" relative="route">
-          <ArrowLeftIcon aria-hidden />
-          {t('lineups.back')}
-        </Link>
-      </Button>
       <PageHeader
-        title={t('lineupsTitle')}
-        description={
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span>{name}</span>
+        breadcrumbs={[
+          {
+            to: `/competitions/${competition.id}/contests/${division.contestId}/divisions`,
+            label: t('title'),
+          },
+        ]}
+        title={name}
+        status={
+          <>
             <DivisionStateBadge state={division.state} />
-            <span>{t('common:ground', { number: division.ground })}</span>
-            <span>{t('common:starterCount', { count: starterCount })}</span>
-          </span>
+            <ConnectionBadge status={status} />
+          </>
         }
-        actions={<ConnectionBadge status={status} />}
+        description={[
+          t('lineupsTitle'),
+          t('common:ground', { number: division.ground }),
+          t('common:starterCount', { count: starterCount }),
+        ].join(', ')}
       />
 
       {entries.length === 0 ? (
@@ -134,7 +136,7 @@ export default function Lineups({ loaderData }: Route.ComponentProps) {
           title={t('lineups.noStarters')}
           text={t('lineups.noStartersText')}
           action={
-            <Button asChild variant="outline">
+            <Button asChild>
               <Link to={`/competitions/${competition.id}/starters`}>{t('lineups.toStarters')}</Link>
             </Button>
           }
@@ -143,17 +145,17 @@ export default function Lineups({ loaderData }: Route.ComponentProps) {
         <>
           <div className="mb-4 grid gap-3">
             {division.state !== 'PENDING' && (
-              <Alert role="note" className="border-warning bg-warning/10">
+              <Alert role="note" variant="warning">
                 <TriangleAlertIcon aria-hidden />
                 <AlertTitle>
                   {t(division.state === 'RUNNING' ? 'lineups.running' : 'lineups.ended')}
                 </AlertTitle>
-                <AlertDescription className="text-foreground">
+                <AlertDescription>
                   {t(division.state === 'RUNNING' ? 'lineups.runningText' : 'lineups.endedText')}
                 </AlertDescription>
               </Alert>
             )}
-            <p className="flex items-start gap-2 text-sm text-muted-foreground">
+            <p className="flex max-w-prose items-start gap-2 text-sm text-muted-foreground">
               <InfoIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
               {t('lineups.order')}
             </p>

@@ -6,9 +6,9 @@ import { DeleteCompetitionDialog } from '~/components/competition/DeleteCompetit
 import { LogoField } from '~/components/competition/LogoField';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { PageHeader } from '~/components/PageHeader';
+import { Section, Sections } from '~/components/Section';
 import { SubmitButton } from '~/components/SubmitButton';
 import { Button } from '~/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 import { useActionErrors } from '~/hooks/useActionFetcher';
 import { useCompetition } from '~/hooks/useCompetition';
 import { removeLogo, setLogo } from '~/lib/assets.server';
@@ -83,37 +83,29 @@ export default function Settings({ actionData }: Route.ComponentProps) {
     <>
       <title>{`${t('title')} · UTEG`}</title>
       <PageHeader title={t('title')} description={canEdit ? undefined : t('readOnly')} />
-      <div className="grid max-w-3xl gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('general')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form method="post">
-              <fieldset disabled={!canEdit} className="grid gap-6">
-                <CompetitionFields errors={errors} defaults={competition} />
-                <GroundsField error={errors.grounds} defaultValue={competition.grounds} />
-                {canEdit && (
-                  <SubmitButton name="intent" value="details" className="justify-self-start">
-                    {t('common:actions.save')}
-                  </SubmitButton>
-                )}
-              </fieldset>
-            </Form>
-          </CardContent>
-        </Card>
+      <Sections>
+        <Section title={t('general')} description={t('generalText')}>
+          <Form method="post">
+            <fieldset disabled={!canEdit} className="grid gap-5">
+              <CompetitionFields errors={errors} defaults={competition} />
+              <GroundsField error={errors.grounds} defaultValue={competition.grounds} />
+              {canEdit && (
+                <SubmitButton name="intent" value="details" className="justify-self-start">
+                  {t('common:actions.save')}
+                </SubmitButton>
+              )}
+            </fieldset>
+          </Form>
+        </Section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('competition:fields.logo')}</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-6">
+        <Section title={t('competition:fields.logo')} description={t('logo.text')}>
+          <div className="grid grid-cols-1 gap-5">
             {competition.logoId ? (
               <div className="flex flex-wrap items-center gap-4">
                 <img
                   src={`/api/assets/${competition.logoId}`}
                   alt={t('logo.current')}
-                  className="h-24 max-w-full min-w-0 rounded-md border bg-white object-contain p-2"
+                  className="h-24 max-w-full min-w-0 rounded-lg border bg-white object-contain p-2"
                 />
                 {canEdit && (
                   <ConfirmDialog
@@ -127,7 +119,7 @@ export default function Settings({ actionData }: Route.ComponentProps) {
                 )}
               </div>
             ) : (
-              <p className="text-muted-foreground">{t('logo.none')}</p>
+              !canEdit && <p className="text-muted-foreground">{t('logo.none')}</p>
             )}
             {canEdit && (
               // The key clears the file input after the upload.
@@ -135,7 +127,7 @@ export default function Settings({ actionData }: Route.ComponentProps) {
                 key={competition.logoId}
                 method="post"
                 encType="multipart/form-data"
-                className="grid gap-4"
+                className="grid grid-cols-1 gap-4"
               >
                 <LogoField error={errors.logo} required />
                 <SubmitButton
@@ -148,21 +140,15 @@ export default function Settings({ actionData }: Route.ComponentProps) {
                 </SubmitButton>
               </Form>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </Section>
 
         {isOwner && (
-          <Card className="border-destructive/50">
-            <CardHeader>
-              <CardTitle>{t('delete.title')}</CardTitle>
-              <CardDescription>{t('delete.text')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DeleteCompetitionDialog name={competition.name} />
-            </CardContent>
-          </Card>
+          <Section tone="danger" title={t('delete.title')} description={t('delete.text')}>
+            <DeleteCompetitionDialog name={competition.name} />
+          </Section>
         )}
-      </div>
+      </Sections>
     </>
   );
 }

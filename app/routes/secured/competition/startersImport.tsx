@@ -1,10 +1,13 @@
+import { CircleCheckIcon } from 'lucide-react';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data, Link, useFetcher, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/startersImport';
+import { FormActions } from '~/components/FormActions';
 import { FormField } from '~/components/FormField';
 import { PageHeader } from '~/components/PageHeader';
+import { StepBar } from '~/components/StepBar';
 import { SubmitButton } from '~/components/SubmitButton';
 import { ClubCombobox, type ClubOption } from '~/components/starters/ClubCombobox';
 import { ClubConflictDialog } from '~/components/starters/ClubConflictDialog';
@@ -22,7 +25,6 @@ import { NativeSelect } from '~/components/starters/NativeSelect';
 import { fullName } from '~/components/starters/starterRow';
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
 import { Button } from '~/components/ui/button';
-import { Card, CardContent } from '~/components/ui/card';
 import { useCompetition } from '~/hooks/useCompetition';
 import { listClubs } from '~/lib/clubs.server';
 import { getContestOptions } from '~/lib/contestOptions.server';
@@ -104,16 +106,18 @@ export function clientAction({ serverAction }: Route.ClientActionArgs) {
   return keepPage(() => serverAction());
 }
 
-const STEPS = ['files', 'review', 'result'] as const;
-
 export default function StartersImport({ loaderData }: Route.ComponentProps) {
   const { t } = useTranslation('starters');
+  const { competition } = useCompetition();
   const [run, setRun] = useState(0);
 
   return (
     <>
       <title>{`${t('importTitle')} · UTEG`}</title>
-      <PageHeader title={t('importTitle')} />
+      <PageHeader
+        title={t('importTitle')}
+        breadcrumbs={[{ to: `/competitions/${competition.id}/starters`, label: t('title') }]}
+      />
       <Wizard key={run} {...loaderData} onRestart={() => setRun(run + 1)} />
     </>
   );
@@ -197,38 +201,19 @@ function Wizard({
 
   return (
     <>
-      <ol className="mb-6 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-        {STEPS.map((key, index) => (
-          <li
-            key={key}
-            aria-current={key === step ? 'step' : undefined}
-            className={cn(
-              'flex items-center gap-2',
-              key === step ? 'font-semibold' : 'text-muted-foreground',
-            )}
-          >
-            <span
-              aria-hidden
-              className={cn(
-                'flex size-6 items-center justify-center rounded-full',
-                key === step ? 'bg-primary text-primary-foreground' : 'bg-muted',
-              )}
-            >
-              {index + 1}
-            </span>
-            {t(
-              key === 'files'
-                ? 'import.stepFiles'
-                : key === 'review'
-                  ? 'import.stepReview'
-                  : 'import.stepResult',
-            )}
-          </li>
-        ))}
-      </ol>
+      <div className="max-w-3xl">
+        <StepBar
+          current={step}
+          steps={[
+            { key: 'files', label: t('import.stepFiles') },
+            { key: 'review', label: t('import.stepReview') },
+            { key: 'result', label: t('import.stepResult') },
+          ]}
+        />
+      </div>
 
       {step === 'files' && (
-        <div className="grid max-w-3xl gap-6">
+        <div className="grid max-w-3xl grid-cols-1 gap-6">
           {contests.length > 1 && (
             <FormField label={t('contest')}>
               {(props) => (
@@ -269,8 +254,8 @@ function Wizard({
               </AlertDescription>
             </Alert>
           )}
-          <div className="flex justify-between">
-            <Button variant="outline" asChild>
+          <div className="flex justify-between gap-2 border-t pt-4">
+            <Button variant="ghost" asChild>
               <Link to={`/competitions/${competition.id}/starters`}>
                 {t('common:actions.cancel')}
               </Link>
@@ -288,8 +273,8 @@ function Wizard({
             {t('common:fields.club')}: <strong>{club && `${club.name}, ${club.location}`}</strong>
           </p>
           <ImportReview rows={rows} options={contest} dispatch={dispatch} />
-          <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t bg-background px-4 py-3 md:-mx-6 md:px-6">
-            <Button variant="outline" onClick={() => setIsReviewing(false)}>
+          <FormActions>
+            <Button variant="ghost" onClick={() => setIsReviewing(false)}>
               {t('common:actions.back')}
             </Button>
             <div
@@ -305,13 +290,14 @@ function Wizard({
             <SubmitButton
               ref={submitRef}
               type="button"
+              className="ml-auto"
               pending={isPending}
               disabled={issues > 0 || rows.length === 0}
               onClick={() => submit()}
             >
               {t('import.submit', { count: rows.length })}
             </SubmitButton>
-          </div>
+          </FormActions>
           {conflicts && club && (
             <ClubConflictDialog
               conflicts={conflicts}
@@ -328,28 +314,31 @@ function Wizard({
 
       {result && (
         <div className="grid max-w-3xl gap-6">
-          <Card>
-            <CardContent className="grid gap-4">
-              <h2 ref={resultRef} tabIndex={-1} className="text-lg font-semibold outline-none">
-                {t('import.resultTitle')}
-              </h2>
-              <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                <Count label={t('import.created')} value={result.created} />
-                <Count label={t('import.restored')} value={result.restored} />
-                <Count label={t('import.existing')} value={result.existing} />
-                <Count label={t('import.clubsChanged')} value={result.clubsChanged} />
-                <Count label={t('import.clubsKept')} value={result.clubsKept} />
-                <Count label={t('import.failures')} value={result.failures.length} />
-              </dl>
-              {result.clubsOutdated.length > 0 && (
-                <p className="text-sm">
-                  {t('import.clubsOutdated', {
-                    names: result.clubsOutdated.map(fullName).join(', '),
-                  })}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <div className="grid gap-4">
+            <h2
+              ref={resultRef}
+              tabIndex={-1}
+              className="flex items-center gap-2 font-display text-xl outline-none"
+            >
+              <CircleCheckIcon aria-hidden className="size-6 text-success" />
+              {t('import.resultTitle')}
+            </h2>
+            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-3">
+              <Count label={t('import.created')} value={result.created} />
+              <Count label={t('import.restored')} value={result.restored} />
+              <Count label={t('import.existing')} value={result.existing} />
+              <Count label={t('import.clubsChanged')} value={result.clubsChanged} />
+              <Count label={t('import.clubsKept')} value={result.clubsKept} />
+              <Count label={t('import.failures')} value={result.failures.length} />
+            </dl>
+            {result.clubsOutdated.length > 0 && (
+              <p className="text-sm">
+                {t('import.clubsOutdated', {
+                  names: result.clubsOutdated.map(fullName).join(', '),
+                })}
+              </p>
+            )}
+          </div>
           {result.failures.length > 0 && (
             <Alert variant="destructive">
               <AlertTitle>{t('import.failuresTitle')}</AlertTitle>
@@ -394,9 +383,9 @@ function Wizard({
 
 function Count({ label, value }: { label: string; value: number }) {
   return (
-    <div>
+    <div className="flex flex-row-reverse items-baseline justify-end gap-2.5 bg-card px-4 py-3">
       <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-2xl font-bold tabular-nums">{value}</dd>
+      <dd className={cn('figure text-2xl', value === 0 && 'text-muted-foreground')}>{value}</dd>
     </div>
   );
 }

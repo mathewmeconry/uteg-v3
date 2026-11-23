@@ -49,6 +49,8 @@ export function StartersToolbar({
   onColumns: (columns: Column[]) => void;
 }) {
   const { t } = useTranslation(['starters', 'common']);
+  const withoutDivision = rows.filter(({ divisionId }) => !divisionId).length;
+  const isWithoutDivision = filters.division.length === 1 && filters.division[0] === '';
   const isFiltered = search !== '' || FILTERS.some((key) => filters[key].length > 0);
 
   function optionLabel(key: Filter, value: string) {
@@ -63,73 +65,91 @@ export function StartersToolbar({
   }
 
   return (
-    <div className="@container mb-4 grid gap-2">
-      <div className="relative max-w-xl">
-        <SearchIcon
-          aria-hidden
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input
-          type="search"
-          value={search}
-          onChange={(event) => onSearch(event.target.value)}
-          placeholder={t('searchPlaceholder')}
-          aria-label={t('common:actions.search')}
-          className="bg-card pl-9"
-        />
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        {FILTERS.map((key) => (
-          <MultiSelectFilter
-            key={key}
-            label={columnLabel(t, key)}
-            // A chosen value must stay visible after the last starter with it is gone.
-            options={[...new Set([...filterValues(rows, key, apparatus), ...filters[key]])].map(
-              (value) => ({ value, label: optionLabel(key, value) }),
-            )}
-            selected={filters[key]}
-            onChange={(values) => onFilters({ ...filters, [key]: values })}
-          />
-        ))}
-        {isFiltered && (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              onSearch('');
-              onFilters(NO_FILTERS);
-            }}
-          >
-            <XIcon aria-hidden />
-            {t('resetFilters')}
-          </Button>
-        )}
-
-        {/* Sorting happens in the header of the table, columns only exist there. */}
-        <div className="flex w-full gap-2 @4xl:hidden">
-          <NativeSelect
-            aria-label={t('sortBy')}
-            className="max-w-56"
-            value={sort.column}
-            onChange={(event) => onSort({ ...sort, column: event.target.value as Column })}
-          >
-            {COLUMNS.map((column) => (
-              <option key={column} value={column}>
-                {columnLabel(t, column)}
-              </option>
-            ))}
-          </NativeSelect>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label={sort.direction === 'asc' ? t('sortDescending') : t('sortAscending')}
-            onClick={() =>
-              onSort({ ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' })
-            }
-          >
-            {sort.direction === 'asc' ? <ArrowDownIcon aria-hidden /> : <ArrowUpIcon aria-hidden />}
-          </Button>
+    <div className="@container mb-4">
+      <div className="grid grid-cols-1 gap-2 @4xl:flex @4xl:items-start">
+        <div className="flex flex-wrap gap-2 @4xl:w-60 @4xl:shrink-0">
+          <div className="relative min-w-40 flex-1">
+            <SearchIcon
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              type="search"
+              value={search}
+              onChange={(event) => onSearch(event.target.value)}
+              placeholder={t('searchPlaceholder')}
+              aria-label={t('common:actions.search')}
+              className="bg-card pl-9"
+            />
+          </div>
+          {/* Sorting happens in the header of the table, columns only exist there. */}
+          <div className="flex gap-1 @4xl:hidden">
+            <NativeSelect
+              aria-label={t('sortBy')}
+              className="w-28"
+              value={sort.column}
+              onChange={(event) => onSort({ ...sort, column: event.target.value as Column })}
+            >
+              {COLUMNS.map((column) => (
+                <option key={column} value={column}>
+                  {columnLabel(t, column)}
+                </option>
+              ))}
+            </NativeSelect>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={sort.direction === 'asc' ? t('sortDescending') : t('sortAscending')}
+              onClick={() =>
+                onSort({ ...sort, direction: sort.direction === 'asc' ? 'desc' : 'asc' })
+              }
+            >
+              {sort.direction === 'asc' ? (
+                <ArrowDownIcon aria-hidden />
+              ) : (
+                <ArrowUpIcon aria-hidden />
+              )}
+            </Button>
+          </div>
         </div>
-        <div className="ml-auto hidden @4xl:block">
+        {/* On phones one line to swipe through, which fades out where it goes on. */}
+        <div className="-mx-4 flex scrollbar-none items-center gap-2 overflow-x-auto px-4 py-1 max-sm:pr-16 max-sm:[mask-image:linear-gradient(to_right,black_calc(100%-4.5rem),transparent)] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:py-0 @4xl:min-w-0 @4xl:flex-1">
+          {withoutDivision > 0 && (
+            <Button
+              variant="outline"
+              aria-pressed={isWithoutDivision}
+              className="border-warning bg-[color-mix(in_oklab,var(--warning)_14%,var(--card))] aria-pressed:bg-warning aria-pressed:text-warning-foreground"
+              onClick={() => onFilters({ ...filters, division: isWithoutDivision ? [] : [''] })}
+            >
+              {t('withoutDivision', { count: withoutDivision })}
+            </Button>
+          )}
+          {FILTERS.map((key) => (
+            <MultiSelectFilter
+              key={key}
+              label={columnLabel(t, key)}
+              // A chosen value must stay visible after the last starter with it is gone.
+              options={[...new Set([...filterValues(rows, key, apparatus), ...filters[key]])].map(
+                (value) => ({ value, label: optionLabel(key, value) }),
+              )}
+              selected={filters[key]}
+              onChange={(values) => onFilters({ ...filters, [key]: values })}
+            />
+          ))}
+          {isFiltered && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                onSearch('');
+                onFilters(NO_FILTERS);
+              }}
+            >
+              <XIcon aria-hidden />
+              {t('resetFilters')}
+            </Button>
+          )}
+        </div>
+        <div className="hidden @4xl:block">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="pointer-coarse:min-h-11">

@@ -25,7 +25,7 @@ export function VaultFields({
   const { t } = useTranslation(['settings', 'common']);
 
   return (
-    <table className="w-full table-fixed">
+    <table className="w-full max-w-md table-fixed">
       <thead className="text-left text-sm text-muted-foreground">
         <tr>
           <th scope="col" className="w-9 pb-2 sm:w-14 font-medium">

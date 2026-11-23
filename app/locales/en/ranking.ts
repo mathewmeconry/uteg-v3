@@ -28,7 +28,7 @@ export default {
   honourInvalid: 'A number from 0 to 100',
   honourSaved: 'Honours saved',
   export: {
-    button: 'PDF',
+    button: 'Print as PDF',
     title: 'Ranking as PDF',
     text: 'Choose the categories and the template.',
     template: 'Template',

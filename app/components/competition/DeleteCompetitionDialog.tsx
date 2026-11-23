@@ -24,7 +24,12 @@ export function DeleteCompetitionDialog({ name }: { name: string }) {
   return (
     <AlertDialog onOpenChange={() => setTyped('')}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive">{t('delete.title')}</Button>
+        <Button
+          variant="outline"
+          className="border-destructive text-destructive hover:border-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
+          {t('delete.title')}
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <Form method="post" className="grid gap-6">

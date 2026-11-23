@@ -15,14 +15,31 @@ export function formatDateTime(date: Date, language: string) {
  * day on the server and in every browser.
  */
 export function formatDateRange(start: Date, end: Date, language: string) {
-  const format = new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : 'de-CH', {
+  const locale = language === 'en' ? 'en-GB' : 'de-CH';
+  function format(date: Date, options: Intl.DateTimeFormatOptions) {
+    return new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone: 'UTC', ...options }).format(
+      date,
+    );
+  }
+  const last = format(end, { month: 'long', year: 'numeric' });
+  // Not formatRange: its spaces differ between the ICU versions of Node and browsers.
+  if (start.getUTCFullYear() !== end.getUTCFullYear()) {
+    return `${format(start, { month: 'long', year: 'numeric' })} – ${last}`;
+  }
+  if (start.getUTCMonth() !== end.getUTCMonth()) {
+    return `${format(start, { month: 'long' })} – ${last}`;
+  }
+  if (start.getUTCDate() === end.getUTCDate()) return last;
+  return `${start.getUTCDate()}${language === 'en' ? '' : '.'}–${last}`;
+}
+
+/** A plain day, see formatDateRange, with its weekday. */
+export function formatDay(date: Date, language: string) {
+  return new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : 'de-CH', {
+    weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
     timeZone: 'UTC',
-  });
-  const first = format.format(start);
-  const last = format.format(end);
-  // Not formatRange: its spaces differ between the ICU versions of Node and browsers.
-  return first === last ? first : `${first} – ${last}`;
+  }).format(date);
 }

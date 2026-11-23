@@ -1,86 +1,80 @@
-import { ClockIcon, UsersIcon } from 'lucide-react';
+import { ClockIcon, TrophyIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Route } from './+types/dashboard';
 import { LiveGroundCard } from '~/components/competition/LiveGroundCard';
+import { NextSteps } from '~/components/competition/NextSteps';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
 import { EmptyState } from '~/components/EmptyState';
 import { PageHeader } from '~/components/PageHeader';
+import { Stats, StatTile } from '~/components/StatTile';
 import { Button } from '~/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { competitionContext } from '~/context';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { getStats } from '~/lib/competitions.server';
+import { listDivisions } from '~/lib/divisions.server';
+import { getPhase } from '~/lib/domain/competitionPhase';
 import { formatDateRange } from '~/lib/format';
 import { getLatestGrades, getLiveGrounds, type LatestGrade } from '~/lib/liveResults.server';
+import { cn } from '~/lib/utils';
 
 const LATEST_GRADES = 12;
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { id, grounds } = context.get(competitionContext);
-  const [stats, liveGrounds, latestGrades] = await Promise.all([
+  const [stats, liveGrounds, latestGrades, pending] = await Promise.all([
     getStats(id),
     getLiveGrounds(id, grounds),
     getLatestGrades(id, LATEST_GRADES),
+    listDivisions(id, { state: 'PENDING' }),
   ]);
-  return { stats, grounds: liveGrounds, latestGrades };
-}
-
-function Stat({ label, value, detail }: { label: string; value: number; detail?: string }) {
-  return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-3xl font-bold tabular-nums">{value}</dd>
-      {detail && <dd className="mt-1 text-sm text-muted-foreground">{detail}</dd>}
-    </div>
-  );
+  return {
+    stats,
+    grounds: liveGrounds,
+    latestGrades,
+    /** Not started yet, by category. */
+    next: pending.map(({ ground, category, sex, number }) => ({ ground, category, sex, number })),
+  };
 }
 
 function LatestGrades({ grades }: { grades: LatestGrade[] }) {
   const { t } = useTranslation(['competition', 'common']);
   return (
-    <Card className="gap-4">
-      <CardHeader>
-        <CardTitle>
-          <h2>{t('dashboard.latestGrades')}</h2>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {grades.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('dashboard.latestGradesEmpty')}</p>
-        ) : (
-          <ul className="divide-y">
-            {grades.map(({ id, firstname, lastname, clubName, category, apparatus, grade }) => (
-              <li key={id} className="flex items-center justify-between gap-3 py-2">
-                <div className="min-w-0 text-sm">
-                  <p className="truncate font-medium">{`${firstname} ${lastname}`}</p>
-                  <p className="truncate text-muted-foreground">{clubName}</p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-lg leading-tight font-bold tabular-nums">{grade}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {category} {t(`common:apparatus.${apparatus}` as 'common:apparatus.reck')}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+    <section aria-labelledby="latest-title">
+      <h2 id="latest-title" className="mb-3 font-display text-lg">
+        {t('dashboard.latestGrades')}
+      </h2>
+      <ul className="divide-y rounded-xl border bg-card px-4 py-1">
+        {grades.map(({ id, firstname, lastname, clubName, category, apparatus, grade }) => (
+          <li key={id} className="flex items-center justify-between gap-3 py-2">
+            <div className="min-w-0 text-sm leading-snug">
+              <p className="truncate font-semibold">{`${firstname} ${lastname}`}</p>
+              <p className="truncate text-muted-foreground">
+                {category} {t(`common:apparatus.${apparatus}` as 'common:apparatus.reck')},{' '}
+                {clubName}
+              </p>
+            </div>
+            <p className="figure shrink-0 text-xl">{grade}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
 export default function Dashboard({
-  loaderData: { stats, grounds, latestGrades },
+  loaderData: { stats, grounds, latestGrades, next },
 }: Route.ComponentProps) {
   const { t, i18n } = useTranslation(['competition', 'common']);
-  const { competition, contests } = useCompetition();
+  const { competition, contests, canEdit } = useCompetition();
   const status = useLiveUpdates(`/api/events/${competition.id}`);
   const { starters, clubs, grades, divisions } = stats;
-  const base = `/competitions/${competition.id}`;
+  const phase = getPhase(stats);
   const dates = formatDateRange(competition.startDate, competition.endDate, i18n.language);
+  const contestBase =
+    contests.length > 0 && `/competitions/${competition.id}/contests/${contests[0].id}`;
+  const hasGrades = latestGrades.length > 0;
 
   return (
     <>
@@ -88,62 +82,70 @@ export default function Dashboard({
       <PageHeader
         title={t('common:nav.dashboard')}
         description={`${competition.location}, ${dates}`}
-        actions={<ConnectionBadge status={status} />}
+        status={<ConnectionBadge status={status} />}
       />
-      <div className="grid gap-6">
-        <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label={t('dashboard.starters')} value={starters} />
-          <Stat label={t('dashboard.clubs')} value={clubs} />
-          <Stat label={t('dashboard.grades')} value={grades} />
-          <Stat
-            label={t('dashboard.divisions')}
-            value={divisions.PENDING + divisions.RUNNING + divisions.ENDED}
-            detail={t('dashboard.divisionsDetail', {
-              running: divisions.RUNNING,
-              ended: divisions.ENDED,
-            })}
-          />
-        </dl>
-
-        {starters === 0 ? (
-          <EmptyState
-            icon={UsersIcon}
-            title={t('dashboard.noStarters')}
-            text={t('dashboard.noStartersText')}
-            action={
-              <Button asChild>
-                <Link to={`${base}/starters`}>{t('dashboard.toStarters')}</Link>
-              </Button>
-            }
-          />
-        ) : (
-          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-            <section className="grid gap-4" aria-labelledby="live-title">
-              <h2 id="live-title" className="text-lg font-semibold">
-                {t('dashboard.live')}
-              </h2>
-              {divisions.RUNNING === 0 ? (
-                <EmptyState
-                  icon={ClockIcon}
-                  title={t('dashboard.noRunning')}
-                  text={t('dashboard.noRunningText')}
-                  action={
-                    contests.length > 0 && (
-                      <Button asChild variant="outline">
-                        <Link to={`${base}/contests/${contests[0].id}/divisions`}>
-                          {t('dashboard.toDivisions')}
-                        </Link>
-                      </Button>
-                    )
-                  }
-                />
-              ) : (
-                grounds.map((ground) => <LiveGroundCard key={ground.ground} ground={ground} />)
-              )}
-            </section>
-            <LatestGrades grades={latestGrades} />
-          </div>
+      <div className={cn('grid gap-7', !hasGrades && 'max-w-4xl')}>
+        {starters > 0 && (
+          <Stats>
+            <StatTile label={t('dashboard.starters')} value={starters} />
+            <StatTile label={t('dashboard.clubs')} value={clubs} />
+            <StatTile
+              label={t('dashboard.divisionsEnded')}
+              value={`${divisions.ENDED}/${divisions.PENDING + divisions.RUNNING + divisions.ENDED}`}
+            />
+            <StatTile label={t('dashboard.grades')} value={grades} />
+          </Stats>
         )}
+
+        <div
+          className={cn(
+            'grid grid-cols-1 items-start gap-x-8 gap-y-7',
+            hasGrades && 'xl:grid-cols-[minmax(0,1fr)_21rem]',
+          )}
+        >
+          <section aria-labelledby="now-title">
+            <h2 id="now-title" className="mb-3 font-display text-lg">
+              {t(canEdit ? `dashboard.title.${phase}` : `home.status.${phase}`)}
+            </h2>
+            {phase === 'running' ? (
+              <div className="grid gap-4">
+                {grounds.map((ground) => (
+                  <LiveGroundCard
+                    key={ground.ground}
+                    ground={ground}
+                    next={next.find((division) => division.ground === ground.ground)}
+                    divisionsUrl={canEdit && contestBase ? `${contestBase}/divisions` : undefined}
+                  />
+                ))}
+              </div>
+            ) : canEdit ? (
+              <NextSteps
+                phase={phase}
+                base={`/competitions/${competition.id}`}
+                contestId={contests[0]?.id}
+              />
+            ) : phase === 'ended' ? (
+              <EmptyState
+                icon={TrophyIcon}
+                title={t('dashboard.resultsReady')}
+                action={
+                  contestBase && (
+                    <Button asChild>
+                      <Link to={`${contestBase}/ranking`}>{t('dashboard.toRanking')}</Link>
+                    </Button>
+                  )
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={ClockIcon}
+                title={t('dashboard.noRunning')}
+                text={t('dashboard.noRunningText')}
+              />
+            )}
+          </section>
+          {hasGrades && <LatestGrades grades={latestGrades} />}
+        </div>
       </div>
     </>
   );

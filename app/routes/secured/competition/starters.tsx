@@ -1,12 +1,12 @@
 import {
   DownloadIcon,
   FileTextIcon,
+  LayersIcon,
   SheetIcon,
   Trash2Icon,
   UploadIcon,
   UserPlusIcon,
   UsersIcon,
-  XIcon,
 } from 'lucide-react';
 import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,7 @@ import { z } from 'zod';
 import type { Route } from './+types/starters';
 import { EmptyState } from '~/components/EmptyState';
 import { PageHeader } from '~/components/PageHeader';
+import { SelectionBar } from '~/components/SelectionBar';
 import { AssignDialog } from '~/components/starters/AssignDialog';
 import { keepPage } from '~/components/starters/keepPage';
 import { NativeSelect } from '~/components/starters/NativeSelect';
@@ -305,7 +306,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
           {t('common:actions.import')}
         </Link>
       </Button>
-      <Button onClick={() => setDialog({ type: 'create' })}>
+      <Button className="max-sm:grow" onClick={() => setDialog({ type: 'create' })}>
         <UserPlusIcon aria-hidden />
         {t('create')}
       </Button>
@@ -349,7 +350,8 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {actions}
+            {/* Below in the empty state. */}
+            {starters.length > 0 && actions}
           </>
         }
       />
@@ -371,7 +373,12 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
 
       <section ref={listRef} tabIndex={-1} aria-label={t('title')} className="outline-none">
         {starters.length === 0 ? (
-          <EmptyState icon={UsersIcon} title={t('emptyTitle')} text={canEdit && t('emptyText')} />
+          <EmptyState
+            icon={UsersIcon}
+            title={t('emptyTitle')}
+            text={canEdit && t('emptyText')}
+            action={actions}
+          />
         ) : (
           <>
             <StartersToolbar
@@ -407,41 +414,40 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
       </section>
 
       {canEdit && selectedRows.length > 0 && (
-        <div
+        <SelectionBar
           role="toolbar"
           aria-label={t('actions')}
-          className="sticky bottom-4 z-10 mx-auto mt-4 flex w-fit max-w-full flex-wrap items-center justify-center gap-2 rounded-xl border bg-popover p-2 pl-4 shadow-lg"
+          clearLabel={t('clearSelection')}
+          onClear={() => {
+            setSelected(new Set());
+            listRef.current?.focus({ preventScroll: true });
+          }}
+          text={
+            <p role="status">
+              <strong>{t('selected', { count: selectedRows.length })}</strong>
+              {hiddenCount > 0 && (
+                <span className="block text-ink-muted">
+                  {t('selectedHidden', { count: hiddenCount })}
+                </span>
+              )}
+            </p>
+          }
         >
-          <p
-            role="status"
-            className="basis-full text-center text-sm sm:mr-2 sm:basis-auto sm:text-left"
+          <Button
+            variant="brand"
+            onClick={() => setDialog({ type: 'assign', starters: selectedRows })}
           >
-            <strong>{t('selected', { count: selectedRows.length })}</strong>
-            {hiddenCount > 0 && (
-              <span className="block text-muted-foreground">
-                {t('selectedHidden', { count: hiddenCount })}
-              </span>
-            )}
-          </p>
-          <Button onClick={() => setDialog({ type: 'assign', starters: selectedRows })}>
+            <LayersIcon aria-hidden />
             {t('assign.action')}
           </Button>
           <Button
-            variant="destructive"
+            variant="onInk"
             onClick={() => setDialog({ type: 'remove', starters: selectedRows })}
           >
             <Trash2Icon aria-hidden />
             {t('common:actions.remove')}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t('clearSelection')}
-            onClick={() => setSelected(new Set())}
-          >
-            <XIcon aria-hidden />
-          </Button>
-        </div>
+        </SelectionBar>
       )}
 
       {(dialog?.type === 'create' || dialog?.type === 'edit') && (

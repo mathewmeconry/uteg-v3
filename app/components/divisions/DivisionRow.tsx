@@ -13,6 +13,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { DivisionStateBadge } from '~/components/DivisionStateBadge';
+import { StatusBadge } from '~/components/StatusBadge';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import {
@@ -50,9 +51,9 @@ export function DivisionRow({
   return (
     <li
       data-state={selected ? 'selected' : undefined}
-      className="flex items-start gap-1 px-2 py-3 data-[state=selected]:bg-accent/60 lg:items-center"
+      className="flex items-start gap-1 px-2 py-2.5 data-[state=selected]:bg-accent lg:items-center"
     >
-      <span className="flex size-11 shrink-0 items-center justify-center lg:size-9">
+      <span className="flex size-11 shrink-0 items-center justify-center pointer-fine:lg:size-9">
         <Checkbox
           checked={selected}
           onCheckedChange={(checked) => onSelect(checked === true)}
@@ -61,14 +62,14 @@ export function DivisionRow({
           className="relative after:absolute after:-inset-3.5"
         />
       </span>
-      <div className="grid min-w-0 flex-1 gap-x-4 gap-y-2 lg:grid-cols-[minmax(0,1.2fr)_9rem_minmax(0,1.2fr)_14.5rem] lg:items-center">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 pt-2.5 lg:pt-0">
+      <div className="grid min-w-0 flex-1 gap-x-4 gap-y-1.5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center xl:grid-cols-[minmax(0,1fr)_13.5rem_minmax(0,1.6fr)_14.5rem]">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 pt-2 md:order-1 md:pt-0">
           <h2 className="font-semibold">
             {division.category} {t(`common:sex.${division.sex}`)}
           </h2>
           <span className="text-muted-foreground">{t('number', { number: division.number })}</span>
         </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 md:order-3 xl:order-2">
           <DivisionStateBadge state={state} />
           {state === 'RUNNING' && (
             <span className="text-sm tabular-nums">
@@ -76,26 +77,22 @@ export function DivisionRow({
             </span>
           )}
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground max-sm:-mr-11 md:order-4 md:col-span-2 xl:order-3 xl:col-span-1">
           <span className="inline-flex items-center gap-1.5">
-            <MapPinIcon aria-hidden className="size-4 shrink-0" />
+            <MapPinIcon aria-hidden className="size-4 shrink-0 max-sm:hidden" />
             {t('common:ground', { number: division.ground })}
           </span>
           <span className="inline-flex items-center gap-1.5 tabular-nums">
-            <UsersIcon aria-hidden className="size-4 shrink-0" />
+            <UsersIcon aria-hidden className="size-4 shrink-0 max-sm:hidden" />
             {t('common:starterCount', { count: starterCount })}
           </span>
           {unassignedCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 font-medium text-foreground tabular-nums">
-              <TriangleAlertIcon
-                aria-hidden
-                className="size-4 shrink-0 text-warning-foreground dark:text-warning"
-              />
+            <StatusBadge tone="warning" icon={TriangleAlertIcon}>
               {t('unassigned', { count: unassignedCount })}
-            </span>
+            </StatusBadge>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        <div className="flex flex-wrap items-center gap-2 md:order-2 md:row-span-2 md:justify-end xl:order-4 xl:row-span-1">
           {canEdit &&
             (state === 'RUNNING' ? (
               <Button
@@ -110,7 +107,13 @@ export function DivisionRow({
             ) : (
               <Button
                 size="sm"
-                variant={state === 'ENDED' ? 'outline' : 'default'}
+                // Restarting is rarely wanted.
+                variant={state === 'ENDED' ? 'ghost' : 'outline'}
+                className={
+                  state === 'ENDED'
+                    ? 'text-muted-foreground'
+                    : 'border-primary text-primary hover:border-primary hover:bg-primary hover:text-primary-foreground'
+                }
                 aria-label={`${startLabel}: ${name}`}
                 onClick={() => onAction('start')}
               >

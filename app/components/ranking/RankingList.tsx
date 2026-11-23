@@ -27,9 +27,9 @@ function AwardIcon({ award }: { award: Award | null }) {
   if (!award) return null;
   const Icon = award === 'HONOUR' ? StarIcon : MedalIcon;
   return (
-    <span className="inline-flex align-middle" title={t(`awards.${award}`)}>
-      <Icon aria-hidden className={cn('size-5', MEDAL_COLORS[award])} />
-      <span className="sr-only">{t(`awards.${award}`)}</span>
+    <span className="inline-flex items-center gap-1.5 align-middle" title={t(`awards.${award}`)}>
+      <Icon aria-hidden className={cn('size-5 fill-current/25', MEDAL_COLORS[award])} />
+      <span className="sr-only text-sm 2xl:not-sr-only">{t(`awards.${award}`)}</span>
     </span>
   );
 }
@@ -50,7 +50,7 @@ function Grade({
   return (
     <span
       title={t('best')}
-      className="-mx-1 rounded-sm bg-brand px-1 font-bold text-brand-foreground"
+      className="-mx-1 rounded-sm bg-brand px-1 font-semibold text-brand-foreground"
     >
       {grade}
       <span className="sr-only"> ({t('best')})</span>
@@ -58,52 +58,61 @@ function Grade({
   );
 }
 
-/** A table, on phones a list of cards. */
+/** A table, on phones a list. */
 export function RankingList({ entries, best, apparatus, options }: Ranking) {
   const { t } = useTranslation(['ranking', 'common']);
   const { precision } = options;
+  // Below the last award there is a line.
+  const lastAward = entries.findLastIndex(({ award }) => award);
+  const isLimit = (index: number) => index === lastAward && index < entries.length - 1;
 
   return (
     <>
-      <ol className="grid grid-cols-1 gap-2 md:hidden">
-        {entries.map((entry) => (
-          <li key={entry.id} className="rounded-lg border bg-card p-3">
-            <div className="flex items-start gap-3">
-              <span className="min-w-7 text-lg font-bold tabular-nums">{entry.rank}</span>
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold wrap-anywhere">
+      <ol className="grid grid-cols-1 divide-y overflow-hidden rounded-xl border bg-card md:hidden">
+        {entries.map((entry, index) => (
+          <li
+            key={entry.id}
+            className={cn(
+              'flex gap-2 py-2 pr-3 pl-2 leading-snug',
+              isLimit(index) && 'border-b-2 border-b-primary',
+            )}
+          >
+            <span className="figure w-7 shrink-0 text-right text-xl leading-tight">
+              {entry.rank}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start gap-2">
+                <p className="min-w-0 flex-1 font-semibold wrap-anywhere">
                   {entry.firstname} {entry.lastname}
                 </p>
-                <p className="text-sm wrap-anywhere text-muted-foreground">{entry.clubName}</p>
+                <AwardIcon award={entry.award} />
+                <span className="figure text-xl leading-tight">
+                  {formatGrade(entry.total, precision)}
+                </span>
               </div>
-              <AwardIcon award={entry.award} />
-              <span className="text-lg font-bold tabular-nums">
-                {formatGrade(entry.total, precision)}
-              </span>
+              <p className="text-sm wrap-anywhere text-muted-foreground">{entry.clubName}</p>
+              <dl className="mt-0.5 flex flex-wrap gap-x-3 text-sm tabular-nums">
+                {apparatus.map((key) => (
+                  <div key={key} className="flex items-baseline gap-1.5">
+                    <dt className="text-xs text-muted-foreground">
+                      <abbr title={t(`common:apparatus.${key as 'reck'}`)} className="no-underline">
+                        {t(`common:apparatusShort.${key as 'reck'}`)}
+                      </abbr>
+                    </dt>
+                    <dd>
+                      <Grade value={entry.values[key]} best={best[key]} precision={precision} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
-            <dl
-              className="mt-2 grid gap-1 text-center text-sm tabular-nums"
-              style={{ gridTemplateColumns: `repeat(${apparatus.length}, minmax(0, 1fr))` }}
-            >
-              {apparatus.map((key) => (
-                <div key={key}>
-                  <dt className="text-xs text-muted-foreground">
-                    <abbr title={t(`common:apparatus.${key as 'reck'}`)} className="no-underline">
-                      {t(`common:apparatusShort.${key as 'reck'}`)}
-                    </abbr>
-                  </dt>
-                  <dd>
-                    <Grade value={entry.values[key]} best={best[key]} precision={precision} />
-                  </dd>
-                </div>
-              ))}
-            </dl>
           </li>
         ))}
       </ol>
 
-      <div className="hidden rounded-lg border bg-card md:block">
-        <Table>
+      <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
+        {/* Five apparatus also fit next to the sidebar of a tablet. */}
+        <Table className="max-lg:[&_td]:px-1.5 max-lg:[&_th]:px-1.5">
           <TableHeader>
             <TableRow>
               <TableHead className="w-12 text-right">{t('rank')}</TableHead>
@@ -111,7 +120,13 @@ export function RankingList({ entries, best, apparatus, options }: Ranking) {
               <TableHead className="hidden lg:table-cell">{t('common:fields.club')}</TableHead>
               {apparatus.map((key) => (
                 <TableHead key={key} className="text-right">
-                  <abbr title={t(`common:apparatus.${key as 'reck'}`)} className="no-underline">
+                  <span aria-hidden className="hidden 2xl:inline">
+                    {t(`common:apparatus.${key as 'reck'}`)}
+                  </span>
+                  <abbr
+                    title={t(`common:apparatus.${key as 'reck'}`)}
+                    className="no-underline 2xl:sr-only"
+                  >
                     {t(`common:apparatusShort.${key as 'reck'}`)}
                   </abbr>
                 </TableHead>
@@ -123,16 +138,19 @@ export function RankingList({ entries, best, apparatus, options }: Ranking) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entries.map((entry) => (
-              <TableRow key={entry.id}>
-                <TableCell className="text-right font-bold">{entry.rank}</TableCell>
-                <TableCell className="min-w-40 font-medium wrap-anywhere whitespace-normal">
+            {entries.map((entry, index) => (
+              <TableRow
+                key={entry.id}
+                className={cn(isLimit(index) && 'border-b-2 border-b-primary')}
+              >
+                <TableCell className="figure text-right text-lg">{entry.rank}</TableCell>
+                <TableCell className="min-w-32 font-semibold wrap-anywhere whitespace-normal">
                   {entry.firstname} {entry.lastname}
                   <span className="block font-normal text-muted-foreground lg:hidden">
                     {entry.clubName}
                   </span>
                 </TableCell>
-                <TableCell className="hidden min-w-40 wrap-anywhere whitespace-normal lg:table-cell">
+                <TableCell className="hidden min-w-40 wrap-anywhere whitespace-normal text-muted-foreground lg:table-cell">
                   {entry.clubName}
                 </TableCell>
                 {apparatus.map((key) => (
@@ -140,7 +158,7 @@ export function RankingList({ entries, best, apparatus, options }: Ranking) {
                     <Grade value={entry.values[key]} best={best[key]} precision={precision} />
                   </TableCell>
                 ))}
-                <TableCell className="text-right font-bold">
+                <TableCell className="figure text-right text-lg">
                   {formatGrade(entry.total, precision)}
                 </TableCell>
                 <TableCell>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DateField } from '~/components/DateField';
 import { FormField } from '~/components/FormField';
 
 type Errors = Record<string, string | undefined>;
@@ -40,21 +41,19 @@ export function CompetitionFields({
         maxLength={200}
         required
       />
-      <FormField
+      <DateField
         label={t('fields.startDate')}
         error={errors.startDate}
         name="startDate"
-        type="date"
         max="9999-12-31"
         value={start}
         onChange={(event) => changeStart(event.target.value)}
         required
       />
-      <FormField
+      <DateField
         label={t('fields.endDate')}
         error={errors.endDate}
         name="endDate"
-        type="date"
         min={start}
         max="9999-12-31"
         value={end}

@@ -25,7 +25,7 @@ export default {
   honourInvalid: 'Zahl von 0 bis 100',
   honourSaved: 'Auszeichnungen gespeichert',
   export: {
-    button: 'PDF',
+    button: 'Als PDF drucken',
     title: 'Rangliste als PDF',
     text: 'Wähle die Kategorien und die Vorlage.',
     template: 'Vorlage',

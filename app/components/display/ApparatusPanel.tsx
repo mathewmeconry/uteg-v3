@@ -27,15 +27,17 @@ export function ApparatusPanel({
   const { t } = useTranslation('display');
   const name = useApparatusName()(apparatus);
   const { current, next } = selectStarters(slots);
+  // Two lines next to the grade hold about this much.
+  const isLongName = current && `${current.firstname} ${current.lastname}`.length > 22;
 
   return (
     <section
       aria-label={name}
-      className="@container-size flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
+      className="@container-size flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-[color-mix(in_oklab,black_32%,var(--ink))]"
     >
       <h2
-        className="shrink-0 truncate bg-sidebar leading-[1.4] px-[2cqw] font-bold text-sidebar-foreground"
-        style={{ fontSize: size(10, 4) }}
+        className="shrink-0 truncate bg-ink-accent px-[2cqw] font-display leading-[1.4]"
+        style={{ fontSize: size(10, 4.5) }}
       >
         {name}
       </h2>
@@ -44,40 +46,39 @@ export function ApparatusPanel({
           <div className="flex min-w-0 items-center justify-between gap-[2cqw]">
             <div className="min-w-0 flex-1">
               <p
-                className="line-clamp-2 pl-[0.05em] leading-[1.13] font-black wrap-anywhere"
-                style={{ fontSize: size(26, 6.5) }}
+                className="line-clamp-2 pl-[0.05em] font-display leading-[1.13] wrap-anywhere"
+                style={{ fontSize: size(26, isLongName ? 6.5 : 10) }}
               >
                 {current.firstname} {current.lastname}
               </p>
               <p
-                className="truncate leading-[1.25] text-muted-foreground"
-                style={{ fontSize: size(9, 3.5) }}
+                className="truncate leading-[1.25] text-ink-muted"
+                style={{ fontSize: size(9, 4.5) }}
               >
                 {current.clubName}
               </p>
             </div>
             <p
-              className="shrink-0 leading-none font-black tabular-nums"
-              style={{ fontSize: size(50, 14) }}
+              // A new element for every grade, so that it lights up.
+              key={`${current.entryId} ${current.grade?.value}`}
+              className="new-grade shrink-0 figure leading-none text-brand"
+              style={{ fontSize: size(50, 18) }}
             >
               {current.grade && formatGrade(current.grade.value, current.precision)}
             </p>
           </div>
         ) : (
-          <p
-            className="text-center font-bold text-muted-foreground"
-            style={{ fontSize: size(20, 7) }}
-          >
+          <p className="text-center font-display text-ink-muted" style={{ fontSize: size(20, 7) }}>
             {t('pause')}
           </p>
         )}
         {next && (
-          <p className="truncate leading-[1.2]" style={{ fontSize: size(10, 3.8) }}>
-            <span className="text-muted-foreground">{t('next')}: </span>
-            <span className="font-bold">
+          <p className="truncate leading-[1.2]" style={{ fontSize: size(10, 4.5) }}>
+            <span className="text-ink-muted">{t('next')}: </span>
+            <span className="font-semibold">
               {next.firstname} {next.lastname}
             </span>
-            <span className="text-muted-foreground"> · {next.clubName}</span>
+            <span className="text-ink-muted"> · {next.clubName}</span>
           </p>
         )}
       </div>

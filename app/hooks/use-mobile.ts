@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
-const QUERY = '(max-width: 767px)';
+// Also tablets in portrait, their pages need the width.
+const QUERY = '(max-width: 1023px)';
 
 function subscribe(onChange: () => void) {
   const query = window.matchMedia(QUERY);

@@ -1,6 +1,7 @@
 import { XIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FileDrop } from '~/components/FileDrop';
 import { FormField } from '~/components/FormField';
 import { Button } from '~/components/ui/button';
 
@@ -26,7 +27,7 @@ async function replaceWithDrawing(input: HTMLInputElement, file: File) {
 export function LogoField({ error, required }: { error?: string; required?: boolean }) {
   const { t } = useTranslation('competition');
   const input = useRef<HTMLInputElement>(null);
-  const [hasFile, setHasFile] = useState(false);
+  const [fileName, setFileName] = useState<string>();
   // Null also when the file cannot be shown.
   const [preview, setPreview] = useState<string | null>(null);
 
@@ -36,31 +37,43 @@ export function LogoField({ error, required }: { error?: string; required?: bool
   }, [preview]);
 
   return (
-    <div className="grid gap-3">
-      <FormField
-        label={t('fields.logo')}
-        hint={t('fields.logoHint')}
-        error={error}
-        name="logo"
-        type="file"
-        accept="image/png,image/jpeg"
-        required={required}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          setHasFile(Boolean(file));
-          setPreview(file ? URL.createObjectURL(file) : null);
-          if (file) void replaceWithDrawing(event.target, file);
-        }}
-        ref={input}
-      />
-      {hasFile && (
+    <div className="grid grid-cols-1 gap-3">
+      <FormField label={t('fields.logo')} hint={t('fields.logoHint')} error={error}>
+        {(props) => (
+          <FileDrop
+            {...props}
+            text={fileName ?? t('fields.logoChoose')}
+            preview={
+              preview && (
+                <img
+                  src={preview}
+                  alt=""
+                  className="h-14 max-w-[40%] object-contain"
+                  onError={() => setPreview(null)}
+                />
+              )
+            }
+            ref={input}
+            name="logo"
+            accept="image/png,image/jpeg"
+            required={required}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              setFileName(file?.name);
+              setPreview(file ? URL.createObjectURL(file) : null);
+              if (file) void replaceWithDrawing(event.target, file);
+            }}
+          />
+        )}
+      </FormField>
+      {fileName !== undefined && (
         <Button
           type="button"
           variant="ghost"
           className="justify-self-start"
           onClick={() => {
             input.current!.value = '';
-            setHasFile(false);
+            setFileName(undefined);
             setPreview(null);
             input.current!.focus();
           }}
@@ -68,14 +81,6 @@ export function LogoField({ error, required }: { error?: string; required?: bool
           <XIcon aria-hidden />
           {t('fields.logoClear')}
         </Button>
-      )}
-      {preview && (
-        <img
-          src={preview}
-          alt=""
-          className="h-20 max-w-full object-contain object-left"
-          onError={() => setPreview(null)}
-        />
       )}
     </div>
   );

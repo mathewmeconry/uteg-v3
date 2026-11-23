@@ -82,11 +82,18 @@ export function GradeInputs({
   ];
   const emptyError = count > 0 && evaluated.isEmpty && showRequired;
 
+  function shownError<Error>(error: Error) {
+    return error === 'REQUIRED' && !showRequired ? null : error;
+  }
+  const lineId = `${id}-errors`;
+  const errors = new Set(controls.map(({ error }) => shownError(error)).filter((error) => !!error));
+  if (emptyError) errors.add('REQUIRED');
+
   return (
     <div ref={container} className={cn('flex flex-wrap items-start', large ? 'gap-4' : 'gap-2')}>
       {controls.map((control, position) => {
-        const error = control.error === 'REQUIRED' && !showRequired ? null : control.error;
-        const errorId = `${id}-${control.key}-error`;
+        const error = shownError(control.error);
+        const errorId = large ? lineId : `${id}-${control.key}-error`;
         return (
           <div
             key={control.key}
@@ -126,26 +133,27 @@ export function GradeInputs({
               onChange={(event) => control.onChange(event.target.value)}
               onKeyDown={(event) => onKeyDown(event, control.index)}
             />
-            {error && (
-              <p
-                id={errorId}
-                className={cn('font-medium text-destructive', large ? 'text-lg' : 'w-24 text-xs')}
-              >
+            {!large && error && (
+              <p id={errorId} className="w-24 text-xs font-medium text-destructive">
                 {t(`input.errors.${error}`)}
               </p>
             )}
           </div>
         );
       })}
-      {large && count > 0 && (
+      {large && (
+        // Always there, so that nothing below moves.
         <p
+          id={lineId}
           role={emptyError ? 'alert' : undefined}
           className={cn(
-            'basis-full',
-            emptyError ? 'text-lg font-medium text-destructive' : 'text-muted-foreground',
+            'min-h-7 basis-full',
+            errors.size > 0 ? 'text-lg font-medium text-destructive' : 'text-muted-foreground',
           )}
         >
-          {emptyError ? t('input.errors.REQUIRED') : t('input.directHint')}
+          {errors.size > 0
+            ? [...errors].map((error) => t(`input.errors.${error}`)).join(' ')
+            : count > 0 && t('input.directHint')}
         </p>
       )}
       {!large && emptyError && (

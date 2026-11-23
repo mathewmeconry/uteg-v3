@@ -34,13 +34,15 @@ export function HonourForm({
     >
       <input type="hidden" name="sex" value={sex} />
       <input type="hidden" name="category" value={category} />
-      <Label htmlFor={id}>{t('honourPercent')}</Label>
+      <Label htmlFor={id} className="font-normal">
+        {t('honourPercent')}
+      </Label>
       <Input
         id={id}
         name="percent"
         inputMode="decimal"
         autoComplete="off"
-        className="w-20"
+        className="w-16 text-center tabular-nums"
         value={value}
         onChange={(event) => setValue(event.target.value)}
         aria-invalid={Boolean(error)}

@@ -55,6 +55,7 @@ import {
 } from '~/lib/divisions.server';
 import { DomainError } from '~/lib/errors';
 import { safeClientAction } from '~/lib/safeClientAction';
+import { cn } from '~/lib/utils';
 import type { ServerT } from '~/locales';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
@@ -242,9 +243,9 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
       <PageHeader
         title={t('title')}
         description={t('count', { count: divisions.length })}
+        status={<ConnectionBadge status={status} />}
         actions={
           <>
-            <ConnectionBadge status={status} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
@@ -271,7 +272,8 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-            {createButton}
+            {/* Below in the empty state. */}
+            {divisions.length > 0 && createButton}
           </>
         }
       />
@@ -303,9 +305,14 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
               />
             ) : (
               <div className="rounded-xl border bg-card">
-                <div className="sticky top-14 z-[5] flex min-h-14 flex-wrap items-center gap-2 rounded-t-xl border-b bg-card px-2 py-1.5">
-                  <label className="flex min-h-11 items-center pr-2 text-sm font-medium">
-                    <span className="flex size-11 items-center justify-center lg:size-9">
+                <div
+                  className={cn(
+                    'sticky top-14 z-[5] flex min-h-12 flex-wrap items-center gap-2 rounded-t-xl border-b px-2 py-1 lg:top-0',
+                    selected.length > 0 ? 'bg-ink text-ink-foreground' : 'bg-muted',
+                  )}
+                >
+                  <label className="flex min-h-10 items-center pr-2 text-sm font-semibold max-sm:w-full pointer-coarse:min-h-11">
+                    <span className="flex size-11 items-center justify-center pointer-fine:lg:size-9">
                       <Checkbox
                         checked={
                           selected.length === visible.length ||
@@ -326,7 +333,11 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
                   {selected.length > 0 && (
                     <>
                       {canEdit && selected.some(({ state }) => state !== 'RUNNING') && (
-                        <Button size="sm" onClick={() => openDialog('start', selectedIds)}>
+                        <Button
+                          size="sm"
+                          variant="brand"
+                          onClick={() => openDialog('start', selectedIds)}
+                        >
                           <PlayIcon aria-hidden />
                           {t('common:actions.start')}
                         </Button>
@@ -334,32 +345,39 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
                       {canEdit && selected.some(({ state }) => state === 'RUNNING') && (
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="onInk"
                           onClick={() => openDialog('stop', selectedIds)}
                         >
                           <SquareIcon aria-hidden />
                           {t('common:actions.stop')}
                         </Button>
                       )}
+                      <Button asChild size="sm" variant="onInk">
+                        <a
+                          href={sheetsHref(selectedIds)}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={t('sheets.selected')}
+                        >
+                          <FileTextIcon aria-hidden />
+                          {t('sheets.title')}
+                        </a>
+                      </Button>
+                      {/* Away from the others. */}
                       {canEdit && selected.some(({ state }) => state !== 'RUNNING') && (
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="onInk"
+                          className="ml-auto"
                           onClick={() => openDialog('delete', selectedIds)}
                         >
-                          <TrashIcon aria-hidden className="text-destructive" />
+                          <TrashIcon aria-hidden />
                           {t('common:actions.delete')}
                         </Button>
                       )}
-                      <Button asChild size="sm" variant="outline">
-                        <a href={sheetsHref(selectedIds)} target="_blank" rel="noreferrer">
-                          <FileTextIcon aria-hidden />
-                          {t('sheets.selected')}
-                        </a>
-                      </Button>
                       <Button
                         size="icon-sm"
-                        variant="ghost"
+                        variant="onInk"
                         aria-label={t('clearSelection')}
                         onClick={() => setSelection(new Set())}
                       >

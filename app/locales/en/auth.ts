@@ -19,7 +19,11 @@ export default {
   },
   profile: {
     title: 'Profile',
+    languageLabel: 'Language of the app',
     emailTitle: 'Email address',
+    emailText: 'You log in with it.',
+    emailSave: 'Change email address',
+    passwordText: 'Other devices are logged out afterwards.',
     passwordTitle: 'Change password',
     currentPassword: 'Current password',
     newPassword: 'New password',

@@ -111,8 +111,8 @@ describe('getLiveGrounds', () => {
       graded: 2,
       total: 3,
       latest: [
-        { firstname: 'A', lastname: 'One', grade: '9.10' },
-        { firstname: 'B', lastname: 'Two', grade: '9.20' },
+        { firstname: 'A', lastname: 'One', round: 1, grade: '9.10' },
+        { firstname: 'B', lastname: 'Two', round: 1, grade: '9.20' },
       ],
     });
     expect(ground.apparatus[1]).toMatchObject({ round: 2, graded: 0, total: 3, latest: [] });

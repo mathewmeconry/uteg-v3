@@ -10,14 +10,6 @@ import { EmptyState } from '~/components/EmptyState';
 import { CreateDisplayDialog, QrDialog } from '~/components/links/DisplayDialogs';
 import { PageHeader } from '~/components/PageHeader';
 import { Button } from '~/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '~/components/ui/table';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import {
@@ -98,97 +90,86 @@ export default function Displays({ loaderData: { displays } }: Route.ComponentPr
       <PageHeader
         title={t('title')}
         description={t('links.intro')}
-        actions={
-          <>
-            <ConnectionBadge status={status} />
-            <CreateDisplayDialog grounds={competition.grounds} />
-          </>
-        }
+        status={<ConnectionBadge status={status} />}
+        // Below in the empty state.
+        actions={displays.length > 0 && <CreateDisplayDialog grounds={competition.grounds} />}
       />
       {displays.length === 0 ? (
-        <EmptyState icon={MonitorIcon} title={t('links.empty')} text={t('links.intro')} />
+        <EmptyState
+          icon={MonitorIcon}
+          title={t('links.empty')}
+          text={t('links.emptyText')}
+          action={<CreateDisplayDialog grounds={competition.grounds} />}
+        />
       ) : (
-        <div className="rounded-xl border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-4">{t('links.display')}</TableHead>
-                <TableHead className="hidden sm:table-cell">{t('common:fields.ground')}</TableHead>
-                <TableHead className="hidden sm:table-cell">{t('links.actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {displays.map(({ id, ground, url }) => {
-                // Not the position in the list, which changes when others are deleted.
-                const label = t('links.name', { code: id.slice(-4) });
-                const groundLabel = t('common:ground', { number: ground });
-                const name = `${label}, ${groundLabel}`;
-                return (
-                  <TableRow key={id} className="block sm:table-row">
-                    <TableCell className="block pt-3 pl-4 sm:table-cell sm:pt-2">
-                      <span className="font-medium">{label}</span>
-                      <span className="block text-muted-foreground sm:hidden">{groundLabel}</span>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">{groundLabel}</TableCell>
-                    <TableCell className="block px-4 whitespace-normal sm:table-cell sm:px-2">
-                      <div className="flex flex-wrap gap-2">
-                        <QrDialog name={name} url={url} />
-                        <Button asChild variant="outline" size="sm">
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={t('links.openFor', { name })}
-                          >
-                            <ExternalLinkIcon aria-hidden />
-                            {t('common:actions.open')}
-                          </a>
+        <ul className="divide-y rounded-xl border bg-card">
+          {displays.map(({ id, ground, url }) => {
+            // Not the position in the list, which changes when others are deleted.
+            const label = t('links.name', { code: id.slice(-4) });
+            const groundLabel = t('common:ground', { number: ground });
+            const name = `${label}, ${groundLabel}`;
+            return (
+              <li
+                key={id}
+                className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3"
+              >
+                <div>
+                  <h2 className="font-semibold">{groundLabel}</h2>
+                  <p className="text-sm text-muted-foreground">{label}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <QrDialog name={name} url={url} />
+                  <Button asChild variant="outline" size="sm">
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={t('links.openFor', { name })}
+                    >
+                      <ExternalLinkIcon aria-hidden />
+                      {t('common:actions.open')}
+                    </a>
+                  </Button>
+                  <CopyButton value={url} size="sm" aria-label={t('links.copyFor', { name })} />
+                  <span className="flex text-muted-foreground">
+                    <ConfirmDialog
+                      trigger={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={t('links.resetFor', { name })}
+                        >
+                          <RotateCcwIcon aria-hidden />
                         </Button>
-                        <CopyButton
-                          value={url}
-                          size="sm"
-                          aria-label={t('links.copyFor', { name })}
-                        />
-                        <ConfirmDialog
-                          trigger={
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={t('links.resetFor', { name })}
-                            >
-                              <RotateCcwIcon aria-hidden />
-                            </Button>
-                          }
-                          title={t('links.resetTitle')}
-                          description={t('links.resetText', { name })}
-                          confirmLabel={t('common:actions.reset')}
-                          destructive
-                          fields={{ intent: 'reset', link: id }}
-                        />
-                        <ConfirmDialog
-                          trigger={
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={t('links.deleteFor', { name })}
-                            >
-                              <TrashIcon aria-hidden className="text-destructive" />
-                            </Button>
-                          }
-                          title={t('links.deleteTitle')}
-                          description={t('links.deleteText', { name })}
-                          confirmLabel={t('common:actions.delete')}
-                          destructive
-                          fields={{ intent: 'delete', link: id }}
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                      }
+                      title={t('links.resetTitle')}
+                      description={t('links.resetText', { name })}
+                      confirmLabel={t('common:actions.reset')}
+                      destructive
+                      fields={{ intent: 'reset', link: id }}
+                    />
+                    <ConfirmDialog
+                      trigger={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={t('links.deleteFor', { name })}
+                        >
+                          <TrashIcon aria-hidden />
+                        </Button>
+                      }
+                      title={t('links.deleteTitle')}
+                      description={t('links.deleteText', { name })}
+                      confirmLabel={t('common:actions.delete')}
+                      destructive
+                      fields={{ intent: 'delete', link: id }}
+                    />
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </>
   );

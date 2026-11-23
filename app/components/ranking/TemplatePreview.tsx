@@ -78,7 +78,7 @@ export function TemplatePreview({
         </p>
       )}
       {/* Phones cannot show PDFs in a page, they open it with the button. */}
-      <div className="relative hidden h-[75dvh] min-h-96 overflow-hidden rounded-lg border bg-muted md:block">
+      <div className="relative hidden h-[75dvh] min-h-96 overflow-hidden rounded-xl border bg-muted md:block">
         {url && (
           <iframe
             title={t('preview.title')}

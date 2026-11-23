@@ -68,6 +68,8 @@ export async function getLiveGrounds(competitionId: string, grounds: number) {
                 const options = modules.get(contestId)!.rankingOptions(slot.category, slot.sex);
                 return {
                   entryId,
+                  /** 1-based, may be an earlier one. */
+                  round: slot.round,
                   firstname: slot.firstname,
                   lastname: slot.lastname,
                   clubName: slot.clubName,
@@ -85,7 +87,7 @@ export async function getLiveGrounds(competitionId: string, grounds: number) {
 
 function getLatest(rounds: JudgingState['apparatus'][number]['rounds']) {
   return rounds
-    .flatMap(({ slots }) => slots)
+    .flatMap(({ slots }, index) => slots.map((slot) => ({ ...slot, round: index + 1 })))
     .flatMap((slot) => (slot.grade && !slot.withdrawn ? [{ ...slot, grade: slot.grade }] : []))
     .toSorted((a, b) => +b.grade.updatedAt - +a.grade.updatedAt)
     .slice(0, LATEST_PER_APPARATUS);

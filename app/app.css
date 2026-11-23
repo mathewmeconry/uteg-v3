@@ -1,84 +1,109 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+/* Self-hosted, weight and width axis. Licence: SIL OFL. */
+@import '@fontsource-variable/archivo/wdth.css';
 
 /* Light and dark follow the system, there is no switch. */
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
+/* What the colours are for: docs/DESIGN.md */
 :root {
   color-scheme: light dark;
   --radius: 0.5rem;
-  --background: oklch(0.985 0.003 255);
-  --foreground: oklch(0.2 0.035 262);
+  --background: oklch(0.974 0.005 200);
+  --foreground: oklch(0.23 0.028 210);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.035 262);
+  --card-foreground: oklch(0.23 0.028 210);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.035 262);
-  --primary: oklch(0.45 0.19 262);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.94 0.012 258);
-  --secondary-foreground: oklch(0.25 0.04 262);
-  --muted: oklch(0.95 0.008 258);
-  --muted-foreground: oklch(0.45 0.03 260);
-  --accent: oklch(0.93 0.025 258);
-  --accent-foreground: oklch(0.25 0.04 262);
-  --destructive: oklch(0.52 0.21 27);
-  --success: oklch(0.48 0.13 150);
+  --popover-foreground: oklch(0.23 0.028 210);
+  --primary: oklch(0.44 0.078 212);
+  --primary-foreground: oklch(0.99 0.004 200);
+  --secondary: oklch(0.935 0.012 205);
+  --secondary-foreground: oklch(0.28 0.035 210);
+  --muted: oklch(0.953 0.007 200);
+  --muted-foreground: oklch(0.465 0.022 210);
+  --accent: oklch(0.932 0.02 208);
+  --accent-foreground: oklch(0.27 0.045 210);
+  --destructive: oklch(0.52 0.2 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.47 0.12 150);
   --success-foreground: oklch(0.99 0 0);
   --warning: oklch(0.82 0.16 82);
-  --warning-foreground: oklch(0.25 0.05 70);
+  --warning-foreground: oklch(0.33 0.07 70);
   --brand: oklch(0.89 0.2 122);
-  --brand-foreground: oklch(0.2 0.035 262);
-  --gold: oklch(0.8 0.15 88);
-  --silver: oklch(0.77 0.015 255);
-  --bronze: oklch(0.64 0.11 55);
-  --border: oklch(0.88 0.012 258);
-  --input: oklch(0.8 0.018 258);
-  --ring: oklch(0.55 0.18 262);
-  --sidebar: oklch(0.22 0.05 262);
-  --sidebar-foreground: oklch(0.93 0.015 258);
-  --sidebar-primary: oklch(0.89 0.2 122);
-  --sidebar-primary-foreground: oklch(0.2 0.035 262);
-  --sidebar-accent: oklch(0.32 0.06 262);
-  --sidebar-accent-foreground: oklch(0.99 0 0);
-  --sidebar-border: oklch(0.34 0.05 262);
-  --sidebar-ring: oklch(0.89 0.2 122);
+  --brand-foreground: oklch(0.23 0.04 210);
+  --ink: oklch(0.275 0.047 212);
+  --ink-foreground: oklch(0.975 0.008 200);
+  --ink-muted: oklch(0.8 0.03 205);
+  --ink-accent: oklch(0.36 0.055 212);
+  --gold: oklch(0.67 0.135 80);
+  --silver: oklch(0.63 0.018 230);
+  --bronze: oklch(0.58 0.115 52);
+  --border: oklch(0.895 0.011 205);
+  --input: oklch(0.65 0.022 208);
+  --ring: oklch(0.55 0.1 212);
+  --sidebar: oklch(0.948 0.01 203);
+  --sidebar-foreground: oklch(0.31 0.032 210);
+  --sidebar-primary: oklch(0.44 0.078 212);
+  --sidebar-primary-foreground: oklch(0.99 0.004 200);
+  --sidebar-accent: oklch(0.9 0.02 208);
+  --sidebar-accent-foreground: oklch(0.23 0.045 212);
+  --sidebar-border: oklch(0.885 0.014 205);
+  --sidebar-ring: oklch(0.55 0.1 212);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: oklch(0.17 0.025 262);
-    --foreground: oklch(0.96 0.008 258);
-    --card: oklch(0.215 0.03 262);
-    --card-foreground: oklch(0.96 0.008 258);
-    --popover: oklch(0.235 0.032 262);
-    --popover-foreground: oklch(0.96 0.008 258);
-    --primary: oklch(0.72 0.14 258);
-    --primary-foreground: oklch(0.17 0.03 262);
-    --secondary: oklch(0.29 0.035 262);
-    --secondary-foreground: oklch(0.96 0.008 258);
-    --muted: oklch(0.26 0.03 262);
-    --muted-foreground: oklch(0.74 0.025 258);
-    --accent: oklch(0.32 0.045 262);
-    --accent-foreground: oklch(0.98 0.005 258);
-    --destructive: oklch(0.68 0.19 25);
-    --success: oklch(0.74 0.16 150);
-    --success-foreground: oklch(0.17 0.03 262);
+    --background: oklch(0.19 0.016 212);
+    --foreground: oklch(0.955 0.007 200);
+    --card: oklch(0.232 0.02 212);
+    --card-foreground: oklch(0.955 0.007 200);
+    --popover: oklch(0.265 0.024 212);
+    --popover-foreground: oklch(0.955 0.007 200);
+    --primary: oklch(0.8 0.095 200);
+    --primary-foreground: oklch(0.2 0.035 212);
+    --secondary: oklch(0.3 0.026 212);
+    --secondary-foreground: oklch(0.955 0.007 200);
+    --muted: oklch(0.268 0.021 212);
+    --muted-foreground: oklch(0.755 0.02 205);
+    --accent: oklch(0.325 0.034 210);
+    --accent-foreground: oklch(0.975 0.006 200);
+    --destructive: oklch(0.7 0.18 25);
+    --destructive-foreground: oklch(0.19 0.04 25);
+    --success: oklch(0.77 0.15 150);
+    --success-foreground: oklch(0.2 0.035 160);
     --warning: oklch(0.84 0.15 85);
-    --border: oklch(0.34 0.035 262);
-    --input: oklch(0.42 0.04 262);
-    --ring: oklch(0.72 0.14 258);
-    --sidebar: oklch(0.14 0.03 262);
-    --sidebar-accent: oklch(0.28 0.05 262);
-    --sidebar-border: oklch(0.28 0.04 262);
+    --ink: oklch(0.275 0.047 212);
+    --ink-foreground: oklch(0.975 0.008 200);
+    --ink-muted: oklch(0.8 0.03 205);
+    --ink-accent: oklch(0.36 0.055 212);
+    --gold: oklch(0.84 0.14 88);
+    --silver: oklch(0.83 0.012 230);
+    --bronze: oklch(0.72 0.11 55);
+    --border: oklch(0.335 0.024 212);
+    --input: oklch(0.535 0.03 212);
+    --ring: oklch(0.72 0.1 200);
+    --sidebar: oklch(0.165 0.015 212);
+    --sidebar-foreground: oklch(0.87 0.014 205);
+    --sidebar-primary: oklch(0.8 0.095 200);
+    --sidebar-primary-foreground: oklch(0.2 0.035 212);
+    --sidebar-accent: oklch(0.285 0.032 210);
+    --sidebar-accent-foreground: oklch(0.975 0.006 200);
+    --sidebar-border: oklch(0.29 0.022 212);
+    --sidebar-ring: oklch(0.72 0.1 200);
   }
 }
 
 @theme inline {
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: calc(1.125 / 0.8125);
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: calc(1.375 / 0.9375);
+  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 2px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -94,12 +119,17 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-accent: var(--ink-accent);
   --color-gold: var(--gold);
   --color-silver: var(--silver);
   --color-bronze: var(--bronze);
@@ -116,9 +146,24 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Titles and big figures: the narrow, heavy cut of the typeface. */
+@utility font-display {
+  font-stretch: 78%;
+  font-weight: 750;
+  /* Its spaces are too narrow for large text. */
+  word-spacing: 0.09em;
+}
+
+/* Grades, ranks and counts: digits of equal width, so they line up and don't jump. */
+@utility figure {
+  font-stretch: 82%;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
 
   body {
@@ -128,6 +173,83 @@
   table {
     font-variant-numeric: tabular-nums;
   }
+
+  /* Nothing that gets the focus stays behind the floating bar, or the bar at the top. */
+  html {
+    scroll-padding-top: 4rem;
+  }
+
+  html:has([data-slot='selection-bar']) {
+    scroll-padding-bottom: 12rem;
+  }
+
+  html:has([data-slot='form-actions']) {
+    scroll-padding-bottom: 7rem;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+}
+
+/* A new grade on a display: lights up and settles. */
+@utility new-grade {
+  animation: new-grade 1.6s ease-out;
+}
+
+@keyframes new-grade {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  25% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Under the top edge while a page loads. Waits a moment, most pages are faster. */
+@utility navigation-progress {
+  animation: navigation-progress 8s cubic-bezier(0.1, 0.7, 0.1, 1) 150ms both;
+  transform-origin: left;
+}
+
+@keyframes navigation-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(0.95);
+  }
+}
+
+/* The focus is always in full colour, the half of it in components/ui is too faint. */
+:focus-visible {
+  --tw-ring-color: var(--ring);
+}
+
+/* On ink a white line with a gap, also around lime buttons. */
+[class~='bg-ink'] :focus-visible {
+  outline: 3px solid var(--ink-foreground);
+  outline-offset: 2px;
 }
 
 /* Tablets and phones: fingers need at least 44px. */
@@ -154,4 +276,12 @@
   [data-slot$='-trigger'][data-size] {
     min-width: 2.75rem;
   }
+}
+
+/* The judging tablet, used at arm's length and in a hurry. */
+[data-touch='large'] [data-slot='button'],
+[data-touch='large'] [data-slot$='-close'],
+[data-touch='large'] [data-slot$='-trigger'][data-size] {
+  min-width: 3.5rem;
+  min-height: 3.5rem;
 }

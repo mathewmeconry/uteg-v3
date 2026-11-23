@@ -28,10 +28,10 @@ export function Notices({
       {notices.map((notice) => (
         <div
           key={notice.id}
-          className="flex items-center gap-3 rounded-lg bg-warning px-4 py-2 text-warning-foreground"
+          className="flex items-center gap-3 rounded-xl bg-warning py-1 pr-1 pl-5 text-lg text-warning-foreground"
         >
           <BellIcon aria-hidden className="size-5 shrink-0" />
-          <p className="min-w-0 flex-1 font-medium wrap-anywhere">{text(notice)}</p>
+          <p className="min-w-0 flex-1 py-2 font-semibold wrap-anywhere">{text(notice)}</p>
           <Button
             variant="ghost"
             size="icon"

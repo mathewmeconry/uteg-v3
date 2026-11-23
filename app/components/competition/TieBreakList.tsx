@@ -27,16 +27,13 @@ export function TieBreakList({
       {value.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('ranking.tieBreakEmpty')}</p>
       ) : (
-        <ol className="grid grid-cols-1 gap-2">
+        <ol className="grid max-w-md grid-cols-1 divide-y rounded-lg border bg-card">
           {value.map((apparatus, index) => {
             const name = t(`common:apparatus.${apparatus}`);
             return (
-              <li
-                key={apparatus}
-                className="flex min-h-11 items-center gap-1 rounded-md border py-1 pr-1 pl-3"
-              >
-                <span className="w-6 text-muted-foreground tabular-nums">{index + 1}.</span>
-                <span className="min-w-0 flex-1 truncate">{name}</span>
+              <li key={apparatus} className="flex min-h-11 items-center py-0.5 pr-1 pl-3">
+                <span className="figure w-7 text-muted-foreground">{index + 1}.</span>
+                <span className="min-w-0 flex-1 truncate font-medium">{name}</span>
                 {!disabled && (
                   <>
                     <Button

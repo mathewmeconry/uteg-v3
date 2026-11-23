@@ -1,15 +1,19 @@
+import { CheckIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Badge } from '~/components/ui/badge';
+import { StatusBadge, type StatusTone } from '~/components/StatusBadge';
 import type { DivisionState } from '~/generated/prisma/enums';
-import { cn } from '~/lib/utils';
 
-const STYLES: Record<DivisionState, string> = {
-  PENDING: 'bg-secondary text-secondary-foreground',
-  RUNNING: 'bg-success text-success-foreground',
-  ENDED: 'bg-foreground text-background',
+const TONES: Record<DivisionState, StatusTone> = {
+  PENDING: 'neutral',
+  RUNNING: 'live',
+  ENDED: 'done',
 };
 
 export function DivisionStateBadge({ state }: { state: DivisionState }) {
   const { t } = useTranslation();
-  return <Badge className={cn(STYLES[state])}>{t(`divisionState.${state}`)}</Badge>;
+  return (
+    <StatusBadge tone={TONES[state]} icon={state === 'ENDED' ? CheckIcon : undefined}>
+      {t(`divisionState.${state}`)}
+    </StatusBadge>
+  );
 }

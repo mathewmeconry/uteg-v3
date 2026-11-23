@@ -25,7 +25,7 @@ function ReviewGrade({ state }: { state: ReturnType<GradeDrafts['get']> }) {
   const grade = state.isDirty && !state.isConflict ? state.evaluated.grade : state.saved;
   if (!grade) return <Badge variant="destructive">{t('review.missing')}</Badge>;
   return (
-    <span className={cn('text-2xl font-black tabular-nums', state.isDirty && 'text-destructive')}>
+    <span className={cn('figure text-3xl', state.isDirty && 'text-destructive')}>
       {formatEntered(grade.value)}
     </span>
   );
@@ -63,11 +63,11 @@ export function Review({
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <div className={cn(isPause && 'py-8 text-center')}>
+      <div className={cn(isPause && 'rounded-xl bg-muted px-4 py-14 text-center')}>
         <h2
           ref={heading}
           tabIndex={-1}
-          className={cn('font-black outline-none', isPause ? 'text-6xl' : 'text-3xl')}
+          className={cn('font-display outline-none', isPause ? 'text-7xl' : 'text-4xl')}
         >
           {t(isPause ? 'pause.title' : 'review.title')}
         </h2>
@@ -76,16 +76,22 @@ export function Review({
         </p>
       </div>
 
-      <ol className="grid grid-cols-1 gap-2 empty:hidden">
+      <ol className="grid grid-cols-1 divide-y overflow-hidden rounded-xl border bg-card empty:hidden">
         {rows.map(({ slot, state }, index) => (
           <li key={slot.entryId}>
             <button
               type="button"
               disabled={slot.withdrawn}
-              className="flex min-h-14 w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-card px-3 py-2 text-left hover:enabled:bg-accent"
+              className={cn(
+                'flex min-h-18 w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-left hover:enabled:bg-accent',
+                !slot.withdrawn &&
+                  !state.isDirty &&
+                  state.saved === null &&
+                  'bg-[color-mix(in_oklab,var(--destructive)_8%,var(--card))]',
+              )}
               onClick={() => onEdit(slot.entryId)}
             >
-              <span className="w-8 text-right text-muted-foreground tabular-nums">
+              <span className="figure w-8 text-right text-lg text-muted-foreground">
                 {index + 1}.
               </span>
               <span className={cn('min-w-0 flex-1 basis-32', slot.withdrawn && 'line-through')}>
@@ -136,7 +142,7 @@ export function Review({
           </p>
         )}
         <Button
-          className="h-auto min-h-16 px-6 py-2 text-xl whitespace-normal"
+          className="h-auto grow rounded-xl px-8 py-6 text-2xl whitespace-normal"
           disabled={missing + unsent > 0 || confirmation.isConfirming || !isReady}
           onClick={confirmation.confirm}
         >

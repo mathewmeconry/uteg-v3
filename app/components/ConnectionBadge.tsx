@@ -1,18 +1,39 @@
-import { LoaderCircleIcon, WifiIcon, WifiOffIcon } from 'lucide-react';
+import { LoaderCircleIcon, WifiOffIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Badge } from '~/components/ui/badge';
 import type { ConnectionStatus } from '~/hooks/useLiveUpdates';
+import { cn } from '~/lib/utils';
 
-const ICONS = { connecting: LoaderCircleIcon, open: WifiIcon, lost: WifiOffIcon };
-
-/** Shows the status returned by useLiveUpdates. */
-export function ConnectionBadge({ status }: { status: ConnectionStatus }) {
+/** Shows the status returned by useLiveUpdates. Only loud when the connection is lost. */
+export function ConnectionBadge({
+  status,
+  onInk = false,
+}: {
+  status: ConnectionStatus;
+  /** On an ink surface. In a narrow container only the icon is visible. */
+  onInk?: boolean;
+}) {
   const { t } = useTranslation();
-  const Icon = ICONS[status];
   return (
-    <Badge role="status" variant={status === 'lost' ? 'destructive' : 'outline'}>
-      <Icon aria-hidden className={status === 'connecting' ? 'animate-spin' : undefined} />
-      {t(`connection.${status}`)}
-    </Badge>
+    <span
+      role="status"
+      className={cn(
+        'inline-flex h-7 w-fit items-center gap-1.5 rounded-sm text-sm whitespace-nowrap text-muted-foreground [&>svg]:size-4',
+        onInk && 'text-ink-muted',
+        status === 'lost' &&
+          (onInk
+            ? 'bg-warning px-2.5 font-semibold text-warning-foreground'
+            : 'bg-destructive px-2 font-semibold text-destructive-foreground'),
+      )}
+    >
+      {status === 'open' && (
+        <span
+          aria-hidden
+          className={cn('size-2 rounded-full', onInk ? 'bg-brand' : 'bg-success')}
+        />
+      )}
+      {status === 'connecting' && <LoaderCircleIcon aria-hidden className="animate-spin" />}
+      {status === 'lost' && <WifiOffIcon aria-hidden />}
+      <span className={cn(onInk && '@max-2xl:sr-only')}>{t(`connection.${status}`)}</span>
+    </span>
   );
 }

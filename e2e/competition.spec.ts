@@ -76,19 +76,15 @@ test('a competition from the first login to the ranking', async ({ page, browser
   const competitionUrl = page.url();
 
   const contestUrl = await test.step('create the divisions', async () => {
-    await page.getByRole('link', { name: 'Abteilungen' }).click();
+    await page.getByRole('link', { name: 'Abteilungen', exact: true }).click();
     await page.waitForURL('**/divisions');
     for (const { category, sex, ground } of DIVISIONS) {
       await page.getByRole('button', { name: 'Neue Abteilung' }).first().click();
       const dialog = page.getByRole('dialog');
-      for (const [label, value] of [
-        ['Geschlecht', sex],
-        ['Kategorie', category],
-        ['Wettkampfplatz', `Wettkampfplatz ${ground}`],
-      ]) {
-        await dialog.getByLabel(label).click();
-        await page.getByRole('option', { name: value, exact: true }).click();
-      }
+      await dialog.getByRole('radio', { name: sex, exact: true }).check();
+      await dialog.getByRole('radio', { name: category, exact: true }).check();
+      await dialog.getByLabel('Wettkampfplatz').click();
+      await page.getByRole('option', { name: `Wettkampfplatz ${ground}`, exact: true }).click();
       await dialog.getByRole('button', { name: 'Erstellen' }).click();
       await expect(dialog).toBeHidden();
     }
