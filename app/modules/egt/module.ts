@@ -45,7 +45,7 @@ export const egtModule: ContestModule<EgtConfig> = {
     honourPercent: { FEMALE: honourDefaults('FEMALE'), MALE: honourDefaults('MALE') },
     honourRounding: 'round',
     precision: 2,
-    tieBreak: ['schaukelringe', 'boden', 'reck', 'barren'],
+    tieBreak: ['boden', 'schaukelringe', 'sprung', 'barren', 'reck'],
     inputs: {
       sprung: {
         default: { attempts: 2, aggregation: 'MAX' },

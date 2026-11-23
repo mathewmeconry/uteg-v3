@@ -1,4 +1,5 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createCookie } from 'react-router';
 import type { AccessKind, AccessLink } from '~/generated/prisma/client';
 import { getContestsApparatus } from '~/modules/registry';
 import { APP_ORIGIN } from './env.server';
@@ -9,36 +10,30 @@ import { prisma } from './prisma.server';
 
 /** One link per ground and apparatus, missing ones are created. */
 export async function getOrCreateJudgeLinks(competitionId: string) {
-  const competition = await prisma.competition.findUnique({
-    where: { id: competitionId },
-    include: { contests: { orderBy: { position: 'asc' } } },
+  return prisma.$transaction(async (tx) => {
+    // Someone else may open the page or remove a ground at the same time.
+    const { grounds } = await lockCompetition(tx, competitionId);
+    const contests = await tx.contest.findMany({
+      where: { competitionId },
+      orderBy: { position: 'asc' },
+    });
+    const apparatusList = getContestsApparatus(contests);
+    const wanted = Array.from({ length: grounds }, (_, index) =>
+      apparatusList.map((apparatus) => ({ ground: index + 1, apparatus })),
+    ).flat();
+
+    const links = await tx.accessLink.findMany({ where: { competitionId, kind: 'JUDGE' } });
+    const result = [];
+    for (const { ground, apparatus } of wanted) {
+      result.push(
+        links.find((link) => link.ground === ground && link.apparatus === apparatus) ??
+          (await tx.accessLink.create({
+            data: { competitionId, kind: 'JUDGE', ground, apparatus, token: createToken() },
+          })),
+      );
+    }
+    return result;
   });
-  if (!competition) throw new DomainError('NOT_FOUND');
-
-  const apparatusList = getContestsApparatus(competition.contests);
-  const wanted = Array.from({ length: competition.grounds }, (_, index) =>
-    apparatusList.map((apparatus) => ({ ground: index + 1, apparatus })),
-  ).flat();
-
-  const links = await prisma.accessLink.findMany({ where: { competitionId, kind: 'JUDGE' } });
-  const find = (list: typeof links, { ground, apparatus }: (typeof wanted)[number]) =>
-    list.find((link) => link.ground === ground && link.apparatus === apparatus);
-
-  const missing = wanted.filter((link) => !find(links, link));
-  if (missing.length === 0) return wanted.map((link) => find(links, link)!);
-
-  await prisma.accessLink.createMany({
-    data: missing.map((link) => ({
-      ...link,
-      competitionId,
-      kind: 'JUDGE' as const,
-      token: createToken(),
-    })),
-    // Someone else may have opened the page at the same time.
-    skipDuplicates: true,
-  });
-  const all = await prisma.accessLink.findMany({ where: { competitionId, kind: 'JUDGE' } });
-  return wanted.map((link) => find(all, link)!);
 }
 
 export function listDisplays(competitionId: string) {
@@ -91,19 +86,85 @@ export async function resetAllTokens(competitionId: string, kind: AccessKind) {
   publish(competitionId, 'settings');
 }
 
+// ── Using a link ─────────────────────────────────────────────────────────────
+
 /** The address behind the QR code. Browsers never send the part after "#", so no log has the key. */
 export function accessUrl({ id, kind, token }: Pick<AccessLink, 'id' | 'kind' | 'token'>) {
   return `${APP_ORIGIN}/${kind.toLowerCase()}/${id}#${token}`;
 }
 
-/** The link a token opens, null for unknown tokens and the wrong kind. */
-export async function resolveToken(token: string | null | undefined, kind: AccessKind) {
-  // Prisma ignores undefined filters and would return any link.
-  if (!token) return null;
-  return prisma.accessLink.findFirst({ where: { token, kind } });
+/**
+ * The cookie that opens the link on this device, null when the token is wrong. The token is what
+ * follows "#" in accessUrl.
+ */
+export async function createAccessCookie(linkId: string, kind: AccessKind, token: unknown) {
+  if (!(await checkToken(linkId, kind, token))) return null;
+  return accessCookie(linkId).serialize(token);
+}
+
+/** Answers AccessGate, which posts the key of a link. */
+export async function logIn(request: Request, linkId: string, kind: AccessKind) {
+  const formData = await request.formData().catch(() => null);
+  if (!formData) throw new Response(null, { status: 400 });
+  const cookie = await createAccessCookie(linkId, kind, formData.get('token'));
+  if (!cookie) throw new Response(null, { status: 403 });
+
+  const headers = new Headers({ 'Set-Cookie': cookie });
+  // Too many would exceed the header size that servers accept. Browsers send the oldest first.
+  const others = getCookieLinkIds(request).filter((id) => id !== linkId);
+  for (const id of others.slice(0, -(MAX_COOKIES - 1))) {
+    headers.append('Set-Cookie', await accessCookie(id).serialize('', { maxAge: 0 }));
+  }
+  return new Response(null, { status: 204, headers });
+}
+
+/** The link that the request's cookie opens. Null without one, after a reset, for another kind. */
+export async function resolveAccess(request: Request, linkId: string, kind: AccessKind) {
+  const token: unknown = await accessCookie(linkId).parse(request.headers.get('Cookie'));
+  return checkToken(linkId, kind, token);
+}
+
+/** Whether a cookie of the request opens any link of the competition. */
+export async function hasAccessToCompetition(request: Request, competitionId: string) {
+  const links = await prisma.accessLink.findMany({
+    where: { id: { in: getCookieLinkIds(request) }, competitionId },
+  });
+  for (const { id, kind } of links) if (await resolveAccess(request, id, kind)) return true;
+  return false;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+const LINK_ID = /^\w{26}$/;
+const COOKIE_PREFIX = 'uteg_access_';
+const COOKIE_NAMES = new RegExp(`${COOKIE_PREFIX}(\\w{26})=`, 'g');
+const MAX_COOKIES = 30;
+
+/** The links the request has a cookie for, valid or not. */
+function getCookieLinkIds(request: Request) {
+  const header = request.headers.get('Cookie') ?? '';
+  return [...new Set([...header.matchAll(COOKIE_NAMES)].map(([, id]) => id))];
+}
+
+function accessCookie(linkId: string) {
+  return createCookie(COOKIE_PREFIX + linkId, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: APP_ORIGIN.startsWith('https:'),
+    maxAge: 60 * 60 * 24 * 14,
+  });
+}
+
+async function checkToken(linkId: string, kind: AccessKind, token: unknown) {
+  if (!LINK_ID.test(linkId) || typeof token !== 'string') return null;
+  const link = await prisma.accessLink.findFirst({ where: { id: linkId, kind } });
+  return link && timingSafeEqual(hash(token), hash(link.token)) ? link : null;
+}
+
+function hash(text: string) {
+  return createHash('sha256').update(text).digest();
+}
 
 function createToken() {
   return randomBytes(32).toString('base64url');

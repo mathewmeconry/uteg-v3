@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { rankingTemplateSchema } from '~/lib/domain/rankingTemplate';
-import { accessUrl, getOrCreateJudgeLinks } from '~/lib/access.server';
+import { accessUrl, getOrCreateJudgeLinks, logIn, resolveAccess } from '~/lib/access.server';
 import { createRankingTemplate } from '~/lib/rankingTemplates.server';
 import {
   createClub,
@@ -401,6 +401,32 @@ describe('judging manual', () => {
     expect(one).toHaveLength(1);
     expect(one[0].text).toContain('Reck · Wettkampfplatz 1');
     expect(one[0].links).toEqual([accessUrl(link)]);
+  });
+
+  it('prints a link that opens the tablet', async () => {
+    const { id } = await createCompetition();
+    const [, link] = await getOrCreateJudgeLinks(id);
+    const response = await callRoute(manual.loader, {
+      competitionId: id,
+      role: 'EDITOR',
+      search: `?link=${link.id}`,
+    });
+    const url = new URL((await readPdf(response))[0].links[0]);
+    const [, kind, linkId] = /^\/(\w+)\/(\w+)$/.exec(url.pathname)!;
+    expect(kind).toBe('judge');
+
+    // What AccessGate does with the key.
+    const login = await logIn(
+      new Request(`${url.origin}/api${url.pathname}/login`, {
+        method: 'POST',
+        body: new URLSearchParams({ token: url.hash.slice(1) }),
+      }),
+      linkId,
+      'JUDGE',
+    );
+    const [cookie] = login.headers.getSetCookie()[0].split(';');
+    const tablet = new Request(url, { headers: { Cookie: cookie } });
+    expect(await resolveAccess(tablet, linkId, 'JUDGE')).toMatchObject({ id: link.id });
   });
 
   it('denies viewers and hides foreign links', async () => {
