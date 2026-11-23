@@ -99,9 +99,11 @@ describe('groupByTemplate', () => {
     await assignTemplate(id, a, { sex: 'FEMALE', category: 'K3' });
     const K3 = { sex: 'FEMALE', category: 'K3' } as const;
     expect(await groupByTemplate(id, [K1, K2, K3, K1_MEN])).toEqual([
-      { templateId: b, groups: [K1, K1_MEN] },
+      { templateId: b, groups: [K1] },
       { templateId: a, groups: [K2, K3] },
+      { templateId: b, groups: [K1_MEN] },
     ]);
+    expect(await groupByTemplate(id, [])).toEqual([]);
   });
 
   it('has no template without any', async () => {

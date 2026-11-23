@@ -18,11 +18,16 @@ export async function pdfResponse(
     });
   } catch (error) {
     if (!(error instanceof PdfUnavailableError)) throw error;
-    return new Response(t('pdf:unavailable'), {
-      status: 503,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
-    });
+    return unavailableResponse(t);
   }
+}
+
+/** Too large or too many. */
+export function unavailableResponse(t: ServerT) {
+  return new Response(t('pdf:unavailable'), {
+    status: 503,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
 }
 
 export function contentDisposition(filename: string) {
