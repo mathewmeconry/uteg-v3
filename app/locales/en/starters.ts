@@ -51,6 +51,7 @@ export default {
   removed_other: '{{count}} people were removed.',
   assigned_one: '{{count}} person was assigned.',
   assigned_other: '{{count}} people were assigned.',
+  stvIdConflict: 'This STV ID belongs to somebody else. Check number, name, year of birth and sex.',
   failed: {
     network: 'No connection to the server. What you entered is still here, try again.',
     notFound: 'This no longer exists. Somebody removed it in the meantime.',

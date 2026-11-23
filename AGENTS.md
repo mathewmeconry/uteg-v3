@@ -21,8 +21,8 @@ status in `docs/PARITY.md`.
 ## Code map
 
 - `app/routes.ts` all routes. `routes/secured/competition` and `routes/secured/contest` are the
-  admin pages, `routes/judge.tsx` and `routes/display.tsx` the pages opened with a token,
-  `routes/api` resource routes.
+  admin pages, `routes/judge.tsx` and `routes/display.tsx` the pages opened with a link
+  (`accessUrl`, `resolveAccess`, `AccessGate`), `routes/api` resource routes.
 - `app/context.ts` what middlewares pass to loaders and actions.
 - `app/middlewares/` session and login, competition and contest access, roles, Origin check,
   security headers, language, toasts.
@@ -61,8 +61,8 @@ export async function action({ request, context }: Route.ActionArgs) {
 - Layouts need a loader, otherwise client navigations skip their middleware.
 - Forms: `FormField`, `SubmitButton`, `ConfirmDialog`. Several forms on a page send `intent`.
 - `useCompetition()` gives the competition, contests, `role`, `canEdit` and `isOwner` to components.
-- Live pages call `useLiveUpdates('/api/events/<id>')` (judges `/api/judge/<token>/events`, displays
-  `/api/display/<token>/events`) and show `<ConnectionBadge status={…} />`. Services call `publish`.
+- Live pages call `useLiveUpdates('/api/events/<id>')` (judges `/api/judge/<linkId>/events`, displays
+  `/api/display/<linkId>/events`) and show `<ConnectionBadge status={…} />`. Services call `publish`.
 - Title: `<title>{`${t('title')} · UTEG`}</title>` in the component.
 
 ## Texts

@@ -141,7 +141,8 @@ async function createClub(
       method: 'POST',
       body: new URLSearchParams(fields),
     });
-    return (await response.json()) as Result;
+    // Null when the user lost the role.
+    return ((await response.json()) as Result | null) ?? { failed: 'server' };
   } catch (error) {
     return { failed: error instanceof TypeError ? 'network' : 'server' };
   }

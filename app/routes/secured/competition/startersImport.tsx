@@ -27,7 +27,7 @@ import { useCompetition } from '~/hooks/useCompetition';
 import { listClubs } from '~/lib/clubs.server';
 import { getContestOptions } from '~/lib/contestOptions.server';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
-import { safeText } from '~/lib/safeText';
+import { withoutNul } from '~/lib/domain/starter';
 import { findClubConflicts, importStarters, type ImportRow } from '~/lib/starters.server';
 import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
@@ -42,12 +42,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 // Only limits sizes. importStarters validates each row and reports the invalid ones.
-const text = safeText().max(500).nullish();
+const id = withoutNul(z.string());
+const text = withoutNul(z.string().max(500)).nullish();
 const importSchema = z.object({
-  contestId: safeText(),
-  clubId: safeText(),
+  contestId: id,
+  clubId: id,
   /** The answer to the conflicts. They are checked before, so the first request has none. */
-  overwriteClubOf: z.array(safeText()).max(MAX_IMPORT_ROWS).optional(),
+  overwriteClubOf: z.array(id).max(MAX_IMPORT_ROWS).optional(),
   rows: z
     .array(
       z.object({
@@ -82,7 +83,8 @@ export async function action({ request, context }: Route.ActionArgs) {
       ...counts,
       failures: failures.map(({ index, code }) => ({
         index,
-        message: t(`domainErrors.${code}`),
+        message:
+          code === 'STV_ID_CONFLICT' ? t('starters:stvIdConflict') : t(`domainErrors.${code}`),
       })),
     };
   } catch (error) {

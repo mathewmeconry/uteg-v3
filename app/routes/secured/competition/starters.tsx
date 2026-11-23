@@ -46,8 +46,9 @@ import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { listClubs } from '~/lib/clubs.server';
 import { getContestOptions } from '~/lib/contestOptions.server';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
-import { parseForm } from '~/lib/forms.server';
-import { hasNul, safeText } from '~/lib/safeText';
+import { withoutNul } from '~/lib/domain/starter';
+import { DomainError } from '~/lib/errors';
+import { parseForm, rejectNul, type FieldErrors } from '~/lib/forms.server';
 import {
   assignEntries,
   createStarter,
@@ -78,7 +79,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { id } = requireRole(context, 'EDITOR');
   const t = getT(context);
   const formData = await request.formData();
-  if (hasNul(formData)) return data({ error: t('errors.invalid') }, 400);
+  rejectNul(formData);
   const success = (message: string) => {
     enqueueToast(context, { type: 'success', message });
     return { ok: true as const };
@@ -139,6 +140,13 @@ export async function action({ request, context }: Route.ActionArgs) {
         return data({ error: t('errors.invalid') }, 400);
     }
   } catch (error) {
+    const code = error instanceof DomainError && error.code;
+    const errors: FieldErrors = {};
+    if (code === 'STV_ID_CONFLICT') errors.stvId = t('starters:stvIdConflict');
+    if (code === 'STARTER_REMOVED' || code === 'ATHLETE_ALREADY_STARTS') {
+      errors.stvId = domainErrorMessage(error, t);
+    }
+    if (errors.stvId) return data({ errors }, 400);
     return data({ error: domainErrorMessage(error, t) }, 400);
   }
 }
@@ -171,13 +179,14 @@ function starterFormSchema(t: ServerT) {
   });
 }
 
+const id = withoutNul(z.string().min(1));
 const assignmentsSchema = z
   .array(
     z.object({
-      entryIds: z.array(safeText()).min(1),
-      divisionId: safeText().min(1),
+      entryIds: z.array(id).min(1),
+      divisionId: id,
       // Not sent: keep, null: none.
-      lineupId: safeText().min(1).nullish(),
+      lineupId: id.nullish(),
     }),
   )
   .min(1);

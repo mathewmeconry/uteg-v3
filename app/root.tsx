@@ -17,7 +17,9 @@ import { languageContext } from '~/context';
 import { useToasts } from '~/hooks/useToasts';
 import { APP_ORIGIN } from '~/lib/env.server';
 import { sessionMiddleware } from '~/middlewares/auth.server';
+import { bodyLimitMiddleware } from '~/middlewares/bodyLimit.server';
 import { i18nMiddleware } from '~/middlewares/i18n.server';
+import { invalidUrlMiddleware } from '~/middlewares/invalidUrl.server';
 import { originMiddleware } from '~/middlewares/origin.server';
 import { securityHeadersMiddleware } from '~/middlewares/securityHeaders.server';
 import { toastMiddleware } from '~/middlewares/toast.server';
@@ -27,6 +29,8 @@ export const middleware: Route.MiddlewareFunction[] = [
   securityHeadersMiddleware,
   sessionMiddleware,
   i18nMiddleware,
+  invalidUrlMiddleware,
+  bodyLimitMiddleware,
   originMiddleware(APP_ORIGIN),
   toastMiddleware,
 ];

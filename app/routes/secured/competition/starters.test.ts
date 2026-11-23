@@ -228,7 +228,24 @@ describe('create', () => {
     const other = await createStarter(competition.id, { stvId: '1' });
     const { status, data } = await call({ ...anna, athleteId: other.athleteId, stvId: '2' });
     expect(status).toBe(400);
-    expect(data.error).toMatch(/STV-ID/);
+    expect(data.errors.stvId).toMatch(/jemand anderem/);
+    const typo = await call({ ...anna, firstname: 'Beat', stvId: '1' });
+    expect(typo.data.errors.stvId).toMatch(/jemand anderem/);
+  });
+
+  it('tells when an STV-ID belongs to a removed or another starter', async () => {
+    const { call, anna, competition } = await setup();
+    const owner = await createStarter(competition.id, {
+      firstname: 'Anna',
+      lastname: 'Muster',
+      birthYear: 2010,
+      stvId: '1',
+    });
+    const other = await createStarter(competition.id);
+    const update = { ...anna, intent: 'update', starterId: other.id, stvId: '1' };
+    expect((await call(update)).data.errors.stvId).toMatch(/nimmt bereits teil/);
+    await call({ intent: 'remove', id: owner.id });
+    expect((await call(update)).data.errors.stvId).toMatch(/entfernt/);
   });
 });
 

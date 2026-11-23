@@ -5,8 +5,8 @@ export const MAX_GRADE = 10_000;
 export type ParsedGrade =
   { ok: true; value: number | null } | { ok: false; error: 'INVALID' | 'RANGE' | 'PRECISION' };
 
-/** Turns user input into thousandths. Empty input is no grade. */
-export function parseGrade(input: string): ParsedGrade {
+/** Turns user input into thousandths. Empty input is no grade. Attempts have two decimals. */
+export function parseGrade(input: string, maxDecimals: 2 | 3 = 3): ParsedGrade {
   const text = input.trim().replace(',', '.');
   if (text === '') return { ok: true, value: null };
 
@@ -14,7 +14,7 @@ export function parseGrade(input: string): ParsedGrade {
   if (!match || (!match[2] && !match[3])) return { ok: false, error: 'INVALID' };
 
   const [, sign, whole, decimals] = match;
-  if (decimals.length > 3) return { ok: false, error: 'PRECISION' };
+  if (decimals.length > maxDecimals) return { ok: false, error: 'PRECISION' };
   const value = Number(whole) * 1000 + Number(decimals.padEnd(3, '0'));
   if (sign || value > MAX_GRADE) return { ok: false, error: 'RANGE' };
   return { ok: true, value };
@@ -22,6 +22,14 @@ export function parseGrade(input: string): ParsedGrade {
 
 export function isGrade(value: number) {
   return Number.isInteger(value) && value >= 0 && value <= MAX_GRADE;
+}
+
+/**
+ * One of several attempts. They have two decimals, so the average of two is exact in thousandths
+ * and only rounded once, for the ranking.
+ */
+export function isAttempt(value: number) {
+  return isGrade(value) && value % 10 === 0;
 }
 
 /** Rounds thousandths half up. */
@@ -35,7 +43,10 @@ export function formatGrade(thousandths: number, decimals: 2 | 3) {
   return `${Math.floor(rounded / 1000)}.${fraction.slice(0, decimals)}`;
 }
 
-/** The final grade of several attempts. Null when they cannot be combined. */
+/**
+ * The final grade of several attempts. Null when they cannot be combined. The average of three or
+ * more is rounded half up to thousandths.
+ */
 export function aggregate(attempts: readonly number[], aggregation: Aggregation): number | null {
   if (attempts.length === 0) return null;
   switch (aggregation) {

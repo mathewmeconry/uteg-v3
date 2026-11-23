@@ -47,7 +47,8 @@ export async function suggestAthletes(query: string) {
 /**
  * The athlete a new starter belongs to: the picked one, the owner of the STV-ID, the only one
  * with the same name, birth year and sex, or a new one. Existing athletes only get a missing
- * STV-ID, their other data stays as it is.
+ * STV-ID, their other data stays as it is. Only a picked athlete may have any name, because an
+ * STV-ID is easily mistyped.
  */
 export async function resolveAthlete(
   tx: Prisma.TransactionClient,
@@ -78,7 +79,7 @@ export async function matchAthlete(
     return athlete;
   }
 
-  if (owner) return owner;
+  if (owner) return assertMayBe(owner, person);
   return findByPerson(tx, competitionId, person, stvId);
 }
 
@@ -100,7 +101,7 @@ export async function changeStvId(
   const isShared = others > 0;
   if (stvId) {
     const owner = await tx.athlete.findUnique({ where: { stvId } });
-    if (owner) return owner;
+    if (owner) return assertMayBe(owner, starter);
     if (athlete.stvId && isShared) {
       const { firstname, lastname, birthYear, sex } = starter;
       return tx.athlete.create({ data: { firstname, lastname, birthYear, sex, stvId } });
@@ -112,6 +113,17 @@ export async function changeStvId(
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** People change their last name and birth years get mistyped, but hardly both. */
+function assertMayBe(owner: Athlete, person: Person) {
+  const isSame = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+  const mayBe =
+    owner.sex === person.sex &&
+    isSame(owner.firstname, person.firstname) &&
+    (owner.birthYear === person.birthYear || isSame(owner.lastname, person.lastname));
+  if (!mayBe) throw new DomainError('STV_ID_CONFLICT');
+  return owner;
+}
 
 async function addMissingStvId(
   tx: Prisma.TransactionClient,

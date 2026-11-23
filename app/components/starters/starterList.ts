@@ -44,7 +44,7 @@ export function filterStarters(
 }
 
 /** Whether the text contains every word of the search, ignoring case and accents. */
-export function matches(text: string, search: string) {
+function matches(text: string, search: string) {
   const normalized = normalize(text);
   return normalize(search)
     .split(/\s+/)

@@ -48,6 +48,8 @@ export default {
   removed_other: '{{count}} Personen wurden entfernt.',
   assigned_one: '{{count}} Person wurde eingeteilt.',
   assigned_other: '{{count}} Personen wurden eingeteilt.',
+  stvIdConflict:
+    'Diese STV-ID gehört zu jemand anderem. Prüfe Nummer, Name, Jahrgang und Geschlecht.',
   failed: {
     network: 'Keine Verbindung zum Server. Deine Eingaben sind noch da, versuche es nochmals.',
     notFound: 'Das gibt es nicht mehr. Jemand hat es inzwischen entfernt.',

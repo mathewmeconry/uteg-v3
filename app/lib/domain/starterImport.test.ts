@@ -83,6 +83,14 @@ describe('parseSheet', () => {
     [5, 2005],
     [new Date('2009-05-05T00:00:00Z'), 2009],
     ['x', null],
+    ['15.03.2010', 2010],
+    ['1.1.2012', 2012],
+    ['15.03.10', 2010],
+    ['2010-03-15T00:00:00.000Z', 2010],
+    ['Jg. 2010', 2010],
+    [40252, null],
+    ['123', null],
+    [{ formula: 'A1', result: new Date('2009-05-05T00:00:00Z') }, 2009],
   ])('reads the birth year %s', (input, birthYear) => {
     expect(parseRow('', 'A', 'B', input, 'm')?.birthYear).toBe(birthYear);
   });
