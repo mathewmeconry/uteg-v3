@@ -203,6 +203,58 @@ describe('ranking', () => {
       ]);
     });
 
+    it('keeps the order of categories, and is once where its template starts', async () => {
+      const { id, contest } = await createCompetition();
+      const create = async (name: string, options: object, cover: Uint8Array[]) => {
+        const template = await createRankingTemplate(id, {
+          name,
+          options: rankingTemplateSchema.parse(options),
+        });
+        await setCover(id, template.id, cover);
+        return template.id;
+      };
+      const a = await create('A', {}, [COVER[0]]);
+      const b = await create('B', { cover: 'eachCategory' }, [COVER[1]]);
+      for (const [template, categories] of [
+        [a, ['K1', 'K3', 'K4']],
+        [b, ['K2', 'K5']],
+      ] as const) {
+        for (const category of categories) {
+          await assignTemplate(id, template, { sex: 'FEMALE', category });
+        }
+      }
+      const groups = ['K1', 'K2', 'K3', 'K4', 'K5'].map((key) => `&group=FEMALE:${key}`).join('');
+      const load = () =>
+        callRoute(ranking.loader, {
+          competitionId: id,
+          role: 'VIEWER',
+          search: `?contest=${contest.id}${groups}&template=auto`,
+        });
+      const pages = await readPdf(await load());
+      expect(
+        pages.map(({ text, width, height }) =>
+          text ? /K\d Turnerinnen/.exec(text)![0] : width > height ? 'A' : 'B',
+        ),
+      ).toEqual([
+        ...['A', 'K1 Turnerinnen'],
+        ...['B', 'K2 Turnerinnen'],
+        ...['K3 Turnerinnen', 'K4 Turnerinnen'],
+        ...['B', 'K5 Turnerinnen'],
+      ]);
+      expect(pages.at(-1)!.text).toMatch(/5 \/ 5$/);
+
+      // Four pages of almost 2 MB each, for five templates.
+      const large = createJpeg(200, 100, { scanBytes: 2_000_000 });
+      await setCover(id, a, [large, large, large, large]);
+      await setCover(id, b, [large, large, large, large]);
+      expect((await load()).status).toBe(200);
+      for (const category of ['K2', 'K3', 'K4']) {
+        const template = await create(category, {}, [large, large, large, large]);
+        await assignTemplate(id, template, { sex: 'FEMALE', category });
+      }
+      expect((await load()).status).toBe(503);
+    });
+
     it('is left out when it is damaged', async () => {
       const { id, load } = await setupCover();
       await prisma.asset.updateMany({

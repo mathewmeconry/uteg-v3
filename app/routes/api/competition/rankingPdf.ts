@@ -8,7 +8,11 @@ import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { loadRankingGroup, rankingPdfResponse } from '~/pdf/ranking.server';
 import { orNotFound, parseRankingGroup, readParams } from '~/pdf/request.server';
+import { unavailableResponse } from '~/pdf/response.server';
 import { createSampleGroups } from '~/pdf/sample';
+
+/** Of all templates. Pages have about 0.3 MB, so this is enough for a hundred. */
+const MAX_COVER_BYTES = 32 * 1024 * 1024;
 
 /**
  * `?contest=<id>&group=FEMALE:K5&group=…`, optionally `template=<id>` instead of the default one,
@@ -33,12 +37,22 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     templateId === 'auto'
       ? await groupByTemplate(competition.id, loaded)
       : [{ templateId, groups: loaded }];
-  const sections = await Promise.all(
-    parts.map(async (part) => ({
-      groups: part.groups,
-      ...(await orNotFound(getRankingTemplate(competition.id, part.templateId))),
-    })),
-  );
+  const templates = new Map<string | null, Awaited<ReturnType<typeof getRankingTemplate>>>();
+  const sections = [];
+  let coverBytes = 0;
+  // One after the other, so that not too many covers are in memory.
+  for (const part of parts) {
+    let template = templates.get(part.templateId);
+    const isFirst = !template;
+    if (!template) {
+      template = await orNotFound(getRankingTemplate(competition.id, part.templateId));
+      templates.set(part.templateId, template);
+      coverBytes += template.cover.reduce((sum, page) => sum + page.data.byteLength, 0);
+      if (coverBytes > MAX_COVER_BYTES) return unavailableResponse(getT(context));
+    }
+    const hasCover = isFirst || template.options.cover === 'eachCategory';
+    sections.push({ groups: part.groups, ...template, cover: hasCover ? template.cover : [] });
+  }
 
   return rankingPdfResponse({
     competition,

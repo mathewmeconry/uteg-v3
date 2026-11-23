@@ -87,7 +87,14 @@ function startNext() {
 }
 
 function start(task: Task) {
-  const child = takeChild();
+  let child: ChildProcess;
+  try {
+    child = takeChild();
+  } catch (error) {
+    // E.g. too many open files. Also called by events of other children, where nobody catches it.
+    task.fail(new PdfUnavailableError(String(error)));
+    return;
+  }
   task.child = child;
   running++;
 
@@ -151,11 +158,12 @@ function createChild() {
       stdio: ['ignore', 'ignore', 'inherit', 'ipc'],
     },
   );
+  // An error without listener would end the server. First, because the rest may throw: a child that
+  // could not be started has no send().
+  child.on('error', () => {});
   // Neither keeps the server running.
   child.unref();
   child.channel?.unref();
-  // An error without listener would end the server.
-  child.on('error', () => {});
   child.on('exit', () => {
     const index = idle.indexOf(child);
     if (index >= 0) idle.splice(index, 1);

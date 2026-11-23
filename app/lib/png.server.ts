@@ -1,6 +1,7 @@
 import { promisify } from 'node:util';
-import { crc32, inflate } from 'node:zlib';
+import { crc32, deflate, inflate } from 'node:zlib';
 
+const deflateAsync = promisify(deflate);
 const inflateAsync = promisify(inflate);
 
 const SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -56,9 +57,12 @@ export async function cleanPng(file: Uint8Array): Promise<Uint8Array<ArrayBuffer
   const bytes = passes.reduce((sum, { rows, rowBytes }) => sum + rows * rowBytes, 0);
   if (bytes === 0 || bytes > MAX_BYTES) return null;
 
-  const compressed = Buffer.concat(pixelData);
-  const pixels = await inflateAsync(compressed, { maxOutputLength: bytes }).catch(() => null);
+  const pixels = await inflateAsync(Buffer.concat(pixelData), { maxOutputLength: bytes }).catch(
+    () => null,
+  );
   if (pixels?.byteLength !== bytes || !hasValidFilters(pixels, passes)) return null;
+  // Again, because something else could follow the compressed pixels.
+  const compressed = await deflateAsync(pixels);
 
   return new Uint8Array(
     Buffer.concat([
