@@ -1,5 +1,5 @@
 import { createCompetition, errorCode, truncateTables } from '~/tests/helpers';
-import { getLogo, removeLogo, setLogo } from './assets.server';
+import { checkLogo, getLogo, removeLogo, setLogo } from './assets.server';
 import { prisma } from './prisma.server';
 
 const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
@@ -29,6 +29,7 @@ describe('setLogo', () => {
     const { id } = await createCompetition();
     for (const text of ['<svg xmlns="http://www.w3.org/2000/svg"/>', 'GIF89a', '']) {
       const data = new TextEncoder().encode(text);
+      expect(() => checkLogo(data)).toThrow('INVALID_IMAGE');
       expect(await errorCode(setLogo(id, data))).toBe('INVALID_IMAGE');
     }
     expect(await getLogo(id)).toBeNull();

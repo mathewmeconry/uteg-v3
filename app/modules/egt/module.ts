@@ -10,10 +10,13 @@ const CATEGORIES: Record<Sex, readonly string[]> = {
   MALE: ['K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'K7', 'KH'],
 };
 
-const inputRuleSchema = z.object({
-  attempts: z.number().int().min(1).max(4),
-  aggregation: z.enum(['NONE', 'MAX', 'MIN', 'AVG']),
-});
+const inputRuleSchema = z
+  .object({
+    attempts: z.number().int().min(1).max(4),
+    aggregation: z.enum(['NONE', 'MAX', 'MIN', 'AVG']),
+  })
+  // No grade could be saved with several attempts that are not combined.
+  .refine(({ attempts, aggregation }) => attempts === 1 || aggregation !== 'NONE');
 
 export const egtConfigSchema = z.object({
   /** Auszeichnung in percent, keyed by sex and category. */

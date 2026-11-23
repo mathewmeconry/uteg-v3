@@ -14,6 +14,7 @@ import {
   changeMemberRole,
   createCompetition,
   deleteCompetition,
+  findUnknownEmails,
   getCompetitionForUser,
   getStats,
   listCompetitions,
@@ -78,6 +79,13 @@ describe('createCompetition', () => {
     const input = { ...INPUT, contests: [{ module: 'egt' }], ...data } as any;
     expect(await errorCode(createCompetition(user.id, input))).toBe(code);
     expect(await prisma.competition.count()).toBe(0);
+  });
+});
+
+describe('findUnknownEmails', () => {
+  it('returns the addresses without an account', async () => {
+    await createUser({ email: 'a@example.com' });
+    expect(await findUnknownEmails([' A@example.com', 'b@example.com'])).toEqual(['b@example.com']);
   });
 });
 
