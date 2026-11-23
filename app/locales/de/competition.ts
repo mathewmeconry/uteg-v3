@@ -9,7 +9,7 @@ export default {
     grounds: 'Anzahl Wettkampfplätze',
     groundsHint: 'Jeder Platz hat eigene Geräte und eigene Zugänge für die Wertungsrichter.',
     logo: 'Logo',
-    logoHint: 'PNG oder JPEG, höchstens 5 MB',
+    logoHint: 'PNG oder JPEG, höchstens 5 MB und 4000 × 4000 Pixel',
     logoClear: 'Auswahl aufheben',
     modules: 'Module',
   },

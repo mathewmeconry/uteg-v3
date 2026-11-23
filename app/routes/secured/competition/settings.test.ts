@@ -21,6 +21,8 @@ const DETAILS = {
   endDate: '2026-06-03',
   grounds: '2',
 };
+// 8000 pixels wide.
+const HUGE_JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xc0, 0, 11, 8, 0, 50, 0x1f, 0x40, 1, 1, 1]);
 const LOGO = { intent: 'logo', logo: new Blob([JPEG]) };
 
 beforeEach(truncateTables);
@@ -80,6 +82,7 @@ describe('competition settings', () => {
   it.each([
     ['no file', { intent: 'logo' }],
     ['empty file', { intent: 'logo', logo: new Blob([]) }],
+    ['too many pixels', { intent: 'logo', logo: new Blob([HUGE_JPEG]) }],
     ['no image', { intent: 'logo', logo: new Blob(['GIF89a']) }],
   ])('rejects a logo: %s', async (_, form) => {
     const { post } = await setup();
