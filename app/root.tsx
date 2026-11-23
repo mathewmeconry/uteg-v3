@@ -80,7 +80,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#012e35" />
+        <meta name="theme-color" content="#22272e" />
         <Meta />
         <Links />
       </head>

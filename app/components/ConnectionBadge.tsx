@@ -28,7 +28,7 @@ export function ConnectionBadge({
       {status === 'open' && (
         <span
           aria-hidden
-          className={cn('size-2 rounded-full', onInk ? 'bg-brand' : 'bg-success')}
+          className={cn('size-2 rounded-full', onInk ? 'bg-ink-muted' : 'bg-success')}
         />
       )}
       {status === 'connecting' && <LoaderCircleIcon aria-hidden className="animate-spin" />}
