@@ -1,0 +1,166 @@
+import { Document, Page, Text, View } from '@react-pdf/renderer';
+import type { Sex } from '~/generated/prisma/client';
+import type { GradingState } from '~/lib/judging.server';
+import type { ServerT } from '~/locales';
+import { Cell, HeaderRow, MUTED, PageNumber, Row, type Column } from './components';
+import { FONT } from './pdf.server';
+
+type Slot = GradingState['apparatus'][number]['rounds'][number]['slots'][number];
+
+const PAGE = {
+  fontFamily: FONT,
+  fontSize: 9,
+  paddingTop: 32,
+  paddingHorizontal: 40,
+  paddingBottom: 40,
+};
+const ROW_HEIGHT = 32;
+const NUMBER: Column = { width: 26 };
+const NAME: Column = { flex: 3 };
+const CLUB: Column = { flex: 3 };
+const CATEGORY: Column = { width: 34 };
+
+/** One page per ground, apparatus and round, filled in by hand. */
+export function JudgingSheetsDocument({
+  grounds,
+  competitionName,
+  t,
+  language,
+}: {
+  grounds: (GradingState & { ground: number })[];
+  competitionName: string;
+  t: ServerT;
+  language: string;
+}) {
+  const sheets = grounds.flatMap(({ ground, divisions, apparatus }) =>
+    apparatus.flatMap(({ apparatus: key, rounds }) =>
+      rounds.map(({ round, slots }) => ({
+        ground,
+        // Progress has a row for each apparatus of a division.
+        divisions: divisions.filter(
+          (division) => key in division.progress && round < division.rounds,
+        ),
+        apparatus: key,
+        round,
+        slots,
+      })),
+    ),
+  );
+  return (
+    <Document
+      title={`${t('pdf:sheets.title')} ${competitionName}`}
+      creator="UTEG"
+      language={language}
+    >
+      {sheets.map(({ ground, divisions, apparatus, round, slots }) => (
+        <Page key={`${ground}-${apparatus}-${round}`} size="A4" style={PAGE}>
+          <View fixed style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+              <Text style={{ flexShrink: 1, color: MUTED }}>{competitionName}</Text>
+              <Text style={{ flexShrink: 0, color: MUTED }}>{t('ground', { number: ground })}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+              <Text style={{ fontSize: 18, fontWeight: 700 }}>
+                {t(`apparatus.${apparatus as 'reck'}`)}
+              </Text>
+              <Text style={{ fontSize: 18, fontWeight: 700 }}>
+                {t('round', { number: round + 1 })}
+              </Text>
+            </View>
+            <Text style={{ marginTop: 4 }}>
+              {divisions
+                .map(({ category, sex, number }) => divisionLabel({ category, sex, number }, t))
+                .join('  ·  ')}
+            </Text>
+          </View>
+          {slots.length === 0 ? (
+            <Text style={{ marginTop: 24, fontSize: 14, textAlign: 'center' }}>
+              {t('pdf:sheets.pause')}
+            </Text>
+          ) : (
+            <Sheet slots={slots} t={t} />
+          )}
+          <PageNumber />
+        </Page>
+      ))}
+      {sheets.length === 0 && (
+        <Page size="A4" style={PAGE}>
+          <Text style={{ fontSize: 14 }}>{t('pdf:sheets.noDivisions')}</Text>
+        </Page>
+      )}
+    </Document>
+  );
+}
+
+function Sheet({ slots, t }: { slots: Slot[]; t: ServerT }) {
+  const attempts = Math.max(...slots.map(({ inputRule }) => inputRule.attempts));
+  const numbers = attempts > 1 ? Array.from({ length: attempts }, (_, index) => index + 1) : [];
+  const gradeColumn: Column = { width: attempts > 2 ? 54 : attempts > 1 ? 70 : 130 };
+  const box = {
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    borderLeftWidth: 0.5,
+    borderLeftColor: MUTED,
+  } as const;
+
+  return (
+    <View>
+      <HeaderRow>
+        <Cell column={NUMBER}>{t('pdf:sheets.number')}</Cell>
+        <Cell column={NAME}>{t('fields.name')}</Cell>
+        <Cell column={CLUB}>{t('fields.club')}</Cell>
+        <Cell column={CATEGORY}>{t('pdf:sheets.category')}</Cell>
+        {numbers.map((number) => (
+          <Cell key={number} column={gradeColumn} align="center">
+            {t('pdf:sheets.attempt', { number })}
+          </Cell>
+        ))}
+        <Cell column={gradeColumn} align="center">
+          {attempts > 1 ? t('pdf:sheets.final') : t('fields.grade')}
+        </Cell>
+      </HeaderRow>
+      {slots.map((slot, index) => {
+        const struck = { textDecoration: slot.withdrawn ? 'line-through' : 'none' } as const;
+        return (
+          <Row key={slot.entryId} style={{ minHeight: ROW_HEIGHT }}>
+            <Cell column={NUMBER} style={struck}>
+              {index + 1}
+            </Cell>
+            <Cell column={NAME} style={{ ...struck, fontSize: 10 }}>
+              {`${slot.firstname} ${slot.lastname}`}
+            </Cell>
+            <Cell column={CLUB} style={struck}>
+              {slot.clubName}
+            </Cell>
+            <Cell column={CATEGORY} style={struck}>
+              {slot.category}
+            </Cell>
+            {numbers.map((number) => (
+              <View key={number} style={box}>
+                <Cell column={gradeColumn} align="center" style={{ color: MUTED }}>
+                  {!slot.withdrawn && number > slot.inputRule.attempts ? '–' : ''}
+                </Cell>
+              </View>
+            ))}
+            {/* At the bottom, the grade is written above it. */}
+            <View style={{ ...box, justifyContent: 'flex-end' }}>
+              <Cell column={gradeColumn} align="center" style={{ fontSize: 6, color: MUTED }}>
+                {slot.withdrawn
+                  ? t('pdf:sheets.withdrawn')
+                  : slot.inputRule.aggregation !== 'NONE' &&
+                    t(`pdf:sheets.aggregation.${slot.inputRule.aggregation}`)}
+              </Cell>
+            </View>
+          </Row>
+        );
+      })}
+    </View>
+  );
+}
+
+function divisionLabel(
+  { category, sex, number }: { category: string; sex: Sex; number: number },
+  t: ServerT,
+) {
+  return t('pdf:division', { category, sex: t(`pdf:sex.${sex}`), number });
+}

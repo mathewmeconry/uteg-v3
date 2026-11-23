@@ -35,8 +35,23 @@ export const rankingTemplateSchema = z.object({
   fontSize: z.number().min(6).max(16).default(9),
   rowHeight: z.number().min(10).max(40).default(18),
   onlyAwarded: z.boolean().default(false),
+  /** Above each table. Empty: none, unless categories share pages and need one. */
+  groupHeading: z.string().max(200).default(''),
+  newPagePerCategory: z.boolean().default(true),
 });
 
 export type RankingTemplateOptions = z.infer<typeof rankingTemplateSchema>;
 
 export const defaultRankingTemplate = rankingTemplateSchema.parse({});
+
+export const PLACEHOLDERS = ['category', 'sex', 'competition', 'location', 'date'] as const;
+
+/** Replaces placeholders such as {category}. Unknown ones stay as they are. */
+export function fillPlaceholders(
+  pattern: string,
+  values: Record<(typeof PLACEHOLDERS)[number], string>,
+) {
+  return pattern.replace(/\{(\w+)\}/g, (match, name: string) =>
+    Object.hasOwn(values, name) ? values[name as keyof typeof values] : match,
+  );
+}
