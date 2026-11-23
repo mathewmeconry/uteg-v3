@@ -21,14 +21,13 @@ import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { patchContestConfig } from '~/lib/contests.server';
 import { getHonourQuota } from '~/lib/domain/ranking';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
-import { parseForm } from '~/lib/forms.server';
+import { parseForm, readForm } from '~/lib/forms.server';
 import { formatDateTime } from '~/lib/format';
 import { getRanking, listRankingGroups } from '~/lib/ranking.server';
 import { listRankingTemplates } from '~/lib/rankingTemplates.server';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
-import { readForm } from '~/pdf/request.server';
 import { egtModule, type EgtConfig } from '~/modules/egt/module';
 
 const SEXES = ['FEMALE', 'MALE'] as const satisfies Sex[];

@@ -1,3 +1,4 @@
+import type { Prisma } from '~/generated/prisma/client';
 import { readImageSize } from './domain/imageSize';
 import { DomainError } from './errors';
 import { publish } from './events.server';
@@ -16,26 +17,40 @@ export function getLogo(competitionId: string) {
   return prisma.asset.findFirst({ where: { competitionId, logoOf: { id: competitionId } } });
 }
 
-export async function setLogo(competitionId: string, data: Uint8Array<ArrayBuffer>) {
+/** Throws unless the image can be a logo. Returns its type. */
+export function checkLogo(data: Uint8Array) {
   if (data.byteLength > MAX_LOGO_BYTES) throw new DomainError('FILE_TOO_LARGE');
   const mimeType = detectMimeType(data);
   if (!mimeType) throw new DomainError('INVALID_IMAGE');
   // Compressed images can be small files but need a lot of memory in PDFs.
   const { width, height } = readImageSize(data) ?? { width: 0, height: 0 };
   if (Math.max(width, height) > MAX_LOGO_PIXELS) throw new DomainError('IMAGE_TOO_LARGE');
+  return mimeType;
+}
 
+export async function setLogo(competitionId: string, data: Uint8Array<ArrayBuffer>) {
   const asset = await prisma.$transaction(async (tx) => {
     await lockCompetition(tx, competitionId);
     await tx.asset.deleteMany({ where: { logoOf: { id: competitionId } } });
-    const { id } = await tx.asset.create({
-      data: { competitionId, mimeType, data },
-      select: { id: true },
-    });
-    await tx.competition.update({ where: { id: competitionId }, data: { logoId: id } });
-    return { id, mimeType };
+    return insertLogo(tx, competitionId, data);
   });
   publish(competitionId, 'settings');
   return asset;
+}
+
+/** For a competition without a logo. */
+export async function insertLogo(
+  tx: Prisma.TransactionClient,
+  competitionId: string,
+  data: Uint8Array<ArrayBuffer>,
+) {
+  const mimeType = checkLogo(data);
+  const { id } = await tx.asset.create({
+    data: { competitionId, mimeType, data },
+    select: { id: true },
+  });
+  await tx.competition.update({ where: { id: competitionId }, data: { logoId: id } });
+  return { id, mimeType };
 }
 
 export async function removeLogo(competitionId: string) {

@@ -3,6 +3,20 @@ import type { z } from 'zod';
 
 export type FieldErrors = Record<string, string>;
 
+/** A form without files. Browsers never send other content types or NUL in it. */
+export async function readForm(request: Request) {
+  let formData;
+  try {
+    formData = await request.formData();
+  } catch {
+    throw data(null, 400);
+  }
+  for (const value of formData.values()) {
+    if (typeof value !== 'string' || value.includes('\0')) throw data(null, 400);
+  }
+  return formData;
+}
+
 /** The first message per field, keyed by its path joined with dots. */
 export function fieldErrors(error: z.ZodError): FieldErrors {
   const errors: FieldErrors = {};

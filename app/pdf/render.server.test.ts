@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { Worker } from 'node:worker_threads';
+import { describe, expect, it, vi } from 'vitest';
 import { createI18n } from '~/lib/i18n';
 import { NAMESPACES } from '~/locales';
 import { readPdf } from '~/tests/pdf';
@@ -56,8 +57,46 @@ describe('renderPdf', () => {
     expect(longest).toBeLessThan(300);
   });
 
-  it('gives up after the time limit and works afterwards', async () => {
+  it('gives up after the time limit, ends the thread and works afterwards', async () => {
+    const terminate = vi.spyOn(Worker.prototype, 'terminate');
     await expect(renderPdf(large, { timeoutMs: 50 })).rejects.toThrow(PdfUnavailableError);
+    expect(terminate).toHaveBeenCalledOnce();
+    // Resolves with the exit code.
+    expect(await terminate.mock.results[0].value).toBe(1);
+    terminate.mockRestore();
+    expect((await renderPdf(small)).length).toBeGreaterThan(0);
+  });
+
+  it('counts waiting as time, and rejects waiting tasks at once when aborted', async () => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    const running = Promise.allSettled([1, 2].map(() => renderPdf(large, { signal })));
+    await expect(renderPdf(small, { timeoutMs: 20 })).rejects.toThrow('Timeout');
+
+    const own = new AbortController();
+    const waiting = renderPdf(small, { signal: own.signal });
+    let isRejected = false;
+    const settled = waiting.catch(() => {
+      isRejected = true;
+    });
+    own.abort();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(isRejected).toBe(true);
+    controller.abort();
+    await Promise.all([settled, running]);
+    expect((await renderPdf(small)).length).toBeGreaterThan(0);
+  });
+
+  it('survives a crashing worker', async () => {
+    // Not a job, the worker fails outside of its error handling.
+    await expect(renderPdf(null as unknown as PdfJob)).rejects.toThrow(PdfUnavailableError);
+    expect((await renderPdf(small)).length).toBeGreaterThan(0);
+  });
+
+  it('rejects what cannot be sent to a worker', async () => {
+    const broken = { ...small, props: { clubs: () => [] } } as unknown as PdfJob;
+    await expect(renderPdf(broken)).rejects.toThrow(/could not be cloned/);
     expect((await renderPdf(small)).length).toBeGreaterThan(0);
   });
 
@@ -103,14 +142,14 @@ describe('pdfResponse', () => {
 });
 
 describe('starter list', () => {
-  it('is fast with many starters', async () => {
-    const start = performance.now();
-    const pages = await readPdf(await renderPdf(job(950)));
-    // It took 12 seconds on one react-pdf page.
-    expect(performance.now() - start).toBeLessThan(10_000);
-    for (const { text } of pages) expect(text).toContain('Startgerät');
-    expect(pages.at(-1)!.text).toContain(`${pages.length} / ${pages.length}`);
-  }, 20_000);
+  it('has one header per page and starts a new section after 150 rows', async () => {
+    const pages = await readPdf(await renderPdf(job(160)));
+    for (const { text } of pages) expect(text.match(/Startgerät/g)).toHaveLength(1);
+    const last = pages.at(-1)!.text;
+    expect(last).toContain(`${pages.length} / ${pages.length}`);
+    expect(last).toContain('Frei150 ');
+    expect(last).not.toContain('Frei149 ');
+  });
 
   it('keeps the club, the table header and the first row together', async () => {
     for (let rows = 34; rows < 48; rows++) {

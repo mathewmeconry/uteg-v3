@@ -37,7 +37,7 @@ import {
   type RankingTemplateOptions,
 } from '~/lib/domain/rankingTemplate';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
-import { parseForm } from '~/lib/forms.server';
+import { parseForm, readForm } from '~/lib/forms.server';
 import { listRankingGroups } from '~/lib/ranking.server';
 import {
   createRankingTemplate,
@@ -50,7 +50,6 @@ import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
-import { readForm } from '~/pdf/request.server';
 
 const NEW = 'new';
 const NAME_LENGTH = 100;
@@ -172,6 +171,7 @@ export default function Templates({ loaderData, actionData }: Route.ComponentPro
   const { templates, selected, previewGroups } = loaderData;
   const { t } = useTranslation('pdf');
   const { canEdit } = useCompetition();
+  const [discards, setDiscards] = useState(0);
   const template = templates.find(({ id }) => id === selected);
   const createButton = canEdit && (
     <Button asChild>
@@ -211,8 +211,9 @@ export default function Templates({ loaderData, actionData }: Route.ComponentPro
       )}
       {canEdit && selected && (
         <TemplateEditor
-          // A new template or another one starts over.
-          key={selected}
+          // A new template or another one starts over, and after discarding changes.
+          key={`${selected} ${discards}`}
+          onDiscard={() => setDiscards((count) => count + 1)}
           template={template}
           previewGroups={previewGroups}
           errors={actionData?.errors}
@@ -307,10 +308,12 @@ function TemplateEditor({
   template,
   previewGroups,
   errors,
+  onDiscard,
 }: {
   template: Template | undefined;
   previewGroups: PreviewGroup[];
   errors: Record<string, string> | undefined;
+  onDiscard: () => void;
 }) {
   const { t } = useTranslation(['pdf', 'common']);
   const { competition } = useCompetition();
@@ -354,13 +357,17 @@ function TemplateEditor({
       <div className="xl:sticky xl:top-20 xl:self-start">
         <TemplatePreview competitionId={competition.id} options={options} groups={previewGroups} />
       </div>
-      <DiscardDialog when={isDirty} />
+      <DiscardDialog
+        when={isDirty}
+        // The target may show the same template, e.g. the link in the sidebar.
+        onDiscard={onDiscard}
+      />
     </div>
   );
 }
 
 /** Asks before leaving a form with changes. */
-function DiscardDialog({ when }: { when: boolean }) {
+function DiscardDialog({ when, onDiscard }: { when: boolean; onDiscard: () => void }) {
   const { t } = useTranslation(['pdf', 'common']);
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
@@ -381,7 +388,12 @@ function DiscardDialog({ when }: { when: boolean }) {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{t('common:actions.cancel')}</AlertDialogCancel>
-          <AlertDialogAction onClick={() => blocker.proceed?.()}>
+          <AlertDialogAction
+            onClick={() => {
+              blocker.proceed?.();
+              onDiscard();
+            }}
+          >
             {t('templates.discard')}
           </AlertDialogAction>
         </AlertDialogFooter>

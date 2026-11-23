@@ -11,10 +11,9 @@ export class PdfUnavailableError extends Error {
 
 type Task = {
   job: PdfJob;
-  timeoutMs: number;
-  signal: AbortSignal | undefined;
-  resolve: (pdf: Uint8Array) => void;
-  reject: (error: unknown) => void;
+  worker?: Worker;
+  succeed: (pdf: Uint8Array) => void;
+  fail: (error: unknown) => void;
 };
 
 const WORKERS = 2;
@@ -37,7 +36,38 @@ export function renderPdf(
     if (signal?.aborted) return reject(signal.reason);
     if (queue.length >= MAX_QUEUE) return reject(new PdfUnavailableError('Queue is full'));
 
-    queue.push({ job, timeoutMs, signal, resolve, reject });
+    const task: Task = {
+      job,
+      succeed(pdf) {
+        settle();
+        resolve(pdf);
+      },
+      fail(error) {
+        settle();
+        reject(error);
+      },
+    };
+    // Waiting counts as well.
+    const timeout = setTimeout(() => cancel(new PdfUnavailableError('Timeout')), timeoutMs);
+
+    function settle() {
+      clearTimeout(timeout);
+      signal?.removeEventListener('abort', onAbort);
+    }
+    function cancel(error: unknown) {
+      const index = queue.indexOf(task);
+      if (index >= 0) queue.splice(index, 1);
+      task.fail(error);
+      // Its exit makes room for the next one.
+      void task.worker?.terminate();
+      task.worker = undefined;
+    }
+    function onAbort() {
+      cancel(signal?.reason);
+    }
+
+    signal?.addEventListener('abort', onAbort);
+    queue.push(task);
     startNext();
   });
 }
@@ -46,51 +76,49 @@ function startNext() {
   while (running < WORKERS) {
     const task = queue.shift();
     if (!task) return;
-    if (task.signal?.aborted) task.reject(task.signal.reason);
-    else start(task);
+    start(task);
   }
 }
 
-function start({ job, timeoutMs, signal, resolve, reject }: Task) {
+function start(task: Task) {
   const worker = idle.pop() ?? createWorker();
-  const timeout = setTimeout(() => fail(new PdfUnavailableError('Timeout')), timeoutMs);
+  task.worker = worker;
   running++;
 
   function finish() {
-    clearTimeout(timeout);
-    signal?.removeEventListener('abort', onAbort);
     worker.off('message', onMessage).off('error', onError).off('exit', onExit);
+    task.worker = undefined;
     running--;
-  }
-  function fail(error: unknown) {
-    finish();
-    void worker.terminate();
-    reject(error);
     startNext();
   }
-  function onAbort() {
-    fail(signal?.reason);
-  }
-  /** Also when it runs out of memory. */
+  /** Also when it runs out of memory. The exit follows. */
   function onError(error: unknown) {
-    fail(new PdfUnavailableError(String(error)));
+    task.fail(new PdfUnavailableError(String(error)));
   }
   function onExit() {
-    fail(new PdfUnavailableError('The worker exited'));
+    task.fail(new PdfUnavailableError('The worker exited'));
+    finish();
   }
   function onMessage(result: PdfResult) {
-    finish();
+    // Cancelled just now, the exit follows.
+    if (!task.worker) return;
     // In development the next one gets the current code.
     if (import.meta.env.MODE === 'development') void worker.terminate();
     else idle.push(worker);
-    if ('pdf' in result) resolve(result.pdf);
-    else reject(new Error(result.error));
-    startNext();
+    if ('pdf' in result) task.succeed(result.pdf);
+    else task.fail(new Error(result.error));
+    finish();
   }
 
-  signal?.addEventListener('abort', onAbort);
   worker.on('message', onMessage).on('error', onError).on('exit', onExit);
-  worker.postMessage(job);
+  try {
+    worker.postMessage(task.job);
+  } catch (error) {
+    // Something in the job cannot be sent. The worker never saw it.
+    idle.push(worker);
+    task.fail(error);
+    finish();
+  }
 }
 
 function createWorker() {

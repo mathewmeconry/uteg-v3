@@ -53,6 +53,17 @@ export type RankingTemplateOptions = z.infer<typeof rankingTemplateSchema>;
 
 export const defaultRankingTemplate = rankingTemplateSchema.parse({});
 
+/** Stored options. Those that are no longer valid get their default, so they can be repaired. */
+export function parseStoredTemplate(stored: unknown): RankingTemplateOptions {
+  const result = rankingTemplateSchema.safeParse(stored);
+  if (result.success) return result.data;
+  const invalid = new Set(result.error.issues.map(({ path }) => path[0]));
+  const entries = stored && typeof stored === 'object' ? Object.entries(stored) : [];
+  return rankingTemplateSchema.parse(
+    Object.fromEntries(entries.filter(([key]) => !invalid.has(key))),
+  );
+}
+
 export const PLACEHOLDERS = ['category', 'sex', 'competition', 'location', 'date'] as const;
 
 /** Replaces placeholders such as {category}. Unknown ones stay as they are. */

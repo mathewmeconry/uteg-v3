@@ -2,6 +2,7 @@ import { data } from 'react-router';
 import { z } from 'zod';
 import type { Sex } from '~/generated/prisma/client';
 import { DomainError } from '~/lib/errors';
+import { readForm } from '~/lib/forms.server';
 
 /** The search params of a GET and the form of a POST. */
 export async function readParams(request: Request): Promise<URLSearchParams> {
@@ -13,20 +14,6 @@ export async function readParams(request: Request): Promise<URLSearchParams> {
   // PostgreSQL rejects NUL, so no record has it in its id.
   if ([...params.values()].some((value) => value.includes('\0'))) throw data(null, 404);
   return params;
-}
-
-/** Browsers never send other content types or NUL in a form. */
-export async function readForm(request: Request) {
-  let formData;
-  try {
-    formData = await request.formData();
-  } catch {
-    throw data(null, 400);
-  }
-  for (const value of formData.values()) {
-    if (typeof value !== 'string' || value.includes('\0')) throw data(null, 400);
-  }
-  return formData;
 }
 
 /** Rankings in URLs look like "FEMALE:K5". */
