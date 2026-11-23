@@ -124,12 +124,12 @@ describe('resolvePosition', () => {
   });
 
   it('stays at a starter that was graded elsewhere or withdrawn', () => {
-    const position = { round: 0, view: 'b', fromReview: true };
+    const position = { round: 0, view: 'b', fromReview: true, takeFocus: true };
     expect(resolvePosition(position, 0, slots, () => true)).toBe(position);
   });
 
   it('starts over in another round and when the starter is gone', () => {
-    const review = { round: 0, view: 'review', fromReview: false };
+    const review = { round: 0, view: 'review', fromReview: false, takeFocus: true };
     expect(resolvePosition(review, 0, slots, none)).toBe(review);
     expect(resolvePosition(review, 1, slots, none)).toEqual({ ...review, round: 1, view: 'a' });
     expect(resolvePosition({ ...review, view: 'gone' }, 0, slots, none).view).toBe('a');

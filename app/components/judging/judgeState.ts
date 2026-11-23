@@ -95,7 +95,13 @@ export function hasJustEnded(before: TabletState, after: TabletState) {
 }
 
 /** 'review' or the entry that is being judged. */
-export type Position = { round: number; view: 'review' | string; fromReview: boolean };
+export type Position = {
+  round: number;
+  view: 'review' | string;
+  fromReview: boolean;
+  /** False when it changed while the judge was at another starter, and may have been typing. */
+  takeFocus: boolean;
+};
 
 /**
  * Where the judge is in the round. Stays as long as it makes sense, otherwise continues with the
@@ -114,7 +120,8 @@ export function resolvePosition(
     return position;
   }
   const open = slots.find(({ entryId, withdrawn }) => !withdrawn && !isDone(entryId));
-  return { round, view: open?.entryId ?? 'review', fromReview: false };
+  const takeFocus = position === null || position.view === 'review';
+  return { round, view: open?.entryId ?? 'review', fromReview: false, takeFocus };
 }
 
 /** The next or previous starter who still takes part. */

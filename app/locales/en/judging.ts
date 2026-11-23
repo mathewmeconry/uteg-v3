@@ -7,6 +7,7 @@ export default {
   judgesTitle: 'Judges',
   linkInvalidTitle: 'Invalid link',
   linkInvalidText: 'The link was reset. Scan the current QR code.',
+  linkIgnored: 'The link you opened is no longer valid. This page still works.',
   screen: {
     smaller: 'Smaller text',
     larger: 'Larger text',

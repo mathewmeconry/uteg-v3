@@ -20,6 +20,7 @@ export function StarterForm({
   drafts,
   fromReview = false,
   isPast = false,
+  takeFocus,
   onMove,
 }: {
   slot: TabletSlot;
@@ -29,6 +30,8 @@ export function StarterForm({
   fromReview?: boolean;
   /** A single grade of a confirmed round. */
   isPast?: boolean;
+  /** Not when it appears by itself: the judge may be typing for someone else. */
+  takeFocus: boolean;
   onMove: (view: 'review' | string) => void;
 }) {
   const { t } = useTranslation(['judging', 'common']);
@@ -42,9 +45,24 @@ export function StarterForm({
   const next = findNeighbour(slots, slot.entryId, 1);
   const previous = findNeighbour(slots, slot.entryId, -1);
 
+  const isShown = useRef(false);
+  const initial = useRef({ takeFocus, isDirty: state.isDirty });
+
   useEffect(() => {
-    if (firstInput.current) firstInput.current.select();
-    else heading.current?.focus();
+    isShown.current = true;
+    const input = firstInput.current;
+    if (initial.current.takeFocus) {
+      if (!input) heading.current?.focus();
+      input?.focus();
+      // What is being typed goes on, a saved grade is replaced.
+      input?.setSelectionRange(
+        initial.current.isDirty ? input.value.length : 0,
+        input.value.length,
+      );
+    }
+    return () => {
+      isShown.current = false;
+    };
   }, []);
 
   function moveOn() {
@@ -52,7 +70,9 @@ export function StarterForm({
   }
 
   async function finish(answer: Promise<GradeResult>) {
-    if ((await answer).ok) moveOn();
+    const { ok } = await answer;
+    // The judge may have opened someone else meanwhile and be typing there.
+    if (ok && isShown.current) moveOn();
   }
 
   function submit() {

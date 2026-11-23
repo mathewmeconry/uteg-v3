@@ -84,13 +84,18 @@ export function Tablet({
           const { saved, isWaiting, isSaving } = drafts.get(slot);
           return saved !== null || isWaiting || isSaving;
         });
-  // Kept, so the judge stays at a starter whose grade arrives from elsewhere.
-  if (resolved !== position) setPosition(resolved);
-
-  const past = rounds
+  const pastSlots = rounds
     .filter(({ round }) => currentRound === null || round < currentRound)
-    .flatMap((item) => item.slots)
-    .find(({ entryId }) => entryId === pastEntryId);
+    .flatMap((item) => item.slots);
+  // Kept, so the judge stays at a starter whose grade arrives from elsewhere.
+  if (resolved !== position) {
+    setPosition(resolved);
+    // Confirmed elsewhere while typing: the rest must not end up at the next starter.
+    const left = pastSlots.find(({ entryId }) => entryId === position?.view);
+    if (left && drafts.get(left).isDirty && pastEntryId === null) setPastEntryId(left.entryId);
+  }
+
+  const past = pastSlots.find(({ entryId }) => entryId === pastEntryId);
   const current = past ?? slots.find(({ entryId }) => entryId === resolved?.view);
   const unsaved = [...drafts.drafts.values()].filter(
     (draft) => !draft.confirmed && draft.entryId !== current?.entryId,
@@ -98,7 +103,9 @@ export function Tablet({
 
   function moveTo(view: string, fromReview = false) {
     setPastEntryId(null);
-    if (currentRound !== null) setPosition({ round: currentRound, view, fromReview });
+    if (currentRound !== null) {
+      setPosition({ round: currentRound, view, fromReview, takeFocus: true });
+    }
   }
 
   /** A starter of the current or a confirmed round. */
@@ -156,6 +163,7 @@ export function Tablet({
     <StarterForm
       key={past.entryId}
       isPast
+      takeFocus
       slot={past}
       slots={[past]}
       drafts={drafts}
@@ -230,6 +238,7 @@ export function Tablet({
               slots={slots}
               drafts={drafts}
               fromReview={resolved.fromReview}
+              takeFocus={resolved.takeFocus}
               onMove={(view) => moveTo(view)}
             />
           ) : (

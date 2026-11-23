@@ -4,6 +4,7 @@ export default {
   judgesTitle: 'Wertungsrichter',
   linkInvalidTitle: 'Link ungültig',
   linkInvalidText: 'Der Link wurde zurückgesetzt. Scanne den aktuellen QR-Code.',
+  linkIgnored: 'Der geöffnete Link ist nicht mehr gültig. Diese Seite funktioniert weiterhin.',
   screen: {
     smaller: 'Schrift kleiner',
     larger: 'Schrift grösser',

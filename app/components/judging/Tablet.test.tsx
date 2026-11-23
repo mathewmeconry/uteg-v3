@@ -147,6 +147,92 @@ describe('one starter at a time', () => {
     });
   });
 
+  describe('when the answer comes late', () => {
+    let answer: () => Promise<void>;
+
+    beforeEach(() => {
+      let respond = (_: Response) => {};
+      send.mockImplementation((url, init) =>
+        url === URL ? new Promise((resolve) => (respond = resolve)) : saves(url, init),
+      );
+      answer = () =>
+        act(async () => {
+          const [, init] = send.mock.calls.filter(([url]) => url === URL).at(-1)!;
+          respond(await saves(URL, init));
+        });
+    });
+
+    const openFromList = (name: string) =>
+      fireEvent.click(screen.getAllByRole('button', { name: new RegExp(`${name} Frei`) }).at(-1)!);
+
+    it('stays with the starter that was opened meanwhile', async () => {
+      setup(createData(['Anna', 'Bea', 'Cleo', 'Dora'].map((id) => createSlot(id))));
+      type('9.1');
+      await click('Weiter');
+      openFromList('Dora');
+      type('8');
+      await answer();
+      expect(heading()).toBe('Dora Frei');
+      expect(input()).toHaveValue('8');
+      expect(input()).toHaveFocus();
+    });
+
+    it('stays when the same starter was opened again', async () => {
+      setup(createData(['Anna', 'Bea'].map((id) => createSlot(id))));
+      type('9.1');
+      await click('Weiter');
+      openFromList('Bea');
+      openFromList('Anna');
+      await answer();
+      expect(heading()).toBe('Anna Frei');
+    });
+
+    it('stays with a starter of a confirmed round that was opened meanwhile', async () => {
+      const anna = createSlot('Anna', { grade: grade(9000) });
+      const data = createData([anna], { currentRound: 1 });
+      data.rounds[1].slots = [createSlot('Bea'), createSlot('Cleo')];
+      setup(data);
+      type('9.1');
+      await click('Weiter');
+      await click('Alle Durchgänge');
+      fireEvent.click(screen.getByRole('button', { name: /Anna Frei/ }));
+      await answer();
+      expect(heading()).toBe('Anna Frei');
+    });
+
+    it('moves on from a starter whose round was confirmed elsewhere', async () => {
+      const slots = [createSlot('Anna')];
+      setup(createData(slots));
+      type('9.1');
+      await click('Kontrolle');
+      show(createData(slots, { currentRound: 1 }));
+      expect(heading()).toBe('Anna Frei');
+      await answer();
+      expect(heading()).toBe('Pause');
+    });
+  });
+
+  it('keeps the form with what is being typed when the round is confirmed elsewhere', () => {
+    const next = createSlot('Bea');
+    const before = createData([createSlot('Anna')]);
+    before.rounds[1].slots = [next];
+    setup(before);
+    type('9');
+    const field = input();
+    show({ ...before, currentRound: 1 });
+    expect(heading()).toBe('Anna Frei');
+    expect(screen.getByText('Dieser Durchgang ist schon bestätigt.')).toBeVisible();
+    expect(input()).toBe(field);
+  });
+
+  it('does not take the focus when another starter is shown by itself', () => {
+    setup(createData([createSlot('Anna')]));
+    type('9');
+    show(createData([createSlot('Bea')]));
+    expect(heading()).toBe('Bea Frei');
+    expect(input()).not.toHaveFocus();
+  });
+
   it.each([
     ['', 'Bitte eine Note eintragen.'],
     ['92', 'Die Note muss zwischen 0 und 10 liegen.'],
@@ -301,6 +387,9 @@ describe('changes from elsewhere', () => {
     type('9.6');
     const saved = [createSlot('Anna', { grade: grade(9100) })];
     show(createData(saved, { currentRound: 1 }));
+    // At the starter, as it was being typed, and above what comes next.
+    expect(screen.getByText('Gespeichert ist 9.10. Deine Eingabe: 9.60.')).toBeVisible();
+    await click('Zurück');
     expect(heading()).toBe('Pause');
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent('Anna Frei: 9.60');
