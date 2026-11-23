@@ -1,5 +1,5 @@
 import { EllipsisVerticalIcon, FileTextIcon, PlusIcon, TrashIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data, Form, Link, redirect, useBlocker } from 'react-router';
 import { z } from 'zod';
@@ -309,6 +309,7 @@ function TemplateItem({
   const { t } = useTranslation(['pdf', 'common']);
   const { canEdit } = useCompetition();
   const { submit: post, pending } = useActionFetcher();
+  const isDuplicating = useRef(false);
   const { id, name, isDefault } = template;
 
   function submit(intent: string) {
@@ -351,13 +352,26 @@ function TemplateItem({
                 <EllipsisVerticalIcon aria-hidden />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent
+              align="end"
+              onCloseAutoFocus={(event) => {
+                // The cover of the copy gets the focus.
+                if (isDuplicating.current) event.preventDefault();
+                isDuplicating.current = false;
+              }}
+            >
               {!isDefault && (
                 <DropdownMenuItem onSelect={() => submit('setDefault')}>
                   {t('templates.setDefault')}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem disabled={!canDuplicate} onSelect={() => submit('duplicate')}>
+              <DropdownMenuItem
+                disabled={!canDuplicate}
+                onSelect={() => {
+                  isDuplicating.current = true;
+                  submit('duplicate');
+                }}
+              >
                 {canDuplicate ? t('templates.duplicate') : t('templates.duplicateSaveFirst')}
               </DropdownMenuItem>
             </DropdownMenuContent>
