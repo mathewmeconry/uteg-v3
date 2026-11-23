@@ -24,6 +24,7 @@ import {
 import type { Sex } from '~/generated/prisma/enums';
 
 type Group = { sex: Sex; category: string };
+type Template = { id: string; name: string; isDefault: boolean; isCoverBroken: boolean };
 
 // Select items need a value.
 const BUILT_IN = 'default';
@@ -44,7 +45,7 @@ export function RankingExport({
   groups: Group[];
   current: Group;
   provisional: boolean;
-  templates: { id: string; name: string; isDefault: boolean }[];
+  templates: Template[];
 }) {
   const { t } = useTranslation(['ranking', 'pdf', 'common']);
   const [open, setOpen] = useState(false);
@@ -133,11 +134,8 @@ export function RankingExport({
   );
 }
 
-function TemplateSelect({
-  templates,
-}: {
-  templates: { id: string; name: string; isDefault: boolean }[];
-}) {
+function TemplateSelect({ templates }: { templates: Template[] }) {
+  const { t } = useTranslation('pdf');
   const [value, setValue] = useState(templates.find(({ isDefault }) => isDefault)?.id ?? BUILT_IN);
   return (
     <>
@@ -154,6 +152,11 @@ function TemplateSelect({
           ))}
         </SelectContent>
       </Select>
+      {templates.find(({ id }) => id === value)?.isCoverBroken && (
+        <p role="alert" className="text-sm text-destructive">
+          {t('cover.broken')}
+        </p>
+      )}
     </>
   );
 }

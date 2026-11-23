@@ -3,12 +3,13 @@ import type { Role } from '~/generated/prisma/client';
 import { rankingTemplateSchema } from '~/lib/domain/rankingTemplate';
 import { createRankingTemplate, listRankingTemplates } from '~/lib/rankingTemplates.server';
 import { createCompetition, createDivision, truncateTables } from '~/tests/helpers';
-import { createCoverPdf } from '~/tests/pdf';
+import { createJpeg } from '~/tests/images';
 import { callRoute } from '~/tests/routes';
 import { action, loader } from './templates';
 
 beforeEach(truncateTables);
 
+const PAGE = new Blob([createJpeg()]);
 const INTENTS = ['save', 'duplicate', 'setDefault', 'delete', 'cover', 'removeCover'];
 const OPTIONS = rankingTemplateSchema.parse({ title: 'Titel' });
 
@@ -145,29 +146,37 @@ describe('action', () => {
   it('uploads and removes a cover', async () => {
     const { id } = await createCompetition();
     const { id: templateId } = await create(id, 'A');
-    const upload = (cover: string | Blob) => post(id, { intent: 'cover', id: templateId, cover });
+    const upload = (...pages: (string | Blob)[]) =>
+      callRoute(action, {
+        competitionId: id,
+        role: 'EDITOR',
+        form: [
+          ['intent', 'cover'],
+          ['id', templateId],
+          ...pages.map((page): [string, string | Blob] => ['page', page]),
+        ],
+      });
+    const count = async () => (await listRankingTemplates(id))[0].coverPages.length;
 
-    const pdf = await createCoverPdf(['Titel']);
-    expect(await upload(new Blob([pdf]))).toEqual({ errors: undefined });
-    expect(await listRankingTemplates(id)).toMatchObject([{ coverId: expect.any(String) }]);
+    expect(await upload(PAGE, PAGE)).toEqual({ errors: undefined });
+    expect(await count()).toBe(2);
 
     for (const file of ['text', new Blob([]), new Blob(['%PDF-broken']), new Blob(['GIF89a'])]) {
       const { init, data } = await upload(file);
       expect(init.status).toBe(400);
       expect(Object.keys(data.errors)).toEqual(['cover']);
     }
-    expect(await listRankingTemplates(id)).toMatchObject([{ coverId: expect.any(String) }]);
+    expect(await count()).toBe(2);
 
     await post(id, { intent: 'removeCover', id: templateId });
-    expect(await listRankingTemplates(id)).toMatchObject([{ coverId: null }]);
+    expect(await count()).toBe(0);
   });
 
   it('denies viewers and strangers', async () => {
     const { id } = await createCompetition();
     const { id: templateId } = await create(id, 'A');
-    const cover = new Blob([await createCoverPdf(['Titel'])]);
     for (const intent of INTENTS) {
-      const fields = { intent, id: templateId, name: 'X', options: '{}', cover };
+      const fields = { intent, id: templateId, name: 'X', options: '{}', page: PAGE };
       expect((await post(id, fields, { role: 'VIEWER' })).status).toBe(403);
       const stranger = await callRoute(action, {
         competitionId: id,
@@ -182,9 +191,8 @@ describe('action', () => {
     const { id } = await createCompetition();
     const other = await createCompetition();
     const { id: templateId } = await create(other.id, 'A');
-    const cover = new Blob([await createCoverPdf(['Titel'])]);
     for (const intent of INTENTS) {
-      const fields = { intent, id: templateId, name: 'X', options: '{}', cover };
+      const fields = { intent, id: templateId, name: 'X', options: '{}', page: PAGE };
       expect((await post(id, fields)).status).toBe(404);
     }
     expect(await list(other.id)).toEqual([['A', true]]);

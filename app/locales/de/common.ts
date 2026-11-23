@@ -140,7 +140,6 @@ export default {
     CONFIG_CHANGED: 'Jemand anderes hat die Einstellungen inzwischen geändert. Lade sie neu.',
     COVER_ENCRYPTED: 'Das PDF ist mit einem Passwort geschützt. Speichere es ohne Schutz.',
     COVER_TOO_MANY_PAGES: 'Das PDF darf höchstens 4 Seiten haben.',
-    COVER_TOO_MANY_PIXELS: 'Das Bild darf höchstens 36 Megapixel haben.',
     DIVISION_MISMATCH: 'Die Abteilung passt nicht zu Kategorie oder Geschlecht.',
     DIVISION_NOT_ENDED: 'Es sind noch nicht alle Abteilungen beendet.',
     DIVISION_NOT_RUNNING: 'Die Abteilung läuft nicht.',

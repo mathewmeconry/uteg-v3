@@ -59,7 +59,7 @@ describe('stored options that are no longer valid', () => {
     });
     const options = { ...defaultRankingTemplate, ...expected };
     expect(await listRankingTemplates(id)).toMatchObject([{ name: 'A', options }]);
-    expect(await getRankingTemplate(id, null)).toEqual({ options, cover: null });
+    expect(await getRankingTemplate(id, null)).toEqual({ options, cover: [] });
   });
 });
 
@@ -68,7 +68,7 @@ describe('ranking templates', () => {
     const { id } = await createCompetition();
     expect(await getRankingTemplate(id, null)).toEqual({
       options: defaultRankingTemplate,
-      cover: null,
+      cover: [],
     });
   });
 

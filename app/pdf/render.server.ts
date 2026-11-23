@@ -2,10 +2,7 @@ import { resolve as resolvePath } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import bold from './fonts/Roboto-Bold.ttf?inline';
 import regular from './fonts/Roboto-Regular.ttf?inline';
-import { DomainError } from '~/lib/errors';
 import type { PdfJob, PdfResult } from './worker';
-
-type PdfOutput = Extract<PdfResult, { pdf: Uint8Array }>;
 
 /** The PDF takes too long, or too many are being rendered. */
 export class PdfUnavailableError extends Error {
@@ -15,7 +12,7 @@ export class PdfUnavailableError extends Error {
 type Task = {
   job: PdfJob;
   worker?: Worker;
-  succeed: (output: PdfOutput) => void;
+  succeed: (pdf: Uint8Array) => void;
   fail: (error: unknown) => void;
 };
 
@@ -27,27 +24,23 @@ const idle: Worker[] = [];
 const queue: Task[] = [];
 let running = 0;
 
-export async function renderPdf(...args: Parameters<typeof runPdfJob>) {
-  return (await runPdfJob(...args)).pdf;
-}
-
 /**
- * Runs in worker threads, because it takes up to seconds and would block everyone else. Ends a
+ * Renders in worker threads, because it takes up to seconds and would block everyone else. Ends a
  * worker that takes too long or whose request was aborted.
  */
-export function runPdfJob(
+export function renderPdf(
   job: PdfJob,
   { signal, timeoutMs = TIMEOUT_MS }: { signal?: AbortSignal; timeoutMs?: number } = {},
-): Promise<PdfOutput> {
+): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(signal.reason);
     if (queue.length >= MAX_QUEUE) return reject(new PdfUnavailableError('Queue is full'));
 
     const task: Task = {
       job,
-      succeed(output) {
+      succeed(pdf) {
         settle();
-        resolve(output);
+        resolve(pdf);
       },
       fail(error) {
         settle();
@@ -112,8 +105,7 @@ function start(task: Task) {
     // In development the next one gets the current code.
     if (import.meta.env.MODE === 'development') void worker.terminate();
     else idle.push(worker);
-    if ('pdf' in result) task.succeed(result);
-    else if ('coverError' in result) task.fail(new DomainError(result.coverError));
+    if ('pdf' in result) task.succeed(result.pdf);
     else task.fail(new Error(result.error));
     finish();
   }
@@ -136,6 +128,8 @@ function createWorker() {
     {
       workerData: { regular, bold },
       execArgv: import.meta.env.PROD ? [] : ['--import', 'tsx'],
+      // Only limits the JavaScript heap. Buffers, e.g. of decompressed images, are not included, so
+      // images are checked before, see png.server.ts and domain/jpeg.ts.
       resourceLimits: { maxOldGenerationSizeMb: 512 },
     },
   );

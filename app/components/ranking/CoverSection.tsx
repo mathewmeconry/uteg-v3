@@ -1,13 +1,15 @@
-import { FileCheckIcon } from 'lucide-react';
+import { LoaderCircleIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useFetcher } from 'react-router';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { FormField } from '~/components/FormField';
-import { SubmitButton } from '~/components/SubmitButton';
 import { Button } from '~/components/ui/button';
+import { useActionFetcher } from '~/hooks/useActionFetcher';
 import { MAX_COVER_PAGES } from '~/lib/domain/cover';
 import type { RankingTemplateOptions } from '~/lib/domain/rankingTemplate';
 import { Section, SelectField } from './TemplateFields';
+
+type Template = { id: string; coverPages: string[]; isCoverBroken: boolean };
 
 /** Uploads are saved at once, unlike the options. */
 export function CoverSection({
@@ -15,68 +17,115 @@ export function CoverSection({
   options,
   onChange,
 }: {
-  template: { id: string; coverId: string | null } | undefined;
+  template: Template | undefined;
   options: RankingTemplateOptions;
   onChange: (options: RankingTemplateOptions) => void;
 }) {
   const { t } = useTranslation(['pdf', 'common']);
-  const fetcher = useFetcher<{ errors?: { cover?: string } }>();
-
-  if (!template) {
-    return (
-      <Section title={t('cover.title')}>
-        <p className="text-sm text-muted-foreground">{t('cover.saveFirst')}</p>
-      </Section>
-    );
-  }
   return (
     <Section title={t('cover.title')}>
-      {template.coverId && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="flex items-center gap-2">
-            <FileCheckIcon aria-hidden className="size-5 text-success" />
-            {t('cover.exists')}
-          </p>
+      {template ? (
+        <Cover template={template} options={options} onChange={onChange} />
+      ) : (
+        <p className="text-sm text-muted-foreground">{t('cover.saveFirst')}</p>
+      )}
+    </Section>
+  );
+}
+
+function Cover({
+  template: { id, coverPages, isCoverBroken },
+  options,
+  onChange,
+}: {
+  template: Template;
+  options: RankingTemplateOptions;
+  onChange: (options: RankingTemplateOptions) => void;
+}) {
+  const { t } = useTranslation(['pdf', 'common']);
+  const { submit, pending, errors } = useActionFetcher();
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [fileError, setFileError] = useState<string>();
+  const isBusy = isDrawing || pending;
+
+  async function upload(file: File) {
+    setFileError(undefined);
+    setIsDrawing(true);
+    try {
+      // Only in the browser, and large.
+      const { createCoverPages, CoverFileError } = await import('./coverPages.client');
+      const formData = new FormData();
+      formData.set('intent', 'cover');
+      formData.set('id', id);
+      try {
+        for (const page of await createCoverPages(file)) formData.append('page', page, 'page.jpg');
+      } catch (error) {
+        if (!(error instanceof CoverFileError)) throw error;
+        setFileError(t(`common:domainErrors.${error.code}`));
+        return;
+      }
+      void submit(formData, { method: 'post', encType: 'multipart/form-data' });
+    } catch {
+      setFileError(t('common:errors.connection'));
+    } finally {
+      setIsDrawing(false);
+    }
+  }
+
+  return (
+    <>
+      {coverPages.length > 0 && (
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <ul className="flex flex-wrap gap-2">
+            {coverPages.map((assetId, index) => (
+              <li key={assetId}>
+                <img
+                  src={`/api/assets/${assetId}`}
+                  alt={t('cover.page', { number: index + 1 })}
+                  className="h-32 max-w-full rounded-sm border bg-white object-contain"
+                />
+              </li>
+            ))}
+          </ul>
           <ConfirmDialog
             destructive
             title={t('cover.removeTitle')}
             confirmLabel={t('common:actions.remove')}
-            fields={{ intent: 'removeCover', id: template.id }}
+            fields={{ intent: 'removeCover', id }}
             trigger={
-              <Button type="button" variant="outline">
+              <Button type="button" variant="outline" disabled={isBusy}>
                 {t('common:actions.remove')}
               </Button>
             }
           />
         </div>
       )}
-      <fetcher.Form
-        // Empties the file input after an upload.
-        key={template.coverId}
-        method="post"
-        encType="multipart/form-data"
-        className="grid gap-3"
-      >
-        <input type="hidden" name="intent" value="cover" />
-        <input type="hidden" name="id" value={template.id} />
-        <FormField
-          label={template.coverId ? t('cover.replace') : t('cover.file')}
-          hint={t('cover.hint', { count: MAX_COVER_PAGES })}
-          error={fetcher.data?.errors?.cover}
-          name="cover"
-          type="file"
-          accept="application/pdf,image/png,image/jpeg"
-          required
-        />
-        <SubmitButton
-          variant="outline"
-          className="justify-self-start"
-          pending={fetcher.state !== 'idle'}
-        >
-          {t('common:actions.upload')}
-        </SubmitButton>
-      </fetcher.Form>
-      {template.coverId && options.newPagePerCategory && (
+      {isCoverBroken && (
+        <p role="alert" className="text-sm text-destructive">
+          {t('cover.broken')}
+        </p>
+      )}
+      <FormField
+        label={coverPages.length > 0 ? t('cover.replace') : t('cover.file')}
+        hint={t('cover.hint', { count: MAX_COVER_PAGES })}
+        error={fileError ?? (isBusy ? undefined : errors?.cover)}
+        type="file"
+        accept="application/pdf,image/png,image/jpeg"
+        disabled={isBusy}
+        onChange={(event) => {
+          const [file] = event.target.files ?? [];
+          // The same file can be picked again.
+          event.target.value = '';
+          if (file) void upload(file);
+        }}
+      />
+      {isBusy && (
+        <p role="status" className="flex items-center gap-2 text-sm">
+          <LoaderCircleIcon aria-hidden className="size-4 animate-spin" />
+          {t('common:saving')}
+        </p>
+      )}
+      {coverPages.length > 0 && options.newPagePerCategory && (
         <SelectField
           label={t('cover.position')}
           value={options.cover}
@@ -87,6 +136,6 @@ export function CoverSection({
           onChange={(cover) => onChange({ ...options, cover })}
         />
       )}
-    </Section>
+    </>
   );
 }

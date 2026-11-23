@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Prisma } from '~/generated/prisma/client';
+import { cleanJpeg } from './domain/jpeg';
 import {
   defaultRankingTemplate,
   parseStoredTemplate,
@@ -20,11 +21,14 @@ type TemplateInput = z.input<typeof inputSchema>;
 export async function listRankingTemplates(competitionId: string) {
   const templates = await prisma.rankingTemplate.findMany({
     where: { competitionId },
+    include: { coverPages: { orderBy: { position: 'asc' }, select: { id: true } } },
     orderBy: { name: 'asc' },
   });
-  return templates.map((template) => ({
+  return templates.map(({ coverPages, ...template }) => ({
     ...template,
     options: parseStoredTemplate(template.options),
+    /** The ids of the assets. */
+    coverPages: coverPages.map(({ id }) => id),
   }));
 }
 
@@ -32,12 +36,13 @@ export async function listRankingTemplates(competitionId: string) {
 export async function getRankingTemplate(competitionId: string, templateId: string | null) {
   const template = await prisma.rankingTemplate.findFirst({
     where: { competitionId, ...(templateId ? { id: templateId } : { isDefault: true }) },
-    include: { cover: true },
+    include: { coverPages: { orderBy: { position: 'asc' } } },
   });
   if (templateId && !template) throw new DomainError('NOT_FOUND');
   return {
     options: template ? parseStoredTemplate(template.options) : defaultRankingTemplate,
-    cover: template?.cover?.data ?? null,
+    // Never hands the PDF worker something else, whatever is stored.
+    cover: (template?.coverPages ?? []).flatMap(({ data }) => cleanJpeg(data) ?? []),
   };
 }
 
@@ -52,10 +57,17 @@ export async function duplicateRankingTemplate(
   await prisma.rankingTemplate.create({
     data: {
       ...input,
-      competition: { connect: { id: competitionId } },
-      cover: cover
-        ? { create: { competitionId, mimeType: 'application/pdf', data: cover } }
-        : undefined,
+      competitionId,
+      coverPages: {
+        createMany: {
+          data: cover.map(({ data }, position) => ({
+            competitionId,
+            position,
+            mimeType: 'image/jpeg',
+            data,
+          })),
+        },
+      },
     },
   });
   publish(competitionId, 'settings');
@@ -98,9 +110,8 @@ export async function setDefaultRankingTemplate(competitionId: string, templateI
 export async function deleteRankingTemplate(competitionId: string, templateId: string) {
   await prisma.$transaction(async (tx) => {
     await lockCompetition(tx, competitionId);
-    const { isDefault, coverId } = await getTemplate(tx, competitionId, templateId);
+    const { isDefault } = await getTemplate(tx, competitionId, templateId);
     await tx.rankingTemplate.delete({ where: { id: templateId } });
-    if (coverId) await tx.asset.delete({ where: { id: coverId }, select: { id: true } });
     const next = await tx.rankingTemplate.findFirst({
       where: { competitionId },
       orderBy: { id: 'asc' },

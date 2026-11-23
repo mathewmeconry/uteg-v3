@@ -7,11 +7,10 @@ import { prisma } from '~/lib/prisma.server';
 export async function loader({ request, params: { assetId }, context }: Route.LoaderArgs) {
   const asset = await prisma.asset.findUnique({
     where: { id: assetId },
-    select: { competitionId: true, mimeType: true },
+    select: { competitionId: true },
   });
   if (
-    // Uploaded PDFs are never served from our origin, only as part of rankings.
-    !asset?.mimeType.startsWith('image/') ||
+    !asset ||
     !(
       (await isMember(context.get(userContext)?.id, asset.competitionId)) ||
       (await hasAccessToCompetition(request, asset.competitionId))

@@ -19,6 +19,7 @@ import type { Sex } from '~/generated/prisma/enums';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { patchContestConfig } from '~/lib/contests.server';
+import { findBrokenCovers } from '~/lib/covers.server';
 import { getHonourQuota } from '~/lib/domain/ranking';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { parseForm, readForm } from '~/lib/forms.server';
@@ -49,7 +50,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     [...groups, ...started].find((group) => group.sex === sex)?.category ??
     categories[0];
 
-  const [ranking, templates] = await Promise.all([
+  const [brokenCovers, ranking, templates] = await Promise.all([
+    findBrokenCovers(competition.id),
     getRanking(competition.id, contestId, { category, sex, provisional }),
     listRankingTemplates(competition.id),
   ]);
@@ -62,7 +64,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     groups,
     ranking,
     quota: getHonourQuota(ranking.entries.length, ranking.options),
-    templates: templates.map(({ id, name, isDefault }) => ({ id, name, isDefault })),
+    templates: templates.map(({ id, name, isDefault }) => ({
+      id,
+      name,
+      isDefault,
+      isCoverBroken: brokenCovers.has(id),
+    })),
   };
 }
 

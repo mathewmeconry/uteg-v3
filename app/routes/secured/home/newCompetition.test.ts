@@ -4,9 +4,10 @@ import { prisma } from '~/lib/prisma.server';
 import { egtModule } from '~/modules/egt/module';
 import { callRoute } from '~/tests/competitionRoutes';
 import { createUser, truncateTables } from '~/tests/helpers';
+import { createPng } from '~/tests/images';
 import { action } from './newCompetition';
 
-const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+const PNG = createPng();
 // 8000 pixels wide.
 const HUGE_JPEG = Uint8Array.from([0xff, 0xd8, 0xff, 0xc0, 0, 11, 8, 0, 50, 0x1f, 0x40, 1, 1, 1]);
 

@@ -1,6 +1,5 @@
-import { COVER_FAILED_HEADER } from '~/lib/domain/cover';
 import type { ServerT } from '~/locales';
-import { PdfUnavailableError, runPdfJob } from './render.server';
+import { PdfUnavailableError, renderPdf } from './render.server';
 import type { PdfJob } from './worker';
 
 /** Renders a document into a response that is shown in the browser. */
@@ -9,10 +8,9 @@ export async function pdfResponse(
   { name, signal, t }: { name: string; signal: AbortSignal; t: ServerT },
 ) {
   try {
-    const { pdf, coverFailed } = await runPdfJob(job, { signal });
+    const pdf = await renderPdf(job, { signal });
     return new Response(new Uint8Array(pdf), {
       headers: {
-        ...(coverFailed && { [COVER_FAILED_HEADER]: '1' }),
         'Content-Type': 'application/pdf',
         'Content-Disposition': contentDisposition(`${name}.pdf`),
         'Cache-Control': 'no-store',

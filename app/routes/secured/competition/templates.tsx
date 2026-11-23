@@ -1,7 +1,7 @@
 import { EllipsisVerticalIcon, FileTextIcon, PlusIcon, TrashIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { data, Form, Link, redirect, useBlocker, useFetcher } from 'react-router';
+import { data, Form, Link, redirect, useBlocker } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/templates';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
@@ -31,8 +31,9 @@ import {
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { competitionContext } from '~/context';
+import { useActionErrors, useActionFetcher } from '~/hooks/useActionFetcher';
 import { useCompetition } from '~/hooks/useCompetition';
-import { removeCover, setCover } from '~/lib/covers.server';
+import { findBrokenCovers, removeCover, setCover } from '~/lib/covers.server';
 import {
   defaultRankingTemplate,
   rankingTemplateSchema,
@@ -49,11 +50,11 @@ import {
   setDefaultRankingTemplate,
   updateRankingTemplate,
 } from '~/lib/rankingTemplates.server';
+import { safeClientAction } from '~/lib/safeClientAction';
 import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
-import { PdfUnavailableError } from '~/pdf/render.server';
 
 const NEW = 'new';
 const NAME_LENGTH = 100;
@@ -67,6 +68,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   if (fallback && selected !== NEW && !templates.some((template) => template.id === selected)) {
     throw redirect(`/competitions/${id}/templates?template=${fallback.id}`);
   }
+  const brokenCovers = await findBrokenCovers(id);
   const groups = await Promise.all(
     contests.map(async (contest) =>
       (await listRankingGroups(id, contest.id))
@@ -80,9 +82,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ),
   );
   return {
-    templates: templates.map(({ id: templateId, name, isDefault, options, coverId }) => ({
+    templates: templates.map(({ id: templateId, name, isDefault, options, coverPages }) => ({
       id: templateId,
-      coverId,
+      coverPages,
+      isCoverBroken: brokenCovers.has(templateId),
       name,
       isDefault,
       options,
@@ -154,18 +157,16 @@ export async function action({ request, context }: Route.ActionArgs) {
 
       case 'cover': {
         if (!templateId) throw data(null, 400);
-        const file = formData.get('cover');
-        if (!(file instanceof File) || file.size === 0) {
-          return data({ errors: { cover: t('errors.required') } as Record<string, string> }, 400);
-        }
+        const files = formData.getAll('page').filter((page) => page instanceof File);
         try {
-          const bytes = new Uint8Array(await file.arrayBuffer());
-          await setCover(id, templateId, bytes, request.signal);
+          const pages = await Promise.all(files.map((file) => file.arrayBuffer()));
+          await setCover(
+            id,
+            templateId,
+            pages.map((page) => new Uint8Array(page)),
+          );
         } catch (error) {
-          const message =
-            error instanceof PdfUnavailableError
-              ? t('pdf:unavailable')
-              : domainErrorMessage(error, t);
+          const message = domainErrorMessage(error, t);
           return data({ errors: { cover: message } as Record<string, string> }, 400);
         }
         enqueueToast(context, { type: 'success', message: t('pdf:cover.saved') });
@@ -195,12 +196,15 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
+export const clientAction = safeClientAction;
+
 type Template = Route.ComponentProps['loaderData']['templates'][number];
 
 export default function Templates({ loaderData, actionData }: Route.ComponentProps) {
   const { templates, selected, previewGroups } = loaderData;
   const { t } = useTranslation('pdf');
   const { canEdit } = useCompetition();
+  const errors = useActionErrors(actionData);
   const [discards, setDiscards] = useState(0);
   const template = templates.find(({ id }) => id === selected);
   const createButton = canEdit && (
@@ -246,7 +250,7 @@ export default function Templates({ loaderData, actionData }: Route.ComponentPro
           onDiscard={() => setDiscards((count) => count + 1)}
           template={template}
           previewGroups={previewGroups}
-          errors={actionData?.errors}
+          errors={errors}
         />
       )}
     </>
@@ -256,11 +260,11 @@ export default function Templates({ loaderData, actionData }: Route.ComponentPro
 function TemplateItem({ template, selected }: { template: Template; selected: boolean }) {
   const { t } = useTranslation(['pdf', 'common']);
   const { canEdit } = useCompetition();
-  const fetcher = useFetcher();
+  const { submit: post, pending } = useActionFetcher();
   const { id, name, isDefault } = template;
 
   function submit(intent: string) {
-    void fetcher.submit({ intent, id }, { method: 'post' });
+    void post({ intent, id }, { method: 'post' });
   }
 
   return (
@@ -293,7 +297,7 @@ function TemplateItem({ template, selected }: { template: Template; selected: bo
                 variant="ghost"
                 size="icon"
                 aria-label={t('templates.actionsFor', { name })}
-                disabled={fetcher.state !== 'idle'}
+                disabled={pending}
               >
                 <EllipsisVerticalIcon aria-hidden />
               </Button>
@@ -342,7 +346,7 @@ function TemplateEditor({
 }: {
   template: Template | undefined;
   previewGroups: PreviewGroup[];
-  errors: Record<string, string> | undefined;
+  errors: Record<string, string | undefined>;
   onDiscard: () => void;
 }) {
   const { t } = useTranslation(['pdf', 'common']);
@@ -372,7 +376,7 @@ function TemplateEditor({
             maxLength={NAME_LENGTH}
             value={name}
             onChange={(event) => setName(event.target.value)}
-            error={errors?.name}
+            error={errors.name}
           />
           <TemplateFields options={options} onChange={setOptions} />
           <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-3 border-t bg-background px-1 py-3">

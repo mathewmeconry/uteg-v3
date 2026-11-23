@@ -1,6 +1,8 @@
-import { Circle, Document, Page, Svg, Text, View } from '@react-pdf/renderer';
+import { Circle, Document, Image, Page, Svg, Text, View } from '@react-pdf/renderer';
+import { Fragment } from 'react';
 import type { Sex } from '~/generated/prisma/client';
 import { formatGrade } from '~/lib/domain/grade';
+import type { Jpeg } from '~/lib/domain/jpeg';
 import type { Award } from '~/lib/domain/ranking';
 import {
   fillPlaceholders,
@@ -55,10 +57,10 @@ export type RankingDocumentProps = {
   options: RankingTemplateOptions;
   competition: { name: string; location: string; date: string };
   logo: Logo | null;
+  /** Pages in front, which are not numbered. */
+  cover: Jpeg[];
   t: ServerT;
   language: string;
-  /** Called with the first page, counted from 1, of each part of the document. */
-  onStart?: (part: number, page: number) => void;
 };
 
 const MARGIN = 40;
@@ -66,7 +68,7 @@ const PAGE_WIDTH = { portrait: 595, landscape: 842 };
 const MEDAL_COLORS = { GOLD: '#d4a017', SILVER: '#9ca3af', BRONZE: '#b06a2c' };
 
 export function RankingDocument(props: RankingDocumentProps) {
-  const { groups, options, competition, t, language } = props;
+  const { groups, options, competition, cover, t, language } = props;
   const pages = options.newPagePerCategory ? groups.map((group) => [group]) : [groups];
 
   return (
@@ -75,19 +77,48 @@ export function RankingDocument(props: RankingDocumentProps) {
       creator="UTEG"
       language={language}
     >
-      {pages.map((pageGroups, index) => (
-        <RankingPage
-          key={groupKey(pageGroups[0])}
-          {...props}
-          groups={pageGroups}
-          onStart={(_, page) => props.onStart?.(index, page)}
-        />
-      ))}
+      {pages.map((pageGroups, index) => {
+        const hasCover = index === 0 || options.cover === 'eachCategory';
+        return (
+          <Fragment key={groupKey(pageGroups[0])}>
+            {hasCover && cover.map((page, position) => <CoverPage key={position} page={page} />)}
+            <RankingPage
+              {...props}
+              groups={pageGroups}
+              coversBefore={cover.length * (options.cover === 'once' ? 1 : index + 1)}
+              covers={cover.length * (options.cover === 'once' ? 1 : pages.length)}
+            />
+          </Fragment>
+        );
+      })}
     </Document>
   );
 }
 
-function RankingPage({ groups, options, competition, logo, t, onStart }: RankingDocumentProps) {
+/** Filled by the picture, without changing its proportions. */
+function CoverPage({ page: { data, width, height } }: { page: Jpeg }) {
+  return (
+    <Page size="A4" orientation={width > height ? 'landscape' : 'portrait'}>
+      <Image
+        // A worker would otherwise keep the pictures of many files.
+        cache={false}
+        src={{ data: Buffer.from(data), format: 'jpg' }}
+        // Absolute, so it cannot be a fraction too high for the page.
+        style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'contain' }}
+      />
+    </Page>
+  );
+}
+
+function RankingPage({
+  groups,
+  options,
+  competition,
+  logo,
+  t,
+  coversBefore,
+  covers,
+}: RankingDocumentProps & { coversBefore: number; covers: number }) {
   const fill = (pattern: string, filled = groups) =>
     fillPlaceholders(pattern, {
       category: [...new Set(filled.map(({ category }) => category))].join(', '),
@@ -124,12 +155,6 @@ function RankingPage({ groups, options, competition, logo, t, onStart }: Ranking
         )}
         {options.showDate && <Text style={{ marginTop: 3, color: MUTED }}>{competition.date}</Text>}
       </PageHead>
-      <View
-        render={({ pageNumber }) => {
-          onStart?.(0, pageNumber);
-          return null;
-        }}
-      />
       {groups.map((group) => (
         <RankingTable
           key={groupKey(group)}
@@ -171,7 +196,7 @@ function RankingPage({ groups, options, competition, logo, t, onStart }: Ranking
       >
         {footer}
       </Text>
-      {options.showPageNumbers && <PageNumber />}
+      {options.showPageNumbers && <PageNumber before={coversBefore} uncounted={covers} />}
     </Page>
   );
 }

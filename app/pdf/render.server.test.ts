@@ -9,7 +9,7 @@ import type { PdfJob } from './worker';
 
 const t = createI18n('de').getFixedT(null, NAMESPACES);
 
-function job(rows: number): Extract<PdfJob, { type: 'starters' }> {
+function job(rows: number): PdfJob {
   return {
     type: 'starters',
     language: 'de',
@@ -89,11 +89,8 @@ describe('renderPdf', () => {
   });
 
   it('survives a crashing worker', async () => {
-    vi.spyOn(Worker.prototype, 'postMessage').mockImplementationOnce(function (this: Worker) {
-      void this.terminate();
-    });
-    await expect(renderPdf(small)).rejects.toThrow(PdfUnavailableError);
-    vi.restoreAllMocks();
+    // Not a job, the worker fails outside of its error handling.
+    await expect(renderPdf(null as unknown as PdfJob)).rejects.toThrow(PdfUnavailableError);
     expect((await renderPdf(small)).length).toBeGreaterThan(0);
   });
 
@@ -157,11 +154,12 @@ describe('starter list', () => {
   it('keeps the club, the table header and the first row together', async () => {
     for (let rows = 34; rows < 48; rows++) {
       const first = job(rows);
-      const [club] = first.props.clubs;
-      const [other] = job(3).props.clubs;
+      const [club] = (first.props as { clubs: object[] }).clubs;
+      const second = { ...job(3), language: 'de' } as PdfJob;
+      const [other] = (second.props as { clubs: any[] }).clubs;
       const clubs = [club, { ...other, id: 'b', name: 'Getu Zug' }];
       const pages = await readPdf(
-        await renderPdf({ ...first, props: { competitionName: 'X', clubs } }),
+        await renderPdf({ ...first, props: { competitionName: 'X', clubs } } as PdfJob),
       );
       const page = pages.find(({ text }) => text.includes('Getu Zug'))!;
       expect(page.text, `${rows} rows`).toMatch(/Getu Zug.*Startgerät.*Frei0/);

@@ -29,6 +29,7 @@ async function render(
       options: rankingTemplateSchema.parse(options),
       competition: COMPETITION,
       logo: null,
+      cover: [],
       ...props,
     },
   });
@@ -270,7 +271,7 @@ describe('ranking PDF', () => {
         await renderPdf({
           type: 'ranking',
           language: 'de',
-          props: { groups: createSampleGroups(), options, competition, logo: PNG },
+          props: { groups: createSampleGroups(), options, competition, logo: PNG, cover: [] },
         }),
       );
       expect(pages.length).toBeLessThan(6);

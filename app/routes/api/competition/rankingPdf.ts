@@ -52,7 +52,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     options: options.data,
     cover: templateId
       ? (await orNotFound(getRankingTemplate(competition.id, templateId))).cover
-      : null,
+      : [],
     signal: request.signal,
     t: getT(context),
     language: context.get(languageContext),

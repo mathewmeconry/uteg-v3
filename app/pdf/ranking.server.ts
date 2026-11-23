@@ -1,5 +1,6 @@
 import type { Sex } from '~/generated/prisma/client';
-import { getLogo } from '~/lib/assets.server';
+import { getPdfLogo } from '~/lib/assets.server';
+import type { Jpeg } from '~/lib/domain/jpeg';
 import type { RankingTemplateOptions } from '~/lib/domain/rankingTemplate';
 import { formatDateRange } from '~/lib/format';
 import { getRanking } from '~/lib/ranking.server';
@@ -47,20 +48,20 @@ export async function rankingPdfResponse({
   competition: Competition;
   groups: RankingGroup[];
   options: RankingTemplateOptions;
-  cover: Uint8Array | null;
+  cover: Jpeg[];
   signal: AbortSignal;
   t: ServerT;
   language: Language;
 }) {
-  const logo = options.showLogo ? await getLogo(competition.id) : null;
+  const logo = options.showLogo ? await getPdfLogo(competition.id) : null;
   const { name, location, startDate, endDate } = competition;
   const labels = groups.map(({ category, sex }) => `${category} ${t(`pdf:sex.${sex}`)}`);
   return pdfResponse(
     {
       type: 'ranking',
       language,
-      cover,
       props: {
+        cover,
         groups,
         options,
         competition: { name, location, date: formatDateRange(startDate, endDate, language) },

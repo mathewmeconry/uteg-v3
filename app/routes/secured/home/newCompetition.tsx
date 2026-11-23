@@ -43,7 +43,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     : t('errors.invalid');
   if (membersError) errors.members = membersError;
   try {
-    if (logo) checkLogo(logo);
+    if (logo) await checkLogo(logo);
   } catch (error) {
     errors.logo = domainErrorMessage(error, t);
   }
