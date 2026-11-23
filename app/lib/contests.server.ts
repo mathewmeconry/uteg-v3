@@ -70,8 +70,11 @@ export async function createContestFromRanking(
     if (!module.categories(sex).includes(targetCategory)) throw new DomainError('INVALID_CATEGORY');
     for (const category of sourceCategories) {
       const ranking = await getRanking(competitionId, sourceContestId, { category, sex });
-      // Someone still competing could qualify.
-      if (ranking.hasRunning) throw new DomainError('DIVISION_RUNNING');
+      // Someone still to compete could qualify.
+      const pending = await prisma.division.count({
+        where: { contestId: sourceContestId, category, sex, state: { not: 'ENDED' } },
+      });
+      if (pending > 0) throw new DomainError('DIVISION_NOT_ENDED');
       for (const { starterId } of selectQualifiers(ranking.entries, topN)) {
         if (!categories.has(starterId)) categories.set(starterId, targetCategory);
       }

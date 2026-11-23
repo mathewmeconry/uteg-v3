@@ -7,6 +7,8 @@ import {
   truncateTables,
 } from '~/tests/helpers';
 import { subscribe } from './events.server';
+import { confirmRound, saveGrades } from './judging.server';
+import { lockAthletes } from './locks.server';
 import { prisma } from './prisma.server';
 import { getRanking } from './ranking.server';
 import {
@@ -104,8 +106,47 @@ describe('createStarter', () => {
       return x.athleteId === y.athleteId;
     }
 
-    it('takes the owner of the STV-ID, whatever the name', async () => {
-      expect(await match({ stvId: '1' }, { stvId: ' 1 ', firstname: 'Änni' })).toBe(true);
+    it.each([
+      {},
+      { firstname: 'ANNA', lastname: 'Married' },
+      { lastname: 'muster', birthYear: 2011 },
+    ])('takes the owner of the STV-ID for %j', async (data) => {
+      expect(await match({ stvId: '1' }, { stvId: ' 1 ', ...data })).toBe(true);
+    });
+
+    it.each([{ firstname: 'Beat' }, { sex: 'MALE' }, { lastname: 'Married', birthYear: 2011 }])(
+      'rejects the STV-ID of somebody else (%j)',
+      async (data) => {
+        await (await setup()).add({ stvId: '1' });
+        const { id, add } = await setup();
+        expect(await errorCode(add({ stvId: '1', ...data }))).toBe('STV_ID_CONFLICT');
+        expect(await listStarters(id)).toEqual([]);
+        expect(await athletes()).toMatchObject([ANNA]);
+      },
+    );
+
+    it('does not hand the grades of a removed starter to somebody else', async () => {
+      const { id, contestId, add } = await setup();
+      const division = await createDivision(contestId, { state: 'ENDED' });
+      const removed = await createTestStarter(id, {
+        stvId: '1',
+        firstname: 'Xenia',
+        divisionId: division.id,
+        lineupId: division.lineup('reck'),
+        grades: { reck: 9000 },
+      });
+      await withdrawStarters(id, [removed.id]);
+      const typo = add({ stvId: '1', entries: [{ contestId, category: 'K5' }] });
+      expect(await errorCode(typo)).toBe('STV_ID_CONFLICT');
+      const ranking = await getRanking(id, contestId, { category: 'K5', sex: 'FEMALE' });
+      expect(ranking.entries).toEqual([]);
+    });
+
+    it('takes a picked athlete with its STV-ID, whatever the name', async () => {
+      await (await setup()).add({ stvId: '1' });
+      const [{ id: athleteId }] = await athletes();
+      await (await setup()).add({ athleteId, stvId: '1', firstname: 'Änni', birthYear: 2011 });
+      expect(await athletes()).toHaveLength(1);
     });
 
     it('takes the same name in any case, birth year and sex', async () => {
@@ -197,7 +238,8 @@ describe('createStarter', () => {
         updateStarter(one.id, id, { stvId: '1' }),
         two.add({ stvId: '1', firstname: 'Bea' }),
       ]);
-      expect(results.map(({ status }) => status)).toEqual(['fulfilled', 'fulfilled']);
+      const failures = results.filter((result) => result.status === 'rejected');
+      expect(failures).toMatchObject([{ reason: { code: 'STV_ID_CONFLICT' } }]);
       expect(await prisma.athlete.count({ where: { stvId: '1' } })).toBe(1);
     });
   });
@@ -247,12 +289,12 @@ describe('createStarter', () => {
     await withdrawStarters(id, [starterId]);
     expect(await listStarters(id)).toEqual([]);
 
-    expect(await add({ stvId: '1', firstname: 'Änni' })).toEqual({
+    expect(await add({ stvId: '1', lastname: 'Married' })).toEqual({
       starterId,
       outcome: 'restored',
     });
     expect(await getStarter(id, starterId)).toMatchObject({
-      firstname: 'Änni',
+      lastname: 'Married',
       differsFromAthlete: true,
       entries: [{ withdrawnAt: null, lineupId: division.lineup('reck') }],
     });
@@ -266,7 +308,8 @@ describe('createStarter', () => {
       entries: [{ contestId, category: 'K5', divisionId: division.id }],
     });
     await withdrawStarters(id, [starterId]);
-    await add({ stvId: '1', sex: 'MALE' });
+    const [{ id: athleteId }] = await athletes();
+    await add({ athleteId, sex: 'MALE' });
     expect(await getStarter(id, starterId)).toMatchObject({
       entries: [{ category: 'K5', divisionId: null }],
     });
@@ -399,19 +442,50 @@ describe('updateStarter', () => {
 
     it('moves to the owner of the STV-ID', async () => {
       const { edit, stvIds } = await shared('1');
-      await (await setup()).add({ firstname: 'Owner', stvId: '5' });
+      await (await setup()).add({ lastname: 'Married', stvId: '5' });
       await edit('5');
       expect(await stvIds()).toEqual(['5', '1']);
       expect(await athletes()).toHaveLength(2);
     });
 
-    it('rejects an owner that already starts here, also a removed one', async () => {
+    it('rejects an owner that is somebody else and never changes it', async () => {
+      const { edit, stvIds } = await shared('1');
+      await (await setup()).add({ firstname: 'Beat', sex: 'MALE', stvId: '5' });
+      expect(await errorCode(edit('5', { updateAthlete: true }))).toBe('STV_ID_CONFLICT');
+      expect(await stvIds()).toEqual(['1', '1']);
+      expect(await athletes()).toMatchObject([
+        { firstname: 'Anna' },
+        { firstname: 'Beat', sex: 'MALE', stvId: '5' },
+      ]);
+    });
+
+    it('compares the owner with the edited values', async () => {
+      const { edit, stvIds } = await shared('1');
+      await (await setup()).add({ firstname: 'Bea', stvId: '5' });
+      await edit('5', { firstname: 'Bea' });
+      expect(await stvIds()).toEqual(['5', '1']);
+    });
+
+    it('rejects an owner that already starts here and tells when it was removed', async () => {
       const { here, edit, stvIds } = await shared('1');
-      const owner = await here.add({ firstname: 'Owner', stvId: '5' });
+      const owner = await here.add({ lastname: 'Married', stvId: '5' });
       expect(await errorCode(edit('5'))).toBe('ATHLETE_ALREADY_STARTS');
       await withdrawStarters(here.id, [owner.starterId]);
-      expect(await errorCode(edit('5'))).toBe('ATHLETE_ALREADY_STARTS');
+      expect(await errorCode(edit('5'))).toBe('STARTER_REMOVED');
       expect(await stvIds()).toEqual(['1', '1']);
+    });
+
+    it('only takes turns on the athletes when it changes them', async () => {
+      const { here, starterId, edit } = await shared('1');
+      const division = await createDivision(here.contestId);
+      const entry = await prisma.entry.create({
+        data: { contestId: here.contestId, starterId, category: 'K5' },
+      });
+      await prisma.$transaction(async (tx) => {
+        await lockAthletes(tx);
+        await edit('1', { firstname: 'Änni' });
+        await assignEntries(here.id, [{ entryIds: [entry.id], divisionId: division.id }]);
+      });
     });
 
     it('does not clear it on a shared athlete', async () => {
@@ -737,9 +811,80 @@ describe('importStarters', () => {
     expect(await errorCode(noClub)).toBe('NOT_FOUND');
   });
 
-  it('handles a large file', async () => {
-    const { run } = await setupImport();
-    const rows = Array.from({ length: 300 }, (_, i) => ({ firstname: `A${i}`, category: 'K5' }));
-    expect(await run(rows)).toMatchObject({ created: 300 });
+  it('reports rows the database could not store', async () => {
+    const { id, run } = await setupImport();
+    const result = await run([
+      { category: 'K5', divisionNumber: 79012345678 },
+      { divisionNumber: 1.5 },
+      { firstname: 'A\0b' },
+      { category: 'K\0' },
+      { athleteId: 'a\0' },
+      { stvId: '1\0' },
+      { firstname: 'Bea' },
+    ]);
+    expect(result.failures).toEqual(
+      [0, 1, 2, 3, 4, 5].map((index) => ({ index, code: 'INVALID_INPUT' })),
+    );
+    expect((await listStarters(id)).map(({ firstname }) => firstname)).toEqual(['Bea']);
   });
+
+  it('reports an STV-ID of somebody else', async () => {
+    const { id, club, contestId, run } = await setupImport();
+    const beat = await createTestStarter(id, { stvId: '1', firstname: 'Beat', sex: 'MALE' });
+    const result = await run([{ stvId: '1', category: 'K2' }, { firstname: 'Bea' }]);
+    expect(result).toMatchObject({
+      created: 1,
+      failures: [{ index: 0, code: 'STV_ID_CONFLICT' }],
+    });
+    expect(await getStarter(id, beat.id)).toMatchObject({
+      clubId: beat.clubId,
+      entries: [{ contestId, category: 'K5' }],
+    });
+    expect(club.id).not.toBe(beat.clubId);
+  });
+
+  it('handles a large file with the index of every failure', async () => {
+    const { run } = await setupImport();
+    const rows = Array.from({ length: 300 }, (_, i) => ({
+      firstname: i === 270 ? '' : `A${i}`,
+      category: 'K5',
+    }));
+    expect(await run(rows)).toEqual({
+      created: 299,
+      restored: 0,
+      existing: 0,
+      failures: [{ index: 270, code: 'INVALID_INPUT' }],
+    });
+  });
+
+  it('does not hold up judges and other competitions', async () => {
+    const { id, contestId, run } = await setupImport();
+    const other = await setup();
+    const division = await createDivision(contestId, { state: 'RUNNING' });
+    const starter = await createTestStarter(id, {
+      divisionId: division.id,
+      lineupId: division.lineup('reck'),
+    });
+    const rows = Array.from({ length: 800 }, (_, i) => ({ firstname: `A${i}`, category: 'K5' }));
+    let isImporting = true;
+    const job = run(rows).finally(() => (isImporting = false));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    const judge = { kind: 'judge', ground: 1, apparatus: 'reck' } as const;
+    await Promise.all([
+      other.add(),
+      saveGrades(id, [{ entryId: starter.entry.id, apparatus: 'reck', value: 9000 }], judge).then(
+        () =>
+          confirmRound(id, {
+            ground: 1,
+            apparatus: 'reck',
+            round: 0,
+            divisionIds: [division.id],
+          }),
+      ),
+      ...Array.from({ length: 8 }, (_, index) => other.add({ firstname: `B${index}` })),
+    ]);
+    expect(isImporting).toBe(true);
+    expect(await job).toMatchObject({ created: 800 });
+  }, 60_000);
 });

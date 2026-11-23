@@ -37,7 +37,9 @@ export async function getDivisionLineups(competitionId: string, divisionId: stri
 
 /**
  * Moves entries of the division into a lineup, in this order: before the entry `beforeId`, or to
- * the end. Not the whole order, so that several people can arrange the same lineup.
+ * the end. Not the whole order, so that several people can arrange the same lineup. Also while it
+ * runs, e.g. for somebody who came late: what they miss on an apparatus that has already passed is
+ * asked for when the division ends, see confirmRound.
  */
 export async function moveEntriesToLineup(
   competitionId: string,

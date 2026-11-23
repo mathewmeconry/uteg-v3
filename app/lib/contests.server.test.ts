@@ -173,8 +173,26 @@ describe('createContestFromRanking', () => {
     expect(await create({ targetCategory: 'K5' })).toBe('INVALID_CATEGORY');
     expect(await create({ module: 'nope' })).toBe('INVALID_CONFIG');
     await prisma.division.update({ where: { id: division.id }, data: { state: 'RUNNING' } });
-    expect(await create()).toBe('DIVISION_RUNNING');
+    expect(await create()).toBe('DIVISION_NOT_ENDED');
     expect(await prisma.contest.count()).toBe(1);
+  });
+
+  it('rejects a source with a division that has not started', async () => {
+    const { competition } = await createRanked();
+    const pending = await createDivision(competition.contest.id, { number: 2 });
+    const create = () =>
+      errorCode(
+        createContestFromRanking(competition.id, competition.contest.id, {
+          module: 'test-final',
+          name: 'Final',
+          groups: [{ ...group, targetCategory: 'Final' }],
+        }),
+      );
+    expect(await create()).toBe('DIVISION_NOT_ENDED');
+    expect(await prisma.contest.count()).toBe(1);
+    // Other categories may still compete.
+    await prisma.division.update({ where: { id: pending.id }, data: { category: 'K6' } });
+    expect(await create()).toBeNull();
   });
 
   it('enters nobody twice', async () => {
