@@ -1,0 +1,118 @@
+import { egtModule } from '~/modules/egt/module';
+import {
+  createCompetition,
+  createDivision,
+  createStarter,
+  errorCode,
+  truncateTables,
+} from '~/tests/helpers';
+import { prisma } from './prisma.server';
+import { getRanking } from './ranking.server';
+
+const K5 = { category: 'K5', sex: 'FEMALE' } as const;
+
+beforeEach(truncateTables);
+
+type Division = Awaited<ReturnType<typeof createDivision>>;
+
+function add(competitionId: string, division: Division, firstname: string, data: object = {}) {
+  return createStarter(competitionId, {
+    firstname,
+    sex: division.sex,
+    category: division.category,
+    divisionId: division.id,
+    lineupId: division.lineup('reck'),
+    ...data,
+  });
+}
+
+const names = (ranking: Awaited<ReturnType<typeof getRanking>>) =>
+  ranking.entries.map(({ firstname }) => firstname);
+
+describe('getRanking', () => {
+  it('ranks the ended divisions of a category and sex', async () => {
+    const { id, contest } = await createCompetition();
+    const one = await createDivision(contest.id, { state: 'ENDED' });
+    const two = await createDivision(contest.id, { number: 2, state: 'ENDED' });
+    const men = await createDivision(contest.id, { sex: 'MALE', state: 'ENDED' });
+    const k6 = await createDivision(contest.id, { category: 'K6', state: 'ENDED' });
+    await add(id, one, 'A', { grades: { reck: 9000, boden: 8000, barren: 9000 } });
+    await add(id, two, 'B', { grades: { reck: 9500, boden: 9500 } });
+    await add(id, men, 'M', { grades: { reck: 9900 } });
+    await add(id, k6, 'K6', { grades: { reck: 9900 } });
+
+    const ranking = await getRanking(id, contest.id, K5);
+    expect(ranking.entries).toMatchObject([
+      { firstname: 'B', rank: 1, total: 19000, award: 'GOLD', clubName: expect.any(String) },
+      { firstname: 'A', rank: 2, total: 17000, award: 'SILVER' },
+    ]);
+    expect(ranking.best).toEqual({ reck: 9500, boden: 9500, schaukelringe: null, sprung: null });
+    expect(ranking.hasRunning).toBe(false);
+    expect(ranking.apparatus).toEqual(['reck', 'boden', 'schaukelringe', 'sprung']);
+    const men5 = await getRanking(id, contest.id, { category: 'K5', sex: 'MALE' });
+    expect(men5.apparatus).toHaveLength(5);
+  });
+
+  it('leaves out withdrawn entries and entries without a lineup', async () => {
+    const { id, contest } = await createCompetition();
+    const division = await createDivision(contest.id, { state: 'ENDED' });
+    await add(id, division, 'A');
+    await add(id, division, 'withdrawn', { withdrawnAt: new Date() });
+    await add(id, division, 'no lineup', { lineupId: undefined });
+    expect(names(await getRanking(id, contest.id, K5))).toEqual(['A']);
+  });
+
+  it('adds running divisions only when asked for', async () => {
+    const { id, contest } = await createCompetition();
+    const ended = await createDivision(contest.id, { state: 'ENDED' });
+    const running = await createDivision(contest.id, { number: 2, state: 'RUNNING' });
+    const pending = await createDivision(contest.id, { number: 3 });
+    await add(id, ended, 'ended', { grades: { reck: 9000 } });
+    await add(id, running, 'running', { grades: { reck: 9500 } });
+    await add(id, pending, 'pending', { grades: { reck: 9900 } });
+
+    const ranking = await getRanking(id, contest.id, K5);
+    expect(names(ranking)).toEqual(['ended']);
+    expect(ranking.hasRunning).toBe(true);
+    const provisional = await getRanking(id, contest.id, { ...K5, provisional: true });
+    expect(names(provisional)).toEqual(['running', 'ended']);
+  });
+
+  it('only warns about running divisions of the same category and sex', async () => {
+    const { id, contest } = await createCompetition();
+    await createDivision(contest.id, { category: 'K6', state: 'RUNNING' });
+    await createDivision(contest.id, { sex: 'MALE', state: 'RUNNING' });
+    expect((await getRanking(id, contest.id, K5)).hasRunning).toBe(false);
+  });
+
+  it('knows the last change', async () => {
+    const { id, contest } = await createCompetition();
+    const division = await createDivision(contest.id, { state: 'ENDED' });
+    expect((await getRanking(id, contest.id, K5)).lastUpdated).toBeNull();
+    await add(id, division, 'A', { grades: { reck: 9000, boden: 9000 } });
+    const lastUpdated = new Date('2030-01-01T10:00:00Z');
+    await prisma.$executeRaw`UPDATE grade SET "updatedAt" = ${lastUpdated} WHERE apparatus = 'reck'`;
+    expect((await getRanking(id, contest.id, K5)).lastUpdated).toEqual(lastUpdated);
+  });
+
+  it('uses the settings of the contest', async () => {
+    const { id, contest } = await createCompetition();
+    const division = await createDivision(contest.id, { state: 'ENDED' });
+    await add(id, division, 'A', { grades: { reck: 9225 } });
+    await prisma.contest.update({
+      where: { id: contest.id },
+      data: { config: { ...egtModule.defaultConfig, precision: 3 } },
+    });
+    const ranking = await getRanking(id, contest.id, K5);
+    expect(ranking.entries[0].total).toBe(9225);
+    expect(ranking.options.precision).toBe(3);
+  });
+
+  it('rejects unknown categories and other competitions', async () => {
+    const { id, contest } = await createCompetition();
+    const other = await createCompetition();
+    const unknown = getRanking(id, contest.id, { category: 'KH', sex: 'FEMALE' });
+    expect(await errorCode(unknown)).toBe('INVALID_CATEGORY');
+    expect(await errorCode(getRanking(other.id, contest.id, K5))).toBe('NOT_FOUND');
+  });
+});

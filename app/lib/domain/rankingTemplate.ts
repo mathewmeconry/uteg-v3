@@ -1,0 +1,42 @@
+import { z } from 'zod';
+
+/** How a ranking PDF looks. Text fields may contain placeholders such as {category}. */
+export const rankingTemplateSchema = z.object({
+  title: z.string().max(200).default('{competition}'),
+  subtitle: z.string().max(200).default('{category} {sex}'),
+  footer: z.string().max(500).default(''),
+  showLogo: z.boolean().default(true),
+  logoPosition: z.enum(['left', 'center', 'right']).default('right'),
+  accentColor: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .default('#1d4ed8'),
+  orientation: z.enum(['portrait', 'landscape']).default('portrait'),
+  columns: z
+    .object({
+      firstname: z.boolean().default(true),
+      lastname: z.boolean().default(true),
+      club: z.boolean().default(true),
+      location: z.boolean().default(false),
+      birthYear: z.boolean().default(true),
+      apparatus: z.boolean().default(true),
+      total: z.boolean().default(true),
+      award: z.boolean().default(true),
+    })
+    .prefault({}),
+  nameFormat: z.enum(['firstLast', 'lastFirst', 'separate']).default('firstLast'),
+  decimals: z.union([z.literal(2), z.literal(3)]).default(2),
+  medalStyle: z.enum(['letters', 'icons', 'none']).default('letters'),
+  highlightBest: z.boolean().default(true),
+  showPageNumbers: z.boolean().default(true),
+  showDate: z.boolean().default(true),
+  /** One signature line per label. */
+  signatureLabels: z.array(z.string().trim().min(1).max(100)).max(4).default([]),
+  fontSize: z.number().min(6).max(16).default(9),
+  rowHeight: z.number().min(10).max(40).default(18),
+  onlyAwarded: z.boolean().default(false),
+});
+
+export type RankingTemplateOptions = z.infer<typeof rankingTemplateSchema>;
+
+export const defaultRankingTemplate = rankingTemplateSchema.parse({});

@@ -1,0 +1,745 @@
+import {
+  createClub,
+  createCompetition,
+  createDivision,
+  createStarter as createTestStarter,
+  errorCode,
+  truncateTables,
+} from '~/tests/helpers';
+import { subscribe } from './events.server';
+import { prisma } from './prisma.server';
+import { getRanking } from './ranking.server';
+import {
+  assignEntries,
+  createStarter,
+  getStarter,
+  importStarters,
+  listStarters,
+  updateStarter,
+  withdrawStarters,
+} from './starters.server';
+
+beforeEach(truncateTables);
+
+const ANNA = {
+  firstname: 'Anna',
+  lastname: 'Muster',
+  birthYear: 2010,
+  sex: 'FEMALE',
+} as const;
+
+async function setup() {
+  const competition = await createCompetition();
+  const club = await createClub();
+  const contestId = competition.contest.id;
+  const add = (data: object = {}) =>
+    createStarter(competition.id, { ...ANNA, clubId: club.id, ...data });
+  return { ...competition, contestId, club, add };
+}
+
+const athletes = () => prisma.athlete.findMany({ orderBy: { id: 'asc' } });
+
+describe('createStarter', () => {
+  it('creates a starter, its athlete and the entry', async () => {
+    const { id, contestId, club, add } = await setup();
+    const listener = vi.fn();
+    const stop = subscribe(id, listener);
+    const { starterId, outcome } = await add({
+      firstname: ' Anna ',
+      stvId: ' 123 ',
+      entries: [{ contestId, category: 'K5' }],
+    });
+    stop();
+    expect(outcome).toBe('created');
+    expect(await getStarter(id, starterId)).toMatchObject({
+      firstname: 'Anna',
+      club: { id: club.id },
+      athlete: { ...ANNA, stvId: '123' },
+      differsFromAthlete: false,
+      entries: [{ contestId, category: 'K5', divisionId: null }],
+    });
+    expect(listener).toHaveBeenCalledWith('starters');
+  });
+
+  it.each([undefined, null, '', '  '])('needs no STV-ID (%j)', async (stvId) => {
+    const { add } = await setup();
+    await add({ stvId });
+    await add({ stvId, firstname: 'Bea' });
+    expect((await athletes()).map((athlete) => athlete.stvId)).toEqual([null, null]);
+  });
+
+  it.each([
+    { firstname: ' ' },
+    { lastname: '' },
+    { birthYear: 10 },
+    { birthYear: NaN },
+    { sex: 'X' },
+  ])('rejects %j', async (data) => {
+    const { add } = await setup();
+    expect(await errorCode(add(data))).toBe('INVALID_INPUT');
+  });
+
+  it('rejects an unknown club, competition and contest', async () => {
+    const { add, club } = await setup();
+    const other = await createCompetition();
+    expect(await errorCode(add({ clubId: 'nope' }))).toBe('NOT_FOUND');
+    const unknown = createStarter('nope', { ...ANNA, clubId: club.id });
+    expect(await errorCode(unknown)).toBe('NOT_FOUND');
+    const foreign = add({ entries: [{ contestId: other.contest.id }] });
+    expect(await errorCode(foreign)).toBe('NOT_FOUND');
+    expect(await prisma.starter.count()).toBe(0);
+    expect(await athletes()).toEqual([]);
+  });
+
+  describe('matching the athlete', () => {
+    /** Adds someone in another competition, then Anna here. */
+    async function match(first: object, second: object) {
+      const there = await setup();
+      const here = await setup();
+      const a = await there.add(first);
+      const b = await here.add(second);
+      const [x, y] = await prisma.starter.findMany({
+        where: { id: { in: [a.starterId, b.starterId] } },
+      });
+      return x.athleteId === y.athleteId;
+    }
+
+    it('takes the owner of the STV-ID, whatever the name', async () => {
+      expect(await match({ stvId: '1' }, { stvId: ' 1 ', firstname: 'Änni' })).toBe(true);
+    });
+
+    it('takes the same name in any case, birth year and sex', async () => {
+      expect(await match({}, { firstname: 'ANNA', lastname: 'muster' })).toBe(true);
+    });
+
+    it.each([
+      { firstname: 'Anne' },
+      { firstname: 'A_na' },
+      { lastname: 'Muster%' },
+      { birthYear: 2011 },
+      { sex: 'MALE' },
+    ])('does not take somebody else (%j)', async (data) => {
+      expect(await match({}, data)).toBe(false);
+    });
+
+    it('treats different STV-IDs as different people', async () => {
+      expect(await match({ stvId: '1' }, { stvId: '2' })).toBe(false);
+    });
+
+    it('matches the name when only one has an STV-ID and keeps it', async () => {
+      expect(await match({ stvId: '1' }, {})).toBe(true);
+      expect(await athletes()).toMatchObject([{ stvId: '1' }]);
+    });
+
+    it('fills in a missing STV-ID', async () => {
+      expect(await match({}, { stvId: '1' })).toBe(true);
+      expect(await athletes()).toMatchObject([{ stvId: '1' }]);
+    });
+
+    it('creates a new athlete when several match', async () => {
+      await (await setup()).add({ stvId: '1' });
+      await (await setup()).add({ stvId: '2' });
+      await (await setup()).add();
+      expect(await athletes()).toHaveLength(3);
+    });
+
+    it('prefers a match that already starts in the competition', async () => {
+      const { add } = await setup();
+      await add({ stvId: '1' });
+      await (await setup()).add({ stvId: '2' });
+      expect(await add()).toMatchObject({ outcome: 'existing' });
+    });
+
+    it('takes the picked athlete and keeps the entered values to the competition', async () => {
+      const there = await setup();
+      const first = await there.add({ stvId: '1' });
+      const { athleteId } = await prisma.starter.findFirstOrThrow();
+      const here = await setup();
+      const { starterId } = await here.add({ athleteId, firstname: 'Änni', birthYear: 2011 });
+      expect(await getStarter(here.id, starterId)).toMatchObject({
+        firstname: 'Änni',
+        birthYear: 2011,
+        athlete: { id: athleteId, ...ANNA, stvId: '1' },
+        differsFromAthlete: true,
+      });
+      expect(await getStarter(there.id, first.starterId)).toMatchObject(ANNA);
+    });
+
+    it('sets the missing STV-ID of a picked athlete', async () => {
+      await (await setup()).add();
+      const [{ id: athleteId }] = await athletes();
+      await (await setup()).add({ athleteId, firstname: 'Änni', stvId: '7' });
+      expect(await athletes()).toMatchObject([{ stvId: '7', firstname: 'Anna' }]);
+    });
+
+    it('rejects a picked athlete that is unknown or has another STV-ID', async () => {
+      await (await setup()).add({ stvId: '1' });
+      await (await setup()).add({ stvId: '2', firstname: 'Bea' });
+      const [{ id: athleteId }] = await athletes();
+      const { add } = await setup();
+      expect(await errorCode(add({ athleteId: 'nope' }))).toBe('NOT_FOUND');
+      expect(await errorCode(add({ athleteId, stvId: '3' }))).toBe('STV_ID_CONFLICT');
+      expect(await errorCode(add({ athleteId, stvId: '2' }))).toBe('STV_ID_CONFLICT');
+    });
+
+    it('creates one athlete when several competitions add the person at once', async () => {
+      const competitions = await Promise.all([setup(), setup(), setup()]);
+      await Promise.all(competitions.map(({ add }) => add({ stvId: '1' })));
+      await Promise.all(competitions.map(({ add }) => add({ firstname: 'Bea' })));
+      expect(await athletes()).toHaveLength(2);
+    });
+
+    it('does not crash when an STV-ID is set in two places at once', async () => {
+      const [one, two] = await Promise.all([setup(), setup()]);
+      await one.add();
+      const [{ id }] = await prisma.starter.findMany();
+      const results = await Promise.allSettled([
+        updateStarter(one.id, id, { stvId: '1' }),
+        two.add({ stvId: '1', firstname: 'Bea' }),
+      ]);
+      expect(results.map(({ status }) => status)).toEqual(['fulfilled', 'fulfilled']);
+      expect(await prisma.athlete.count({ where: { stvId: '1' } })).toBe(1);
+    });
+  });
+
+  it('reuses an active starter and only changes the club and the given entry', async () => {
+    const { id, contestId, add } = await setup();
+    const division = await createDivision(contestId);
+    const first = await add({ entries: [{ contestId, category: 'K5', divisionId: division.id }] });
+    const club = await createClub();
+    const again = await add({
+      firstname: 'ANNA',
+      clubId: club.id,
+      entries: [{ contestId, category: 'K5' }],
+    });
+    expect(again).toEqual({ starterId: first.starterId, outcome: 'existing' });
+    expect(await getStarter(id, first.starterId)).toMatchObject({
+      firstname: 'Anna',
+      clubId: club.id,
+      entries: [{ divisionId: division.id }],
+    });
+  });
+
+  it('creates one starter when added twice at once', async () => {
+    const { add } = await setup();
+    const results = await Promise.all([add(), add(), add()]);
+    expect(results.map(({ outcome }) => outcome).sort()).toEqual([
+      'created',
+      'existing',
+      'existing',
+    ]);
+  });
+
+  it('restores a removed starter with its entries, taking the new values', async () => {
+    const { id, contestId, add } = await setup();
+    const division = await createDivision(contestId);
+    const { starterId } = await add({
+      stvId: '1',
+      entries: [
+        {
+          contestId,
+          category: 'K5',
+          divisionId: division.id,
+          lineupId: division.lineup('reck'),
+        },
+      ],
+    });
+    await withdrawStarters(id, [starterId]);
+    expect(await listStarters(id)).toEqual([]);
+
+    expect(await add({ stvId: '1', firstname: 'Änni' })).toEqual({
+      starterId,
+      outcome: 'restored',
+    });
+    expect(await getStarter(id, starterId)).toMatchObject({
+      firstname: 'Änni',
+      differsFromAthlete: true,
+      entries: [{ withdrawnAt: null, lineupId: division.lineup('reck') }],
+    });
+  });
+
+  it('restores with another sex without leaving the entry in a foreign division', async () => {
+    const { id, contestId, add } = await setup();
+    const division = await createDivision(contestId);
+    const { starterId } = await add({
+      stvId: '1',
+      entries: [{ contestId, category: 'K5', divisionId: division.id }],
+    });
+    await withdrawStarters(id, [starterId]);
+    await add({ stvId: '1', sex: 'MALE' });
+    expect(await getStarter(id, starterId)).toMatchObject({
+      entries: [{ category: 'K5', divisionId: null }],
+    });
+  });
+});
+
+describe('listStarters', () => {
+  it('has club, athlete and entries of the active starters only', async () => {
+    const competition = await setup();
+    await competition.add({ entries: [{ contestId: competition.contestId, category: 'K5' }] });
+    await (await setup()).add();
+    const removed = await competition.add({ firstname: 'Bea' });
+    await withdrawStarters(competition.id, [removed.starterId]);
+    expect(await listStarters(competition.id)).toMatchObject([
+      { firstname: 'Anna', differsFromAthlete: false, entries: [{ category: 'K5' }] },
+    ]);
+  });
+});
+
+describe('updateStarter', () => {
+  it('changes the values of this competition only', async () => {
+    const here = await setup();
+    const there = await setup();
+    const { starterId } = await here.add();
+    const other = await there.add();
+    await updateStarter(here.id, starterId, { firstname: 'Änni', birthYear: 2009 });
+    expect(await getStarter(here.id, starterId)).toMatchObject({
+      firstname: 'Änni',
+      birthYear: 2009,
+      lastname: 'Muster',
+      athlete: ANNA,
+      differsFromAthlete: true,
+    });
+    expect(await getStarter(there.id, other.starterId)).toMatchObject({
+      ...ANNA,
+      differsFromAthlete: false,
+    });
+  });
+
+  it('also changes the athlete when told to, but never other starters', async () => {
+    const here = await setup();
+    const there = await setup();
+    const { starterId } = await here.add();
+    const other = await there.add();
+    const division = await createDivision(there.contestId, { state: 'ENDED' });
+    await updateStarter(there.id, other.starterId, {
+      entries: [
+        {
+          contestId: there.contestId,
+          category: 'K5',
+          divisionId: division.id,
+          lineupId: division.lineup('reck'),
+        },
+      ],
+    });
+    const ranking = () => getRanking(there.id, there.contestId, { category: 'K5', sex: 'FEMALE' });
+    const before = await ranking();
+    expect(before.entries).toHaveLength(1);
+
+    await updateStarter(here.id, starterId, { firstname: 'Änni', updateAthlete: true });
+    expect(await athletes()).toMatchObject([{ ...ANNA, firstname: 'Änni' }]);
+    expect(await getStarter(here.id, starterId)).toMatchObject({ differsFromAthlete: false });
+    expect(await getStarter(there.id, other.starterId)).toMatchObject({
+      ...ANNA,
+      differsFromAthlete: true,
+    });
+    expect(await ranking()).toEqual(before);
+  });
+
+  it('rejects invalid values and other competitions', async () => {
+    const here = await setup();
+    const other = await setup();
+    const { starterId } = await here.add();
+    const update = (data: object) => errorCode(updateStarter(here.id, starterId, data));
+    expect(await update({ firstname: '' })).toBe('INVALID_INPUT');
+    expect(await update({ clubId: 'nope' })).toBe('NOT_FOUND');
+    expect(await errorCode(updateStarter(other.id, starterId, {}))).toBe('NOT_FOUND');
+  });
+
+  it('does not change removed starters', async () => {
+    const { id, add } = await setup();
+    const { starterId } = await add();
+    await withdrawStarters(id, [starterId]);
+    expect(await errorCode(updateStarter(id, starterId, { firstname: 'X' }))).toBe('NOT_FOUND');
+  });
+
+  describe('editing the STV-ID', () => {
+    async function shared(stvId: string | null) {
+      const here = await setup();
+      const there = await setup();
+      const { starterId } = await here.add({ stvId });
+      const other = await there.add({ stvId });
+      const edit = (value: string | null | undefined, data: object = {}) =>
+        updateStarter(here.id, starterId, { stvId: value, ...data });
+      const stvIds = async () => [
+        (await getStarter(here.id, starterId)).athlete.stvId,
+        (await getStarter(there.id, other.starterId)).athlete.stvId,
+      ];
+      return { here, there, starterId, edit, stvIds };
+    }
+
+    it('keeps it when not given', async () => {
+      const { edit, stvIds } = await shared('1');
+      await edit(undefined);
+      expect(await stvIds()).toEqual(['1', '1']);
+    });
+
+    it('sets a missing one, also on a shared athlete', async () => {
+      const { edit, stvIds } = await shared(null);
+      await edit(' 5 ');
+      expect(await stvIds()).toEqual(['5', '5']);
+    });
+
+    it('moves to a new athlete when the old one is shared', async () => {
+      const { edit, stvIds } = await shared('1');
+      await edit('5', { firstname: 'Änni' });
+      expect(await stvIds()).toEqual(['5', '1']);
+      expect(await athletes()).toMatchObject([
+        { stvId: '1', firstname: 'Anna' },
+        { stvId: '5', firstname: 'Änni' },
+      ]);
+    });
+
+    it('changes it in place when the athlete starts nowhere else', async () => {
+      const { id, add } = await setup();
+      const { starterId } = await add({ stvId: '1' });
+      await updateStarter(id, starterId, { stvId: '5' });
+      expect(await athletes()).toMatchObject([{ stvId: '5' }]);
+    });
+
+    it('moves to the owner of the STV-ID', async () => {
+      const { edit, stvIds } = await shared('1');
+      await (await setup()).add({ firstname: 'Owner', stvId: '5' });
+      await edit('5');
+      expect(await stvIds()).toEqual(['5', '1']);
+      expect(await athletes()).toHaveLength(2);
+    });
+
+    it('rejects an owner that already starts here, also a removed one', async () => {
+      const { here, edit, stvIds } = await shared('1');
+      const owner = await here.add({ firstname: 'Owner', stvId: '5' });
+      expect(await errorCode(edit('5'))).toBe('ATHLETE_ALREADY_STARTS');
+      await withdrawStarters(here.id, [owner.starterId]);
+      expect(await errorCode(edit('5'))).toBe('ATHLETE_ALREADY_STARTS');
+      expect(await stvIds()).toEqual(['1', '1']);
+    });
+
+    it('does not clear it on a shared athlete', async () => {
+      const { edit, stvIds } = await shared('1');
+      await edit('');
+      expect(await stvIds()).toEqual(['1', '1']);
+    });
+
+    it('clears it when the athlete starts nowhere else', async () => {
+      const { id, add } = await setup();
+      const { starterId } = await add({ stvId: '1' });
+      await updateStarter(id, starterId, { stvId: null });
+      expect(await athletes()).toMatchObject([{ stvId: null }]);
+    });
+
+    it('updates the athlete the starter ends up with', async () => {
+      const { edit } = await shared('1');
+      await edit('5', { firstname: 'Änni', updateAthlete: true });
+      expect(await athletes()).toMatchObject([
+        { stvId: '1', firstname: 'Anna' },
+        { stvId: '5', firstname: 'Änni' },
+      ]);
+    });
+  });
+
+  describe('entries', () => {
+    async function assigned(data: object = {}) {
+      const competition = await setup();
+      const { contestId } = competition;
+      const division = await createDivision(contestId);
+      const { starterId } = await competition.add({
+        entries: [
+          {
+            contestId,
+            category: 'K5',
+            divisionId: division.id,
+            lineupId: division.lineup('reck'),
+          },
+        ],
+        ...data,
+      });
+      const update = (entry: object, starter: object = {}) =>
+        updateStarter(competition.id, starterId, {
+          ...starter,
+          entries: [{ contestId, ...entry }],
+        });
+      const entry = async () => (await getStarter(competition.id, starterId)).entries[0];
+      return { ...competition, division, starterId, update, entry };
+    }
+
+    it('keeps what is not given', async () => {
+      const { division, update, entry } = await assigned();
+      await update({});
+      expect(await entry()).toMatchObject({
+        category: 'K5',
+        divisionId: division.id,
+        lineupId: division.lineup('reck'),
+      });
+    });
+
+    it('drops division and lineup when the category changes', async () => {
+      const { update, entry } = await assigned();
+      await update({ category: 'K6' });
+      expect(await entry()).toMatchObject({ category: 'K6', divisionId: null, lineupId: null });
+    });
+
+    it('drops division and lineup when the sex changes', async () => {
+      const { id, starterId, entry } = await assigned();
+      await updateStarter(id, starterId, { sex: 'MALE' });
+      expect(await entry()).toMatchObject({ category: 'K5', divisionId: null, lineupId: null });
+    });
+
+    it('drops a category the new sex does not have', async () => {
+      const { id, contestId, add } = await setup();
+      const { starterId } = await add({ entries: [{ contestId, category: 'KD' }] });
+      await updateStarter(id, starterId, { sex: 'MALE' });
+      expect(await getStarter(id, starterId)).toMatchObject({ entries: [{ category: null }] });
+    });
+
+    it('moves to another division and drops the old lineup', async () => {
+      const { contestId, update, entry } = await assigned();
+      const second = await createDivision(contestId, { number: 2 });
+      await update({ divisionId: second.id });
+      expect(await entry()).toMatchObject({ divisionId: second.id, lineupId: null });
+      await update({ lineupId: second.lineup('boden') });
+      expect(await entry()).toMatchObject({ lineupId: second.lineup('boden') });
+    });
+
+    it('clears division and lineup', async () => {
+      const { update, entry } = await assigned();
+      await update({ lineupId: null });
+      expect(await entry()).toMatchObject({ divisionId: expect.any(String), lineupId: null });
+      await update({ divisionId: null });
+      expect(await entry()).toMatchObject({ category: 'K5', divisionId: null });
+    });
+
+    it('goes last in a new lineup', async () => {
+      const { id, division, contestId, add, update, entry } = await assigned();
+      const second = await add({
+        firstname: 'Bea',
+        entries: [
+          {
+            contestId,
+            category: 'K5',
+            divisionId: division.id,
+            lineupId: division.lineup('boden'),
+          },
+        ],
+      });
+      await update({ lineupId: division.lineup('boden') });
+      const [other] = (await getStarter(id, second.starterId)).entries;
+      expect((await entry()).position).toBeGreaterThan(other.position);
+    });
+
+    it.each([
+      ['sex', { sex: 'MALE' }],
+      ['category', { category: 'K6' }],
+    ] as const)('rejects a division of another %s', async (_, data) => {
+      const { contestId, update } = await assigned();
+      const other = await createDivision(contestId, data);
+      expect(await errorCode(update({ divisionId: other.id }))).toBe('DIVISION_MISMATCH');
+    });
+
+    it('rejects a division of another contest', async () => {
+      const { update } = await assigned();
+      const other = await createDivision((await createCompetition()).contest.id);
+      expect(await errorCode(update({ divisionId: other.id }))).toBe('NOT_FOUND');
+    });
+
+    it('rejects a lineup of another division and unknown categories', async () => {
+      const { contestId, update } = await assigned();
+      const second = await createDivision(contestId, { number: 2 });
+      const lineup = update({ lineupId: second.lineup('reck') });
+      expect(await errorCode(lineup)).toBe('LINEUP_MISMATCH');
+      expect(await errorCode(update({ category: 'KH' }))).toBe('INVALID_CATEGORY');
+    });
+
+    it('changes nothing when an entry is rejected', async () => {
+      const { id, starterId, update } = await assigned();
+      expect(await errorCode(update({ category: 'KH' }, { firstname: 'X' }))).toBe(
+        'INVALID_CATEGORY',
+      );
+      expect(await getStarter(id, starterId)).toMatchObject({ firstname: 'Anna' });
+    });
+  });
+});
+
+describe('withdrawStarters', () => {
+  it('hides the starters but keeps their slots and grades', async () => {
+    const { id, contest } = await createCompetition();
+    const division = await createDivision(contest.id, { state: 'RUNNING' });
+    const starter = await createTestStarter(id, {
+      divisionId: division.id,
+      lineupId: division.lineup('reck'),
+      grades: { reck: 9000 },
+    });
+    await withdrawStarters(id, [starter.id]);
+    expect(await listStarters(id)).toEqual([]);
+    expect(await prisma.entry.findFirst({ include: { grades: true } })).toMatchObject({
+      withdrawnAt: expect.any(Date),
+      lineupId: division.lineup('reck'),
+      grades: [{ value: 9000 }],
+    });
+  });
+
+  it('keeps the time of the first withdrawal', async () => {
+    const { id } = await createCompetition();
+    const starter = await createTestStarter(id);
+    await withdrawStarters(id, [starter.id]);
+    const before = await prisma.entry.findFirst();
+    await withdrawStarters(id, [starter.id]);
+    expect(await prisma.entry.findFirst()).toEqual(before);
+  });
+
+  it('stays within the competition', async () => {
+    const { id } = await createCompetition();
+    const other = await createTestStarter((await createCompetition()).id);
+    expect(await errorCode(withdrawStarters(id, [other.id]))).toBe('NOT_FOUND');
+    expect(await prisma.starter.count({ where: { deletedAt: null } })).toBe(1);
+  });
+});
+
+describe('assignEntries', () => {
+  it('assigns groups to their division and lineup in order', async () => {
+    const { id, contest } = await createCompetition();
+    const women = await createDivision(contest.id);
+    const men = await createDivision(contest.id, { sex: 'MALE' });
+    const a = await createTestStarter(id);
+    const b = await createTestStarter(id);
+    const m = await createTestStarter(id, { sex: 'MALE' });
+    await assignEntries(id, [
+      {
+        entryIds: [b.entry.id, a.entry.id],
+        divisionId: women.id,
+        lineupId: women.lineup('boden'),
+      },
+      { entryIds: [m.entry.id], divisionId: men.id },
+    ]);
+    const entries = await prisma.entry.findMany({ where: { lineupId: women.lineup('boden') } });
+    const position = (entryId: string) => entries.find((entry) => entry.id === entryId)!.position;
+    expect(position(b.entry.id)).toBeLessThan(position(a.entry.id));
+    expect(await prisma.entry.findUnique({ where: { id: m.entry.id } })).toMatchObject({
+      divisionId: men.id,
+      lineupId: null,
+    });
+  });
+
+  it('assigns all or none', async () => {
+    const { id, contest } = await createCompetition();
+    const women = await createDivision(contest.id);
+    const a = await createTestStarter(id);
+    const m = await createTestStarter(id, { sex: 'MALE' });
+    const assign = assignEntries(id, [
+      { entryIds: [a.entry.id, m.entry.id], divisionId: women.id },
+    ]);
+    expect(await errorCode(assign)).toBe('DIVISION_MISMATCH');
+    expect(await prisma.entry.count({ where: { divisionId: women.id } })).toBe(0);
+  });
+
+  it('rejects entries of other competitions and removed starters', async () => {
+    const { id, contest } = await createCompetition();
+    const { id: divisionId } = await createDivision(contest.id);
+    const other = await createTestStarter((await createCompetition()).id);
+    const foreign = assignEntries(id, [{ entryIds: [other.entry.id], divisionId }]);
+    expect(await errorCode(foreign)).toBe('NOT_FOUND');
+    const removed = await createTestStarter(id);
+    await withdrawStarters(id, [removed.id]);
+    const assign = assignEntries(id, [{ entryIds: [removed.entry.id], divisionId }]);
+    expect(await errorCode(assign)).toBe('ENTRY_WITHDRAWN');
+  });
+});
+
+describe('importStarters', () => {
+  async function setupImport() {
+    const competition = await setup();
+    const run = (rows: object[]) =>
+      importStarters(competition.id, {
+        contestId: competition.contestId,
+        clubId: competition.club.id,
+        rows: rows.map((row) => ({ ...ANNA, ...row })),
+      });
+    return { ...competition, run };
+  }
+
+  it('creates starters with category and division', async () => {
+    const { id, contestId, run } = await setupImport();
+    const division = await createDivision(contestId, { number: 2 });
+    const result = await run([
+      { stvId: ' ', category: 'K5', divisionNumber: 2 },
+      { firstname: 'Bea', stvId: '5', category: 'K6' },
+      { firstname: 'Carla' },
+    ]);
+    expect(result).toEqual({ created: 3, restored: 0, existing: 0, failures: [] });
+    const starters = await listStarters(id);
+    const entry = (firstname: string) =>
+      starters.find((starter) => starter.firstname === firstname)!.entries[0];
+    expect(entry('Anna')).toMatchObject({ category: 'K5', divisionId: division.id });
+    expect(entry('Bea')).toMatchObject({ category: 'K6', divisionId: null });
+    expect(entry('Carla')).toMatchObject({ category: null, divisionId: null });
+  });
+
+  it('ignores divisions that do not exist', async () => {
+    const { contestId, run } = await setupImport();
+    await createDivision(contestId, { sex: 'MALE', number: 1 });
+    const result = await run([
+      { category: 'K5', divisionNumber: 1 },
+      { firstname: 'Bea', divisionNumber: 1 },
+    ]);
+    expect(result).toMatchObject({ created: 2, failures: [] });
+  });
+
+  it('imports the other rows when some fail', async () => {
+    const { id, run } = await setupImport();
+    const result = await run([
+      { firstname: '' },
+      { firstname: 'Bea' },
+      { firstname: 'Carla', category: 'KH' },
+      { firstname: 'Dora', athleteId: 'nope' },
+      { firstname: 'Eva', sex: undefined },
+      { firstname: 'Fay' },
+    ]);
+    expect(result).toEqual({
+      created: 2,
+      restored: 0,
+      existing: 0,
+      failures: [
+        { index: 0, code: 'INVALID_INPUT' },
+        { index: 2, code: 'INVALID_CATEGORY' },
+        { index: 3, code: 'NOT_FOUND' },
+        { index: 4, code: 'INVALID_INPUT' },
+      ],
+    });
+    expect((await listStarters(id)).map(({ firstname }) => firstname)).toEqual(['Bea', 'Fay']);
+    // A failed row leaves no athlete behind.
+    expect(await athletes()).toHaveLength(2);
+  });
+
+  it('reuses and restores on a second import', async () => {
+    const { id, contestId, run } = await setupImport();
+    const division = await createDivision(contestId);
+    await run([{ category: 'K5', divisionNumber: 1 }, { firstname: 'Bea' }]);
+    const bea = (await listStarters(id)).find(({ firstname }) => firstname === 'Bea')!;
+    await withdrawStarters(id, [bea.id]);
+    const result = await run([{}, { firstname: 'Bea' }, { firstname: 'Bea' }]);
+    expect(result).toEqual({ created: 0, restored: 1, existing: 2, failures: [] });
+    expect((await listStarters(id))[0].entries[0]).toMatchObject({ divisionId: division.id });
+  });
+
+  it('never changes existing athletes except for a missing STV-ID', async () => {
+    await (await setup()).add();
+    const { run } = await setupImport();
+    const [{ id: athleteId }] = await athletes();
+    await run([{ athleteId, firstname: 'Änni', birthYear: 2011, stvId: '9' }]);
+    expect(await athletes()).toMatchObject([{ ...ANNA, stvId: '9' }]);
+  });
+
+  it('rejects contests and clubs that do not exist', async () => {
+    const { id, contestId, club } = await setupImport();
+    const other = await createCompetition();
+    const foreign = importStarters(id, { contestId: other.contest.id, clubId: club.id, rows: [] });
+    expect(await errorCode(foreign)).toBe('NOT_FOUND');
+    const noClub = importStarters(id, { contestId, clubId: 'nope', rows: [ANNA] });
+    expect(await errorCode(noClub)).toBe('NOT_FOUND');
+  });
+
+  it('handles a large file', async () => {
+    const { run } = await setupImport();
+    const rows = Array.from({ length: 300 }, (_, i) => ({ firstname: `A${i}`, category: 'K5' }));
+    expect(await run(rows)).toMatchObject({ created: 300 });
+  });
+});

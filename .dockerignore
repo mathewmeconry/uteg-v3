@@ -1,0 +1,14 @@
+.git
+.github
+.react-router
+.env
+.envrc
+app/generated
+build
+coverage
+docs
+e2e
+node_modules
+playwright-report
+test-results
+*.md

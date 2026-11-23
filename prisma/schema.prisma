@@ -1,0 +1,350 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── better-auth ──────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  language      String   @default("de")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions    Session[]
+  accounts    Account[]
+  memberships Member[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ── Competition ──────────────────────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+model Competition {
+  id        String   @id @default(ulid())
+  name      String
+  location  String
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  grounds   Int      @default(1)
+  logoId    String?  @unique
+  logo      Asset?   @relation("CompetitionLogo", fields: [logoId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members          Member[]
+  contests         Contest[]
+  starters         Starter[]
+  accessLinks      AccessLink[]
+  assets           Asset[]
+  rankingTemplates RankingTemplate[]
+
+  @@map("competition")
+}
+
+model Member {
+  id            String      @id @default(ulid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role          Role
+
+  @@unique([competitionId, userId])
+  @@index([userId])
+  @@map("member")
+}
+
+/// An uploaded image.
+model Asset {
+  id            String      @id @default(ulid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  mimeType      String
+  data          Bytes
+  createdAt     DateTime    @default(now())
+
+  logoOf Competition? @relation("CompetitionLogo")
+
+  @@index([competitionId])
+  @@map("asset")
+}
+
+/// One competition format within a competition. `module` names the code in app/modules that
+/// knows its apparatus, scoring and ranking. A contest owns its entries, divisions and grades,
+/// so a championship is another contest seeded from the ranking of `sourceContest`.
+model Contest {
+  id              String      @id @default(ulid())
+  competitionId   String
+  competition     Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  module          String
+  name            String
+  position        Int         @default(0)
+  // Validated by the module's configSchema.
+  config          Json
+  sourceContestId String?
+  sourceContest   Contest?    @relation("ContestSource", fields: [sourceContestId], references: [id], onDelete: SetNull)
+  derivedContests Contest[]   @relation("ContestSource")
+  createdAt       DateTime    @default(now())
+
+  entries   Entry[]
+  divisions Division[]
+
+  @@index([competitionId])
+  @@map("contest")
+}
+
+/// How ranking PDFs look. `options` is validated by rankingTemplateSchema.
+model RankingTemplate {
+  id            String      @id @default(ulid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  name          String
+  isDefault     Boolean     @default(false)
+  options       Json
+  updatedAt     DateTime    @updatedAt
+
+  @@index([competitionId])
+  @@map("ranking_template")
+}
+
+// ── Starters ─────────────────────────────────────────────────────────────────
+
+enum Sex {
+  FEMALE
+  MALE
+}
+
+model Club {
+  id       String    @id @default(ulid())
+  name     String
+  location String
+  starters Starter[]
+
+  @@unique([name, location])
+  @@map("club")
+}
+
+/// Master data of a person, shared by all competitions.
+model Athlete {
+  id        String    @id @default(ulid())
+  stvId     String?   @unique
+  firstname String
+  lastname  String
+  birthYear Int
+  sex       Sex
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  starters  Starter[]
+
+  @@index([lastname, firstname])
+  @@map("athlete")
+}
+
+/// A person taking part in one competition. Keeps the values used there, so changing the athlete
+/// or another competition never changes this one.
+model Starter {
+  id            String      @id @default(ulid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  athleteId     String
+  athlete       Athlete     @relation(fields: [athleteId], references: [id])
+  firstname     String
+  lastname      String
+  birthYear     Int
+  sex           Sex
+  clubId        String
+  club          Club        @relation(fields: [clubId], references: [id])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  deletedAt     DateTime?
+
+  entries Entry[]
+
+  @@unique([competitionId, athleteId])
+  @@index([athleteId])
+  @@index([competitionId, lastname, firstname])
+  @@map("starter")
+}
+
+/// A starter's participation in a contest.
+model Entry {
+  id          String    @id @default(ulid())
+  contestId   String
+  contest     Contest   @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  starterId   String
+  starter     Starter   @relation(fields: [starterId], references: [id], onDelete: Cascade)
+  category    String?
+  divisionId  String?
+  division    Division? @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  lineupId    String?
+  lineup      Lineup?   @relation(fields: [lineupId], references: [id], onDelete: SetNull)
+  // Order within the lineup in the first round.
+  position    Int       @default(0)
+  // Set when the starter leaves. While the division runs the entry keeps its slot.
+  withdrawnAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  grades Grade[]
+
+  @@unique([contestId, starterId])
+  @@index([divisionId])
+  @@index([lineupId, position])
+  @@map("entry")
+}
+
+// ── Divisions ────────────────────────────────────────────────────────────────
+
+enum DivisionState {
+  PENDING
+  RUNNING
+  ENDED
+}
+
+/// Starters of one category and sex that compete at the same time on one ground.
+model Division {
+  id        String        @id @default(ulid())
+  contestId String
+  contest   Contest       @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  category  String
+  sex       Sex
+  // 1, 2, 3 … within contest, category and sex.
+  number    Int
+  ground    Int
+  state     DivisionState @default(PENDING)
+  startedAt DateTime?
+  endedAt   DateTime?
+  createdAt DateTime      @default(now())
+
+  lineups  Lineup[]
+  entries  Entry[]
+  progress DivisionProgress[]
+
+  @@unique([contestId, category, sex, number])
+  @@index([contestId, ground, state])
+  @@map("division")
+}
+
+/// The entries of a division that start on the same apparatus.
+model Lineup {
+  id         String   @id @default(ulid())
+  divisionId String
+  division   Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  apparatus  String
+  entries    Entry[]
+
+  @@unique([divisionId, apparatus])
+  @@map("lineup")
+}
+
+/// How many rounds an apparatus has confirmed for a division.
+model DivisionProgress {
+  divisionId      String
+  division        Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  apparatus       String
+  completedRounds Int      @default(0)
+
+  @@id([divisionId, apparatus])
+  @@map("division_progress")
+}
+
+model Grade {
+  id        String   @id @default(ulid())
+  entryId   String
+  entry     Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  apparatus String
+  // Thousandths of a point: 9.225 is 9225.
+  value     Int
+  // Thousandths per attempt, empty when the final grade was entered directly.
+  attempts  Int[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([entryId, apparatus])
+  @@index([updatedAt])
+  @@map("grade")
+}
+
+// ── Access without an account ────────────────────────────────────────────────
+
+enum AccessKind {
+  JUDGE
+  DISPLAY
+}
+
+/// A link that opens the judging tablet or a display. Replacing the token locks out old links.
+model AccessLink {
+  id            String      @id @default(ulid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  kind          AccessKind
+  ground        Int
+  // Only set for judges.
+  apparatus     String?
+  token         String      @unique
+  createdAt     DateTime    @default(now())
+
+  @@unique([competitionId, kind, ground, apparatus])
+  @@map("access_link")
+}

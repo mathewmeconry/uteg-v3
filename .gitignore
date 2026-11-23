@@ -1,0 +1,11 @@
+node_modules/
+build/
+.react-router/
+app/generated/
+coverage/
+test-results/
+playwright-report/
+.vite/
+.env
+.DS_Store
+*.tsbuildinfo

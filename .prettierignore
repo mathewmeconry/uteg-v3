@@ -1,0 +1,10 @@
+node_modules
+build
+.react-router
+app/generated
+pnpm-lock.yaml
+coverage
+public
+test-results
+playwright-report
+docs
