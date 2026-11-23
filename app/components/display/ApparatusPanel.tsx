@@ -36,7 +36,7 @@ export function ApparatusPanel({
   return (
     <section
       aria-label={name}
-      className="@container-size flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-[color-mix(in_oklab,black_32%,var(--ink))]"
+      className="@container-size flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-(--panel)"
     >
       <h2
         className="shrink-0 truncate bg-ink-accent px-[2cqw] font-display leading-[1.4]"

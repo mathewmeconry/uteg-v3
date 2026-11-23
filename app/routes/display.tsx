@@ -68,7 +68,7 @@ export default function Display({ loaderData, params: { linkId } }: Route.Compon
   return (
     <AccessGate>
       <div
-        className="flex h-svh flex-col gap-2 overflow-hidden bg-ink p-2 text-ink-foreground"
+        className="display-surface flex h-svh flex-col gap-2 overflow-hidden bg-ink p-2 text-ink-foreground"
         style={{ '--scale': scale } as CSSProperties}
       >
         <title>{`${t('screenTitle')} · UTEG`}</title>
