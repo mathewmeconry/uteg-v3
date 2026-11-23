@@ -20,7 +20,7 @@ export async function listDivisions(competitionId: string, filter: DivisionFilte
     include: {
       lineups: true,
       progress: true,
-      _count: { select: { entries: { where: { withdrawnAt: null } } } },
+      entries: { where: { withdrawnAt: null }, select: { lineupId: true } },
     },
     orderBy: [
       { contest: { position: 'asc' } },
@@ -29,7 +29,7 @@ export async function listDivisions(competitionId: string, filter: DivisionFilte
       { number: 'asc' },
     ],
   });
-  return divisions.map(({ _count, progress, ...division }) => ({
+  return divisions.map(({ entries, progress, ...division }) => ({
     ...division,
     round: getCurrentRound(progress),
     rounds: progress.length,
@@ -37,7 +37,9 @@ export async function listDivisions(competitionId: string, filter: DivisionFilte
     progress: Object.fromEntries(
       progress.map(({ apparatus, completedRounds }) => [apparatus, completedRounds]),
     ),
-    starterCount: _count.entries,
+    starterCount: entries.length,
+    /** Starters without a lineup, no tablet shows them. */
+    unassignedCount: entries.filter(({ lineupId }) => !lineupId).length,
   }));
 }
 

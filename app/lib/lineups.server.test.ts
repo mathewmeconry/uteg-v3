@@ -6,12 +6,7 @@ import {
   truncateTables,
 } from '~/tests/helpers';
 import { subscribe } from './events.server';
-import {
-  getDivisionLineups,
-  moveEntriesToLineup,
-  setLineupOrder,
-  unassignEntries,
-} from './lineups.server';
+import { getDivisionLineups, moveEntriesToLineup, unassignEntries } from './lineups.server';
 import { prisma } from './prisma.server';
 
 beforeEach(truncateTables);
@@ -47,11 +42,11 @@ describe('moveEntriesToLineup', () => {
     expect(await names()).toBe('d');
   });
 
-  it('keeps the place of entries that are already there', async () => {
+  it('moves entries that are already there to the end', async () => {
     const { competition, names, pick, reck } = await setup();
     await moveEntriesToLineup(competition.id, reck, pick('ab'));
     await moveEntriesToLineup(competition.id, reck, pick('ac'));
-    expect(await names('reck')).toBe('abc');
+    expect(await names('reck')).toBe('bac');
   });
 
   it('moves between lineups and tells the viewers', async () => {
@@ -90,52 +85,51 @@ describe('moveEntriesToLineup', () => {
   });
 });
 
-describe('setLineupOrder', () => {
+describe('moveEntriesToLineup before another entry', () => {
   it('reorders, also while the division runs', async () => {
     const { competition, division, names, pick, reck } = await setup();
     await moveEntriesToLineup(competition.id, reck, pick('abc'));
     await prisma.division.update({ where: { id: division.id }, data: { state: 'RUNNING' } });
-    await setLineupOrder(competition.id, reck, pick('cab'));
+    await moveEntriesToLineup(competition.id, reck, pick('c'), pick('a')[0]);
     expect(await names('reck')).toBe('cab');
+    await moveEntriesToLineup(competition.id, reck, pick('c'), pick('b')[0]);
+    expect(await names('reck')).toBe('acb');
   });
 
-  it('takes over entries dragged from elsewhere in the division', async () => {
+  it('takes over entries from elsewhere in the division', async () => {
     const { competition, names, pick, reck, boden } = await setup();
     await moveEntriesToLineup(competition.id, reck, pick('ab'));
     await moveEntriesToLineup(competition.id, boden, pick('c'));
-    await setLineupOrder(competition.id, reck, pick('acdb'));
+    await moveEntriesToLineup(competition.id, reck, pick('cd'), pick('b')[0]);
     expect(await names('reck')).toBe('acdb');
     expect(await names('boden')).toBe('');
   });
 
-  it('keeps entries the user did not see at the end', async () => {
+  it('appends when the other entry has left the lineup', async () => {
     const { competition, names, pick, reck } = await setup();
-    await moveEntriesToLineup(competition.id, reck, pick('abc'));
-    await setLineupOrder(competition.id, reck, pick('ba'));
-    expect(await names('reck')).toBe('bac');
-  });
-
-  it('only takes entries of the division', async () => {
-    const { competition, reck } = await setup();
-    const other = await createStarter(competition.id);
-    const order = setLineupOrder(competition.id, reck, [other.entry.id]);
-    expect(await errorCode(order)).toBe('DIVISION_MISMATCH');
+    await moveEntriesToLineup(competition.id, reck, pick('ab'));
+    await moveEntriesToLineup(competition.id, reck, pick('c'), pick('d')[0]);
+    expect(await names('reck')).toBe('abc');
   });
 });
 
 describe('unassignEntries', () => {
   it('keeps the division', async () => {
-    const { competition, names, pick, reck } = await setup();
+    const { competition, division, names, pick, reck } = await setup();
     await moveEntriesToLineup(competition.id, reck, pick('ab'));
-    await unassignEntries(competition.id, pick('a'));
+    await unassignEntries(competition.id, division.id, pick('a'));
     expect(await names('reck')).toBe('b');
     expect(await names()).toBe('acd');
   });
 
-  it('stays within the competition', async () => {
-    const { pick } = await setup();
+  it('stays within the competition and the division', async () => {
+    const { competition, division, pick } = await setup();
     const other = await createCompetition();
-    expect(await errorCode(unassignEntries(other.id, pick('a')))).toBe('NOT_FOUND');
+    const foreign = unassignEntries(other.id, division.id, pick('a'));
+    expect(await errorCode(foreign)).toBe('NOT_FOUND');
+    const second = await createDivision(competition.contest.id, { number: 2 });
+    const mismatch = unassignEntries(competition.id, second.id, pick('a'));
+    expect(await errorCode(mismatch)).toBe('DIVISION_MISMATCH');
   });
 });
 

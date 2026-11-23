@@ -71,6 +71,7 @@ describe('listDivisions', () => {
     const second = await createTestDivision(contest.id, { number: 2, state: 'RUNNING' });
     const first = await createTestDivision(contest.id, { ground: 2 });
     await createStarter(id, { divisionId: first.id });
+    await createStarter(id, { divisionId: first.id, lineupId: first.lineup('reck') });
     await createStarter(id, { divisionId: first.id, withdrawnAt: new Date() });
     await prisma.divisionProgress.updateMany({
       where: { divisionId: second.id },
@@ -82,7 +83,7 @@ describe('listDivisions', () => {
     });
 
     expect(await listDivisions(id)).toMatchObject([
-      { id: first.id, number: 1, round: 0, rounds: 4, starterCount: 1 },
+      { id: first.id, number: 1, round: 0, rounds: 4, starterCount: 2, unassignedCount: 1 },
       {
         id: second.id,
         round: 1,

@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { AccessKind } from '~/generated/prisma/client';
 import { getContestsApparatus } from '~/modules/registry';
+import { env } from './env.server';
 import { DomainError } from './errors';
 import { publish } from './events.server';
 import { lockCompetition } from './locks.server';
@@ -69,10 +70,15 @@ export async function deleteDisplay(competitionId: string, linkId: string) {
   publish(competitionId, 'settings');
 }
 
+/** The address that opens a link. Contains the token, so it is as secret as the token. */
+export function accessUrl({ kind, id, token }: { kind: AccessKind; id: string; token: string }) {
+  return new URL(`/${kind === 'JUDGE' ? 'judge' : 'display'}/${id}#${token}`, env.APP_URL).href;
+}
+
 /** Replaces the token. The old link stops working at once. */
-export async function resetToken(competitionId: string, linkId: string) {
+export async function resetToken(competitionId: string, kind: AccessKind, linkId: string) {
   const [link] = await prisma.accessLink.updateManyAndReturn({
-    where: { id: linkId, competitionId },
+    where: { id: linkId, competitionId, kind },
     data: { token: createToken() },
   });
   if (!link) throw new DomainError('NOT_FOUND');

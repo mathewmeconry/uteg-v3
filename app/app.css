@@ -133,6 +133,8 @@
 /* Tablets and phones: fingers need at least 44px. */
 @media (pointer: coarse) {
   [data-slot='button'],
+  /* Buttons that open something have the slot of their trigger. */
+  [data-slot$='-trigger'][data-size],
   [data-slot='input'],
   [data-slot='select-trigger'],
   [data-slot='toggle-group-item'],
@@ -142,7 +144,8 @@
     min-height: 2.75rem;
   }
 
-  [data-slot='button'] {
+  [data-slot='button'],
+  [data-slot$='-trigger'][data-size] {
     min-width: 2.75rem;
   }
 }

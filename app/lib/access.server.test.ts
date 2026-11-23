@@ -1,5 +1,6 @@
 import { createCompetition, errorCode, truncateTables } from '~/tests/helpers';
 import {
+  accessUrl,
   createDisplay,
   deleteDisplay,
   getOrCreateJudgeLinks,
@@ -8,6 +9,7 @@ import {
   resetToken,
   resolveToken,
 } from './access.server';
+import { APP_ORIGIN } from './env.server';
 import { subscribe } from './events.server';
 
 beforeEach(truncateTables);
@@ -87,7 +89,7 @@ describe('resetToken', () => {
     const [judge, other] = await getOrCreateJudgeLinks(id);
     const listener = vi.fn();
     const stop = subscribe(id, listener);
-    const { token } = await resetToken(id, judge.id);
+    const { token } = await resetToken(id, 'JUDGE', judge.id);
     stop();
     expect(await resolveToken(judge.token, 'JUDGE')).toBeNull();
     expect(await resolveToken(token, 'JUDGE')).toMatchObject({ id: judge.id });
@@ -95,10 +97,20 @@ describe('resetToken', () => {
     expect(listener).toHaveBeenCalledWith('settings');
   });
 
-  it('does not reset links of other competitions', async () => {
+  it('does not reset links of other competitions or the other kind', async () => {
     const { id } = await createCompetition();
     const [link] = await getOrCreateJudgeLinks((await createCompetition()).id);
-    expect(await errorCode(resetToken(id, link.id))).toBe('NOT_FOUND');
+    const display = await createDisplay(id, 1);
+    expect(await errorCode(resetToken(id, 'JUDGE', link.id))).toBe('NOT_FOUND');
+    expect(await errorCode(resetToken(id, 'JUDGE', display.id))).toBe('NOT_FOUND');
+  });
+});
+
+describe('accessUrl', () => {
+  it('has the token in the fragment, which is not sent to servers', () => {
+    const link = { id: 'id', token: 'abc' };
+    expect(accessUrl({ kind: 'JUDGE', ...link })).toBe(`${APP_ORIGIN}/judge/id#abc`);
+    expect(accessUrl({ kind: 'DISPLAY', ...link })).toBe(`${APP_ORIGIN}/display/id#abc`);
   });
 });
 
