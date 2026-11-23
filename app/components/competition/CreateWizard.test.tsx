@@ -27,6 +27,9 @@ beforeAll(() => {
 beforeEach(() => {
   submitted.mockReset();
   response = null;
+  vi.spyOn(Date, 'now').mockImplementation(() => clock);
+  URL.createObjectURL = vi.fn(() => 'blob:logo');
+  URL.revokeObjectURL = vi.fn();
   const router = createMemoryRouter([
     {
       path: '/',
@@ -45,10 +48,29 @@ beforeEach(() => {
     </I18nextProvider>,
   );
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 const heading = () => screen.getByRole('heading', { level: 2 }).textContent;
-const next = () => userEvent.click(screen.getByRole('button', { name: 'Next' }));
+const click = (name: string) => userEvent.click(screen.getByRole('button', { name }));
+
+/** Clicks right after a step was opened are taken for the second half of a double click. */
+let clock = 0;
+function pause() {
+  clock += 1000;
+}
+
+async function next() {
+  pause();
+  await click('Next');
+}
+
+async function create() {
+  pause();
+  await click('Create competition');
+}
 
 async function fillGeneral() {
   await userEvent.type(screen.getByLabelText('Name'), 'Cup');
@@ -89,7 +111,7 @@ describe('CreateWizard', () => {
     expect(screen.getByText('Number of grounds: 3')).toBeInTheDocument();
     expect(submitted).not.toHaveBeenCalled();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Create competition' }));
+    await create();
     await waitFor(() => expect(submitted).toHaveBeenCalledOnce());
     const [form] = submitted.mock.calls[0];
     expect(form).toMatchObject({
@@ -153,11 +175,41 @@ describe('CreateWizard', () => {
 
   it('goes back to the step the server complains about', async () => {
     await goToMembers();
+    await userEvent.type(screen.getByLabelText('Email'), 'a@example.com');
     await next();
     response = { members: 'No account' };
-    await userEvent.click(screen.getByRole('button', { name: 'Create competition' }));
+    await create();
     expect(await screen.findByRole('alert')).toHaveTextContent('No account');
     expect(heading()).toBe('Members');
+    // The message is about the list that was sent.
+    await click('Remove a@example.com');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('refuses addresses the server would refuse', async () => {
+    await goToMembers();
+    await userEvent.type(screen.getByLabelText('Email'), 'a@exa_mple.com{Enter}');
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid email address.');
+  });
+
+  it('ignores the second half of a double click', async () => {
+    await goToMembers();
+    await next();
+    expect(heading()).toBe('Review');
+    await click('Create competition');
+    expect(submitted).not.toHaveBeenCalled();
+    await create();
+    await waitFor(() => expect(submitted).toHaveBeenCalledOnce());
+  });
+
+  it('lets a chosen logo be cleared', async () => {
+    const input = screen.getByLabelText<HTMLInputElement>('Logo');
+    expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+    await userEvent.upload(input, new File(['x'], 'logo.png', { type: 'image/png' }));
+    expect(input.files).toHaveLength(1);
+    await click('Clear selection');
+    expect(input.files).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
   });
 });
 

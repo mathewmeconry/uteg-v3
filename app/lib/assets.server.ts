@@ -1,3 +1,4 @@
+import type { Prisma } from '~/generated/prisma/client';
 import { DomainError } from './errors';
 import { publish } from './events.server';
 import { lockCompetition } from './locks.server';
@@ -23,19 +24,28 @@ export function checkLogo(data: Uint8Array) {
 }
 
 export async function setLogo(competitionId: string, data: Uint8Array<ArrayBuffer>) {
-  const mimeType = checkLogo(data);
   const asset = await prisma.$transaction(async (tx) => {
     await lockCompetition(tx, competitionId);
     await tx.asset.deleteMany({ where: { logoOf: { id: competitionId } } });
-    const { id } = await tx.asset.create({
-      data: { competitionId, mimeType, data },
-      select: { id: true },
-    });
-    await tx.competition.update({ where: { id: competitionId }, data: { logoId: id } });
-    return { id, mimeType };
+    return insertLogo(tx, competitionId, data);
   });
   publish(competitionId, 'settings');
   return asset;
+}
+
+/** For a competition without a logo. */
+export async function insertLogo(
+  tx: Prisma.TransactionClient,
+  competitionId: string,
+  data: Uint8Array<ArrayBuffer>,
+) {
+  const mimeType = checkLogo(data);
+  const { id } = await tx.asset.create({
+    data: { competitionId, mimeType, data },
+    select: { id: true },
+  });
+  await tx.competition.update({ where: { id: competitionId }, data: { logoId: id } });
+  return { id, mimeType };
 }
 
 export async function removeLogo(competitionId: string) {

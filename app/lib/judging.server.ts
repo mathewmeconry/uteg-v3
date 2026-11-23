@@ -6,7 +6,7 @@ import { getCurrentRound, isEnded } from './domain/progress';
 import { compareDivisions, getRoundCount, getRoundList, isVisible } from './domain/rotation';
 import { DomainError } from './errors';
 import { publish } from './events.server';
-import { lockDivisions } from './locks.server';
+import { lockContestConfigs, lockDivisions } from './locks.server';
 import { prisma } from './prisma.server';
 
 export type GradeInput = {
@@ -108,6 +108,7 @@ export async function saveGrades(
   scope: GradeScope,
 ) {
   const saved = await prisma.$transaction(async (tx) => {
+    await lockContestConfigs(tx, competitionId);
     const entries = await tx.entry.findMany({
       where: { id: { in: grades.map(({ entryId }) => entryId) }, contest: { competitionId } },
       include: GRADED_ENTRY,

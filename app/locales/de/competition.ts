@@ -10,6 +10,7 @@ export default {
     groundsHint: 'Jeder Platz hat eigene Geräte und eigene Zugänge für die Wertungsrichter.',
     logo: 'Logo',
     logoHint: 'PNG oder JPEG, höchstens 5 MB',
+    logoClear: 'Auswahl aufheben',
     modules: 'Module',
   },
   errors: {
@@ -19,6 +20,8 @@ export default {
     modules: 'Bitte mindestens ein Modul auswählen.',
     config: 'Prüfe die Prozentwerte. Erlaubt sind Zahlen von 0 bis 100.',
     logoMissing: 'Bitte ein Bild auswählen.',
+    invalidMembers: 'Ungültige E-Mail-Adresse: {{emails}}',
+    repeatedMembers: 'Bereits Mitglied oder mehrmals auf der Liste: {{emails}}',
     unknownMembers: 'Kein Konto gefunden für: {{emails}}',
   },
   modules: {

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Prisma, Role } from '~/generated/prisma/client';
+import { insertLogo } from './assets.server';
 import { parseContestConfig } from './contests.server';
 import { DomainError } from './errors';
 import { publish } from './events.server';
@@ -53,6 +54,7 @@ export async function createCompetition(
   input: CompetitionDetails & {
     contests: { module: string; name?: string; config?: unknown }[];
     members?: MemberInput[];
+    logo?: Uint8Array<ArrayBuffer> | null;
   },
 ) {
   const details = parseDetails(input);
@@ -73,6 +75,7 @@ export async function createCompetition(
       },
     });
     for (const member of input.members ?? []) await insertMember(tx, competition.id, member);
+    if (input.logo) await insertLogo(tx, competition.id, input.logo);
     return competition;
   });
 }

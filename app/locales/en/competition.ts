@@ -13,6 +13,7 @@ export default {
     groundsHint: 'Every ground has its own apparatus and its own judge links.',
     logo: 'Logo',
     logoHint: 'PNG or JPEG, 5 MB at most',
+    logoClear: 'Clear selection',
     modules: 'Modules',
   },
   errors: {
@@ -22,6 +23,8 @@ export default {
     modules: 'Select at least one module.',
     config: 'Check the percentages. Numbers from 0 to 100 are allowed.',
     logoMissing: 'Select an image.',
+    invalidMembers: 'Invalid email address: {{emails}}',
+    repeatedMembers: 'Already a member or several times on the list: {{emails}}',
     unknownMembers: 'No account found for: {{emails}}',
   },
   modules: {

@@ -85,6 +85,41 @@ describe('create competition', () => {
     expect(data.errors.members).toContain('nobody@example.com');
   });
 
+  it.each([
+    ['an invalid address', [{ email: 'not.valid', role: 'VIEWER' }], 'not.valid'],
+    ['the creator', [{ email: 'Me@example.com', role: 'VIEWER' }], 'me@example.com'],
+    [
+      'a duplicate',
+      [
+        { email: 'a@example.com', role: 'VIEWER' },
+        { email: 'A@example.com', role: 'EDITOR' },
+      ],
+      'a@example.com',
+    ],
+  ])('names %s', async (_, members, named) => {
+    const user = await createUser({ email: 'me@example.com' });
+    await createUser({ email: 'a@example.com' });
+    const { status, data } = await callRoute(action, {
+      userId: user.id,
+      form: { ...FORM, members: JSON.stringify(members) },
+    });
+    expect(status).toBe(400);
+    expect(data.errors.members).toContain(named);
+    expect(await prisma.competition.count()).toBe(0);
+  });
+
+  it('creates nothing when the logo cannot be stored', async () => {
+    const user = await createUser();
+    await prisma.$executeRaw`ALTER TABLE asset ADD CONSTRAINT no_assets CHECK (false)`;
+    try {
+      const form = { ...FORM, logo: new Blob([PNG]) };
+      await expect(callRoute(action, { userId: user.id, form })).rejects.toThrow();
+    } finally {
+      await prisma.$executeRaw`ALTER TABLE asset DROP CONSTRAINT no_assets`;
+    }
+    expect(await prisma.competition.count()).toBe(0);
+  });
+
   it('refuses the creator as another member', async () => {
     const user = await createUser({ email: 'me@example.com' });
     const members = JSON.stringify([{ email: 'me@example.com', role: 'VIEWER' }]);

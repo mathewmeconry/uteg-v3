@@ -4,6 +4,7 @@ export default {
   membersTitle: 'Mitglieder',
   readOnly: 'Mit der Rolle Betrachter kannst du nichts ändern.',
   saved: 'Die Einstellungen wurden gespeichert.',
+  reloadDiscards: 'Deine Änderungen sind nicht gespeichert. «Neu laden» verwirft sie.',
   general: 'Allgemein',
   logo: {
     current: 'Aktuelles Logo',
@@ -36,6 +37,10 @@ export default {
     leave: 'Wettkampf verlassen',
     leaveTitle: 'Wettkampf verlassen?',
     leaveText: 'Du hast danach keinen Zugriff mehr auf diesen Wettkampf.',
+    demoteTitle: 'Rolle als Inhaber abgeben?',
+    demoteText:
+      'Du kannst danach keine Mitglieder mehr verwalten und den Wettkampf nicht löschen. Nur ein anderer Inhaber kann das rückgängig machen.',
+    demote: 'Rolle abgeben',
     lastOwner: 'Der letzte Inhaber kann nicht geändert oder entfernt werden.',
     added: 'Das Mitglied wurde hinzugefügt.',
     roleChanged: 'Die Rolle wurde geändert.',

@@ -135,6 +135,7 @@ export default {
   domainErrors: {
     ALREADY_MEMBER: 'Diese Person ist bereits Mitglied.',
     ATHLETE_ALREADY_STARTS: 'Diese Person nimmt bereits teil.',
+    CONFIG_CHANGED: 'Jemand anderes hat die Einstellungen inzwischen geändert. Lade sie neu.',
     DIVISION_MISMATCH: 'Die Abteilung passt nicht zu Kategorie oder Geschlecht.',
     DIVISION_NOT_RUNNING: 'Die Abteilung läuft nicht.',
     DIVISION_RUNNING: 'Das geht nicht, solange die Abteilung läuft.',

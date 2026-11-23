@@ -1,5 +1,6 @@
 import { RouterContextProvider } from 'react-router';
 import { toastContext, userContext } from '~/context';
+import { prisma } from '~/lib/prisma.server';
 import { competitionMiddleware, contestMiddleware } from '~/middlewares/competition.server';
 
 type Form = Record<string, string | Blob | string[]>;
@@ -21,7 +22,8 @@ export async function callRoute(
   { userId, competitionId, contestId, form }: Call,
 ) {
   const context = new RouterContextProvider();
-  context.set(userContext, { id: userId } as any);
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  context.set(userContext, user as any);
   const params = { competitionId, contestId };
   const request = new Request('http://localhost/', form && { method: 'POST', body: toBody(form) });
   const next = async () => new Response();
