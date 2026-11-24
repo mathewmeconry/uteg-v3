@@ -48,7 +48,7 @@ describe('starters.xlsx', () => {
       firstname: 'Anna',
       stvId: '0012',
       divisionId: division.id,
-      lineupId: division.lineup('boden'),
+      startApparatus: 'boden',
     });
     const berta = await createStarter(competition.id, { ...person, firstname: 'Berta' });
     await createStarter(competition.id, { ...person, firstname: 'Clara' });

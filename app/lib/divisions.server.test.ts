@@ -30,14 +30,13 @@ describe('createDivision', () => {
     expect((await create({ sex: 'MALE' })).number).toBe(1);
     expect((await create({ category: 'K6' })).number).toBe(1);
 
-    expect(first.lineups.map(({ apparatus }) => apparatus).sort()).toEqual([
+    const rows = await prisma.divisionApparatus.findMany({ where: { divisionId: first.id } });
+    expect(rows.map(({ apparatus }) => apparatus).sort()).toEqual([
       'boden',
       'reck',
       'schaukelringe',
       'sprung',
     ]);
-    const progress = await prisma.divisionProgress.findMany({ where: { divisionId: first.id } });
-    expect(progress).toHaveLength(4);
   });
 
   it('numbers without gaps when created at the same time', async () => {
@@ -71,13 +70,13 @@ describe('listDivisions', () => {
     const second = await createTestDivision(contest.id, { number: 2, state: 'RUNNING' });
     const first = await createTestDivision(contest.id, { ground: 2 });
     await createStarter(id, { divisionId: first.id });
-    await createStarter(id, { divisionId: first.id, lineupId: first.lineup('reck') });
+    await createStarter(id, { divisionId: first.id, startApparatus: 'reck' });
     await createStarter(id, { divisionId: first.id, withdrawnAt: new Date() });
-    await prisma.divisionProgress.updateMany({
+    await prisma.divisionApparatus.updateMany({
       where: { divisionId: second.id },
       data: { completedRounds: 2 },
     });
-    await prisma.divisionProgress.updateMany({
+    await prisma.divisionApparatus.updateMany({
       where: { divisionId: second.id, apparatus: 'boden' },
       data: { completedRounds: 1 },
     });
@@ -137,7 +136,7 @@ describe('deleteDivisions', () => {
     const men = await createTestDivision(contest.id, { sex: 'MALE', number: 2 });
     const starter = await createStarter(id, {
       divisionId: first.id,
-      lineupId: first.lineup('reck'),
+      startApparatus: 'reck',
       grades: { reck: 9000 },
     });
     await deleteDivisions(id, [first.id]);
@@ -146,7 +145,7 @@ describe('deleteDivisions', () => {
     expect(numbers).toEqual({ [second.id]: 1, [third.id]: 2, [men.id]: 2 });
     expect(await prisma.entry.findUnique({ where: { id: starter.entry.id } })).toMatchObject({
       divisionId: null,
-      lineupId: null,
+      startApparatus: null,
     });
     expect(await prisma.grade.count()).toBe(1);
   });
@@ -168,7 +167,7 @@ describe('startDivisions', () => {
     const { id, contest } = await createCompetition();
     const division = await createTestDivision(contest.id);
     await createStarter(id, { divisionId: division.id, grades: { reck: 9000 } });
-    await prisma.divisionProgress.updateMany({ data: { completedRounds: 3 } });
+    await prisma.divisionApparatus.updateMany({ data: { completedRounds: 3 } });
     const listener = vi.fn();
     const stop = subscribe(id, listener);
     await startDivisions(id, [division.id]);

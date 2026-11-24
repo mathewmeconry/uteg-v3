@@ -28,8 +28,8 @@ async function setup() {
     return list.map(({ starter }) => starter.firstname).join('');
   }
   const pick = (text: string) => [...text].map((name) => entries[name]);
-  const reck = division.lineup('reck');
-  const boden = division.lineup('boden');
+  const reck = { divisionId: division.id, apparatus: 'reck' };
+  const boden = { divisionId: division.id, apparatus: 'boden' };
   return { competition, division, names, pick, reck, boden };
 }
 
@@ -83,6 +83,18 @@ describe('moveEntriesToLineup', () => {
     const other = await createCompetition();
     expect(await errorCode(moveEntriesToLineup(other.id, reck, pick('a')))).toBe('NOT_FOUND');
   });
+
+  it('only knows the apparatus of the division', async () => {
+    const { competition, division, pick } = await setup();
+    const barren = { divisionId: division.id, apparatus: 'barren' };
+    const move = moveEntriesToLineup(competition.id, barren, pick('a'));
+    expect(await errorCode(move)).toBe('NOT_FOUND');
+    // Nor does the database.
+    const where = { id: pick('a')[0] };
+    await expect(
+      prisma.entry.update({ where, data: { startApparatus: 'barren' } }),
+    ).rejects.toThrow('Foreign key');
+  });
 });
 
 describe('moveEntriesToLineup before another entry', () => {
@@ -135,10 +147,10 @@ describe('unassignEntries', () => {
 
 describe('getDivisionLineups', () => {
   it('orders lineups by rotation and hides withdrawn entries before the start', async () => {
-    const { competition, division, reck } = await setup();
+    const { competition, division } = await setup();
     await createStarter(competition.id, {
       divisionId: division.id,
-      lineupId: reck,
+      startApparatus: 'reck',
       withdrawnAt: new Date(),
     });
     const { lineups } = await getDivisionLineups(competition.id, division.id);

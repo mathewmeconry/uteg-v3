@@ -33,8 +33,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const { division, lineups, unassigned } = await loadDivision(context, params.divisionId);
   return {
     division,
-    lineups: lineups.map(({ id, apparatus, entries }) => ({
-      id,
+    lineups: lineups.map(({ apparatus, entries }) => ({
       apparatus: apparatus as Apparatus,
       entries: entries.map(toEntryData),
     })),
@@ -88,7 +87,10 @@ export default function Lineups({ loaderData }: Route.ComponentProps) {
     `/api/competitions/${competition.id}/contests/${division.contestId}/divisions/${division.id}/lineup-moves`,
     [
       { id: UNASSIGNED, entryIds: unassigned.map(({ id }) => id) },
-      ...lineups.map((lineup) => ({ id: lineup.id, entryIds: lineup.entries.map(({ id }) => id) })),
+      ...lineups.map((lineup) => ({
+        id: lineup.apparatus,
+        entryIds: lineup.entries.map(({ id }) => id),
+      })),
     ],
     loaderData,
   );
@@ -102,7 +104,7 @@ export default function Lineups({ loaderData }: Route.ComponentProps) {
   const starterCount = entries.filter(({ withdrawn }) => !withdrawn).length;
 
   function columnName(columnId: string) {
-    const lineup = lineups.find(({ id }) => id === columnId);
+    const lineup = lineups.find(({ apparatus }) => apparatus === columnId);
     return lineup ? t(`common:apparatus.${lineup.apparatus}`) : t('lineups.unassigned');
   }
 

@@ -186,7 +186,6 @@ export default {
     INVALID_IMAGE: 'The image must be a PNG or JPEG file.',
     INVALID_INPUT: 'Invalid input.',
     LAST_OWNER: 'The competition needs at least one owner.',
-    LINEUP_MISMATCH: 'The starting apparatus does not belong to this division.',
     NOT_FOUND: 'Not found.',
     RESTART_NOT_CONFIRMED: 'The restart must be confirmed.',
     ROUND_NOT_CURRENT: 'This round is no longer current.',

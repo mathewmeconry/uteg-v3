@@ -14,7 +14,7 @@ const OPTIONS: ContestOptions = {
   name: 'EGT',
   categories: { FEMALE: ['K5', 'KD'], MALE: ['K5', 'KH'] },
   apparatus: ['reck'],
-  divisions: [{ id: 'd', category: 'K5', sex: 'FEMALE', number: 1, lineups: [] }],
+  divisions: [{ id: 'd', category: 'K5', sex: 'FEMALE', number: 1, apparatus: [] }],
 };
 
 const ANNA: ImportedStarter = {

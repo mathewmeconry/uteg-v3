@@ -16,7 +16,8 @@ React Router 8 (framework mode, SSR), Vite, TypeScript, Prisma 7 + PostgreSQL, T
 | Module code | `app/modules/<key>` implements `ContestModule` and is listed in `app/modules/registry.ts`. | Replaces v2's frontend/backend hook system. |
 | Athletes | `Athlete` is the shared master record: name, birth year, sex, optional unique STV-ID. A `Starter` belongs to one competition, points to its athlete and stores the values used there, plus the club. Editing a starter updates the athlete only on request. Suggestions search all athletes. | In v2 editing an athlete changed every competition, including finished rankings. |
 | Judge/display access | The link is `/judge/<linkId>#<token>`. The page exchanges the token for an httpOnly cookie per link, which is compared with the database on every request. | The secret is in no URL the server sees, so in no log. Resetting a link locks the old tablet out at once (v2 JWTs stayed valid). |
-| Progress | One `DivisionProgress` row per division and apparatus, updated atomically. | v2 lost updates when two devices finished at the same time. |
+| Progress | One `DivisionApparatus` row per division and apparatus, updated atomically. | v2 lost updates when two devices finished at the same time. |
+| Lineups | An entry stores the apparatus it starts on, with a foreign key to the `DivisionApparatus`. A lineup is not a table. | Nobody can start on an apparatus their division does not have. |
 | Grades | Unique per entry and apparatus. Vault attempts are stored, the server computes the final grade. Integer thousandths in the domain code. | v2 could create duplicates and only kept the final value. |
 | PDFs | Rendered on the server with bundled fonts. | v2 loaded fonts from Google at print time. |
 | Uploads | Logos (PNG/JPEG, max 5 MB) are stored in the database. | No volume to manage. |

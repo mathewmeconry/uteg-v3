@@ -26,9 +26,7 @@ export async function getContestOptions(competitionId: string, contestId: string
       category: division.category,
       sex: division.sex,
       number: division.number,
-      lineups: division.lineups
-        .map(({ id: lineupId, apparatus: key }) => ({ id: lineupId, apparatus: key }))
-        .toSorted((a, b) => apparatus.indexOf(a.apparatus) - apparatus.indexOf(b.apparatus)),
+      apparatus: module.apparatus(division.sex),
     })),
   };
 }

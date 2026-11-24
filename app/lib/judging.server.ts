@@ -250,10 +250,10 @@ export async function confirmRound(
 
     for (const division of open) {
       await tx.$executeRaw`
-        UPDATE division_progress
+        UPDATE division_apparatus
         SET "completedRounds" = GREATEST("completedRounds", ${round + 1})
         WHERE "divisionId" = ${division.id} AND apparatus = ${apparatus}`;
-      const progress = await tx.divisionProgress.findMany({ where: { divisionId: division.id } });
+      const progress = await tx.divisionApparatus.findMany({ where: { divisionId: division.id } });
       if (isEnded(progress)) {
         assertGraded(getMissingGrades(division));
         await tx.division.update({
@@ -270,8 +270,7 @@ export async function confirmRound(
 
 const GRADED_ENTRY = {
   contest: true,
-  division: { include: { progress: true } },
-  lineup: true,
+  division: { include: { apparatus: true } },
   starter: true,
 } as const;
 type GradedEntry = Prisma.EntryGetPayload<{ include: typeof GRADED_ENTRY }>;
@@ -298,12 +297,12 @@ async function lockGradedEntries(
 }
 
 /** Whether the apparatus has confirmed the round in which the entry is there. */
-function isConfirmed({ contest, division, lineup }: GradedEntry, apparatus: string) {
-  if (!division || !lineup) return false;
+function isConfirmed({ contest, division, ...entry }: GradedEntry, apparatus: string) {
+  if (!division || !entry.startApparatus) return false;
   const order = getContestModule(contest).apparatus(division.sex);
-  const row = division.progress.find((item) => item.apparatus === apparatus);
+  const row = division.apparatus.find((item) => item.apparatus === apparatus);
   return Array.from({ length: row?.completedRounds ?? 0 }).some(
-    (_, round) => startApparatus(order, apparatus, round) === lineup.apparatus,
+    (_, round) => startApparatus(order, apparatus, round) === entry.startApparatus,
   );
 }
 
@@ -342,8 +341,7 @@ async function loadDivisions(
     where: { ...where, contest: { competitionId } },
     include: {
       contest: true,
-      progress: true,
-      lineups: {
+      apparatus: {
         include: {
           entries: {
             orderBy: [{ position: 'asc' }, { id: 'asc' }],
@@ -354,7 +352,7 @@ async function loadDivisions(
     },
   });
   return divisions
-    .map(({ contest, lineups, progress, ...division }) => {
+    .map(({ contest, apparatus: progress, ...division }) => {
       const module = getContestModule(contest);
       const apparatus = module.apparatus(division.sex);
       return {
@@ -363,7 +361,7 @@ async function loadDivisions(
         apparatus,
         rounds: apparatus.length,
         progress,
-        lineups: Object.fromEntries(lineups.map((lineup) => [lineup.apparatus, lineup.entries])),
+        lineups: Object.fromEntries(progress.map((row) => [row.apparatus, row.entries])),
       };
     })
     .toSorted(compareDivisions);
@@ -467,10 +465,10 @@ function getGradeableRule(
 ): InputRule {
   if (!entry) throw new DomainError('NOT_FOUND');
   if (scope.kind === 'judge') {
-    const { division, lineupId } = entry;
+    const { division } = entry;
     const isOnTablet =
       apparatus === scope.apparatus &&
-      lineupId !== null &&
+      entry.startApparatus !== null &&
       division?.state === 'RUNNING' &&
       division.ground === scope.ground &&
       isVisible(entry, division);

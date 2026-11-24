@@ -29,8 +29,7 @@ export function toStarterRow(starter: Starter, contestId: string) {
     category: entry?.category ?? null,
     divisionId: entry?.divisionId ?? null,
     divisionNumber: entry?.division?.number ?? null,
-    lineupId: entry?.lineupId ?? null,
-    startApparatus: entry?.lineup?.apparatus ?? null,
+    startApparatus: entry?.startApparatus ?? null,
   };
 }
 

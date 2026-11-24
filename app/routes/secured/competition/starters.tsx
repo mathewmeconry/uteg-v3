@@ -91,13 +91,13 @@ export async function action({ request, context }: Route.ActionArgs) {
       case 'create': {
         const { data: values, errors } = parseForm(formData, starterFormSchema(t));
         if (errors) return data({ errors }, 400);
-        const { contestId, category, divisionId, lineupId, athleteId, ...person } = values;
+        const { contestId, category, divisionId, startApparatus, athleteId, ...person } = values;
         // Someone who comes back keeps what is left empty.
         const entry = {
           contestId,
           category: category || undefined,
           divisionId: divisionId || undefined,
-          lineupId: lineupId || undefined,
+          startApparatus: startApparatus || undefined,
         };
         const { outcome } = await createStarter(id, { ...person, athleteId, entries: [entry] });
         const message = t(`starters:${outcome}`, { name: fullName(person) });
@@ -108,14 +108,14 @@ export async function action({ request, context }: Route.ActionArgs) {
         const { data: values, errors } = parseForm(formData, starterFormSchema(t));
         if (errors) return data({ errors }, 400);
         const starterId = String(formData.get('starterId') ?? '');
-        const { contestId, category, divisionId, lineupId, athleteId: _, ...person } = values;
+        const { contestId, category, divisionId, startApparatus, athleteId: _, ...person } = values;
         const starter = await getStarter(id, starterId);
         const isInContest = starter.entries.some((entry) => entry.contestId === contestId);
         const entry = {
           contestId,
           category: category || null,
           divisionId: divisionId || null,
-          lineupId: lineupId || null,
+          startApparatus: startApparatus || null,
         };
         await updateStarter(id, starterId, {
           ...person,
@@ -176,7 +176,7 @@ function starterFormSchema(t: ServerT) {
     clubId: z.string({ error: required }).min(1, required),
     category: z.string().default(''),
     divisionId: z.string().default(''),
-    lineupId: z.string().default(''),
+    startApparatus: z.string().default(''),
   });
 }
 
@@ -187,7 +187,7 @@ const assignmentsSchema = z
       entryIds: z.array(id).min(1),
       divisionId: id,
       // Not sent: keep, null: none.
-      lineupId: id.nullish(),
+      startApparatus: id.nullish(),
     }),
   )
   .min(1);

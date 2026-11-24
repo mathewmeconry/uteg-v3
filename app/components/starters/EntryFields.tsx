@@ -6,7 +6,7 @@ import type { EgtApparatus } from '~/modules/egt/module';
 import type { Sex } from '~/modules/types';
 import { NativeSelect } from './NativeSelect';
 
-export type EntryValue = { category: string; divisionId: string; lineupId: string };
+export type EntryValue = { category: string; divisionId: string; startApparatus: string };
 
 /** The divisions a starter of this category and sex can be assigned to. */
 export function fittingDivisions(
@@ -59,7 +59,7 @@ export function EntryFields({
             value={division?.id ?? ''}
             disabled={divisions.length === 0}
             onChange={(event) =>
-              setValue({ ...value, category, divisionId: event.target.value, lineupId: '' })
+              setValue({ ...value, category, divisionId: event.target.value, startApparatus: '' })
             }
           >
             <option value="">{t('noDivision')}</option>
@@ -71,13 +71,15 @@ export function EntryFields({
         {(props) => (
           <NativeSelect
             {...props}
-            name="lineupId"
-            value={division?.lineups.some(({ id }) => id === value.lineupId) ? value.lineupId : ''}
+            name="startApparatus"
+            value={division?.apparatus.includes(value.startApparatus) ? value.startApparatus : ''}
             disabled={!division}
-            onChange={(event) => setValue({ ...value, category, lineupId: event.target.value })}
+            onChange={(event) =>
+              setValue({ ...value, category, startApparatus: event.target.value })
+            }
           >
             <option value="">{t('noApparatus')}</option>
-            <LineupOptions division={division} />
+            <ApparatusOptions division={division} />
           </NativeSelect>
         )}
       </FormField>
@@ -94,10 +96,10 @@ export function DivisionOptions({ divisions }: { divisions: DivisionOption[] }) 
   ));
 }
 
-export function LineupOptions({ division }: { division: DivisionOption | undefined }) {
+export function ApparatusOptions({ division }: { division: DivisionOption | undefined }) {
   const { t } = useTranslation();
-  return division?.lineups.map(({ id, apparatus }) => (
-    <option key={id} value={id}>
+  return division?.apparatus.map((apparatus) => (
+    <option key={apparatus} value={apparatus}>
       {t(`apparatus.${apparatus as EgtApparatus}`)}
     </option>
   ));

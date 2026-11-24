@@ -17,7 +17,7 @@ async function setup() {
       sex: division.sex,
       category: division.category,
       divisionId: division.id,
-      lineupId: division.lineup('reck'),
+      startApparatus: 'reck',
       grades: { reck: value },
     });
   await add(ended, 'Anna', 9000);

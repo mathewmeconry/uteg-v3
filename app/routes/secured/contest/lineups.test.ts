@@ -10,19 +10,19 @@ async function setup(role: 'VIEWER' | 'EDITOR' = 'EDITOR') {
   const competition = await createCompetition();
   const division = await createDivision(competition.contest.id);
   const other = await createDivision(competition.contest.id, { number: 2 });
-  const entry = async (divisionId: string, lineupId?: string) =>
-    (await createStarter(competition.id, { divisionId, lineupId })).entry.id;
-  const reck = division.lineup('reck');
+  const entry = async (divisionId: string, startApparatus?: string) =>
+    (await createStarter(competition.id, { divisionId, startApparatus })).entry.id;
+  const reck = 'reck';
   const entries = [await entry(division.id, reck), await entry(division.id, reck)];
   const unassigned = await entry(division.id);
-  const otherEntry = await entry(other.id, other.lineup('reck'));
+  const otherEntry = await entry(other.id, 'reck');
   const context = await contextFor(competition, role);
   const params = { divisionId: division.id };
   const post = (fields: Record<string, string | string[]>) =>
     callAction(action, context, fields, params);
   const load = (divisionId = division.id) => loader({ context, params: { divisionId } } as any);
   const order = async () => (await load()).lineups[0].entries.map(({ id }) => id);
-  return { competition, division, other, reck, entries, unassigned, otherEntry, post, load, order };
+  return { competition, division, reck, entries, unassigned, otherEntry, post, load, order };
 }
 
 describe('loader', () => {
@@ -79,17 +79,17 @@ describe('action', () => {
     expect((await post({ intent: 'nope' })).status).toBe(400);
   });
 
-  it('denies lineups and entries of other divisions', async () => {
-    const { post, other, reck, unassigned, otherEntry, entries, order } = await setup();
+  it('denies unknown lineups and entries of other divisions', async () => {
+    const { post, reck, unassigned, otherEntry, entries, order } = await setup();
     const foreignCompetition = await createCompetition();
     const foreign = await createDivision(foreignCompetition.contest.id);
     const { entry } = await createStarter(foreignCompetition.id, {
       divisionId: foreign.id,
-      lineupId: foreign.lineup('reck'),
+      startApparatus: 'reck',
     });
     const entryBefore = await prisma.entry.findMany({ orderBy: { id: 'asc' } });
 
-    for (const lineup of [other.lineup('reck'), foreign.lineup('reck'), 'nope']) {
+    for (const lineup of ['barren', 'nope']) {
       const result = await post({ intent: 'move', lineup, entry: unassigned });
       expect(result).toMatchObject({ status: 404, error: 'Nicht gefunden.' });
     }
@@ -116,7 +116,8 @@ describe('action', () => {
     expect(await callAction(action, context, move, params)).toMatchObject({ status: 404 });
     const unassign = { intent: 'unassign', entry: entries };
     expect(await callAction(action, context, unassign, params)).toMatchObject({ status: 404 });
-    expect(await prisma.entry.count({ where: { lineupId: reck } })).toBe(2);
+    const lineup = { divisionId: division.id, startApparatus: reck };
+    expect(await prisma.entry.count({ where: lineup })).toBe(2);
   });
 
   it('does not work through a division of another competition', async () => {

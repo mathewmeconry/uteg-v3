@@ -19,7 +19,7 @@ describe('dashboard', () => {
     const division = await createDivision(competition.contest.id, { state: 'RUNNING' });
     await createStarter(competition.id, {
       divisionId: division.id,
-      lineupId: division.lineup('reck'),
+      startApparatus: 'reck',
       grades: { reck: 9500 },
     });
 

@@ -8,6 +8,7 @@ import { createDivision, startDivisions } from '~/lib/divisions.server';
 import { confirmRound, getJudgingState, saveGrades } from '~/lib/judging.server';
 import { prisma } from '~/lib/prisma.server';
 import { assignEntries, importStarters } from '~/lib/starters.server';
+import { getContestModule } from '~/modules/registry';
 
 const EMAIL = 'demo@uteg.local';
 const COMPETITION = 'Demo Gerätecup';
@@ -88,13 +89,14 @@ async function main() {
       where: { divisionId: division.id },
       orderBy: [{ starter: { lastname: 'asc' } }, { starter: { firstname: 'asc' } }],
     });
+    const apparatus = getContestModule(contest).apparatus(data.sex);
     await assignEntries(
       competition.id,
-      division.lineups.map((lineup, index) => ({
+      apparatus.map((startApparatus, index) => ({
         divisionId: division.id,
-        lineupId: lineup.id,
+        startApparatus,
         entryIds: entries
-          .filter((_, position) => position % division.lineups.length === index)
+          .filter((_, position) => position % apparatus.length === index)
           .map(({ id }) => id),
       })),
     );
