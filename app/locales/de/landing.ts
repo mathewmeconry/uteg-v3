@@ -18,7 +18,7 @@ export default {
   },
   import: {
     title: 'Anmeldungen aus Excel',
-    text: 'Vereine schicken ihre Datei, UTEG erkennt Spalten und Kategorien. Was nicht stimmt, siehst du vor dem Import. Am Wettkampftag hat der Check-in einen eigenen Zugang.',
+    text: 'Vereine schicken ihre Datei, UTEG erkennt Spalten und Kategorien. Was nicht stimmt, siehst du vor dem Import. Die Anmeldung am Wettkampftag hat einen eigenen Zugang.',
     missing: 'Kategorie fehlt',
   },
   live: {

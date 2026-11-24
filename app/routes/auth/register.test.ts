@@ -8,14 +8,17 @@ import { action } from './register';
 beforeEach(truncateTables);
 
 it.each([
-  ['en-GB,en;q=0.9,de;q=0.8', 'en', 'Your UTEG code'],
-  ['de-CH,de;q=0.9,en;q=0.8', 'de', 'Dein UTEG-Code'],
-])('uses the language of the browser: %s', async (accepted, language, subject) => {
+  ['en-GB,en;q=0.9,de;q=0.8', '', 'en', 'Your UTEG code'],
+  ['de-CH,de;q=0.9,en;q=0.8', '', 'de', 'Dein UTEG-Code'],
+  ['en-GB,en;q=0.9,de;q=0.8', '?lang=de', 'de', 'Dein UTEG-Code'],
+  ['en-GB,en;q=0.9,de;q=0.8', '?lang=xx', 'en', 'Your UTEG code'],
+])('uses the language of the browser %s or the link %s', async (accepted, search, ...expected) => {
+  const [language, subject] = expected;
   const email = `${language}@example.com`;
   const context = new RouterContextProvider();
   // From a cookie.
   context.set(languageContext, language === 'en' ? 'de' : 'en');
-  const request = new Request('http://localhost/register', {
+  const request = new Request(`http://localhost/register${search}`, {
     method: 'POST',
     headers: { 'Accept-Language': accepted },
     body: new URLSearchParams({

@@ -61,7 +61,8 @@ export function Hero({ language }: { language: Language }) {
             ))}
           </nav>
           <Link
-            to="/login"
+            // The link to register there keeps it.
+            to={`/login?lang=${language}`}
             className="inline-flex min-h-11 items-center font-semibold whitespace-nowrap underline underline-offset-4 hover:no-underline"
           >
             {t('auth:loginTitle')}
@@ -104,7 +105,7 @@ export function Hero({ language }: { language: Language }) {
           </h1>
           <p className="max-w-[46ch] text-ink-foreground/85 lg:text-lg">{t('intro')}</p>
           <Button asChild variant="brand" size="lg" className="w-full sm:w-auto">
-            <Link to="/register">{t('start')}</Link>
+            <Link to={`/register?lang=${language}`}>{t('start')}</Link>
           </Button>
         </div>
 

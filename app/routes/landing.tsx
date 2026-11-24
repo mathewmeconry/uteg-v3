@@ -1,3 +1,4 @@
+import { ChevronDownIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, redirect } from 'react-router';
 import type { CSSProperties, ReactNode } from 'react';
@@ -228,21 +229,28 @@ export default function Landing({ loaderData: { language } }: Route.ComponentPro
       <section className="bg-accent">
         <div className="mx-auto max-w-[77.5rem] px-4 py-14 sm:px-6 lg:py-22">
           <Heading className="mb-4 lg:mb-9">{t('faq.title')}</Heading>
-          <div className="grid gap-x-16 md:grid-cols-2 md:gap-y-8">
+          {/* Closed on phones, where the answers would be a long way to scroll. */}
+          <div className="md:hidden">
             {FAQ.map((key, index) => (
-              // Closed on phones, where answers would be a long way to scroll.
               <details
                 key={key}
                 open={index === 0}
-                className="border-b border-input/60 last:border-0 md:border-0 md:[&::details-content]:[content-visibility:visible]"
+                className="group border-b border-input/60 last:border-0"
               >
-                <summary className="flex min-h-13 cursor-pointer items-center py-2.5 text-lg leading-snug font-semibold md:pointer-events-none md:min-h-0 md:py-0 md:text-xl">
-                  <h3>{t(`faq.${key}.question`)}</h3>
+                <summary className="flex min-h-13 cursor-pointer items-center gap-3 py-2.5 text-lg leading-snug font-semibold">
+                  <h3 className="flex-1">{t(`faq.${key}.question`)}</h3>
+                  <ChevronDownIcon aria-hidden className="size-5 shrink-0 group-open:rotate-180" />
                 </summary>
-                <p className="pb-4 text-muted-foreground md:mt-1.5 md:pb-0">
-                  {t(`faq.${key}.answer`)}
-                </p>
+                <p className="pb-4 text-muted-foreground">{t(`faq.${key}.answer`)}</p>
               </details>
+            ))}
+          </div>
+          <div className="hidden gap-x-16 gap-y-8 md:grid md:grid-cols-2">
+            {FAQ.map((key) => (
+              <div key={key}>
+                <h3 className="text-xl leading-snug font-semibold">{t(`faq.${key}.question`)}</h3>
+                <p className="mt-1.5 text-muted-foreground">{t(`faq.${key}.answer`)}</p>
+              </div>
             ))}
           </div>
         </div>
@@ -254,7 +262,7 @@ export default function Landing({ loaderData: { language } }: Route.ComponentPro
           <div className="flex flex-col items-start gap-6 pb-12 lg:py-16">
             <Heading>{t('closing')}</Heading>
             <Button asChild variant="brand" size="lg" className="w-full sm:w-auto">
-              <Link to="/register">{t('auth:registerTitle')}</Link>
+              <Link to={`/register?lang=${language}`}>{t('auth:registerTitle')}</Link>
             </Button>
           </div>
         </div>
