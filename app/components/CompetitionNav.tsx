@@ -256,7 +256,7 @@ export function BottomNav() {
   );
 }
 
-/** The pages of "Einrichten", next to each of them. */
+/** The pages of the settings, next to each of them. */
 export function SetupNav() {
   const { t } = useTranslation();
   const { setup, isSetup } = useNavItems();

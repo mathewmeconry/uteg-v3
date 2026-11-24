@@ -36,7 +36,7 @@ export default {
   },
   nav: {
     main: 'Hauptnavigation',
-    setup: 'Einrichten',
+    setup: 'Einstellungen',
     more: 'Mehr',
     account: 'Konto',
     home: 'Wettkämpfe',
