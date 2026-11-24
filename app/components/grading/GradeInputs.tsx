@@ -15,6 +15,7 @@ export function GradeInputs({
   rule,
   name,
   large = false,
+  compact = false,
   showRequired = false,
   disabled = false,
   firstInput,
@@ -27,6 +28,8 @@ export function GradeInputs({
   /** Whose grade it is. Labels are only visible in the large version. */
   name: string;
   large?: boolean;
+  /** In a table with a column per apparatus. */
+  compact?: boolean;
   /** Missing values are only errors after trying to save. */
   showRequired?: boolean;
   disabled?: boolean;
@@ -90,7 +93,13 @@ export function GradeInputs({
   if (emptyError) errors.add('REQUIRED');
 
   return (
-    <div ref={container} className={cn('flex flex-wrap items-start', large ? 'gap-4' : 'gap-2')}>
+    <div
+      ref={container}
+      className={cn(
+        'flex items-start',
+        large ? 'flex-wrap gap-4' : compact ? 'gap-1' : 'flex-wrap gap-2',
+      )}
+    >
       {controls.map((control, position) => {
         const error = shownError(control.error);
         const errorId = large ? lineId : `${id}-${control.key}-error`;
@@ -117,7 +126,15 @@ export function GradeInputs({
               enterKeyHint={control.index < count - 1 ? 'next' : 'send'}
               autoComplete="off"
               value={control.value}
-              placeholder={large ? undefined : control.label}
+              placeholder={
+                large
+                  ? undefined
+                  : compact
+                    ? control.index < count
+                      ? `${control.index + 1}.`
+                      : undefined
+                    : control.label
+              }
               readOnly={control.readOnly}
               tabIndex={control.readOnly ? -1 : undefined}
               disabled={disabled || control.disabled}
@@ -127,7 +144,7 @@ export function GradeInputs({
                 'tabular-nums',
                 large
                   ? 'h-20 px-0 text-center text-5xl font-bold md:text-5xl'
-                  : 'h-9 w-24 text-right text-base md:text-base',
+                  : cn('h-9 text-right text-base md:text-base', compact ? 'w-18 px-2' : 'w-24'),
                 control.readOnly && 'bg-muted font-bold',
               )}
               onChange={(event) => control.onChange(event.target.value)}

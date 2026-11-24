@@ -23,6 +23,10 @@ export default {
     all: 'Alle',
     search: 'Suche',
   },
+  tabs: {
+    grades: 'Noten',
+    lineups: 'Riegen',
+  },
   order: {
     text: 'Von oben nach unten, wie geturnt wird.',
     drag: '{{name}} verschieben',

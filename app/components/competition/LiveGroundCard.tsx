@@ -21,7 +21,7 @@ export function LiveGroundCard({
   ground: LiveGround;
   /** The planned divisions of this ground in running order. */
   planned: Division[];
-  divisionUrl: (division: { id: string; contestId: string }) => string;
+  divisionUrl: (division: { id: string; contestId: string }, page?: 'grading') => string;
   /** For those who can start them. */
   onStart?: (division: Division) => void;
 }) {
@@ -50,7 +50,7 @@ export function LiveGroundCard({
                 <li key={id} className="grid gap-1.5">
                   <div className="flex flex-wrap items-center justify-between gap-x-4">
                     <Link
-                      to={divisionUrl(division)}
+                      to={divisionUrl(division, 'grading')}
                       className="inline-flex items-center font-semibold underline-offset-4 hover:underline pointer-coarse:min-h-11"
                     >
                       {name}

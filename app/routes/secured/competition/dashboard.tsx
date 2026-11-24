@@ -88,8 +88,11 @@ export default function Dashboard({
     return `/competitions/${competition.id}/contests/${contestId}/divisions`;
   }
 
-  function divisionUrl({ id, contestId }: { id: string; contestId: string }) {
-    return `${divisionsUrl(contestId)}/${id}/lineups`;
+  function divisionUrl(
+    { id, contestId }: { id: string; contestId: string },
+    page: 'grading' | 'lineups' = 'lineups',
+  ) {
+    return `${divisionsUrl(contestId)}/${id}/${page}`;
   }
 
   function start(division: Division) {

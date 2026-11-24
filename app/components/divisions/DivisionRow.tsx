@@ -103,7 +103,7 @@ export function DivisionRow({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h3>
             <Link
-              to={`${id}/lineups`}
+              to={`${id}/${state === 'PENDING' ? 'lineups' : 'grading'}`}
               className="inline-flex flex-wrap items-baseline gap-x-2 underline-offset-4 hover:underline pointer-coarse:min-h-11 pointer-coarse:items-center"
             >
               <span className="font-semibold">
