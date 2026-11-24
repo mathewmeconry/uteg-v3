@@ -2,6 +2,7 @@ import type { Route } from './+types/asset';
 import { userContext } from '~/context';
 import { hasAccessToCompetition } from '~/lib/access.server';
 import { prisma } from '~/lib/prisma.server';
+import { isAdmin } from '~/lib/users.server';
 
 /** An uploaded image, for members, judges and displays. */
 export async function loader({ request, params: { assetId }, context }: Route.LoaderArgs) {
@@ -31,12 +32,9 @@ export async function loader({ request, params: { assetId }, context }: Route.Lo
   });
 }
 
-/** Or an admin, who is one of every competition. */
 async function isMember(userId: string | undefined, competitionId: string) {
   if (!userId) return false;
-  const where = {
-    id: userId,
-    OR: [{ isAdmin: true }, { memberships: { some: { competitionId } } }],
-  };
-  return (await prisma.user.count({ where })) > 0;
+  return (
+    (await isAdmin(userId)) || (await prisma.member.count({ where: { userId, competitionId } })) > 0
+  );
 }

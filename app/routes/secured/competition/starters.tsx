@@ -44,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { competitionContext } from '~/context';
+import { Role } from '~/generated/prisma/enums';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { listClubs } from '~/lib/clubs.server';
@@ -81,7 +82,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { id, role } = requireEditorOrCheckIn(context);
-  const isCheckIn = role === 'CHECK_IN';
+  const isCheckIn = role === Role.CHECK_IN;
   const t = getT(context);
   const formData = await request.formData();
   if (isCheckIn && !['create', 'update', 'remove'].includes(String(formData.get('intent')))) {

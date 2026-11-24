@@ -31,7 +31,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'OWNER');
+  const { id } = requireRole(context, Role.OWNER);
   const t = getT(context);
   const formData = await request.formData();
 
@@ -99,7 +99,7 @@ export default function Members({
   const { t } = useTranslation(['settings', 'common']);
   const { isOwner } = useCompetition();
   const errors = useActionErrors(actionData);
-  const owners = members.filter(({ role }) => role === 'OWNER').length;
+  const owners = members.filter(({ role }) => role === Role.OWNER).length;
 
   const { state } = useNavigation();
   const emailInput = useRef<HTMLInputElement>(null);
@@ -124,7 +124,7 @@ export default function Members({
                 member={member}
                 canManage={isOwner}
                 isSelf={member.userId === ownId}
-                isLastOwner={member.role === 'OWNER' && owners === 1}
+                isLastOwner={member.role === Role.OWNER && owners === 1}
               />
             ))}
           </ul>

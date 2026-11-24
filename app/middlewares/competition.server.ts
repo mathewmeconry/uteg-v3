@@ -1,6 +1,6 @@
 import { data, redirect, type MiddlewareFunction } from 'react-router';
 import { competitionContext, contestContext, type Context } from '~/context';
-import type { Role } from '~/generated/prisma/client';
+import { Role } from '~/generated/prisma/enums';
 import { getUser } from '~/lib/auth/auth.server';
 import { getCompetitionForUser } from '~/lib/competitions.server';
 import { getContest } from '~/lib/contests.server';
@@ -26,13 +26,13 @@ export const competitionMiddleware: MiddlewareFunction<Response> = async (
 /** Sends the check-in to the starters, the only page it may see. */
 export const viewerPageMiddleware: MiddlewareFunction<Response> = ({ context }, next) => {
   const { id, role } = context.get(competitionContext);
-  if (!hasRole(role, 'VIEWER')) throw redirect(`/competitions/${id}/starters`);
+  if (!hasRole(role, Role.VIEWER)) throw redirect(`/competitions/${id}/starters`);
   return next();
 };
 
 /** Denies the check-in. */
 export const viewerApiMiddleware: MiddlewareFunction<Response> = ({ context }, next) => {
-  requireRole(context, 'VIEWER');
+  requireRole(context, Role.VIEWER);
   return next();
 };
 
@@ -57,7 +57,7 @@ export function requireRole(context: Context, minRole: Role) {
 /** For what editors and the check-in may do, but viewers may not. */
 export function requireEditorOrCheckIn(context: Context) {
   const competition = context.get(competitionContext);
-  return competition.role === 'CHECK_IN' ? competition : requireRole(context, 'EDITOR');
+  return competition.role === Role.CHECK_IN ? competition : requireRole(context, Role.EDITOR);
 }
 
 function requireParam(value: string | undefined): string {

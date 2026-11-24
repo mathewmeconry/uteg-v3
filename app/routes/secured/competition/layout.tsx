@@ -2,6 +2,7 @@ import { Outlet } from 'react-router';
 import type { Route } from './+types/layout';
 import { BottomNav, ContestSelect, SetupNav, TopBar } from '~/components/CompetitionNav';
 import { competitionContext } from '~/context';
+import { Role } from '~/generated/prisma/enums';
 import { getUser } from '~/lib/auth/auth.server';
 import { listCompetitions } from '~/lib/competitions.server';
 import { hasRole } from '~/lib/roles';
@@ -32,9 +33,9 @@ export async function loader({ context }: Route.LoaderArgs) {
     })),
     contests: contests.map(({ id, name, module }) => ({ id, name, module })),
     role,
-    canEdit: hasRole(role, 'EDITOR'),
-    isOwner: role === 'OWNER',
-    isCheckIn: role === 'CHECK_IN',
+    canEdit: hasRole(role, Role.EDITOR),
+    isOwner: role === Role.OWNER,
+    isCheckIn: role === Role.CHECK_IN,
   };
 }
 

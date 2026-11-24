@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Prisma, Role } from '~/generated/prisma/client';
+import { Role, type Prisma } from '~/generated/prisma/client';
 import { insertLogo } from './assets.server';
 import { parseContestConfig } from './contests.server';
 import { DomainError } from './errors';
@@ -7,6 +7,7 @@ import { publish } from './events.server';
 import { lockCompetition } from './locks.server';
 import { prisma } from './prisma.server';
 import { hasRole } from './roles';
+import { isAdmin } from './users.server';
 import { SEXES } from '~/modules/types';
 
 const detailsSchema = z
@@ -27,15 +28,15 @@ export type MemberInput = { email: string; role: Role };
 
 /** The competitions of the user with their role, newest first. Admins get all, as owners. */
 export async function listCompetitions(userId: string) {
-  const isAdmin = await isAdminUser(userId);
+  const ownsAll = await isAdmin(userId);
   const competitions = await prisma.competition.findMany({
-    where: isAdmin ? {} : { members: { some: { userId } } },
+    where: ownsAll ?{} : { members: { some: { userId } } },
     include: { members: { where: { userId }, select: { role: true } } },
     orderBy: [{ startDate: 'desc' }, { name: 'asc' }],
   });
   return competitions.map(({ members: [member], ...competition }) => ({
     ...competition,
-    role: isAdmin ? 'OWNER' : member.role,
+    role: ownsAll ? Role.OWNER : member.role,
   }));
 }
 
@@ -43,9 +44,9 @@ export async function listCompetitions(userId: string) {
 export async function getCompetitionForUser(
   userId: string,
   competitionId: string,
-  minRole: Role = 'CHECK_IN',
+  minRole: Role = Role.CHECK_IN,
 ) {
-  const isAdmin = await isAdminUser(userId);
+  const ownsAll = await isAdmin(userId);
   const found = await prisma.competition.findUnique({
     where: { id: competitionId },
     include: {
@@ -55,7 +56,7 @@ export async function getCompetitionForUser(
   });
   if (!found) throw new DomainError('NOT_FOUND');
   const { members, ...competition } = found;
-  const role = isAdmin ? 'OWNER' : members[0]?.role;
+  const role = ownsAll ? Role.OWNER : members[0]?.role;
   if (!role) throw new DomainError('NOT_FOUND');
   if (!hasRole(role, minRole)) throw new DomainError('FORBIDDEN');
   return { ...competition, role };
@@ -82,7 +83,7 @@ export async function createCompetition(
     const competition = await tx.competition.create({
       data: {
         ...details,
-        members: { create: { userId, role: 'OWNER' } },
+        members: { create: { userId, role: Role.OWNER } },
         contests: { create: contests },
       },
     });
@@ -175,7 +176,7 @@ export async function addMember(competitionId: string, input: MemberInput) {
 export async function changeMemberRole(competitionId: string, userId: string, role: Role) {
   await prisma.$transaction(async (tx) => {
     const member = await lockMember(tx, competitionId, userId);
-    if (role !== 'OWNER') await assertNotLastOwner(tx, member);
+    if (role !== Role.OWNER) await assertNotLastOwner(tx, member);
     await tx.member.update({ where: { id: member.id }, data: { role } });
   });
   publish(competitionId, 'settings');
@@ -191,10 +192,6 @@ export async function removeMember(competitionId: string, userId: string) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-async function isAdminUser(userId: string) {
-  return (await prisma.user.count({ where: { id: userId, isAdmin: true } })) > 0;
-}
 
 function parseDetails(input: CompetitionDetails) {
   const result = detailsSchema.safeParse(input);
@@ -235,11 +232,11 @@ async function assertNotLastOwner(
   tx: Prisma.TransactionClient,
   member: { competitionId: string; userId: string; role: Role },
 ) {
-  if (member.role !== 'OWNER') return;
+  if (member.role !== Role.OWNER) return;
   const others = await tx.member.count({
     where: {
       competitionId: member.competitionId,
-      role: 'OWNER',
+      role: Role.OWNER,
       userId: { not: member.userId },
     },
   });
