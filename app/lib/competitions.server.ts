@@ -30,7 +30,7 @@ export type MemberInput = { email: string; role: Role };
 export async function listCompetitions(userId: string) {
   const ownsAll = await isAdmin(userId);
   const competitions = await prisma.competition.findMany({
-    where: ownsAll ?{} : { members: { some: { userId } } },
+    where: ownsAll ? {} : { members: { some: { userId } } },
     include: { members: { where: { userId }, select: { role: true } } },
     orderBy: [{ startDate: 'desc' }, { name: 'asc' }],
   });
