@@ -67,6 +67,12 @@
   --bottom-nav: 0px;
 }
 
+html:has([data-slot='bottom-nav']) {
+  @media (width < 64rem) {
+    --bottom-nav: 4rem;
+  }
+}
+
 :root {
   @variant dark {
     --background: oklch(0.185 var(--tint-soft));
@@ -167,12 +173,6 @@
 
   table {
     font-variant-numeric: tabular-nums;
-  }
-
-  html:has([data-slot='bottom-nav']) {
-    @media (width < 64rem) {
-      --bottom-nav: 4rem;
-    }
   }
 
   /* Nothing that gets the focus stays behind the floating bar, or those at the top and bottom. */

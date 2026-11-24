@@ -193,7 +193,7 @@ export function TopBar() {
 }
 
 const TAB =
-  'flex h-full w-full min-w-0 flex-col items-center justify-center gap-1 text-xs font-semibold [font-stretch:78%]';
+  'flex h-full w-full min-w-0 flex-col items-center justify-center gap-1 text-xs font-semibold [font-stretch:70%]';
 
 export function BottomNav() {
   const { t } = useTranslation();
