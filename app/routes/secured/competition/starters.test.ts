@@ -40,7 +40,7 @@ async function setup() {
     clubId: club.id,
     category: 'K5',
     divisionId: '',
-    lineupId: '',
+    startApparatus: '',
   };
   return { competition, club, viewer, call, anna };
 }
@@ -54,7 +54,7 @@ describe('loader', () => {
     const starter = await createStarter(competition.id, {
       firstname: 'Anna',
       divisionId: division.id,
-      lineupId: division.lineup('boden'),
+      startApparatus: 'boden',
     });
     await prisma.athlete.update({
       where: { id: starter.athleteId },
@@ -81,7 +81,7 @@ describe('loader', () => {
       },
     ]);
     expect(data.contest.categories.MALE).toContain('KH');
-    expect(data.contest.divisions[0].lineups).toHaveLength(4);
+    expect(data.contest.divisions[0].apparatus).toHaveLength(4);
   });
 
   it('is only for members', async () => {
@@ -138,7 +138,7 @@ describe('access', () => {
       call({
         intent: 'assign',
         assignments: JSON.stringify([
-          { entryIds: [foreign.entry.id], divisionId: division.id, lineupId: null },
+          { entryIds: [foreign.entry.id], divisionId: division.id, startApparatus: null },
         ]),
       }),
     ]);
@@ -269,16 +269,16 @@ describe('update', () => {
     const [{ id }] = await starters();
     const update = { ...anna, intent: 'update', starterId: id };
 
-    await call({ ...update, divisionId: division.id, lineupId: division.lineup('reck') });
+    await call({ ...update, divisionId: division.id, startApparatus: 'reck' });
     expect((await starters())[0].entries[0]).toMatchObject({
       divisionId: division.id,
-      lineupId: division.lineup('reck'),
+      startApparatus: 'reck',
     });
     await call({ ...update, category: '' });
     expect((await starters())[0].entries[0]).toMatchObject({
       category: null,
       divisionId: null,
-      lineupId: null,
+      startApparatus: null,
     });
   });
 
@@ -302,29 +302,32 @@ describe('assign and remove', () => {
     const { data } = await call({
       intent: 'assign',
       assignments: JSON.stringify([
-        { entryIds: [a.entry.id], divisionId: k5.id, lineupId: k5.lineup('reck') },
-        { entryIds: [b.entry.id], divisionId: k6.id, lineupId: null },
+        { entryIds: [a.entry.id], divisionId: k5.id, startApparatus: 'reck' },
+        { entryIds: [b.entry.id], divisionId: k6.id, startApparatus: null },
       ]),
     });
     expect(data).toEqual({ ok: true });
     const entries = await prisma.entry.findMany({ orderBy: { category: 'asc' } });
     expect(entries).toMatchObject([
-      { divisionId: k5.id, lineupId: k5.lineup('reck') },
-      { divisionId: k6.id, lineupId: null },
+      { divisionId: k5.id, startApparatus: 'reck' },
+      { divisionId: k6.id, startApparatus: null },
     ]);
   });
 
   it('keeps the lineup when none is sent', async () => {
     const { call, competition } = await setup();
     const division = await createDivision(competition.contest.id);
-    const lineupId = division.lineup('boden');
-    const { entry } = await createStarter(competition.id, { divisionId: division.id, lineupId });
+    const startApparatus = 'boden';
+    const { entry } = await createStarter(competition.id, {
+      divisionId: division.id,
+      startApparatus,
+    });
     const { status } = await call({
       intent: 'assign',
       assignments: JSON.stringify([{ entryIds: [entry.id], divisionId: division.id }]),
     });
     expect(status).toBe(200);
-    expect(await prisma.entry.findFirst()).toMatchObject({ lineupId });
+    expect(await prisma.entry.findFirst()).toMatchObject({ startApparatus });
   });
 
   it.each(['', 'nonsense', '[{}]', '{}'])('rejects assignments %j', async (assignments) => {
@@ -339,7 +342,7 @@ describe('assign and remove', () => {
     const { status, data } = await call({
       intent: 'assign',
       assignments: JSON.stringify([
-        { entryIds: [starter.entry.id], divisionId: k6.id, lineupId: null },
+        { entryIds: [starter.entry.id], divisionId: k6.id, startApparatus: null },
       ]),
     });
     expect(status).toBe(400);

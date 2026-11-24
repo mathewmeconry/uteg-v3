@@ -133,7 +133,7 @@ describe('createStarter', () => {
         stvId: '1',
         firstname: 'Xenia',
         divisionId: division.id,
-        lineupId: division.lineup('reck'),
+        startApparatus: 'reck',
         grades: { reck: 9000 },
       });
       await withdrawStarters(id, [removed.id]);
@@ -283,7 +283,7 @@ describe('createStarter', () => {
           contestId,
           category: 'K5',
           divisionId: division.id,
-          lineupId: division.lineup('reck'),
+          startApparatus: 'reck',
         },
       ],
     });
@@ -297,7 +297,7 @@ describe('createStarter', () => {
     expect(await getStarter(id, starterId)).toMatchObject({
       lastname: 'Married',
       differsFromAthlete: true,
-      entries: [{ withdrawnAt: null, lineupId: division.lineup('reck') }],
+      entries: [{ withdrawnAt: null, startApparatus: 'reck' }],
     });
   });
 
@@ -362,7 +362,7 @@ describe('updateStarter', () => {
           contestId: there.contestId,
           category: 'K5',
           divisionId: division.id,
-          lineupId: division.lineup('reck'),
+          startApparatus: 'reck',
         },
       ],
     });
@@ -523,7 +523,7 @@ describe('updateStarter', () => {
             contestId,
             category: 'K5',
             divisionId: division.id,
-            lineupId: division.lineup('reck'),
+            startApparatus: 'reck',
           },
         ],
         ...data,
@@ -543,20 +543,28 @@ describe('updateStarter', () => {
       expect(await entry()).toMatchObject({
         category: 'K5',
         divisionId: division.id,
-        lineupId: division.lineup('reck'),
+        startApparatus: 'reck',
       });
     });
 
     it('drops division and lineup when the category changes', async () => {
       const { update, entry } = await assigned();
       await update({ category: 'K6' });
-      expect(await entry()).toMatchObject({ category: 'K6', divisionId: null, lineupId: null });
+      expect(await entry()).toMatchObject({
+        category: 'K6',
+        divisionId: null,
+        startApparatus: null,
+      });
     });
 
     it('drops division and lineup when the sex changes', async () => {
       const { id, starterId, entry } = await assigned();
       await updateStarter(id, starterId, { sex: 'MALE' });
-      expect(await entry()).toMatchObject({ category: 'K5', divisionId: null, lineupId: null });
+      expect(await entry()).toMatchObject({
+        category: 'K5',
+        divisionId: null,
+        startApparatus: null,
+      });
     });
 
     it('drops a category the new sex does not have', async () => {
@@ -570,15 +578,15 @@ describe('updateStarter', () => {
       const { contestId, update, entry } = await assigned();
       const second = await createDivision(contestId, { number: 2 });
       await update({ divisionId: second.id });
-      expect(await entry()).toMatchObject({ divisionId: second.id, lineupId: null });
-      await update({ lineupId: second.lineup('boden') });
-      expect(await entry()).toMatchObject({ lineupId: second.lineup('boden') });
+      expect(await entry()).toMatchObject({ divisionId: second.id, startApparatus: null });
+      await update({ startApparatus: 'boden' });
+      expect(await entry()).toMatchObject({ startApparatus: 'boden' });
     });
 
     it('clears division and lineup', async () => {
       const { update, entry } = await assigned();
-      await update({ lineupId: null });
-      expect(await entry()).toMatchObject({ divisionId: expect.any(String), lineupId: null });
+      await update({ startApparatus: null });
+      expect(await entry()).toMatchObject({ divisionId: expect.any(String), startApparatus: null });
       await update({ divisionId: null });
       expect(await entry()).toMatchObject({ category: 'K5', divisionId: null });
     });
@@ -592,11 +600,11 @@ describe('updateStarter', () => {
             contestId,
             category: 'K5',
             divisionId: division.id,
-            lineupId: division.lineup('boden'),
+            startApparatus: 'boden',
           },
         ],
       });
-      await update({ lineupId: division.lineup('boden') });
+      await update({ startApparatus: 'boden' });
       const [other] = (await getStarter(id, second.starterId)).entries;
       expect((await entry()).position).toBeGreaterThan(other.position);
     });
@@ -616,11 +624,11 @@ describe('updateStarter', () => {
       expect(await errorCode(update({ divisionId: other.id }))).toBe('NOT_FOUND');
     });
 
-    it('rejects a lineup of another division and unknown categories', async () => {
-      const { contestId, update } = await assigned();
-      const second = await createDivision(contestId, { number: 2 });
-      const lineup = update({ lineupId: second.lineup('reck') });
-      expect(await errorCode(lineup)).toBe('LINEUP_MISMATCH');
+    it('rejects an apparatus the division does not have and unknown categories', async () => {
+      const { update } = await assigned();
+      expect(await errorCode(update({ startApparatus: 'barren' }))).toBe('INVALID_APPARATUS');
+      const without = update({ divisionId: null, startApparatus: 'reck' });
+      expect(await errorCode(without)).toBe('INVALID_APPARATUS');
       expect(await errorCode(update({ category: 'KH' }))).toBe('INVALID_CATEGORY');
     });
 
@@ -640,14 +648,14 @@ describe('withdrawStarters', () => {
     const division = await createDivision(contest.id, { state: 'RUNNING' });
     const starter = await createTestStarter(id, {
       divisionId: division.id,
-      lineupId: division.lineup('reck'),
+      startApparatus: 'reck',
       grades: { reck: 9000 },
     });
     await withdrawStarters(id, [starter.id]);
     expect(await listStarters(id)).toEqual([]);
     expect(await prisma.entry.findFirst({ include: { grades: true } })).toMatchObject({
       withdrawnAt: expect.any(Date),
-      lineupId: division.lineup('reck'),
+      startApparatus: 'reck',
       grades: [{ value: 9000 }],
     });
   });
@@ -681,42 +689,42 @@ describe('assignEntries', () => {
       {
         entryIds: [b.entry.id, a.entry.id],
         divisionId: women.id,
-        lineupId: women.lineup('boden'),
+        startApparatus: 'boden',
       },
       { entryIds: [m.entry.id], divisionId: men.id },
     ]);
-    const entries = await prisma.entry.findMany({ where: { lineupId: women.lineup('boden') } });
+    const entries = await prisma.entry.findMany({ where: { startApparatus: 'boden' } });
     const position = (entryId: string) => entries.find((entry) => entry.id === entryId)!.position;
     expect(position(b.entry.id)).toBeLessThan(position(a.entry.id));
     expect(await prisma.entry.findUnique({ where: { id: m.entry.id } })).toMatchObject({
       divisionId: men.id,
-      lineupId: null,
+      startApparatus: null,
     });
   });
 
   it('keeps the lineup unless it is cleared', async () => {
     const { id, contest } = await createCompetition();
     const division = await createDivision(contest.id);
-    const lineupId = division.lineup('boden');
-    const { entry } = await createTestStarter(id, { divisionId: division.id, lineupId });
+    const startApparatus = 'boden';
+    const { entry } = await createTestStarter(id, { divisionId: division.id, startApparatus });
     const assignment = { entryIds: [entry.id], divisionId: division.id };
     const find = () => prisma.entry.findUnique({ where: { id: entry.id } });
     await assignEntries(id, [assignment]);
-    expect(await find()).toMatchObject({ lineupId, position: entry.position });
+    expect(await find()).toMatchObject({ startApparatus, position: entry.position });
     // Someone from another division does not change that.
     const old = await createDivision(contest.id, { number: 2 });
     const mover = await createTestStarter(id, {
       divisionId: old.id,
-      lineupId: old.lineup('boden'),
+      startApparatus: 'boden',
     });
     await assignEntries(id, [{ ...assignment, entryIds: [mover.entry.id, entry.id] }]);
-    expect(await find()).toMatchObject({ lineupId });
+    expect(await find()).toMatchObject({ startApparatus });
     expect(await prisma.entry.findUnique({ where: { id: mover.entry.id } })).toMatchObject({
       divisionId: division.id,
-      lineupId: null,
+      startApparatus: null,
     });
-    await assignEntries(id, [{ ...assignment, lineupId: null }]);
-    expect(await find()).toMatchObject({ lineupId: null });
+    await assignEntries(id, [{ ...assignment, startApparatus: null }]);
+    expect(await find()).toMatchObject({ startApparatus: null });
   });
 
   it('assigns all or none', async () => {
@@ -991,7 +999,7 @@ describe('importStarters', () => {
     const division = await createDivision(contestId, { state: 'RUNNING' });
     const starter = await createTestStarter(id, {
       divisionId: division.id,
-      lineupId: division.lineup('reck'),
+      startApparatus: 'reck',
     });
     const rows = Array.from({ length: 800 }, (_, i) => ({ firstname: `A${i}`, category: 'K5' }));
     let isImporting = true;

@@ -28,7 +28,6 @@ export type DomainErrorCode =
   | 'INVALID_IMAGE'
   | 'INVALID_INPUT'
   | 'LAST_OWNER'
-  | 'LINEUP_MISMATCH'
   | 'NOT_FOUND'
   | 'RESTART_NOT_CONFIRMED'
   | 'ROUND_NOT_CURRENT'

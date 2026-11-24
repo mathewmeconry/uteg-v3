@@ -18,7 +18,7 @@ async function setup(state: 'PENDING' | 'RUNNING' | 'ENDED' = 'RUNNING') {
   const division = await createDivision(competition.contest.id, { state });
   const { entry } = await createStarter(competition.id, {
     divisionId: division.id,
-    lineupId: division.lineup('reck'),
+    startApparatus: 'reck',
   });
   const links = await getOrCreateJudgeLinks(competition.id);
   const link = (apparatus: string, ground = 1) =>
@@ -156,7 +156,7 @@ describe('confirming a round', () => {
     expect(await confirm('reck')).toMatchObject({ ok: true });
     expect(await confirm('reck')).toMatchObject({ ok: true });
     expect(await confirm('reck', 2)).toEqual({ ok: false, code: 'ROUND_NOT_CURRENT' });
-    const progress = await prisma.divisionProgress.findMany({ where: { completedRounds: 1 } });
+    const progress = await prisma.divisionApparatus.findMany({ where: { completedRounds: 1 } });
     expect(progress.map(({ apparatus }) => apparatus)).toEqual(['reck']);
   });
 });

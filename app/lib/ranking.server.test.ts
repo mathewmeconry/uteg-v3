@@ -21,7 +21,7 @@ function add(competitionId: string, division: Division, firstname: string, data:
     sex: division.sex,
     category: division.category,
     divisionId: division.id,
-    lineupId: division.lineup('reck'),
+    startApparatus: 'reck',
     ...data,
   });
 }
@@ -58,7 +58,7 @@ describe('getRanking', () => {
     const division = await createDivision(contest.id, { state: 'ENDED' });
     await add(id, division, 'A');
     await add(id, division, 'withdrawn', { withdrawnAt: new Date() });
-    await add(id, division, 'no lineup', { lineupId: undefined });
+    await add(id, division, 'no lineup', { startApparatus: undefined });
     expect(names(await getRanking(id, contest.id, K5))).toEqual(['A']);
   });
 

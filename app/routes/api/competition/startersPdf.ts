@@ -52,7 +52,7 @@ function groupByClub(starters: Awaited<ReturnType<typeof listStarters>>): ClubGr
           sex: starter.sex,
           category: entry?.category ?? null,
           divisionNumber: entry?.division?.number ?? null,
-          apparatus: entry?.lineup?.apparatus ?? null,
+          apparatus: entry?.startApparatus ?? null,
         })),
       );
       return { id, name, location, rows: rows.toSorted(compareRows) };

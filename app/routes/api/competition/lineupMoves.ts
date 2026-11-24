@@ -16,6 +16,7 @@ const schema = z.discriminatedUnion('intent', [
   z.object({
     intent: z.literal('move'),
     entry,
+    /** The apparatus it starts on. */
     lineup: z.string().min(1),
     before: z.string().optional(),
   }),
@@ -34,14 +35,13 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   if (!values) return data({ error: t('common:errors.invalid') }, 400);
 
   try {
-    const { division, lineups } = await getDivisionLineups(id, params.divisionId);
+    const { division } = await getDivisionLineups(id, params.divisionId);
     if (division.contestId !== context.get(contestContext).id) throw new DomainError('NOT_FOUND');
     if (values.intent === 'unassign') {
       await unassignEntries(id, division.id, values.entry);
     } else {
-      const lineup = lineups.find((item) => item.id === values.lineup);
-      if (!lineup) throw new DomainError('NOT_FOUND');
-      await moveEntriesToLineup(id, lineup.id, values.entry, values.before);
+      const lineup = { divisionId: division.id, apparatus: values.lineup };
+      await moveEntriesToLineup(id, lineup, values.entry, values.before);
     }
     return data({ ok: true });
   } catch (error) {

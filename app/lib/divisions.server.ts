@@ -18,9 +18,8 @@ export async function listDivisions(competitionId: string, filter: DivisionFilte
   const divisions = await prisma.division.findMany({
     where: { ...where, id: ids && { in: ids }, contest: { competitionId } },
     include: {
-      lineups: true,
-      progress: true,
-      entries: { where: { withdrawnAt: null }, select: { lineupId: true } },
+      apparatus: true,
+      entries: { where: { withdrawnAt: null }, select: { startApparatus: true } },
     },
     orderBy: [
       { contest: { position: 'asc' } },
@@ -29,17 +28,17 @@ export async function listDivisions(competitionId: string, filter: DivisionFilte
       { number: 'asc' },
     ],
   });
-  return divisions.map(({ entries, progress, ...division }) => ({
+  return divisions.map(({ entries, apparatus, ...division }) => ({
     ...division,
-    round: getCurrentRound(progress),
-    rounds: progress.length,
+    round: getCurrentRound(apparatus),
+    rounds: apparatus.length,
     /** Confirmed rounds by apparatus. */
     progress: Object.fromEntries(
-      progress.map(({ apparatus, completedRounds }) => [apparatus, completedRounds]),
+      apparatus.map(({ apparatus: key, completedRounds }) => [key, completedRounds]),
     ),
     starterCount: entries.length,
     /** Starters without a lineup, no tablet shows them. */
-    unassignedCount: entries.filter(({ lineupId }) => !lineupId).length,
+    unassignedCount: entries.filter(({ startApparatus }) => !startApparatus).length,
   }));
 }
 
@@ -59,7 +58,6 @@ export async function createDivision(
       where: { contestId, category, sex },
       _max: { number: true },
     });
-    const apparatus = module.apparatus(sex).map((key) => ({ apparatus: key }));
     return tx.division.create({
       data: {
         contestId,
@@ -67,10 +65,8 @@ export async function createDivision(
         sex,
         ground,
         number: (last._max.number ?? 0) + 1,
-        lineups: { create: apparatus },
-        progress: { create: apparatus },
+        apparatus: { create: module.apparatus(sex).map((apparatus) => ({ apparatus })) },
       },
-      include: { lineups: true },
     });
   });
   publish(competitionId, 'divisions');
@@ -105,6 +101,11 @@ export async function deleteDivisions(competitionId: string, ids: string[]) {
       orderBy: { number: 'desc' },
     });
     for (const { id: divisionId, contestId, category, sex, number } of divisions) {
+      // The foreign keys only clear what they refer to, which is not always both.
+      await tx.entry.updateMany({
+        where: { divisionId },
+        data: { divisionId: null, startApparatus: null },
+      });
       await tx.division.delete({ where: { id: divisionId } });
       const following = await tx.division.findMany({
         where: { contestId, category, sex, number: { gt: number } },
@@ -134,7 +135,7 @@ export async function startDivisions(
     if (states.includes('RUNNING')) throw new DomainError('DIVISION_RUNNING');
     if (states.includes('ENDED') && !restart) throw new DomainError('RESTART_NOT_CONFIRMED');
 
-    await tx.divisionProgress.updateMany({
+    await tx.divisionApparatus.updateMany({
       where: { divisionId: { in: ids } },
       data: { completedRounds: 0 },
     });

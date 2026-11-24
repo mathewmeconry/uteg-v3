@@ -102,7 +102,7 @@ describe('action', () => {
     const ended = await createDivision(competition.contest.id, { number: 2, state: 'ENDED' });
     await createStarter(competition.id, {
       divisionId: ended.id,
-      lineupId: ended.lineup('reck'),
+      startApparatus: 'reck',
       grades: { reck: 9000 },
     });
     expect((await post({ intent: 'start', division: ended.id })).status).toBe(400);

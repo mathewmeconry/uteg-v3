@@ -90,7 +90,7 @@ model Competition {
   grounds   Int      @default(1)
   // Who takes part. At least one.
   sexes     Sex[]    @default([FEMALE, MALE])
-  logoId   String?  @unique
+  logoId    String?  @unique
   logo      Asset?   @relation("CompetitionLogo", fields: [logoId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -256,27 +256,27 @@ model Starter {
 
 /// A starter's participation in a contest.
 model Entry {
-  id          String    @id @default(ulid())
-  contestId   String
-  contest     Contest   @relation(fields: [contestId], references: [id], onDelete: Cascade)
-  starterId   String
-  starter     Starter   @relation(fields: [starterId], references: [id], onDelete: Cascade)
-  category    String?
-  divisionId  String?
-  division    Division? @relation(fields: [divisionId], references: [id], onDelete: SetNull)
-  lineupId    String?
-  lineup      Lineup?   @relation(fields: [lineupId], references: [id], onDelete: SetNull)
+  id             String             @id @default(ulid())
+  contestId      String
+  contest        Contest            @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  starterId      String
+  starter        Starter            @relation(fields: [starterId], references: [id], onDelete: Cascade)
+  category       String?
+  divisionId     String?
+  division       Division?          @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  // Only together with a division that has it.
+  startApparatus String?
+  start          DivisionApparatus? @relation(fields: [divisionId, startApparatus], references: [divisionId, apparatus], onDelete: SetNull)
   // Order within the lineup in the first round.
-  position    Int       @default(0)
+  position       Int                @default(0)
   // Set when the starter leaves. While the division runs the entry keeps its slot.
-  withdrawnAt DateTime?
-  createdAt   DateTime  @default(now())
+  withdrawnAt    DateTime?
+  createdAt      DateTime           @default(now())
 
   grades Grade[]
 
   @@unique([contestId, starterId])
-  @@index([divisionId])
-  @@index([lineupId, position])
+  @@index([divisionId, startApparatus, position])
   @@map("entry")
 }
 
@@ -303,36 +303,25 @@ model Division {
   endedAt   DateTime?
   createdAt DateTime      @default(now())
 
-  lineups  Lineup[]
-  entries  Entry[]
-  progress DivisionProgress[]
+  entries   Entry[]
+  apparatus DivisionApparatus[]
 
   @@unique([contestId, category, sex, number])
   @@index([contestId, ground, state])
   @@map("division")
 }
 
-/// The entries of a division that start on the same apparatus.
-model Lineup {
-  id         String   @id @default(ulid())
-  divisionId String
-  division   Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
-  apparatus  String
-  entries    Entry[]
-
-  @@unique([divisionId, apparatus])
-  @@map("lineup")
-}
-
-/// How many rounds an apparatus has confirmed for a division.
-model DivisionProgress {
+/// An apparatus of a division: who starts there, and how many rounds it has confirmed.
+model DivisionApparatus {
   divisionId      String
   division        Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
   apparatus       String
   completedRounds Int      @default(0)
+  // The lineup.
+  entries         Entry[]
 
   @@id([divisionId, apparatus])
-  @@map("division_progress")
+  @@map("division_apparatus")
 }
 
 model Grade {
