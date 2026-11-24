@@ -36,7 +36,7 @@ export async function getRanking(
   const [entries, running] = await Promise.all([
     prisma.entry.findMany({
       where: {
-        lineupId: { not: null },
+        startApparatus: { not: null },
         withdrawnAt: null,
         division: { ...group, state: { in: provisional ? ['ENDED', 'RUNNING'] : ['ENDED'] } },
       },

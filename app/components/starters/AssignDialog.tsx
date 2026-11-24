@@ -15,7 +15,7 @@ import {
 import type { ContestOptions } from '~/lib/contestOptions.server';
 import type { clientAction } from '~/routes/secured/competition/starters';
 import { groupForAssignment } from './assignGroups';
-import { DivisionOptions, fittingDivisions, LineupOptions } from './EntryFields';
+import { DivisionOptions, fittingDivisions, ApparatusOptions } from './EntryFields';
 import { FormAlert } from './FormAlert';
 import { useActionError } from './keepPage';
 import { NativeSelect } from './NativeSelect';
@@ -37,16 +37,17 @@ export function AssignDialog({
   const { t } = useTranslation(['starters', 'common']);
   const fetcher = useFetcher<typeof clientAction>();
   const returnFocus = useReturnFocus();
-  const [choices, setChoices] = useState<Record<string, { divisionId: string; lineupId: string }>>(
-    {},
-  );
+  const [choices, setChoices] = useState<
+    Record<string, { divisionId: string; startApparatus: string }>
+  >({});
   const { groups, withoutCategory } = groupForAssignment(starters);
 
   const assignments = groups.flatMap(({ key, entryIds }) => {
     const choice = choices[key];
     if (!choice?.divisionId) return [];
-    const { divisionId, lineupId } = choice;
-    return [{ entryIds, divisionId, lineupId: lineupId === KEEP ? undefined : lineupId || null }];
+    const { divisionId, startApparatus } = choice;
+    const start = startApparatus === KEEP ? undefined : startApparatus || null;
+    return [{ entryIds, divisionId, startApparatus: start }];
   });
   const error = useActionError(fetcher.data);
   const isDone = Boolean(fetcher.data && 'ok' in fetcher.data);
@@ -75,7 +76,7 @@ export function AssignDialog({
             {error && fetcher.state === 'idle' && <FormAlert message={error} />}
             {groups.map(({ key, category, sex, entryIds, members }) => {
               const divisions = fittingDivisions(options, { category, sex });
-              const choice = choices[key] ?? { divisionId: '', lineupId: KEEP };
+              const choice = choices[key] ?? { divisionId: '', startApparatus: KEEP };
               // An apparatus belongs to a division, nobody can keep it in another one.
               const canKeep = (id: string) => members.some(({ divisionId }) => divisionId === id);
               const division = divisions.find(({ id }) => id === choice.divisionId);
@@ -84,12 +85,12 @@ export function AssignDialog({
                 : [];
               const losers = !division
                 ? []
-                : choice.lineupId === KEEP
+                : choice.startApparatus === KEEP
                   ? movers
-                  : choice.lineupId === ''
+                  : choice.startApparatus === ''
                     ? members
                     : [];
-              const lostCount = losers.filter(({ lineupId }) => lineupId).length;
+              const lostCount = losers.filter(({ startApparatus }) => startApparatus).length;
               return (
                 <fieldset
                   key={key}
@@ -112,7 +113,7 @@ export function AssignDialog({
                                 ...choices,
                                 [key]: {
                                   divisionId: event.target.value,
-                                  lineupId:
+                                  startApparatus:
                                     !event.target.value || canKeep(event.target.value) ? KEEP : '',
                                 },
                               })
@@ -130,12 +131,12 @@ export function AssignDialog({
                         {(props) => (
                           <NativeSelect
                             {...props}
-                            value={choice.lineupId}
+                            value={choice.startApparatus}
                             disabled={!division}
                             onChange={(event) =>
                               setChoices({
                                 ...choices,
-                                [key]: { ...choice, lineupId: event.target.value },
+                                [key]: { ...choice, startApparatus: event.target.value },
                               })
                             }
                           >
@@ -145,7 +146,7 @@ export function AssignDialog({
                               </option>
                             )}
                             <option value="">{t('noApparatus')}</option>
-                            <LineupOptions division={division} />
+                            <ApparatusOptions division={division} />
                           </NativeSelect>
                         )}
                       </FormField>

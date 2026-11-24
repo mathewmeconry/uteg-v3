@@ -39,7 +39,6 @@ const STARTERS = Array.from({ length: 100 }, (_, index): StarterRow => {
     category: 'K5',
     divisionId: null,
     divisionNumber: null,
-    lineupId: null,
     startApparatus: null,
   };
 });
@@ -100,7 +99,7 @@ async function renderPage({
               name: 'EGT',
               categories: { FEMALE: ['K5'], MALE: ['K5'] },
               apparatus: ['reck'],
-              divisions: [{ id: 'd', category: 'K5', sex: 'FEMALE', number: 1, lineups: [] }],
+              divisions: [{ id: 'd', category: 'K5', sex: 'FEMALE', number: 1, apparatus: [] }],
             },
           }),
           action: () => ({ ok: true }),

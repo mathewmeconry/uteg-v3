@@ -20,7 +20,7 @@ export type EntryPatch = {
   contestId: string;
   category?: string | null;
   divisionId?: string | null;
-  lineupId?: string | null;
+  startApparatus?: string | null;
 };
 
 export type NewStarter = StarterInput & {
@@ -61,7 +61,7 @@ const importRowSchema = starterSchema.extend({
 const STARTER_INCLUDE = {
   club: true,
   athlete: true,
-  entries: { include: { division: true, lineup: true } },
+  entries: { include: { division: true } },
 } satisfies Prisma.StarterInclude;
 
 export async function listStarters(competitionId: string) {
@@ -266,7 +266,7 @@ export async function withdrawStarters(competitionId: string, starterIds: string
   publish(competitionId, 'starters');
 }
 
-export type Assignment = { entryIds: string[]; divisionId: string; lineupId?: string | null };
+export type Assignment = { entryIds: string[]; divisionId: string; startApparatus?: string | null };
 
 /**
  * Puts groups of entries into a division, and at the end of a lineup if given. Without a lineup they
@@ -277,7 +277,7 @@ export async function assignEntries(competitionId: string, assignments: readonly
     async (tx) => {
       await lockCompetition(tx, competitionId);
       await lockDivisions(tx, competitionId);
-      for (const { entryIds, divisionId, lineupId } of assignments) {
+      for (const { entryIds, divisionId, startApparatus } of assignments) {
         for (const id of entryIds) {
           const entry = await tx.entry.findFirst({
             where: { id, contest: { competitionId } },
@@ -290,7 +290,7 @@ export async function assignEntries(competitionId: string, assignments: readonly
             tx,
             competitionId,
             { starterId, sex: starter.sex },
-            { contestId, divisionId, lineupId },
+            { contestId, divisionId, startApparatus },
           );
         }
       }
@@ -475,21 +475,23 @@ async function saveEntry(
     divisionId = entry.division.id;
   }
 
-  let lineupId: string | null = null;
-  if (patch.lineupId) {
-    const lineup = await tx.lineup.findUnique({ where: { id: patch.lineupId } });
-    if (!lineup || lineup.divisionId !== divisionId) throw new DomainError('LINEUP_MISMATCH');
-    lineupId = lineup.id;
-  } else if (patch.lineupId === undefined && divisionId === entry?.divisionId) {
-    lineupId = entry?.lineupId ?? null;
+  const isSameDivision = divisionId === entry?.divisionId;
+  let startApparatus: string | null = null;
+  if (patch.startApparatus) {
+    if (!divisionId || !module.apparatus(sex).includes(patch.startApparatus)) {
+      throw new DomainError('INVALID_APPARATUS');
+    }
+    startApparatus = patch.startApparatus;
+  } else if (patch.startApparatus === undefined && isSameDivision) {
+    startApparatus = entry?.startApparatus ?? null;
   }
 
   let position = entry?.position ?? 0;
-  if (lineupId && lineupId !== entry?.lineupId) {
-    position = nextPosition(await tx.entry.findMany({ where: { lineupId } }));
+  if (startApparatus && !(isSameDivision && startApparatus === entry?.startApparatus)) {
+    position = nextPosition(await tx.entry.findMany({ where: { divisionId, startApparatus } }));
   }
 
-  const data = { category, divisionId, lineupId, position };
+  const data = { category, divisionId, startApparatus, position };
   await tx.entry.upsert({
     where: { contestId_starterId: { contestId, starterId } },
     create: { contestId, starterId, ...data },

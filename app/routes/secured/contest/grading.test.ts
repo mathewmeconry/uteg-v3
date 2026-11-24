@@ -23,7 +23,7 @@ async function setup(role: Role = 'EDITOR', state: 'PENDING' | 'RUNNING' | 'ENDE
   const division = await createDivision(contest.id, { state });
   const { entry } = await createStarter(id, {
     divisionId: division.id,
-    lineupId: division.lineup('reck'),
+    startApparatus: 'reck',
     grades: { reck: 9000 },
   });
   const grade = await prisma.grade.findFirstOrThrow({ where: { entryId: entry.id } });
@@ -136,7 +136,7 @@ describe('editing', () => {
     expect(await confirm('2')).toMatchObject({ data: { error: expect.any(String) } });
     expect(await confirm('0')).toBeNull();
     expect(toasts(context)).toEqual(['success']);
-    const progress = await prisma.divisionProgress.findMany({ where: { completedRounds: 1 } });
+    const progress = await prisma.divisionApparatus.findMany({ where: { completedRounds: 1 } });
     expect(progress.map(({ apparatus }) => apparatus)).toEqual(['reck']);
   });
 });

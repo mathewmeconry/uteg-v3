@@ -41,20 +41,20 @@ function addStarter(
     category: division.category,
     sex: division.sex,
     divisionId: division.id,
-    lineupId: division.lineup(apparatus),
+    startApparatus: apparatus,
     ...data,
   });
 }
 
 async function setProgress(divisionId: string, completedRounds: number, apparatus?: string) {
-  await prisma.divisionProgress.updateMany({
+  await prisma.divisionApparatus.updateMany({
     where: { divisionId, apparatus },
     data: { completedRounds },
   });
 }
 
 async function progressOf(divisionId: string) {
-  const rows = await prisma.divisionProgress.findMany({ where: { divisionId } });
+  const rows = await prisma.divisionApparatus.findMany({ where: { divisionId } });
   return Object.fromEntries(rows.map((row) => [row.apparatus, row.completedRounds]));
 }
 
@@ -491,7 +491,7 @@ describe('saveGrades', () => {
 
     it('rejects an entry without a lineup', async () => {
       const { entry, save } = await setup();
-      await prisma.entry.update({ where: { id: entry.id }, data: { lineupId: null } });
+      await prisma.entry.update({ where: { id: entry.id }, data: { startApparatus: null } });
       expect(await errorCode(save({}, judge('reck')))).toBe('ENTRY_NOT_JUDGEABLE');
     });
 
@@ -705,7 +705,7 @@ describe('ending a division', () => {
     await deleteGrade(id, { entryId: entry.id, apparatus: 'reck' }, EDITOR);
     // Neither withdrawn entries nor those without a lineup count.
     await addStarter(id, division, 'reck', { withdrawnAt: new Date() });
-    await addStarter(id, division, 'reck', { lineupId: undefined });
+    await addStarter(id, division, 'reck', { startApparatus: undefined });
     for (const round of [1, 2]) await confirmAll(round);
     await confirmAll(3, WOMEN.slice(0, 3));
 
@@ -732,7 +732,8 @@ describe('ending a division', () => {
     const { id, division, entry, confirm, confirmAll, state } = await setup();
     await deleteGrade(id, { entryId: entry.id, apparatus: 'boden' }, EDITOR);
     await confirmAll(0);
-    await moveEntriesToLineup(id, division.lineup('boden'), [entry.id]);
+    const lineup = { divisionId: division.id, apparatus: 'boden' };
+    await moveEntriesToLineup(id, lineup, [entry.id]);
     for (const round of [1, 2]) await confirmAll(round);
     await confirmAll(3, WOMEN.slice(0, 3));
     expect(await errorCode(confirm('sprung', 3))).toBe('GRADES_MISSING');

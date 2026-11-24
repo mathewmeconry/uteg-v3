@@ -10,11 +10,11 @@ export function groupForAssignment(starters: readonly StarterRow[]) {
       sex: StarterRow['sex'];
       entryIds: string[];
       /** Where they are now. */
-      members: Pick<StarterRow, 'divisionId' | 'lineupId'>[];
+      members: Pick<StarterRow, 'divisionId' | 'startApparatus'>[];
     }
   >();
   let withoutCategory = 0;
-  for (const { category, sex, entryId, divisionId, lineupId } of starters) {
+  for (const { category, sex, entryId, divisionId, startApparatus } of starters) {
     if (!category || !entryId) {
       withoutCategory++;
       continue;
@@ -22,7 +22,7 @@ export function groupForAssignment(starters: readonly StarterRow[]) {
     const key = `${category}-${sex}`;
     const group = groups.get(key) ?? { key, category, sex, entryIds: [], members: [] };
     group.entryIds.push(entryId);
-    group.members.push({ divisionId, lineupId });
+    group.members.push({ divisionId, startApparatus });
     groups.set(key, group);
   }
   return {

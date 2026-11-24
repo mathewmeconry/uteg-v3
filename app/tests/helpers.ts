@@ -70,7 +70,7 @@ export async function createDivision(
   const sex = data.sex ?? 'FEMALE';
   const state = data.state ?? 'PENDING';
   const apparatus = getContestModule(contest).apparatus(sex);
-  const division = await prisma.division.create({
+  return prisma.division.create({
     data: {
       contestId,
       category: data.category ?? 'K5',
@@ -80,22 +80,14 @@ export async function createDivision(
       state,
       startedAt: state === 'PENDING' ? null : new Date(Date.now() - 60_000),
       endedAt: state === 'ENDED' ? new Date() : null,
-      lineups: { create: apparatus.map((key) => ({ apparatus: key })) },
-      progress: {
+      apparatus: {
         create: apparatus.map((key) => ({
           apparatus: key,
           completedRounds: state === 'ENDED' ? apparatus.length : 0,
         })),
       },
     },
-    include: { lineups: true },
   });
-  return {
-    ...division,
-    /** The id of the lineup that starts on an apparatus. */
-    lineup: (apparatus: string) =>
-      division.lineups.find((lineup) => lineup.apparatus === apparatus)!.id,
-  };
 }
 
 /** A starter with an entry in the competition's first contest. */
@@ -111,7 +103,7 @@ export async function createStarter(
     clubId?: string;
     category?: string | null;
     divisionId?: string;
-    lineupId?: string;
+    startApparatus?: string;
     position?: number;
     withdrawnAt?: Date;
     grades?: Record<string, number>;
@@ -142,7 +134,7 @@ export async function createStarter(
           contestId: contest.id,
           category: data.category === undefined ? 'K5' : data.category,
           divisionId: data.divisionId,
-          lineupId: data.lineupId,
+          startApparatus: data.startApparatus,
           position: data.position ?? ++counter,
           withdrawnAt: data.withdrawnAt,
           grades: {

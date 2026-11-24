@@ -13,18 +13,15 @@ import { RemoveDialog } from './RemoveDialog';
 import { StarterDialog } from './StarterDialog';
 import type { StarterRow } from './starterRow';
 
-const lineups = (division: string) => [
-  { id: `${division}-reck`, apparatus: 'reck' },
-  { id: `${division}-boden`, apparatus: 'boden' },
-];
+const APPARATUS = ['reck', 'boden'];
 const OPTIONS: ContestOptions = {
   id: 'contest',
   name: 'EGT',
   categories: { FEMALE: ['K5', 'KD'], MALE: ['K5', 'KH'] },
-  apparatus: ['reck', 'boden'],
+  apparatus: APPARATUS,
   divisions: [
-    { id: 'f1', category: 'K5', sex: 'FEMALE', number: 1, lineups: lineups('f1') },
-    { id: 'm1', category: 'K5', sex: 'MALE', number: 1, lineups: lineups('m1') },
+    { id: 'f1', category: 'K5', sex: 'FEMALE', number: 1, apparatus: APPARATUS },
+    { id: 'm1', category: 'K5', sex: 'MALE', number: 1, apparatus: APPARATUS },
   ],
 };
 const CLUB = { id: 'chur', name: 'TV Chur', location: 'Chur' };
@@ -44,7 +41,6 @@ const ANNA: StarterRow = {
   category: 'K5',
   divisionId: 'f1',
   divisionNumber: 1,
-  lineupId: 'f1-boden',
   startApparatus: 'boden',
 };
 
@@ -312,7 +308,7 @@ describe('StarterDialog', () => {
       firstname: 'Annabelle',
       category: 'K5',
       divisionId: 'f1',
-      lineupId: 'f1-boden',
+      startApparatus: 'boden',
     });
     expect(fields()).not.toHaveProperty('updateAthlete');
     expect(fetchMock).not.toHaveBeenCalled();
@@ -324,7 +320,7 @@ describe('StarterDialog', () => {
     const division = screen.getByLabelText('Abteilung');
     const apparatus = screen.getByLabelText('Startgerät');
     expect(division).toHaveValue('f1');
-    expect(apparatus).toHaveValue('f1-boden');
+    expect(apparatus).toHaveValue('boden');
 
     await user.selectOptions(screen.getByLabelText('Geschlecht'), 'MALE');
     expect(division).toHaveValue('');
@@ -360,17 +356,17 @@ it('AssignDialog groups by category and sex and sends only the chosen groups', a
 
   const group = within(screen.getByRole('group', { name: /K5 · Weiblich \(2\)/ }));
   await user.selectOptions(group.getByLabelText('Abteilung'), 'f1');
-  await user.selectOptions(group.getByLabelText('Startgerät'), 'f1-reck');
+  await user.selectOptions(group.getByLabelText('Startgerät'), 'reck');
   await user.click(screen.getByRole('button', { name: 'Einteilen' }));
   await waitFor(() => expect(submitted).toHaveBeenCalled());
   expect(JSON.parse(fields().assignments)).toEqual([
-    { entryIds: ['entry-anna', 'entry-lea'], divisionId: 'f1', lineupId: 'f1-reck' },
+    { entryIds: ['entry-anna', 'entry-lea'], divisionId: 'f1', startApparatus: 'reck' },
   ]);
 });
 
 it.each([
   ['Nicht ändern', {}],
-  ['Kein Startgerät', { lineupId: null }],
+  ['Kein Startgerät', { startApparatus: null }],
 ])('AssignDialog sends the start apparatus "%s"', async (choice, sent) => {
   const user = userEvent.setup();
   const { submitted, fields } = renderPage(
@@ -389,8 +385,8 @@ it.each([
 
 it('AssignDialog keeps the start apparatus of those who stay in the division', async () => {
   const user = userEvent.setup();
-  const moving = { ...ANNA, id: 'lea', entryId: 'lea', divisionId: 'f2', lineupId: 'f2-boden' };
-  const without = { ...moving, id: 'eva', entryId: 'eva', lineupId: null };
+  const moving = { ...ANNA, id: 'lea', entryId: 'lea', divisionId: 'f2' };
+  const without = { ...moving, id: 'eva', entryId: 'eva', startApparatus: null };
   const { submitted, fields } = renderPage(
     <AssignDialog starters={[ANNA, moving, without]} options={OPTIONS} onClose={() => {}} />,
   );
@@ -413,7 +409,7 @@ it('AssignDialog keeps the start apparatus of those who stay in the division', a
 
 it('AssignDialog has no apparatus to keep when everyone changes the division', async () => {
   const user = userEvent.setup();
-  const moving = { ...ANNA, id: 'lea', entryId: 'lea', divisionId: 'f2', lineupId: 'f2-boden' };
+  const moving = { ...ANNA, id: 'lea', entryId: 'lea', divisionId: 'f2' };
   const { submitted, fields } = renderPage(
     <AssignDialog starters={[moving]} options={OPTIONS} onClose={() => {}} />,
   );
@@ -427,7 +423,7 @@ it('AssignDialog has no apparatus to keep when everyone changes the division', a
   await user.selectOptions(apparatus, 'Kein Startgerät');
   await user.click(screen.getByRole('button', { name: 'Einteilen' }));
   await waitFor(() => expect(submitted).toHaveBeenCalled());
-  expect(JSON.parse(fields().assignments)).toMatchObject([{ lineupId: null }]);
+  expect(JSON.parse(fields().assignments)).toMatchObject([{ startApparatus: null }]);
 });
 
 it('RemoveDialog shows errors and stays open', async () => {

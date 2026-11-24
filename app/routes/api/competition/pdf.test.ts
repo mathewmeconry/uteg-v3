@@ -42,7 +42,7 @@ describe('ranking', () => {
       firstname: 'Zoé',
       lastname: 'Müller',
       divisionId: k5.id,
-      lineupId: k5.lineup('reck'),
+      startApparatus: 'reck',
       grades: { reck: 9250 },
     });
     await createStarter(id, {
@@ -51,7 +51,7 @@ describe('ranking', () => {
       sex: 'MALE',
       category: 'K6',
       divisionId: k6.id,
-      lineupId: k6.lineup('reck'),
+      startApparatus: 'reck',
       grades: { reck: 8000 },
     });
     return { id, contest };
@@ -158,10 +158,9 @@ describe('ranking', () => {
       const { id, load } = await setupCover({ cover: 'eachCategory', rowHeight: 40 });
       const division = await prisma.division.findFirstOrThrow({
         where: { category: 'K5', contest: { competitionId: id } },
-        include: { lineups: true },
       });
       for (let index = 0; index < 25; index++) {
-        await createStarter(id, { divisionId: division.id, lineupId: division.lineups[0].id });
+        await createStarter(id, { divisionId: division.id, startApparatus: 'reck' });
       }
       expect(await describePages(await load())).toEqual([
         ...['wide', 'high', 'K5 Turnerinnen 1 / 3', 'K5 Turnerinnen 2 / 3'],
@@ -362,7 +361,7 @@ describe('judging sheets', () => {
         firstname,
         lastname: 'Frei',
         divisionId: division.id,
-        lineupId: division.lineup('reck'),
+        startApparatus: 'reck',
         ...data,
       });
     return { id, contest, division, add };
@@ -399,7 +398,7 @@ describe('judging sheets', () => {
   it('uses the rule of the category', async () => {
     const { id, contest } = await setup();
     const k6 = await createDivision(contest.id, { category: 'K6' });
-    await createStarter(id, { category: 'K6', divisionId: k6.id, lineupId: k6.lineup('sprung') });
+    await createStarter(id, { category: 'K6', divisionId: k6.id, startApparatus: 'sprung' });
     const pages = await readText(
       await callRoute(sheets.loader, {
         competitionId: id,
@@ -431,7 +430,7 @@ describe('judging sheets', () => {
       await add('Maximiliane-Alexandra', {
         lastname: `Wolfeschlegelsteinhausenberger${index}`,
         clubId: club.id,
-        lineupId: division.lineup('sprung'),
+        startApparatus: 'sprung',
       });
     }
     const response = await callRoute(sheets.loader, {
@@ -453,7 +452,7 @@ describe('judging sheets', () => {
     const { id, contest, add } = await setup();
     await add('Anna');
     const ended = await createDivision(contest.id, { number: 2, state: 'ENDED' });
-    await add('Ended', { divisionId: ended.id, lineupId: ended.lineup('reck') });
+    await add('Ended', { divisionId: ended.id, startApparatus: 'reck' });
     const call = async (ground: string) =>
       callRoute(sheets.loader, { competitionId: id, role: 'VIEWER', search: `?ground=${ground}` });
     const [page] = await readText(await call('1'));
@@ -472,7 +471,7 @@ describe('judging sheets', () => {
       firstname: 'Noah',
       sex: 'MALE',
       divisionId: second.id,
-      lineupId: second.lineup('boden'),
+      startApparatus: 'boden',
     });
     const pages = await readText(
       await callRoute(sheets.action, {
@@ -523,7 +522,7 @@ describe('starters', () => {
       lastname: 'Ägerter',
       clubId: chur.id,
       divisionId: division.id,
-      lineupId: division.lineup('schaukelringe'),
+      startApparatus: 'schaukelringe',
     });
     const bea = await createStarter(id, { firstname: 'Bea', lastname: 'Frei', clubId: aarau.id });
     return { id, anna, bea };

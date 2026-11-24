@@ -26,7 +26,6 @@ function row(data: Partial<StarterRow>): StarterRow {
     category: 'K5',
     divisionId: null,
     divisionNumber: null,
-    lineupId: null,
     startApparatus: null,
     ...data,
   };

@@ -179,7 +179,6 @@ export default {
     INVALID_IMAGE: 'Das Bild muss eine PNG- oder JPEG-Datei sein.',
     INVALID_INPUT: 'Ungültige Eingabe.',
     LAST_OWNER: 'Der Wettkampf braucht mindestens einen Inhaber.',
-    LINEUP_MISMATCH: 'Das Startgerät gehört nicht zu dieser Abteilung.',
     NOT_FOUND: 'Nicht gefunden.',
     RESTART_NOT_CONFIRMED: 'Der Neustart muss bestätigt werden.',
     ROUND_NOT_CURRENT: 'Dieser Durchgang ist nicht mehr aktuell.',

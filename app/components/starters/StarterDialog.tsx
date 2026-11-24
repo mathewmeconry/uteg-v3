@@ -252,7 +252,7 @@ export function StarterDialog({
               defaultValue={{
                 category: starter?.category ?? '',
                 divisionId: starter?.divisionId ?? '',
-                lineupId: starter?.lineupId ?? '',
+                startApparatus: starter?.startApparatus ?? '',
               }}
             />
             {starter && (

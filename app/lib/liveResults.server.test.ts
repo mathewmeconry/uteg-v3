@@ -70,7 +70,7 @@ describe('getLiveGrounds', () => {
   it('has the running divisions, progress and the last grade per apparatus', async () => {
     const { id, contest } = await createCompetition({ grounds: 2 });
     const division = await createDivision(contest.id, { ground: 2, state: 'RUNNING' });
-    const onReck = { divisionId: division.id, lineupId: division.lineup('reck') };
+    const onReck = { divisionId: division.id, startApparatus: 'reck' };
     const first = await createStarter(id, {
       ...onReck,
       firstname: 'A',
@@ -87,7 +87,7 @@ describe('getLiveGrounds', () => {
     await createStarter(id, { ...onReck, withdrawnAt: new Date() });
     await setGradeTime(first.entry.id, 'reck', '2026-05-01T11:00:00Z');
     await setGradeTime(second.entry.id, 'reck', '2026-05-01T10:00:00Z');
-    await prisma.divisionProgress.updateMany({
+    await prisma.divisionApparatus.updateMany({
       where: { divisionId: division.id, apparatus: 'boden' },
       data: { completedRounds: 1 },
     });
@@ -121,7 +121,7 @@ describe('getLiveGrounds', () => {
   it('marks an apparatus that confirmed all rounds', async () => {
     const { id, contest } = await createCompetition();
     const division = await createDivision(contest.id, { state: 'RUNNING' });
-    await prisma.divisionProgress.updateMany({
+    await prisma.divisionApparatus.updateMany({
       where: { divisionId: division.id, apparatus: 'reck' },
       data: { completedRounds: 4 },
     });
