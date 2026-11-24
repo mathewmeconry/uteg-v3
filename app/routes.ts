@@ -2,6 +2,10 @@ import { index, layout, prefix, route, type RouteConfig } from '@react-router/de
 
 export default [
   index('routes/index.ts'),
+  // One address per language, for search engines.
+  ...['de', 'fr', 'en'].map((code) => route(code, 'routes/landing.tsx', { id: `landing-${code}` })),
+  route('robots.txt', 'routes/robots.ts'),
+  route('sitemap.xml', 'routes/sitemap.ts'),
 
   layout('routes/auth/layout.tsx', [
     route('login', 'routes/auth/login.tsx'),

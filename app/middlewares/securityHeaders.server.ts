@@ -24,7 +24,8 @@ export const securityHeadersMiddleware: MiddlewareFunction<Response> = async (
     'Content-Security-Policy',
     "frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'self'",
   );
-  response.headers.set('X-Robots-Tag', 'noindex');
+  // Only the landing page, see routes/landing.tsx, is for search engines.
+  if (!/^\/((de|fr|en)\/?)?$/i.test(pathname)) response.headers.set('X-Robots-Tag', 'noindex');
   if (APP_ORIGIN.startsWith('https:')) {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000');
   }

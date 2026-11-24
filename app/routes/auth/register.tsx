@@ -10,6 +10,7 @@ import { VerifyForm } from '~/components/VerifyForm';
 import { Alert, AlertDescription } from '~/components/ui/alert';
 import { callAuth } from '~/lib/auth/auth.server';
 import { parseForm, type FieldErrors } from '~/lib/forms.server';
+import { isLanguage } from '~/locales';
 import { acceptedLanguage, getT } from '~/middlewares/i18n.server';
 
 type ActionData = { error?: string; errors?: FieldErrors; verify?: string };
@@ -37,13 +38,17 @@ export async function action({ request, context }: Route.ActionArgs) {
   );
   if (errors) return data<ActionData>({ errors }, 400);
 
+  // Of the landing page the visitor came from.
+  const language = new URL(request.url).searchParams.get('lang');
   const response = await callAuth(request, '/sign-up/email', {
     email: values.email,
     password: values.password,
     // better-auth requires a name, the app only shows the address.
     name: values.email,
     // Not languageContext: the cookie may be of somebody else who used this browser.
-    language: acceptedLanguage(request.headers.get('Accept-Language')),
+    language: isLanguage(language)
+      ? language
+      : acceptedLanguage(request.headers.get('Accept-Language')),
   });
   if (response.status === 429) return data<ActionData>({ error: t('errors.tooManyRequests') }, 429);
   if (response.status >= 500) return data<ActionData>({ error: t('errors.generic') }, 500);
