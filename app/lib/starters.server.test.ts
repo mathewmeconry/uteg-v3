@@ -61,7 +61,7 @@ describe('createStarter', () => {
       differsFromAthlete: false,
       entries: [{ contestId, category: 'K5', divisionId: null }],
     });
-    expect(listener).toHaveBeenCalledWith('starters');
+    expect(listener).toHaveBeenCalledWith(`starters ${starterId}`);
   });
 
   it.each([undefined, null, '', '  '])('needs no STV-ID (%j)', async (stvId) => {

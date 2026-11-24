@@ -137,7 +137,7 @@ describe('access', () => {
 
     const update = { ...anna, intent: 'update', starterId: id, sex: 'MALE', category: 'K6' };
     const { data } = await call({ ...update, updateAthlete: 'on' }, checkIn.id);
-    expect(data).toEqual({ ok: true });
+    expect(data).toEqual({ ok: true, changed: [id] });
     const [starter] = await starters();
     expect(starter).toMatchObject({
       firstname: 'Anna',
@@ -147,7 +147,7 @@ describe('access', () => {
     });
     expect(starter.athlete.firstname).not.toBe('Anna');
 
-    expect((await call({ intent: 'remove', id }, checkIn.id)).data).toEqual({ ok: true });
+    expect((await call({ intent: 'remove', id }, checkIn.id)).data).toMatchObject({ ok: true });
     expect((await starters())[0].deletedAt).not.toBeNull();
   });
 
@@ -157,7 +157,7 @@ describe('access', () => {
     await addMember(competition.id, checkIn.id, 'CHECK_IN');
     const division = await createDivision(competition.contest.id);
     const { data } = await call({ ...anna, divisionId: division.id }, checkIn.id);
-    expect(data).toEqual({ ok: true });
+    expect(data).toMatchObject({ ok: true });
     expect(await starters()).toMatchObject([
       { firstname: 'Anna', entries: [{ category: 'K5', divisionId: null }] },
     ]);
@@ -219,7 +219,7 @@ describe('create', () => {
     const { call, anna, club, competition } = await setup();
     const division = await createDivision(competition.contest.id);
     const { data, toasts } = await call({ ...anna, divisionId: division.id });
-    expect(data).toEqual({ ok: true });
+    expect(data).toEqual({ ok: true, changed: [(await starters())[0].id] });
     expect(toasts).toMatchObject([{ type: 'success' }]);
     expect(await starters()).toMatchObject([
       {
@@ -333,7 +333,7 @@ describe('update', () => {
     const starter = await createStarter(competition.id);
     await prisma.entry.deleteMany();
     const { data } = await call({ ...anna, intent: 'update', starterId: starter.id, category: '' });
-    expect(data).toEqual({ ok: true });
+    expect(data).toEqual({ ok: true, changed: [starter.id] });
     expect((await starters())[0].entries).toEqual([]);
   });
 });
@@ -352,7 +352,7 @@ describe('assign and remove', () => {
         { entryIds: [b.entry.id], divisionId: k6.id, startApparatus: null },
       ]),
     });
-    expect(data).toEqual({ ok: true });
+    expect(data).toEqual({ ok: true, changed: [a.id, b.id] });
     const entries = await prisma.entry.findMany({ orderBy: { category: 'asc' } });
     expect(entries).toMatchObject([
       { divisionId: k5.id, startApparatus: 'reck' },
@@ -399,7 +399,8 @@ describe('assign and remove', () => {
     const { call, competition } = await setup();
     const a = await createStarter(competition.id);
     const b = await createStarter(competition.id);
-    expect((await call({ intent: 'remove', id: [a.id, b.id] })).data).toEqual({ ok: true });
+    const { data } = await call({ intent: 'remove', id: [a.id, b.id] });
+    expect(data).toEqual({ ok: true, changed: [a.id, b.id] });
     expect(await prisma.starter.count({ where: { deletedAt: null } })).toBe(0);
     expect((await call({ intent: 'remove' })).status).toBe(400);
   });

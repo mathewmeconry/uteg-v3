@@ -127,6 +127,7 @@ describe('viewer middlewares', () => {
     expect(api.children!.map(({ file }) => file)).toEqual([
       'routes/api/competition/athletes.ts',
       'routes/api/competition/clubs.ts',
+      'routes/api/competition/starters.ts',
       'routes/api/competition/startersXlsx.ts',
       'routes/api/competition/startersPdf.ts',
       'routes/api/competition/viewerLayout.ts',

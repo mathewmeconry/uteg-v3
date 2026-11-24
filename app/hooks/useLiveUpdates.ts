@@ -11,8 +11,14 @@ const POLL_MS = 60_000;
 /**
  * Re-runs the loaders of the page when the server reports a change on the event stream `url`,
  * after a reconnect, when the page becomes visible, and once a minute in case events got lost.
+ *
+ * `note` is told why before, with the message of an event, or null for the other reasons. Events
+ * it returns false for are ignored. It must stay the same function.
  */
-export function useLiveUpdates(url: string): ConnectionStatus {
+export function useLiveUpdates(
+  url: string,
+  note?: (message: string | null) => boolean,
+): ConnectionStatus {
   const { revalidate } = useRevalidator();
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
 
@@ -22,7 +28,8 @@ export function useLiveUpdates(url: string): ConnectionStatus {
     let retry: ReturnType<typeof setTimeout> | undefined;
     let disposed = false;
 
-    function refresh() {
+    function refresh(message: string | null = null) {
+      if (note?.(message) === false) return;
       clearTimeout(debounce);
       debounce = setTimeout(() => void revalidate(), DEBOUNCE_MS);
     }
@@ -39,7 +46,7 @@ export function useLiveUpdates(url: string): ConnectionStatus {
         // Changes between the last load and now were not reported.
         refresh();
       };
-      source.onmessage = refresh;
+      source.onmessage = ({ data }) => refresh(data);
       source.onerror = () => {
         setStatus('lost');
         // The browser only reconnects by itself after network failures, not after an error response.
@@ -69,7 +76,7 @@ export function useLiveUpdates(url: string): ConnectionStatus {
       clearInterval(poll);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [url, revalidate]);
+  }, [url, revalidate, note]);
 
   return status;
 }

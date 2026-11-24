@@ -1,7 +1,7 @@
+import { MAX_EVENT_IDS, type Topic } from './events';
 import { logger } from './logger.server';
 
-export type Topic = 'grades' | 'divisions' | 'starters' | 'settings';
-type Listener = (topic: Topic) => void;
+type Listener = (message: string) => void;
 
 const KEEP_ALIVE_MS = 20_000;
 const RETRY_MS = 2_000;
@@ -20,11 +20,15 @@ export function closeEventStreams() {
   for (const close of [...openStreams]) close();
 }
 
-/** Tells everyone watching the competition that something changed. Call it after the commit. */
-export function publish(competitionId: string, topic: Topic) {
+/**
+ * Tells everyone watching the competition that something changed. Call it after the commit. The
+ * message is the topic, followed by the ids of what changed when they are known and few.
+ */
+export function publish(competitionId: string, topic: Topic, ids: readonly string[] = []) {
+  const message = [topic, ...(ids.length > MAX_EVENT_IDS ? [] : ids)].join(' ');
   for (const listener of [...(listeners.get(competitionId) ?? [])]) {
     try {
-      listener(topic);
+      listener(message);
     } catch (error) {
       logger.error({ error, topic }, 'Event listener failed');
     }
@@ -41,7 +45,7 @@ export function subscribe(competitionId: string, listener: Listener) {
 }
 
 /**
- * A server-sent event stream of the competition's topics. `isAllowed` is asked before every event
+ * A server-sent event stream of the competition's messages. `isAllowed` is asked before every event
  * and keep-alive, so a revoked link loses the stream.
  */
 export function createEventStream(
@@ -72,7 +76,7 @@ export function createEventStream(
         else close();
       }
 
-      const unsubscribe = subscribe(competitionId, (topic) => void send(`data: ${topic}\n\n`));
+      const unsubscribe = subscribe(competitionId, (message) => void send(`data: ${message}\n\n`));
       const timer = setInterval(() => void send(': keep-alive\n\n'), KEEP_ALIVE_MS);
       cleanup = () => {
         closed = true;

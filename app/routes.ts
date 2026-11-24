@@ -62,6 +62,7 @@ export default [
       // What the starters page of the check-in needs.
       route('athletes', 'routes/api/competition/athletes.ts'),
       route('clubs', 'routes/api/competition/clubs.ts'),
+      route('starters', 'routes/api/competition/starters.ts'),
       route('starters.xlsx', 'routes/api/competition/startersXlsx.ts'),
       route('pdf/starters', 'routes/api/competition/startersPdf.ts'),
       layout('routes/api/competition/viewerLayout.ts', [
