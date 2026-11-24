@@ -20,6 +20,7 @@ export async function callRoute(
     search = '',
     form,
     text,
+    cookie = '',
   }: {
     competitionId: string;
     contestId?: string;
@@ -28,6 +29,7 @@ export async function callRoute(
     form?: [string, string | Blob][];
     /** Sent instead of a form. */
     text?: string;
+    cookie?: string;
   },
 ): Promise<any> {
   const user = await createUser();
@@ -37,10 +39,10 @@ export async function callRoute(
 
   const body = new FormData();
   for (const [name, value] of form ?? []) body.append(name, value);
-  const request = new Request(
-    `http://localhost/${search}`,
-    form || text ? { method: 'POST', body: text ?? body } : undefined,
-  );
+  const request = new Request(`http://localhost/${search}`, {
+    headers: { Cookie: cookie },
+    ...((form || text) && { method: 'POST', body: text ?? body }),
+  });
   const params = { competitionId, contestId };
   const args = { request, params, context } as any;
 

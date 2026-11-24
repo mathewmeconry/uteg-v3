@@ -5,12 +5,12 @@ import { toStarterRow } from '~/components/starters/starterRow';
 import { Role } from '~/generated/prisma/enums';
 import { listStarters } from '~/lib/starters.server';
 import { requireRole } from '~/middlewares/competition.server';
-import { getT } from '~/middlewares/i18n.server';
+import { getDocumentI18n } from '~/middlewares/i18n.server';
 
 /** The starters of the repeated field `id` in that order. A form, long lists don't fit an address. */
 export async function action({ request, context }: Route.ActionArgs) {
   const competition = requireRole(context, Role.CHECK_IN);
-  const t = getT(context);
+  const { t } = getDocumentI18n(request, context);
   const formData = await request.formData();
   const contestId = formData.get('contest') ?? competition.contests[0]?.id;
   if (!competition.contests.some(({ id }) => id === contestId)) throw data(null, 404);

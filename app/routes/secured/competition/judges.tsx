@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { Route } from './+types/judges';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
+import { DocumentLanguageToggle } from '~/components/DocumentLanguageToggle';
 import { JudgeLinkCard } from '~/components/links/JudgeLinkCard';
 import { PageHeader } from '~/components/PageHeader';
 import { Button } from '~/components/ui/button';
@@ -74,6 +75,7 @@ export default function Judges({ loaderData: { links } }: Route.ComponentProps) 
         title={t('judgesTitle')}
         description={t('links.intro')}
         status={<ConnectionBadge status={status} />}
+        actions={<DocumentLanguageToggle />}
       />
       <Tabs defaultValue="1" className="gap-4">
         {grounds.length > 1 && (

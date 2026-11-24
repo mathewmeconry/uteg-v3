@@ -1,6 +1,7 @@
 import { createCookie, type MiddlewareFunction } from 'react-router';
 import type { i18n } from 'i18next';
 import { i18nContext, languageContext, userContext, type Context } from '~/context';
+import { readDocumentLanguage } from '~/lib/documentLanguage';
 import { createI18n } from '~/lib/i18n';
 import { isLanguage, NAMESPACES, type Language, type ServerT } from '~/locales';
 
@@ -45,4 +46,14 @@ export function getI18n(context: Context): i18n {
 /** t() for loaders and actions: `t('starters:title')`. */
 export function getT(context: Context): ServerT {
   return getI18n(context).getFixedT(null, NAMESPACES);
+}
+
+/** For exported documents, their language can differ from the one of the app. */
+export function getDocumentI18n(
+  request: Request,
+  context: Context,
+): { language: Language; t: ServerT } {
+  const language =
+    readDocumentLanguage(request.headers.get('Cookie')) ?? context.get(languageContext);
+  return { language, t: createI18n(language).getFixedT(null, NAMESPACES) };
 }

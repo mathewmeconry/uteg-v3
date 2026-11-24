@@ -127,6 +127,7 @@ export default {
     de: 'Deutsch',
     en: 'Englisch',
   },
+  documentLanguage: 'Sprache der Dokumente',
   ground: 'Wettkampfplatz {{number}}',
   round: 'Durchgang {{number}}',
   starterCount_one: '{{count}} Teilnehmende:r',

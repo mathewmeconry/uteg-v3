@@ -1,11 +1,11 @@
 import { data } from 'react-router';
 import type { Route } from './+types/rankingPdf';
-import { competitionContext, languageContext } from '~/context';
+import { competitionContext } from '~/context';
 import { rankingTemplateSchema } from '~/lib/domain/rankingTemplate';
 import { getRankingTemplate } from '~/lib/rankingTemplates.server';
 import { groupByTemplate } from '~/lib/templateAssignments.server';
 import { requireRole } from '~/middlewares/competition.server';
-import { getT } from '~/middlewares/i18n.server';
+import { getDocumentI18n, getT } from '~/middlewares/i18n.server';
 import { loadRankingGroup, rankingPdfResponse } from '~/pdf/ranking.server';
 import { orNotFound, parseRankingGroup, readParams } from '~/pdf/request.server';
 import { unavailableResponse } from '~/pdf/response.server';
@@ -58,8 +58,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     competition,
     sections,
     signal: request.signal,
-    t: getT(context),
-    language: context.get(languageContext),
+    ...getDocumentI18n(request, context),
   });
 }
 
@@ -90,8 +89,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     competition,
     sections: [section],
     signal: request.signal,
-    t: getT(context),
-    language: context.get(languageContext),
+    ...getDocumentI18n(request, context),
   });
 }
 

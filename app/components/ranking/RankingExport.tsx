@@ -1,6 +1,7 @@
 import { FileTextIcon, TriangleAlertIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DocumentLanguageToggle } from '~/components/DocumentLanguageToggle';
 import { Alert, AlertDescription } from '~/components/ui/alert';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
@@ -181,6 +182,12 @@ export function RankingExport({
               )}
             </div>
           )}
+          <div className="grid gap-2">
+            <p aria-hidden className="text-sm font-semibold">
+              {t('common:documentLanguage')}
+            </p>
+            <DocumentLanguageToggle />
+          </div>
           <DialogFooter className="sm:items-center">
             {selected.length === 0 && (
               <p className="text-sm text-muted-foreground">{t('export.noneSelected')}</p>
