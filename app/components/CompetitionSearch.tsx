@@ -50,12 +50,10 @@ export function CompetitionSearch({ pages }: { pages: Page[] }) {
         className="flex size-10 items-center justify-center gap-2 rounded-md text-sm text-ink-muted hover:bg-ink-accent hover:text-ink-foreground xl:w-auto xl:border xl:border-ink-muted/50 xl:px-3 pointer-coarse:size-11 xl:pointer-coarse:w-auto"
       >
         <SearchIcon aria-hidden className="size-5 xl:size-4" />
-        <span aria-hidden className="hidden xl:inline">
+        <span aria-hidden className="hidden items-baseline gap-6 xl:flex">
           {t('actions.search')}
+          <kbd className="font-sans text-xs">Ctrl K</kbd>
         </span>
-        <kbd aria-hidden className="ml-4 hidden font-sans text-xs xl:inline">
-          Ctrl K
-        </kbd>
       </button>
       {open && <SearchDialog pages={pages} onClose={() => setOpen(false)} />}
     </>
