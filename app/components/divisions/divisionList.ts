@@ -58,8 +58,9 @@ export function stepMove(
   const index = planned.findIndex((division) => division.id === id);
   const target = index + step;
   if (index < 0 || target < 0 || target >= planned.length) return null;
-  const beforeId = planned[step < 0 ? target : target + 1]?.id;
-  return { id, ground: planned[index].ground, beforeId };
+  // The lower one goes before the upper one, so divisions that are not shown are not jumped over.
+  const [upper, lower] = step < 0 ? [target, index] : [index, target];
+  return { id: planned[lower].id, ground: planned[index].ground, beforeId: planned[upper].id };
 }
 
 /** What to point out before these divisions start. `running` are the running ones of all contests. */

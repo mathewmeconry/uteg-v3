@@ -57,7 +57,7 @@ export function DivisionRow({
   const { id, state, round, rounds, starterCount, unassignedCount } = division;
   const canMove = canEdit && state === 'PENDING';
   const { listeners, setNodeRef: setHandle, isDragging } = useDraggable({ id, disabled: !canMove });
-  const { setNodeRef: setRow, isOver } = useDroppable({ id, disabled: !canMove });
+  const { setNodeRef: setRow, isOver } = useDroppable({ id, disabled: !canEdit });
 
   return (
     <li
@@ -66,8 +66,12 @@ export function DivisionRow({
       className={cn(
         'flex items-center gap-1 px-2 py-2 data-[state=selected]:bg-accent',
         isDragging && 'opacity-40',
-        // It is dropped above this one.
-        isOver && !isDragging && 'shadow-[inset_0_3px_0_var(--primary)]',
+        // It is dropped above this one, or after what is not planned any more.
+        isOver &&
+          !isDragging &&
+          (state === 'PENDING'
+            ? 'shadow-[inset_0_3px_0_var(--primary)]'
+            : 'shadow-[inset_0_-3px_0_var(--primary)]'),
       )}
     >
       {canMove ? (

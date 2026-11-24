@@ -222,14 +222,18 @@ export function StartDialog({
 }: DialogProps & { divisions: Division[]; planned?: Division[]; running: Division[] }) {
   const { t } = useTranslation(['divisions', 'common']);
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+  // Live updates come before the answer.
+  const [sent, setSent] = useState<Division[]>([]);
+  const isSent = dialog.pending && sent.length > 0;
   const [first] = selected;
   const others =
     selected.length === 1 && first.state === 'PENDING'
       ? planned.filter(({ id, ground }) => id !== first.id && ground === first.ground)
       : [];
-  const divisions = [...selected, ...others.filter(({ id }) => chosen.has(id))].filter(
+  const current = [...selected, ...others.filter(({ id }) => chosen.has(id))].filter(
     ({ state }) => state !== 'RUNNING',
   );
+  const divisions = isSent ? sent : current;
   const { ended, progress, unassigned, behind } = getStartWarnings(divisions, running);
   const pending = divisions.filter(({ state }) => state === 'PENDING');
   const onlyRestarts = ended.length > 0 && pending.length === 0;
@@ -250,9 +254,13 @@ export function StartDialog({
       fields={{ intent: 'start', ...(ended.length > 0 && { restart: 'true' }) }}
       divisions={divisions}
       {...dialog}
+      onSubmit={() => {
+        setSent(divisions);
+        dialog.onSubmit();
+      }}
     >
       {pending.length > 0 && <DivisionNames divisions={pending} detail={ground} />}
-      {others.length > 0 && (
+      {others.length > 0 && !isSent && (
         <OtherDivisions divisions={others} chosen={chosen} onChange={setChosen} />
       )}
       {ended.length > 0 && (

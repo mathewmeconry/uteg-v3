@@ -29,6 +29,8 @@ export default {
   order: {
     text: 'From top to bottom, as they compete.',
     drag: 'Move {{name}}',
+    start: 'Picked up {{name}}.',
+    end: 'Dropped {{name}}.',
     up: 'Move up',
     down: 'Move down',
     emptyGround: 'No division on this ground',

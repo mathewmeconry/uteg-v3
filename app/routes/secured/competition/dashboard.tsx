@@ -100,9 +100,25 @@ export default function Dashboard({
   /** The button disappears when the division was started. */
   function restoreFocus(event: Event) {
     event.preventDefault();
-    if (opener.current?.isConnected) opener.current.focus();
-    else content.current?.focus();
+    const target = opener.current;
+    // Safari does not focus buttons that are clicked.
+    if (target?.isConnected && target !== document.body) target.focus();
+    if (document.activeElement !== target) content.current?.focus();
   }
+
+  const groundCards = (
+    <div className="grid gap-4">
+      {grounds.map((ground) => (
+        <LiveGroundCard
+          key={ground.ground}
+          ground={ground}
+          planned={planned.filter((division) => division.ground === ground.ground)}
+          divisionUrl={divisionUrl}
+          onStart={canEdit ? start : undefined}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -161,23 +177,16 @@ export default function Dashboard({
               {t(canEdit ? `dashboard.title.${phase}` : `home.status.${phase}`)}
             </h2>
             {phase === 'running' || phase === 'continue' ? (
-              <div className="grid gap-4">
-                {grounds.map((ground) => (
-                  <LiveGroundCard
-                    key={ground.ground}
-                    ground={ground}
-                    planned={planned.filter((division) => division.ground === ground.ground)}
-                    divisionUrl={divisionUrl}
-                    onStart={canEdit ? start : undefined}
-                  />
-                ))}
-              </div>
+              groundCards
             ) : canEdit ? (
-              <NextSteps
-                phase={phase}
-                base={`/competitions/${competition.id}`}
-                contestId={contests[0]?.id}
-              />
+              <div className="grid gap-4">
+                <NextSteps
+                  phase={phase}
+                  base={`/competitions/${competition.id}`}
+                  contestId={contests[0]?.id}
+                />
+                {phase === 'start' && groundCards}
+              </div>
             ) : phase === 'ended' ? (
               <EmptyState
                 icon={TrophyIcon}

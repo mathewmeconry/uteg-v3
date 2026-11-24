@@ -26,6 +26,8 @@ export default {
   order: {
     text: 'Von oben nach unten, wie geturnt wird.',
     drag: '{{name}} verschieben',
+    start: '{{name}} aufgenommen.',
+    end: '{{name}} abgelegt.',
     up: 'Nach oben',
     down: 'Nach unten',
     emptyGround: 'Keine Abteilung auf diesem Platz',

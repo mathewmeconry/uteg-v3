@@ -8,13 +8,12 @@ import { cn } from '~/lib/utils';
 const STEPS = ['starters', 'divisions', 'judges', 'start', 'ranking'] as const;
 type Step = (typeof STEPS)[number];
 
-type SetupPhase = Exclude<Phase, 'running'>;
+type SetupPhase = Exclude<Phase, 'running' | 'continue'>;
 
 const CURRENT: Record<SetupPhase, Step> = {
   starters: 'starters',
   divisions: 'divisions',
   start: 'start',
-  continue: 'start',
   ended: 'ranking',
 };
 

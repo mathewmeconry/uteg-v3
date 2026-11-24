@@ -54,15 +54,16 @@ export async function getLiveGrounds(competitionId: string, grounds: number) {
           const slots = currentRound === null ? [] : rounds[currentRound].slots;
           const active = slots.filter(({ withdrawn }) => !withdrawn);
           const next = active.find(({ grade }) => !grade);
+          const graded = active.filter(({ grade }) => grade).length;
           return {
             apparatus,
             status,
             /** 1-based, the last one when finished. */
             round: currentRound === null ? rounds.length : currentRound + 1,
             rounds: rounds.length,
-            /** Confirmed its round while others are still in it. */
-            isAhead: currentRound !== null && currentRound > firstRound,
-            graded: active.filter(({ grade }) => grade).length,
+            /** Waits for others to confirm their round, unless it has already begun the next one. */
+            isAhead: currentRound !== null && currentRound > firstRound && graded === 0,
+            graded,
             total: active.length,
             next: next ? `${next.firstname} ${next.lastname}` : null,
           };

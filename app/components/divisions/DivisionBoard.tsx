@@ -8,6 +8,7 @@ import {
   useSensors,
   type CollisionDetection,
   type DragEndEvent,
+  type UniqueIdentifier,
 } from '@dnd-kit/core';
 import { useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -50,14 +51,40 @@ export function DivisionBoard({
     if (!over || over.id === id) return;
     const ground = over.data.current?.ground as number | undefined;
     if (ground !== undefined) return onMove({ id, ground });
-    const before = divisions.find((division) => division.id === over.id);
-    if (before) onMove({ id, ground: before.ground, beforeId: before.id });
+    const target = divisions.find((division) => division.id === over.id);
+    if (!target) return;
+    // On what runs or has ended: the next one.
+    const next =
+      target.state === 'PENDING'
+        ? target
+        : inRunningOrder(divisions).find(
+            (division) =>
+              division.state === 'PENDING' &&
+              division.ground === target.ground &&
+              division.id !== id,
+          );
+    onMove({ id, ground: target.ground, beforeId: next?.id });
   }
+
+  const announce = (id: UniqueIdentifier, key: 'start' | 'end') => {
+    const division = divisions.find((item) => item.id === id);
+    return division && t(`order.${key}`, { name: divisionName(division) });
+  };
 
   return (
     <DndContext
       id={dndId}
       sensors={sensors}
+      accessibility={{
+        // The keyboard uses the menu.
+        screenReaderInstructions: { draggable: '' },
+        announcements: {
+          onDragStart: ({ active }) => announce(active.id, 'start'),
+          onDragOver: () => undefined,
+          onDragEnd: ({ active }) => announce(active.id, 'end'),
+          onDragCancel: ({ active }) => announce(active.id, 'end'),
+        },
+      }}
       collisionDetection={collisions}
       onDragStart={({ active }) => setDraggedId(String(active.id))}
       onDragEnd={onDragEnd}
