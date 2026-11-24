@@ -1,16 +1,15 @@
 import { data } from 'react-router';
 import type { Route } from './+types/judgingManualPdf';
-import { languageContext } from '~/context';
 import { accessUrl, getOrCreateJudgeLinks } from '~/lib/access.server';
 import { requireRole } from '~/middlewares/competition.server';
-import { getT } from '~/middlewares/i18n.server';
+import { getDocumentI18n } from '~/middlewares/i18n.server';
 import { parseGround, readParams } from '~/pdf/request.server';
 import { pdfResponse } from '~/pdf/response.server';
 
 /** `?link=<id>` or `?ground=1`, otherwise all. Contains the tokens, so it is not for viewers. */
 export async function loader({ request, context }: Route.LoaderArgs) {
   const competition = requireRole(context, 'EDITOR');
-  const t = getT(context);
+  const { language, t } = getDocumentI18n(request, context);
   const params = await readParams(request);
   const linkId = params.get('link');
   const ground = params.has('ground') ? parseGround(params.get('ground')!) : null;
@@ -24,7 +23,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   return pdfResponse(
     {
       type: 'judgingManual',
-      language: context.get(languageContext),
+      language,
       props: {
         links: links.map((link) => ({
           id: link.id,

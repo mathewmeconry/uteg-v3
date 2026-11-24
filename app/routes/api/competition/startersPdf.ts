@@ -1,10 +1,10 @@
 import { data } from 'react-router';
 import type { Route } from './+types/startersPdf';
-import { competitionContext, languageContext, type Context } from '~/context';
+import { competitionContext, type Context } from '~/context';
 import { Role } from '~/generated/prisma/enums';
 import { listStarters } from '~/lib/starters.server';
 import { requireRole } from '~/middlewares/competition.server';
-import { getT } from '~/middlewares/i18n.server';
+import { getDocumentI18n } from '~/middlewares/i18n.server';
 import { readParams } from '~/pdf/request.server';
 import { pdfResponse } from '~/pdf/response.server';
 import type { ClubGroup, StarterRow } from '~/pdf/StartersDocument';
@@ -22,7 +22,7 @@ export function action({ request, context }: Route.ActionArgs) {
 
 async function startersPdf(request: Request, context: Context) {
   const competition = context.get(competitionContext);
-  const t = getT(context);
+  const { language, t } = getDocumentI18n(request, context);
   const ids = new Set((await readParams(request)).getAll('id'));
   const all = await listStarters(competition.id);
   const starters = ids.size > 0 ? all.filter(({ id }) => ids.has(id)) : all;
@@ -31,7 +31,7 @@ async function startersPdf(request: Request, context: Context) {
   return pdfResponse(
     {
       type: 'starters',
-      language: context.get(languageContext),
+      language,
       props: { clubs: groupByClub(starters), competitionName: competition.name },
     },
     { name: `${t('pdf:starters.title')} ${competition.name}`, signal: request.signal, t },

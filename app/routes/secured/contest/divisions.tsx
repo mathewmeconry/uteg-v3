@@ -35,6 +35,7 @@ import {
 } from '~/components/divisions/divisionList';
 import { DivisionRow, type RowAction } from '~/components/divisions/DivisionRow';
 import { useDivisionName } from '~/components/divisions/useDivisionName';
+import { DocumentLanguageToggle } from '~/components/DocumentLanguageToggle';
 import { EmptyState } from '~/components/EmptyState';
 import { PageHeader } from '~/components/PageHeader';
 import { Button } from '~/components/ui/button';
@@ -294,6 +295,7 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
                 </Link>
               </Button>
             )}
+            <DocumentLanguageToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">

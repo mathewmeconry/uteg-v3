@@ -1,6 +1,7 @@
 import { ExternalLinkIcon, LoaderCircleIcon } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DocumentLanguageToggle } from '~/components/DocumentLanguageToggle';
 import { Button } from '~/components/ui/button';
 import { Label } from '~/components/ui/label';
 import {
@@ -11,6 +12,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import type { Sex } from '~/generated/prisma/enums';
+import { useDocumentLanguage } from '~/hooks/useDocumentLanguage';
 import { rankingTemplateSchema, type RankingTemplateOptions } from '~/lib/domain/rankingTemplate';
 
 export type PreviewGroup = {
@@ -63,14 +65,17 @@ export function TemplatePreview({
             </SelectContent>
           </Select>
         </div>
-        {url && (
-          <Button asChild variant="outline">
-            <a href={url} target="_blank" rel="noreferrer">
-              <ExternalLinkIcon aria-hidden />
-              {t('preview.open')}
-            </a>
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <DocumentLanguageToggle />
+          {url && (
+            <Button asChild variant="outline">
+              <a href={url} target="_blank" rel="noreferrer">
+                <ExternalLinkIcon aria-hidden />
+                {t('preview.open')}
+              </a>
+            </Button>
+          )}
+        </div>
       </div>
       {status === 'failed' && (
         <p role="alert" className="text-sm text-destructive">
@@ -109,6 +114,8 @@ function usePreview(
   const [url, setUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
   const serialized = JSON.stringify(options);
+  // The server reads it from the cookie.
+  const [language] = useDocumentLanguage();
 
   useEffect(() => {
     // While something in the form is invalid the last preview stays.
@@ -146,7 +153,7 @@ function usePreview(
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [competitionId, serialized, source, templateId, cover]);
+  }, [competitionId, serialized, source, templateId, cover, language]);
 
   useEffect(() => {
     if (!url) return;

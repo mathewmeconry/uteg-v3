@@ -9,6 +9,7 @@ import { StartDialog, StopDialog } from '~/components/divisions/DivisionDialogs'
 import { inRunningOrder } from '~/components/divisions/divisionList';
 import { useDivisionName } from '~/components/divisions/useDivisionName';
 import { DivisionStateBadge } from '~/components/DivisionStateBadge';
+import { DocumentLanguageToggle } from '~/components/DocumentLanguageToggle';
 import { GradingSaveStatus } from '~/components/grading/GradingSaveStatus';
 import { useGradeDrafts } from '~/components/grading/useGradeDrafts';
 import { PageHeader } from '~/components/PageHeader';
@@ -104,6 +105,7 @@ export default function DivisionLayout({ loaderData }: Route.ComponentProps) {
         ].join(', ')}
         actions={
           <>
+            <DocumentLanguageToggle />
             <Button asChild variant="outline">
               <a href={sheetsUrl} target="_blank" rel="noreferrer">
                 <FileTextIcon aria-hidden />
