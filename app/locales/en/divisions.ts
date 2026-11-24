@@ -26,6 +26,10 @@ export default {
     all: 'All',
     search: 'Search',
   },
+  tabs: {
+    grades: 'Grades',
+    lineups: 'Lineups',
+  },
   order: {
     text: 'From top to bottom, as they compete.',
     drag: 'Move {{name}}',

@@ -3,15 +3,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data, Link } from 'react-router';
 import type { Route } from './+types/lineups';
-import { ConnectionBadge } from '~/components/ConnectionBadge';
-import { DivisionStateBadge } from '~/components/DivisionStateBadge';
 import { LineupBoard } from '~/components/divisions/LineupBoard';
 import type { LineupEntryData } from '~/components/divisions/LineupEntry';
 import { UNASSIGNED } from '~/components/divisions/lineupMoves';
 import { useDivisionName } from '~/components/divisions/useDivisionName';
 import { useLineupMoves } from '~/components/divisions/useLineupMoves';
 import { EmptyState } from '~/components/EmptyState';
-import { PageHeader } from '~/components/PageHeader';
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
 import { Button } from '~/components/ui/button';
 import {
@@ -23,7 +20,6 @@ import {
 } from '~/components/ui/select';
 import { competitionContext, contestContext, type Context } from '~/context';
 import { useCompetition } from '~/hooks/useCompetition';
-import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { DomainError } from '~/lib/errors';
 import { getDivisionLineups } from '~/lib/lineups.server';
 
@@ -80,7 +76,6 @@ export default function Lineups({ loaderData }: Route.ComponentProps) {
   const { division, lineups, unassigned } = loaderData;
   const { t } = useTranslation(['divisions', 'common']);
   const { competition, canEdit } = useCompetition();
-  const status = useLiveUpdates(`/api/events/${competition.id}`);
   const name = useDivisionName()(division);
   const [club, setClub] = useState(ALL_CLUBS);
   const { columns, move } = useLineupMoves(
@@ -101,7 +96,6 @@ export default function Lineups({ loaderData }: Route.ComponentProps) {
   );
   // The last one of the club may have left the division.
   const clubId = clubs.some(([id]) => id === club) ? club : null;
-  const starterCount = entries.filter(({ withdrawn }) => !withdrawn).length;
 
   function columnName(columnId: string) {
     const lineup = lineups.find(({ apparatus }) => apparatus === columnId);
@@ -111,27 +105,6 @@ export default function Lineups({ loaderData }: Route.ComponentProps) {
   return (
     <>
       <title>{`${t('lineupsTitle')} ${name} · UTEG`}</title>
-      <PageHeader
-        breadcrumbs={[
-          {
-            to: `/competitions/${competition.id}/contests/${division.contestId}/divisions`,
-            label: t('title'),
-          },
-        ]}
-        title={name}
-        status={
-          <>
-            <DivisionStateBadge state={division.state} />
-            <ConnectionBadge status={status} />
-          </>
-        }
-        description={[
-          t('lineupsTitle'),
-          t('common:ground', { number: division.ground }),
-          t('common:starterCount', { count: starterCount }),
-        ].join(', ')}
-      />
-
       {entries.length === 0 ? (
         <EmptyState
           icon={UsersIcon}

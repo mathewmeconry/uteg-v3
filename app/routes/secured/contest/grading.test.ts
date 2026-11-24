@@ -13,6 +13,7 @@ import {
   createUser,
   truncateTables,
 } from '~/tests/helpers';
+import { loader as layoutLoader } from './division';
 import { action as divisionAction, loader as divisionLoader } from './divisionGrading';
 import { action, loader } from './grading';
 
@@ -170,5 +171,31 @@ describe('loading', () => {
     expect(await load(division.id)).toMatchObject({ division: { id: division.id } });
     const other = await setup();
     await expect(load(other.division.id)).rejects.toMatchObject({ init: { status: 404 } });
+    await expect(
+      layoutLoader({ context, params: { divisionId: other.division.id } } as any),
+    ).rejects.toMatchObject({ init: { status: 404 } });
+    const layout = await layoutLoader({ context, params: { divisionId: division.id } } as any);
+    expect(layout).toMatchObject({ division: { id: division.id }, planned: [], running: [] });
+  });
+
+  it('confirms on the page of a division what is judged together on the ground', async () => {
+    const { id, contest, context, division } = await setup();
+    const second = await createDivision(contest.id, { number: 2, state: 'RUNNING' });
+    const load = async () =>
+      (await divisionLoader({ context, params: { divisionId: division.id } } as any)).rounds[0];
+    expect(await load()).toMatchObject({ apparatus: 'reck', round: 0, missing: 0 });
+    await createStarter(id, { divisionId: second.id, startApparatus: 'reck' });
+    expect(await load()).toMatchObject({ missing: 1 });
+
+    const { round, divisionIds } = await load();
+    expect(divisionIds.toSorted()).toEqual([division.id, second.id].toSorted());
+    const result = await post(divisionAction, context, [
+      ['intent', 'confirm'],
+      ['ground', '1'],
+      ['apparatus', 'reck'],
+      ['round', String(round)],
+      ...divisionIds.map((divisionId) => ['divisionIds', divisionId]),
+    ]);
+    expect(result).toMatchObject({ data: { error: expect.any(String) } });
   });
 });

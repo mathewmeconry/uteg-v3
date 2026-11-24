@@ -195,16 +195,12 @@ test('a competition from the first login to the ranking', async ({ page, browser
 
   await test.step('correct a grade after the end', async () => {
     const row = page.getByRole('listitem').filter({ hasText: WOMEN.category });
-    await row.getByRole('button', { name: /^Weitere Aktionen/ }).click();
-    await page.getByRole('menuitem', { name: 'Noteneingabe' }).click();
+    await row.getByRole('link', { name: WOMEN.category }).click();
     await page.waitForURL('**/grading');
-    const reck = page.getByRole('region', { name: 'Reck' });
-    await reck.getByRole('tab', { name: 'Durchgang 1' }).click();
-    const grade = reck.getByRole('listitem').filter({ hasText: 'Anna' });
-    await grade.getByRole('textbox').fill('9.95');
+    await page.getByLabel('Note Anna Frei, Reck').fill('9.95');
     // Nobody has to press a button.
     await page.getByRole('heading', { level: 1 }).click();
-    await expect(grade.getByText('Gespeichert: 9.95')).toBeVisible();
+    await expect(page.getByText('Gespeichert', { exact: true })).toBeVisible();
   });
 
   await test.step('show and print the ranking', async () => {
