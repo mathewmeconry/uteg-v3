@@ -118,10 +118,20 @@ describe('viewer middlewares', () => {
     expect((await run(viewerApiMiddleware, context)).status).toBe(api);
   });
 
-  it('are around every page but the starters', () => {
-    const { children } = (routes as RouteConfigEntry[])
-      .flatMap((entry) => entry.children ?? [])
-      .find(({ file }) => file === 'routes/secured/competition/layout.tsx')!;
+  it('are around everything but the starters', () => {
+    const all = (routes as RouteConfigEntry[]).flatMap((entry) => [
+      entry,
+      ...(entry.children ?? []),
+    ]);
+    const api = all.find(({ file }) => file === 'routes/api/competition/layout.ts')!;
+    expect(api.children!.map(({ file }) => file)).toEqual([
+      'routes/api/competition/athletes.ts',
+      'routes/api/competition/clubs.ts',
+      'routes/api/competition/startersXlsx.ts',
+      'routes/api/competition/startersPdf.ts',
+      'routes/api/competition/viewerLayout.ts',
+    ]);
+    const { children } = all.find(({ file }) => file === 'routes/secured/competition/layout.tsx')!;
     expect(children!.map(({ file }) => file)).toEqual([
       'routes/secured/competition/starters.tsx',
       'routes/secured/competition/viewerLayout.tsx',

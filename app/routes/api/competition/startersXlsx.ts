@@ -8,7 +8,7 @@ import { getT } from '~/middlewares/i18n.server';
 
 /** The starters of the repeated field `id` in that order. A form, long lists don't fit an address. */
 export async function action({ request, context }: Route.ActionArgs) {
-  const competition = requireRole(context, 'VIEWER');
+  const competition = requireRole(context, 'CHECK_IN');
   const t = getT(context);
   const formData = await request.formData();
   const contestId = formData.get('contest') ?? competition.contests[0]?.id;

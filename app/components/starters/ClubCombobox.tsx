@@ -26,14 +26,12 @@ export function ClubCombobox({
   value,
   onChange,
   controlProps,
-  canCreate = true,
 }: {
   competitionId: string;
   clubs: ClubOption[];
   value: ClubOption | null;
   onChange: (club: ClubOption) => void;
   controlProps: FieldControlProps;
-  canCreate?: boolean;
 }) {
   const { t } = useTranslation(['starters', 'common']);
   const [open, setOpen] = useState(false);
@@ -107,21 +105,19 @@ export function ClubCombobox({
                 </CommandList>
               </Command>
               {/* Outside of the menu, which picks its marked item on every Enter. */}
-              {canCreate && (
-                <div className="border-t p-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => setCreating(true)}
-                  >
-                    <PlusIcon aria-hidden />
-                    <span className="truncate">
-                      {search.trim() ? t('club.newNamed', { name: search.trim() }) : t('club.new')}
-                    </span>
-                  </Button>
-                </div>
-              )}
+              <div className="border-t p-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => setCreating(true)}
+                >
+                  <PlusIcon aria-hidden />
+                  <span className="truncate">
+                    {search.trim() ? t('club.newNamed', { name: search.trim() }) : t('club.new')}
+                  </span>
+                </Button>
+              </div>
             </>
           )}
         </PopoverContent>

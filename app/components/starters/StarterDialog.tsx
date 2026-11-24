@@ -54,7 +54,7 @@ export function StarterDialog({
   options: ContestOptions;
   clubs: ClubOption[];
   startingIds: ReadonlySet<string>;
-  /** Leaves out the assignment, the sex it depends on, and the master data. */
+  /** Leaves out the assignment, the sex of `starter` it depends on, and the master data. */
   personOnly?: boolean;
   onClose: () => void;
 }) {
@@ -204,7 +204,7 @@ export function StarterDialog({
                 hint={difference('birthYear') ?? (starter ? undefined : t('form.birthYearHint'))}
               />
               {/* The sex of a suggested person may be one that does not take part. */}
-              {personOnly || (sexes.length === 1 && person.sex === sexes[0]) ? (
+              {(personOnly && starter) || (sexes.length === 1 && person.sex === sexes[0]) ? (
                 <input type="hidden" name="sex" value={person.sex} />
               ) : (
                 <FormField
@@ -246,7 +246,6 @@ export function StarterDialog({
                   value={club}
                   onChange={setClub}
                   controlProps={props}
-                  canCreate={!personOnly}
                 />
               )}
             </FormField>

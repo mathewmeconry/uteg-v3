@@ -54,6 +54,12 @@ export function requireRole(context: Context, minRole: Role) {
   return competition;
 }
 
+/** For what editors and the check-in may do, but viewers may not. */
+export function requireEditorOrCheckIn(context: Context) {
+  const competition = context.get(competitionContext);
+  return competition.role === 'CHECK_IN' ? competition : requireRole(context, 'EDITOR');
+}
+
 function requireParam(value: string | undefined): string {
   // Prisma ignores undefined filters and would return any record.
   if (!value) throw data(null, 404);

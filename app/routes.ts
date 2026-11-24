@@ -56,19 +56,22 @@ export default [
     route('display/:linkId/events', 'routes/api/displayEvents.ts'),
     route('assets/:assetId', 'routes/api/asset.ts'),
     route('competitions/:competitionId', 'routes/api/competition/layout.ts', [
-      route('grades', 'routes/api/competition/grades.ts'),
+      // What the starters page of the check-in needs.
       route('athletes', 'routes/api/competition/athletes.ts'),
       route('clubs', 'routes/api/competition/clubs.ts'),
-      route('search', 'routes/api/competition/search.ts'),
       route('starters.xlsx', 'routes/api/competition/startersXlsx.ts'),
-      route('pdf/ranking', 'routes/api/competition/rankingPdf.ts'),
       route('pdf/starters', 'routes/api/competition/startersPdf.ts'),
-      route('pdf/judging-sheets', 'routes/api/competition/judgingSheetsPdf.ts'),
-      route('pdf/judging-manual', 'routes/api/competition/judgingManualPdf.ts'),
-      route(
-        'contests/:contestId/divisions/:divisionId/lineup-moves',
-        'routes/api/competition/lineupMoves.ts',
-      ),
+      layout('routes/api/competition/viewerLayout.ts', [
+        route('grades', 'routes/api/competition/grades.ts'),
+        route('search', 'routes/api/competition/search.ts'),
+        route('pdf/ranking', 'routes/api/competition/rankingPdf.ts'),
+        route('pdf/judging-sheets', 'routes/api/competition/judgingSheetsPdf.ts'),
+        route('pdf/judging-manual', 'routes/api/competition/judgingManualPdf.ts'),
+        route(
+          'contests/:contestId/divisions/:divisionId/lineup-moves',
+          'routes/api/competition/lineupMoves.ts',
+        ),
+      ]),
     ]),
   ]),
   route('healthz', 'routes/healthz.ts'),

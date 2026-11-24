@@ -62,7 +62,7 @@ import {
   type Assignment,
 } from '~/lib/starters.server';
 import type { ServerT } from '~/locales';
-import { requireRole } from '~/middlewares/competition.server';
+import { requireEditorOrCheckIn } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 
@@ -80,12 +80,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id, role } = context.get(competitionContext);
+  const { id, role } = requireEditorOrCheckIn(context);
   const isCheckIn = role === 'CHECK_IN';
-  if (!isCheckIn) requireRole(context, 'EDITOR');
   const t = getT(context);
   const formData = await request.formData();
-  if (isCheckIn && !['update', 'remove'].includes(String(formData.get('intent')))) {
+  if (isCheckIn && !['create', 'update', 'remove'].includes(String(formData.get('intent')))) {
     throw data(null, 403);
   }
   rejectNul(formData);
@@ -101,12 +100,14 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (errors) return data({ errors }, 400);
         const { contestId, category, divisionId, startApparatus, athleteId, ...person } = values;
         // Someone who comes back keeps what is left empty.
-        const entry = {
-          contestId,
-          category: category || undefined,
-          divisionId: divisionId || undefined,
-          startApparatus: startApparatus || undefined,
-        };
+        const entry = isCheckIn
+          ? { contestId }
+          : {
+              contestId,
+              category: category || undefined,
+              divisionId: divisionId || undefined,
+              startApparatus: startApparatus || undefined,
+            };
         const { outcome } = await createStarter(id, { ...person, athleteId, entries: [entry] });
         const message = t(`starters:${outcome}`, { name: fullName(person) });
         enqueueToast(context, { type: outcome === 'existing' ? 'info' : 'success', message });
@@ -339,14 +340,16 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
     postIds(`/api/competitions/${competition.id}/${path}`, ids, { contestId: contest.id, target });
   }
 
-  const actions = canEdit && (
+  const actions = canEditPerson && (
     <>
-      <Button variant="outline" asChild>
-        <Link to={contests.length > 1 ? `import?contest=${contest.id}` : 'import'}>
-          <UploadIcon aria-hidden />
-          {t('common:actions.import')}
-        </Link>
-      </Button>
+      {canEdit && (
+        <Button variant="outline" asChild>
+          <Link to={contests.length > 1 ? `import?contest=${contest.id}` : 'import'}>
+            <UploadIcon aria-hidden />
+            {t('common:actions.import')}
+          </Link>
+        </Button>
+      )}
       <Button className="max-sm:grow" onClick={() => setDialog({ type: 'create' })}>
         <UserPlusIcon aria-hidden />
         {t('create')}
@@ -364,7 +367,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
         }
         actions={
           <>
-            {starters.length > 0 && !isCheckIn && (
+            {starters.length > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button

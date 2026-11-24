@@ -266,11 +266,16 @@ it.each([
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
-it('lets the check-in edit the person and remove only', async () => {
+it('lets the check-in do everything but import and assign', async () => {
   const { user, table, rows } = await renderPage({ canEdit: false, isCheckIn: true });
-  for (const name of ['Exportieren', 'Importieren', 'Einteilen']) {
-    expect(screen.queryByText(name)).not.toBeInTheDocument();
-  }
+  expect(screen.getByRole('button', { name: 'Exportieren' })).toBeEnabled();
+  expect(screen.queryByRole('link', { name: 'Importieren' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Person hinzufügen' }));
+  const form = within(screen.getByRole('dialog'));
+  expect(form.getByLabelText('Geschlecht')).toBeInTheDocument();
+  expect(form.queryByLabelText('Kategorie')).not.toBeInTheDocument();
+  await user.click(form.getByRole('button', { name: 'Abbrechen' }));
+
   await user.click(within(rows()[0]).getByRole('checkbox'));
   expect(screen.getByRole('button', { name: 'Entfernen' })).toBeEnabled();
   expect(screen.queryByRole('button', { name: 'Einteilen' })).not.toBeInTheDocument();

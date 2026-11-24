@@ -15,7 +15,7 @@ export function loader({ request, context }: Route.LoaderArgs) {
 
 /** The same as a form, for many ids. */
 export function action({ request, context }: Route.ActionArgs) {
-  requireRole(context, 'VIEWER');
+  requireRole(context, 'CHECK_IN');
   return startersPdf(request, context);
 }
 

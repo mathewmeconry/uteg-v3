@@ -55,7 +55,7 @@ export default {
       EDITOR: 'Bearbeitet Teilnehmende, Abteilungen, Noten und Einstellungen',
       VIEWER: 'Sieht alles, ändert nichts',
       CHECK_IN:
-        'Sieht nur die Teilnehmenden, ändert deren Personalien und entfernt sie. Teilt nicht ein',
+        'Sieht nur die Teilnehmenden, fügt sie hinzu, ändert Personalien und entfernt sie. Teilt nicht ein',
     },
   },
   honour: {
