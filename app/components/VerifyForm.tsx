@@ -1,4 +1,5 @@
 import { MailIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
@@ -6,19 +7,22 @@ import { Alert, AlertDescription } from '~/components/ui/alert';
 import { Button } from '~/components/ui/button';
 import { useActionFetcher } from '~/hooks/useActionFetcher';
 import { CodeField } from './CodeField';
+import { FormField } from './FormField';
 import { SubmitButton } from './SubmitButton';
 
 /** Asks for the code that was sent to verify an address, after registering or logging in. */
 export function VerifyForm({
   email,
-  password,
+  password: knownPassword,
   redirectTo,
 }: {
   email: string;
+  /** Empty if the form before was sent before the page was ready. */
   password: string;
   redirectTo: string;
 }) {
-  const { t } = useTranslation('auth');
+  const { t } = useTranslation(['auth', 'common']);
+  const [password, setPassword] = useState(knownPassword);
   const verify = useActionFetcher();
   const resend = useActionFetcher(() => toast.success(t('verify.resent')));
 
@@ -32,9 +36,22 @@ export function VerifyForm({
           <AlertDescription>{t('verify.sent', { email })}</AlertDescription>
         </Alert>
         <input type="hidden" name="email" value={email} />
-        <input type="hidden" name="password" value={password} />
+        {knownPassword ? (
+          <input type="hidden" name="password" value={password} />
+        ) : (
+          <FormField
+            label={t('common:fields.password')}
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="h-12"
+            required
+          />
+        )}
         <input type="hidden" name="redirectTo" value={redirectTo} />
-        <CodeField error={verify.errors?.code} className="h-12" />
+        <CodeField errors={verify.errors} />
         <SubmitButton size="lg" pending={verify.pending}>
           {t('verify.confirm')}
         </SubmitButton>

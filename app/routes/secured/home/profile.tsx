@@ -230,7 +230,7 @@ export default function Profile({ loaderData, actionData }: Route.ComponentProps
             <Form method="post" className="mt-7 grid max-w-md gap-5">
               <p role="status">{t('verify.sent', { email: newEmail })}</p>
               <input type="hidden" name="newEmail" value={newEmail} />
-              <CodeField error={errors.code} />
+              <CodeField errors={actionData?.errors} />
               <SubmitButton name="intent" value="emailCode" className="justify-self-start">
                 {t('verify.confirm')}
               </SubmitButton>
