@@ -51,7 +51,7 @@ export default {
     grading: 'Grading',
     ranking: 'Ranking',
     contestSettings: 'Scoring',
-    judges: 'Tablets',
+    judges: 'Judges',
     displays: 'Displays',
     templates: 'PDF templates',
     settings: 'Competition',
