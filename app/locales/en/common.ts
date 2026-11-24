@@ -70,6 +70,7 @@ export default {
     noCategory: 'no category',
     withoutDivision: 'Not in a division',
     empty: 'Nothing found',
+    failed: 'No connection to the server. Close the search and try again.',
   },
   chooseDate: 'Choose a date',
   stepOf: 'Step {{step}} of {{count}}',

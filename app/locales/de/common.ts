@@ -67,6 +67,7 @@ export default {
     noCategory: 'keine Kategorie',
     withoutDivision: 'Nicht eingeteilt',
     empty: 'Nichts gefunden',
+    failed: 'Keine Verbindung zum Server. Schliesse die Suche und versuche es nochmals.',
   },
   chooseDate: 'Datum wählen',
   stepOf: 'Schritt {{step}} von {{count}}',

@@ -86,44 +86,52 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('StarterPanel', () => {
-  const renderPanel = (starter: Partial<StarterRow>, options = OPTIONS) =>
+  function renderPanel(starter: Partial<StarterRow>, options = OPTIONS, pending = false) {
+    const onAssign = vi.fn();
     renderPage(
       <StarterPanel
         starter={{ ...ANNA, ...starter }}
         options={options}
+        pending={pending}
+        onAssign={onAssign}
         onEdit={() => {}}
         onClose={() => {}}
       />,
     );
-  const sent = ({ submitted }: ReturnType<typeof renderPage>) =>
-    submitted.mock.calls.map(([fields]) => JSON.parse(Object.fromEntries(fields).assignments));
+    return onAssign;
+  }
 
   it('assigns with one click, and again only when something changes', async () => {
-    const page = renderPanel({});
+    const onAssign = renderPanel({});
     await userEvent.click(screen.getByRole('button', { name: /Abteilung 1/ }));
-    expect(page.submitted).not.toHaveBeenCalled();
+    expect(onAssign).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Reck' }));
-    expect(sent(page)).toEqual([
+    expect(onAssign.mock.calls).toEqual([
       [{ entryIds: ['entry-anna'], divisionId: 'f1', startApparatus: 'reck' }],
     ]);
-    expect(page.fields()).toMatchObject({ intent: 'assign', quiet: '1' });
+  });
+
+  it('waits for the assignment before', async () => {
+    const onAssign = renderPanel({}, OPTIONS, true);
+    await userEvent.click(screen.getByRole('button', { name: 'Reck' }));
+    expect(onAssign).not.toHaveBeenCalled();
   });
 
   it('offers the apparatus after the division', async () => {
-    const page = renderPanel({ divisionId: null, divisionNumber: null, startApparatus: null });
+    const onAssign = renderPanel({ divisionId: null, divisionNumber: null, startApparatus: null });
     expect(screen.queryByRole('button', { name: 'Reck' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Abteilung 1/ }));
-    expect(sent(page)).toEqual([[{ entryIds: ['entry-anna'], divisionId: 'f1' }]]);
+    expect(onAssign).toHaveBeenCalledWith({ entryIds: ['entry-anna'], divisionId: 'f1' });
   });
 
   it('changes nothing about a division that runs', async () => {
     const running = { ...OPTIONS.divisions[0], state: 'RUNNING' as const };
     const other = { ...OPTIONS.divisions[0], id: 'f2', number: 2 };
-    const page = renderPanel({}, { ...OPTIONS, divisions: [running, other] });
+    const onAssign = renderPanel({}, { ...OPTIONS, divisions: [running, other] });
     for (const name of [/Abteilung 2/, 'Reck']) {
       await userEvent.click(screen.getByRole('button', { name }));
     }
-    expect(page.submitted).not.toHaveBeenCalled();
+    expect(onAssign).not.toHaveBeenCalled();
     expect(screen.getByText(/läuft oder ist beendet/)).toBeInTheDocument();
   });
 

@@ -27,16 +27,17 @@ export async function getSearchIndex(competitionId: string) {
 
   return {
     starters: starters.map(({ id, firstname, lastname, sex, club, entries }) => {
-      // With several contests the one that is going on.
+      // With several contests the one that is going on, or is next.
       const entry =
-        entries.find(({ division }) => division?.state === 'RUNNING') ??
-        entries.find(({ division }) => division) ??
-        entries[0];
+        (['RUNNING', 'PENDING', 'ENDED'] as const)
+          .map((state) => entries.find(({ division }) => division?.state === state))
+          .find((found) => found) ?? entries[0];
       return {
         id,
         name: `${firstname} ${lastname}`,
         sex,
         clubName: club.name,
+        contestId: entry?.contestId ?? null,
         category: entry?.category ?? null,
         division: entry?.division && toDivision(entry.division),
         /** Where the person is now, while the division runs. */

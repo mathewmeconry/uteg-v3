@@ -23,7 +23,7 @@ export async function listRankingGroups(competitionId: string, contestId: string
   );
 }
 
-/** How far each category with divisions is, in the order of the module. */
+/** How far each category is, without divisions `null`, in the order of the module. */
 export async function listCategoryStates(competitionId: string, contestId: string) {
   const { module } = await getContest(competitionId, contestId);
   const divisions = await prisma.division.groupBy({
@@ -37,8 +37,7 @@ export async function listCategoryStates(competitionId: string, contestId: strin
           .filter((division) => division.sex === sex && division.category === category)
           .map(({ state }) => state),
       );
-      if (states.size === 0) return [];
-      const [only] = states;
+      const only = [...states].at(0) ?? null;
       const isPartly = states.size > 1;
       const state = states.has('RUNNING') ? 'RUNNING' : isPartly ? ('PARTLY' as const) : only;
       return [{ sex, category, state }];

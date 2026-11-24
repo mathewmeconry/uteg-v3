@@ -337,7 +337,13 @@ function CategoryList({
                             'bg-ink text-ink-foreground hover:bg-ink dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary',
                         )}
                       >
-                        <span className="font-semibold">{category}</span>
+                        <span
+                          className={cn(
+                            state ? 'font-semibold' : !isShown && 'text-muted-foreground',
+                          )}
+                        >
+                          {category}
+                        </span>
                         <span
                           className={cn(
                             'inline-flex items-center gap-1.5 text-xs',
@@ -348,7 +354,7 @@ function CategoryList({
                           {state === 'RUNNING' && (
                             <span aria-hidden className="size-2 rounded-full bg-brand" />
                           )}
-                          {t(`states.${state}`)}
+                          {state && t(`states.${state}`)}
                         </span>
                       </Link>
                     </li>

@@ -1,9 +1,10 @@
 import { SearchIcon, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useFetcher, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { useDivisionName } from '~/components/divisions/useDivisionName';
 import { commandFilter } from '~/components/starters/starterList';
+import { useReturnFocus } from '~/components/starters/useReturnFocus';
 import { StatusBadge } from '~/components/StatusBadge';
 import {
   Command,
@@ -56,26 +57,35 @@ export function CompetitionSearch({ pages }: { pages: Page[] }) {
           Ctrl K
         </kbd>
       </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent
-          showCloseButton={false}
-          className="top-16 translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-xl"
-        >
-          <DialogTitle className="sr-only">{t('actions.search')}</DialogTitle>
-          <DialogDescription className="sr-only">{t('search.hint')}</DialogDescription>
-          <Results pages={pages} onClose={() => setOpen(false)} />
-        </DialogContent>
-      </Dialog>
+      {open && <SearchDialog pages={pages} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-/** Only while the dialog is open, so what it finds is up to date. */
+/** Only rendered while it is open, so what it finds is up to date. */
+function SearchDialog({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
+  const { t } = useTranslation();
+  const returnFocus = useReturnFocus();
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        onCloseAutoFocus={returnFocus}
+        className="top-16 translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-xl"
+      >
+        <DialogTitle className="sr-only">{t('actions.search')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('search.hint')}</DialogDescription>
+        <Results pages={pages} onClose={onClose} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
   const { t } = useTranslation(['common', 'divisions']);
-  const { competition, canEdit } = useCompetition();
-  const fetcher = useFetcher<SearchIndex>();
-  const { load } = fetcher;
+  const { competition, contests, canEdit } = useCompetition();
+  const [index, setIndex] = useState<SearchIndex | null>(null);
+  const [hasFailed, setHasFailed] = useState(false);
   const navigate = useNavigate();
   const divisionName = useDivisionName();
   const apparatusName = useApparatusName();
@@ -86,8 +96,16 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
   const base = `/competitions/${competition.id}`;
 
   useEffect(() => {
-    void load(`/api${base}/search`);
-  }, [load, base]);
+    const controller = new AbortController();
+    // No fetcher: when it fails, the page with what was typed there would become an error page.
+    fetch(`/api${base}/search`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error())))
+      .then(setIndex)
+      .catch(() => {
+        if (!controller.signal.aborted) setHasFailed(true);
+      });
+    return () => controller.abort();
+  }, [base]);
 
   function matches(...texts: (string | null | undefined)[]) {
     return commandFilter('', query, [texts.filter(Boolean).join(' ')]) === 1;
@@ -103,13 +121,20 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
     return `${base}/contests/${contestId}/divisions/${id}/${page}`;
   }
 
-  function starterUrl({ id, division }: SearchIndex['starters'][number]) {
+  function starterUrl({ id, contestId, division }: SearchIndex['starters'][number]) {
     if (division) return divisionUrl(division);
-    return canEdit ? `${base}/starters?edit=${id}` : `${base}/starters`;
+    const params = new URLSearchParams();
+    if (contestId && contests.length > 1) params.set('contest', contestId);
+    if (canEdit) params.set('edit', id);
+    return `${base}/starters?${params}`;
+  }
+
+  /** Only with several of them. */
+  function contestName(contestId: string) {
+    return contests.length > 1 && contests.find(({ id }) => id === contestId)?.name;
   }
 
   const hasQuery = query.trim() !== '';
-  const index = fetcher.data;
   const starters = hasQuery
     ? (index?.starters ?? [])
         .filter(({ name, clubName, category }) => matches(name, clubName, category))
@@ -162,7 +187,10 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
                       {[
                         clubName,
                         division ? divisionName(division) : (group ?? t('search.noCategory')),
-                      ].join(', ')}
+                        division && contestName(division.contestId),
+                      ]
+                        .filter(Boolean)
+                        .join(', ')}
                     </span>
                   </span>
                   {apparatus ? (
@@ -190,7 +218,9 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
                 onSelect={() => go(divisionUrl(division))}
               >
                 <span className="min-w-0 flex-1 truncate font-semibold">
-                  {divisionName(division)}
+                  {[divisionName(division), contestName(division.contestId)]
+                    .filter(Boolean)
+                    .join(', ')}
                 </span>
                 <span className="shrink-0 text-muted-foreground">
                   {t('ground', { number: division.ground })}, {t(`divisionState.${division.state}`)}
@@ -209,10 +239,16 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
             ))}
           </CommandGroup>
         )}
-        {isEmpty && (
-          <p role="status" className="px-4 py-8 text-center text-sm text-muted-foreground">
-            {index ? t('search.empty') : t('loading')}
+        {hasFailed ? (
+          <p role="alert" className="px-4 py-8 text-center text-sm text-destructive">
+            {t('search.failed')}
           </p>
+        ) : (
+          isEmpty && (
+            <p role="status" className="px-4 py-8 text-center text-sm text-muted-foreground">
+              {index ? t('search.empty') : t('loading')}
+            </p>
+          )
         )}
       </CommandList>
     </Command>

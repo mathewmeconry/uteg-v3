@@ -44,7 +44,9 @@ describe('listCategoryStates', () => {
     await add('K4', 'PENDING');
     await createDivision(contest.id, { category: 'K1', sex: 'MALE', state: 'RUNNING' });
     const states = await listCategoryStates(id, contest.id);
-    expect(states.map(({ sex, category, state }) => `${sex} ${category} ${state}`)).toEqual([
+    expect(states).toContainEqual({ sex: 'FEMALE', category: 'K5', state: null });
+    const begun = states.filter(({ state }) => state);
+    expect(begun.map(({ sex, category, state }) => `${sex} ${category} ${state}`)).toEqual([
       'FEMALE K1 ENDED',
       'FEMALE K2 RUNNING',
       'FEMALE K3 PARTLY',

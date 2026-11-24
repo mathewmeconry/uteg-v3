@@ -20,6 +20,7 @@ const person = (id: string, name: string, patch: object = {}) => ({
   id,
   name,
   sex: 'FEMALE' as const,
+  contestId: 'k',
   clubName: 'TV Chur',
   category: 'K5',
   division: null,
@@ -44,7 +45,7 @@ function setup(canEdit = true) {
     {
       id: 'routes/secured/competition/layout',
       path: '/',
-      loader: () => ({ competition: { id: 'c' }, canEdit }),
+      loader: () => ({ competition: { id: 'c' }, contests: [{ id: 'k', name: 'EGT' }], canEdit }),
       HydrateFallback: () => null,
       Component: () => (
         <I18nextProvider i18n={createI18n('de')}>
@@ -54,7 +55,6 @@ function setup(canEdit = true) {
       ),
       children: [{ path: '*', Component: Place }],
     },
-    { path: '/api/competitions/c/search', loader: () => INDEX },
   ]);
   render(<Stub initialEntries={['/start']} />);
   return userEvent.setup();
@@ -63,7 +63,12 @@ function setup(canEdit = true) {
 const options = () => screen.getAllByRole('option').map((option) => option.textContent);
 const place = () => screen.getByTestId('place').textContent;
 
+const load = vi.fn<typeof fetch>();
+
 beforeEach(() => {
+  load.mockReset();
+  load.mockImplementation(async () => Response.json(INDEX));
+  vi.stubGlobal('fetch', load);
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -111,7 +116,20 @@ it('opens the first result with Enter, also after going through others', async (
 it('does not send viewers to a form', async () => {
   const user = await open(false);
   await user.keyboard('bea{Enter}');
-  expect(place()).toBe('/competitions/c/starters');
+  expect(place()).toMatch(/^\/competitions\/c\/starters\??$/);
+});
+
+it('keeps the page when it cannot load, and gives the focus back', async () => {
+  load.mockRejectedValue(new TypeError('offline'));
+  const user = setup();
+  await screen.findByTestId('place');
+  await user.click(screen.getByRole('button', { name: 'Suchen' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Keine Verbindung');
+  // Pages are known anyway.
+  expect(options()).toEqual(['Tablets']);
+  await user.keyboard('{Escape}');
+  await vi.waitFor(() => expect(screen.getByRole('button', { name: 'Suchen' })).toHaveFocus());
+  expect(place()).toBe('/start');
 });
 
 it('finds divisions and pages, and says when there is nothing', async () => {

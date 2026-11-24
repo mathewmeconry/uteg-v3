@@ -8,16 +8,17 @@ import {
   UserPlusIcon,
   UsersIcon,
 } from 'lucide-react';
-import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { data, Link, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { data, Link, useFetcher, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { toast } from 'sonner';
 import { z } from 'zod';
 import type { Route } from './+types/starters';
 import { EmptyState } from '~/components/EmptyState';
 import { PageHeader } from '~/components/PageHeader';
 import { SelectionBar } from '~/components/SelectionBar';
 import { AssignDialog } from '~/components/starters/AssignDialog';
-import { keepPage } from '~/components/starters/keepPage';
+import { keepPage, useActionError } from '~/components/starters/keepPage';
 import { NativeSelect } from '~/components/starters/NativeSelect';
 import { postIds } from '~/components/starters/postIds';
 import { RemoveDialog } from '~/components/starters/RemoveDialog';
@@ -58,6 +59,7 @@ import {
   listStarters,
   updateStarter,
   withdrawStarters,
+  type Assignment,
 } from '~/lib/starters.server';
 import type { ServerT } from '~/locales';
 import { requireRole } from '~/middlewares/competition.server';
@@ -285,6 +287,17 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
   const edit = useCallback((starter: StarterRow) => setDialog({ type: 'edit', starter }), []);
   const [openId, setOpenId] = useState<string | null>(null);
   const opened = canEdit && starters.find(({ id }) => id === openId);
+  // Here, so that a failure is told when another person is open already.
+  const assigner = useFetcher<typeof clientAction>();
+  const assignError = useActionError(assigner.data);
+  useEffect(() => {
+    if (assignError) toast.error(assignError);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per answer, also when it is the same
+  }, [assigner.data]);
+  function assign(assignment: Assignment) {
+    const assignments = JSON.stringify([assignment]);
+    void assigner.submit({ intent: 'assign', assignments, quiet: '1' }, { method: 'post' });
+  }
   const open = useCallback(
     (starter: StarterRow) => {
       // Where there is no room for the panel.
@@ -439,8 +452,13 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
                   key={opened.id}
                   starter={opened}
                   options={contest}
+                  pending={assigner.state !== 'idle'}
+                  onAssign={assign}
                   onEdit={() => edit(opened)}
-                  onClose={() => setOpenId(null)}
+                  onClose={() => {
+                    setOpenId(null);
+                    listRef.current?.focus({ preventScroll: true });
+                  }}
                 />
               )}
             </div>

@@ -2,8 +2,8 @@ import { PencilIcon, XIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
-import { useActionFetcher } from '~/hooks/useActionFetcher';
 import type { ContestOptions } from '~/lib/contestOptions.server';
+import type { Assignment } from '~/lib/starters.server';
 import { cn } from '~/lib/utils';
 import type { EgtApparatus } from '~/modules/egt/module';
 import { fittingDivisions } from './EntryFields';
@@ -13,16 +13,20 @@ import { fullName, type StarterRow } from './starterRow';
 export function StarterPanel({
   starter,
   options,
+  pending,
+  onAssign,
   onEdit,
   onClose,
 }: {
   starter: StarterRow;
   options: ContestOptions;
+  /** An assignment is being saved, maybe the one of the person before. */
+  pending: boolean;
+  onAssign: (assignment: Assignment) => void;
   onEdit: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation(['starters', 'common']);
-  const { submit, pending } = useActionFetcher();
   const { category, sex, entryId } = starter;
   const divisions = category ? fittingDivisions(options, { category, sex }) : [];
   const division = divisions.find(({ id }) => id === starter.divisionId);
@@ -31,17 +35,13 @@ export function StarterPanel({
   const isLocked = division !== undefined && division.state !== 'PENDING';
 
   function assign(divisionId: string, startApparatus?: string) {
-    const assignments = [{ entryIds: [entryId], divisionId, startApparatus }];
-    void submit(
-      { intent: 'assign', assignments: JSON.stringify(assignments), quiet: '1' },
-      { method: 'post' },
-    );
+    if (entryId) onAssign({ entryIds: [entryId], divisionId, startApparatus });
   }
 
   return (
     <aside
       aria-label={name}
-      className="sticky top-22 hidden w-68 shrink-0 gap-5 self-start rounded-xl border bg-card p-4 xl:grid"
+      className="sticky top-22 hidden max-h-[calc(100dvh-7rem)] w-68 shrink-0 gap-5 self-start overflow-y-auto rounded-xl border bg-card p-4 xl:grid"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
