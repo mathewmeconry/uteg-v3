@@ -28,6 +28,8 @@ export type NewStarter = StarterInput & {
   /** The athlete picked from the suggestions. */
   athleteId?: string | null;
   entries?: EntryPatch[];
+  /** Someone who has a category already keeps it, and the assignment that depends on it. */
+  keepCategory?: boolean;
 };
 
 export type StarterUpdate = Partial<StarterInput> & {
@@ -395,7 +397,7 @@ async function assertNotStarting(
 async function addStarter(
   tx: Prisma.TransactionClient,
   competitionId: string,
-  { clubId, athleteId, entries = [], ...input }: NewStarter,
+  { clubId, athleteId, entries = [], keepCategory = false, ...input }: NewStarter,
   /** Of someone who takes part with another club. */
   changesClub: (starterId: string) => boolean,
 ): Promise<Added> {
@@ -421,7 +423,11 @@ async function addStarter(
       })
     : await tx.starter.create({ data: { ...key, ...person, clubId } });
 
-  const patches = [...entries];
+  const hasCategory = ({ contestId }: EntryPatch) =>
+    existing?.entries.some((entry) => entry.contestId === contestId && entry.category);
+  const patches = entries.map((patch) =>
+    keepCategory && hasCategory(patch) ? { contestId: patch.contestId } : patch,
+  );
   if (existing && isRemoved) {
     await tx.entry.updateMany({
       where: { starterId: existing.id },

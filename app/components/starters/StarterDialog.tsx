@@ -54,7 +54,7 @@ export function StarterDialog({
   options: ContestOptions;
   clubs: ClubOption[];
   startingIds: ReadonlySet<string>;
-  /** Leaves out the assignment, the sex of `starter` it depends on, and the master data. */
+  /** Leaves out the assignment and master data, and of `starter` what the assignment depends on. */
   personOnly?: boolean;
   onClose: () => void;
 }) {
@@ -249,8 +249,9 @@ export function StarterDialog({
                 />
               )}
             </FormField>
-            {!personOnly && (
+            {!(personOnly && starter) && (
               <EntryFields
+                categoryOnly={personOnly}
                 options={options}
                 sex={person.sex}
                 defaultValue={{

@@ -100,15 +100,18 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (errors) return data({ errors }, 400);
         const { contestId, category, divisionId, startApparatus, athleteId, ...person } = values;
         // Someone who comes back keeps what is left empty.
-        const entry = isCheckIn
-          ? { contestId }
-          : {
-              contestId,
-              category: category || undefined,
-              divisionId: divisionId || undefined,
-              startApparatus: startApparatus || undefined,
-            };
-        const { outcome } = await createStarter(id, { ...person, athleteId, entries: [entry] });
+        const entry = {
+          contestId,
+          category: category || undefined,
+          divisionId: (!isCheckIn && divisionId) || undefined,
+          startApparatus: (!isCheckIn && startApparatus) || undefined,
+        };
+        const { outcome } = await createStarter(id, {
+          ...person,
+          athleteId,
+          entries: [entry],
+          keepCategory: isCheckIn,
+        });
         const message = t(`starters:${outcome}`, { name: fullName(person) });
         enqueueToast(context, { type: outcome === 'existing' ? 'info' : 'success', message });
         return { ok: true as const };

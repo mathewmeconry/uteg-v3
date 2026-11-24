@@ -273,7 +273,8 @@ it('lets the check-in do everything but import and assign', async () => {
   await user.click(screen.getByRole('button', { name: 'Person hinzufügen' }));
   const form = within(screen.getByRole('dialog'));
   expect(form.getByLabelText('Geschlecht')).toBeInTheDocument();
-  expect(form.queryByLabelText('Kategorie')).not.toBeInTheDocument();
+  expect(form.getByLabelText('Kategorie')).toBeInTheDocument();
+  expect(form.queryByLabelText('Abteilung')).not.toBeInTheDocument();
   await user.click(form.getByRole('button', { name: 'Abbrechen' }));
 
   await user.click(within(rows()[0]).getByRole('checkbox'));

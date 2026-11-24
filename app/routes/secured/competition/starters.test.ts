@@ -151,7 +151,7 @@ describe('access', () => {
     expect((await starters())[0].deletedAt).not.toBeNull();
   });
 
-  it('lets the check-in add people without an assignment', async () => {
+  it('lets the check-in add people with a category, but not change one that way', async () => {
     const { competition, call, anna } = await setup();
     const checkIn = await createUser();
     await addMember(competition.id, checkIn.id, 'CHECK_IN');
@@ -159,8 +159,16 @@ describe('access', () => {
     const { data } = await call({ ...anna, divisionId: division.id }, checkIn.id);
     expect(data).toEqual({ ok: true });
     expect(await starters()).toMatchObject([
-      { firstname: 'Anna', entries: [{ category: null, divisionId: null }] },
+      { firstname: 'Anna', entries: [{ category: 'K5', divisionId: null }] },
     ]);
+
+    await prisma.entry.updateMany({ data: { divisionId: division.id } });
+    const kept = [{ category: 'K5', divisionId: division.id }];
+    await call({ ...anna, category: 'K6' }, checkIn.id);
+    expect((await starters())[0].entries).toMatchObject(kept);
+    await call({ intent: 'remove', id: (await starters())[0].id }, checkIn.id);
+    await call({ ...anna, category: 'K6' }, checkIn.id);
+    expect(await starters()).toMatchObject([{ deletedAt: null, entries: kept }]);
   });
 
   it('does not touch starters of other competitions', async () => {
