@@ -1,13 +1,16 @@
 import { FileTextIcon, PlayIcon, SquareIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { data, NavLink, Outlet } from 'react-router';
+import { data, NavLink, Outlet, useRouteLoaderData } from 'react-router';
 import type { Route } from './+types/division';
+import type { loader as gradingLoader } from './divisionGrading';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
 import { StartDialog, StopDialog } from '~/components/divisions/DivisionDialogs';
 import { inRunningOrder } from '~/components/divisions/divisionList';
 import { useDivisionName } from '~/components/divisions/useDivisionName';
 import { DivisionStateBadge } from '~/components/DivisionStateBadge';
+import { GradingSaveStatus } from '~/components/grading/GradingSaveStatus';
+import { useGradeDrafts } from '~/components/grading/useGradeDrafts';
 import { PageHeader } from '~/components/PageHeader';
 import { Button } from '~/components/ui/button';
 import { competitionContext, contestContext } from '~/context';
@@ -45,6 +48,15 @@ export default function DivisionLayout({ loaderData }: Route.ComponentProps) {
   const [sent, setSent] = useState(division);
   const { Form, pending } = useActionFetcher(() => setDialog(null));
   const opener = useRef<HTMLElement | null>(null);
+  const grading = useRouteLoaderData<typeof gradingLoader>(
+    'routes/secured/contest/divisionGrading',
+  );
+  // Here, so that grades which could not be sent are sent again on both tabs.
+  const drafts = useGradeDrafts({
+    url: `/api/competitions/${competition.id}/grades`,
+    storageKey: `grading:${competition.id}`,
+    loadedAt: grading?.loadedAt ?? 0,
+  });
 
   const divisionsUrl = `/competitions/${competition.id}/contests/${division.contestId}/divisions`;
   const sheetsUrl = `/api/competitions/${competition.id}/pdf/judging-sheets?division=${division.id}`;
@@ -83,6 +95,7 @@ export default function DivisionLayout({ loaderData }: Route.ComponentProps) {
               </span>
             )}
             <ConnectionBadge status={status} />
+            <GradingSaveStatus drafts={drafts} />
           </>
         }
         description={[
@@ -116,8 +129,7 @@ export default function DivisionLayout({ loaderData }: Route.ComponentProps) {
         <Tab to="grading">{t('tabs.grades')}</Tab>
         <Tab to="lineups">{t('tabs.lineups')}</Tab>
       </nav>
-      {/* What was typed for one division does not belong to another. */}
-      <Outlet key={division.id} />
+      <Outlet key={division.id} context={drafts} />
 
       {dialog === 'start' && (
         <StartDialog planned={inRunningOrder(planned)} running={running} {...dialogProps} />
