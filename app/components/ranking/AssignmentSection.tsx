@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { categoryName } from '~/lib/categoryName';
 import { Checkbox } from '~/components/ui/checkbox';
 import { Label } from '~/components/ui/label';
 import type { Sex } from '~/generated/prisma/enums';
@@ -84,7 +85,7 @@ function AssignmentField({
         }}
       />
       <span className="min-w-0">
-        {category}
+        {categoryName(category, t)}
         {owner && owner.id !== templateId && (
           <span className="block truncate text-xs font-normal text-muted-foreground">
             {t('assignments.of', { name: owner.name })}
@@ -100,8 +101,9 @@ export function AssignmentSummary({ assignments }: { assignments: Assignment[] }
   const { t } = useTranslation('pdf');
   if (assignments.length === 0) return null;
   const byCategory = Map.groupBy(assignments, ({ category }) => category);
-  const texts = [...byCategory].map(([category, sexes]) =>
-    sexes.length > 1 ? category : `${category} ${t(`sex.${sexes[0].sex}`)}`,
-  );
+  const texts = [...byCategory].map(([category, sexes]) => {
+    const name = categoryName(category, t);
+    return sexes.length > 1 ? name : `${name} ${t(`sex.${sexes[0].sex}`)}`;
+  });
   return <p className="text-sm text-muted-foreground">{texts.join(', ')}</p>;
 }

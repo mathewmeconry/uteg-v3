@@ -1,5 +1,6 @@
 import type { Sex } from '~/generated/prisma/client';
 import { getPdfLogo } from '~/lib/assets.server';
+import { categoryName } from '~/lib/categoryName';
 import { formatDateRange } from '~/lib/format';
 import { getRanking } from '~/lib/ranking.server';
 import type { Language, ServerT } from '~/locales';
@@ -51,7 +52,9 @@ export async function rankingPdfResponse({
   const logo = showLogo ? await getPdfLogo(competition.id) : null;
   const groups = sections.flatMap((section) => section.groups);
   const { name, location, startDate, endDate } = competition;
-  const labels = groups.map(({ category, sex }) => `${category} ${t(`pdf:sex.${sex}`)}`);
+  const labels = groups.map(
+    ({ category, sex }) => `${categoryName(category, t)} ${t(`pdf:sex.${sex}`)}`,
+  );
   return pdfResponse(
     {
       type: 'ranking',

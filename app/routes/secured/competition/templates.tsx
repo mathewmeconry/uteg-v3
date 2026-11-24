@@ -42,6 +42,7 @@ import {
   rankingTemplateSchema,
   type RankingTemplateOptions,
 } from '~/lib/domain/rankingTemplate';
+import { categoryName } from '~/lib/categoryName';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { parseForm, readForm } from '~/lib/forms.server';
 import { listRankingGroups } from '~/lib/ranking.server';
@@ -170,7 +171,7 @@ export async function action({ request, context }: Route.ActionArgs) {
           }
           const previous = await assignTemplate(id, templateId, group);
           if (previous !== null) {
-            const category = `${group.category} ${t(`pdf:sex.${group.sex}`)}`;
+            const category = `${categoryName(group.category, t)} ${t(`pdf:sex.${group.sex}`)}`;
             const message = t('pdf:assignments.moved', { category, name: previous });
             enqueueToast(context, { type: 'info', message });
           }

@@ -24,12 +24,12 @@ export type ImportedStarter = {
 type Field = keyof ImportedStarter;
 
 const HEADERS: Record<Field, readonly string[]> = {
-  stvId: ['stvid', 'stv', 'stvnr', 'stvnummer', 'stvnumber'],
-  firstname: ['firstname', 'vorname'],
-  lastname: ['lastname', 'nachname', 'name'],
-  birthYear: ['birthyear', 'yearofbirth', 'jahrgang', 'geburtsjahr', 'jg'],
-  sex: ['geschlecht', 'biogeschlecht', 'biologischesgeschlecht', 'gender', 'sex'],
-  category: ['category', 'kategorie', 'cat', 'kat'],
+  stvId: ['stvid', 'stv', 'stvnr', 'stvnummer', 'stvnumber', 'idfsg', 'fsg', 'n°fsg', 'nofsg'],
+  firstname: ['firstname', 'vorname', 'prénom'],
+  lastname: ['lastname', 'nachname', 'name', 'nom'],
+  birthYear: ['birthyear', 'yearofbirth', 'jahrgang', 'geburtsjahr', 'jg', 'annéedenaissance'],
+  sex: ['geschlecht', 'biogeschlecht', 'biologischesgeschlecht', 'gender', 'sex', 'sexe'],
+  category: ['category', 'kategorie', 'cat', 'kat', 'catégorie'],
   divisionNumber: ['division', 'abteilung', 'div', 'abt'],
 };
 
@@ -40,11 +40,16 @@ const SEXES: Record<string, Sex> = {
   männlich: 'MALE',
   male: 'MALE',
   men: 'MALE',
+  h: 'MALE',
+  masculin: 'MALE',
+  homme: 'MALE',
   f: 'FEMALE',
   w: 'FEMALE',
   weiblich: 'FEMALE',
   female: 'FEMALE',
   women: 'FEMALE',
+  féminin: 'FEMALE',
+  femme: 'FEMALE',
 };
 
 /** The starters of all starter sheets in a file. Other sheets are ignored. */
@@ -137,10 +142,11 @@ function parseCategory(text: string, sex: Sex | undefined) {
   const key = text
     .toLowerCase()
     .replace(/[-.\s]/g, '')
-    .replace(/^k/, '');
+    // C5 is the French name of K5.
+    .replace(/^[kc]/, '');
   if (/^[1-7]$/.test(key)) return `K${key}`;
-  if (['d', 'damen', 'women'].includes(key)) return categoryForSex('KD', sex ?? 'FEMALE');
-  if (['h', 'herren', 'men'].includes(key)) return categoryForSex('KH', sex ?? 'MALE');
+  if (['d', 'damen', 'women', 'dames'].includes(key)) return categoryForSex('KD', sex ?? 'FEMALE');
+  if (['h', 'herren', 'men', 'hommes'].includes(key)) return categoryForSex('KH', sex ?? 'MALE');
   // v2 called the open category 8.
   if (key === '8' && sex) return categoryForSex('KD', sex);
   // Not dropped, so the user sees what to correct.

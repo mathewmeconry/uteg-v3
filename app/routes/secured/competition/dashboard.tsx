@@ -20,6 +20,7 @@ import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { getStats } from '~/lib/competitions.server';
 import { listDivisions } from '~/lib/divisions.server';
+import { categoryName } from '~/lib/categoryName';
 import { getPhase } from '~/lib/domain/competitionPhase';
 import { formatDateRange } from '~/lib/format';
 import { getLatestGrades, getLiveGrounds, type LatestGrade } from '~/lib/liveResults.server';
@@ -52,8 +53,8 @@ function LatestGrades({ grades }: { grades: LatestGrade[] }) {
             <div className="min-w-0 text-sm leading-snug">
               <p className="truncate font-semibold">{`${firstname} ${lastname}`}</p>
               <p className="truncate text-muted-foreground">
-                {category} {t(`common:apparatus.${apparatus}` as 'common:apparatus.reck')},{' '}
-                {clubName}
+                {categoryName(category, t)}{' '}
+                {t(`common:apparatus.${apparatus}` as 'common:apparatus.reck')}, {clubName}
               </p>
             </div>
             <p className="figure shrink-0 text-xl">{grade}</p>

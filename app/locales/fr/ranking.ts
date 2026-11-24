@@ -1,0 +1,46 @@
+import type { Translation } from '../types';
+import type de from '../de/ranking';
+
+export default {
+  title: 'Classement',
+  rank: 'Rang',
+  total: 'Total',
+  award: 'Distinction',
+  awards: {
+    GOLD: 'Or',
+    SILVER: 'Argent',
+    BRONZE: 'Bronze',
+    HONOUR: 'Distinction',
+  },
+  best: 'Meilleure note',
+  runningTitle: 'Des divisions sont encore en cours',
+  runningText: 'Le classement n’est pas complet.',
+  provisionalText: 'Le classement est provisoire et peut encore changer.',
+  provisional: 'Provisoire (compter les divisions en cours)',
+  missingGrades_one: '{{count}} note manque et compte comme 0',
+  missingGrades_other: '{{count}} notes manquent et comptent comme 0',
+  emptyTitle: 'Pas encore de résultats',
+  emptyText: 'Dès qu’une division de cette catégorie est terminée, le classement apparaît ici.',
+  lastUpdated: 'Dernière note: {{date}}',
+  honourPercent: 'Distinctions (%)',
+  honourHint_one: '{{quota}} sur {{count}} personne',
+  honourHint_other: '{{quota}} sur {{count}} personnes',
+  honourInvalid: 'Nombre de 0 à 100',
+  honourSaved: 'Distinctions enregistrées',
+  states: {
+    PENDING: 'Prévue',
+    RUNNING: 'En cours',
+    PARTLY: 'Commencée',
+    ENDED: 'Terminée',
+  },
+  export: {
+    selectFinished: 'Choisir toutes les catégories terminées ({{count}})',
+    button: 'Imprimer en PDF',
+    title: 'Classement en PDF',
+    text: 'Choisis les catégories et le modèle.',
+    template: 'Modèle',
+    auto: 'Automatique (modèle par catégorie)',
+    noneSelected: 'Choisis au moins une catégorie.',
+    create: 'Créer le PDF',
+  },
+} satisfies Translation<typeof de>;

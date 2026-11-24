@@ -21,6 +21,7 @@ import {
 import { competitionContext, contestContext } from '~/context';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
+import { categoryName } from '~/lib/categoryName';
 import { readForm } from '~/lib/forms.server';
 import { runConfirmRound, runDeleteGrade } from '~/lib/gradingActions.server';
 import { getJudgingState, listRunningDivisions } from '~/lib/judging.server';
@@ -97,7 +98,10 @@ export default function Grading({ loaderData, params: { contestId } }: Route.Com
 
   function listNames(items: typeof running) {
     return items
-      .map(({ category, sex, number }) => `${category} ${t(`sexShort.${sex}`)} ${number}`)
+      .map(
+        ({ category, sex, number }) =>
+          `${categoryName(category, t)} ${t(`sexShort.${sex}`)} ${number}`,
+      )
       .join(', ');
   }
 

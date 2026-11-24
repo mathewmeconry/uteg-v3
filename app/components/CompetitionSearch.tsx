@@ -1,6 +1,7 @@
 import { SearchIcon, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { categoryName } from '~/lib/categoryName';
 import { useNavigate } from 'react-router';
 import { useDivisionName } from '~/components/divisions/useDivisionName';
 import { commandFilter } from '~/components/starters/starterList';
@@ -135,7 +136,9 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
   const hasQuery = query.trim() !== '';
   const starters = hasQuery
     ? (index?.starters ?? [])
-        .filter(({ name, clubName, category }) => matches(name, clubName, category))
+        .filter(({ name, clubName, category }) =>
+          matches(name, clubName, category, category && categoryName(category, t)),
+        )
         .slice(0, LIMIT)
     : [];
   const divisions = (index?.divisions ?? [])
@@ -176,7 +179,7 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
           <CommandGroup heading={t('search.people')}>
             {starters.map((starter) => {
               const { id, name, sex, clubName, category, division, apparatus } = starter;
-              const group = category ? `${category} ${t(`sex.${sex}`)}` : null;
+              const group = category ? `${categoryName(category, t)} ${t(`sex.${sex}`)}` : null;
               return (
                 <CommandItem key={id} value={id} onSelect={() => go(starterUrl(starter))}>
                   <span className="grid min-w-0 flex-1">

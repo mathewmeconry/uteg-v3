@@ -6,6 +6,7 @@ import { fullName, type TabletSlot } from '~/components/judging/types';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { useApparatusName } from '~/hooks/useApparatusName';
+import { categoryName } from '~/lib/categoryName';
 import { formatEntered } from '~/lib/domain/gradeInput';
 import { cn } from '~/lib/utils';
 import { GradeInputs } from './GradeInputs';
@@ -70,7 +71,8 @@ export function GradingRow({
         <span className="block font-medium">{name}</span>
         {!showsState && (
           <span className="block truncate text-xs text-muted-foreground">
-            {slot.category} {t(`sexShort.${slot.sex}`)} {slot.divisionNumber} · {slot.clubName}
+            {categoryName(slot.category, t)} {t(`sexShort.${slot.sex}`)} {slot.divisionNumber} ·{' '}
+            {slot.clubName}
           </span>
         )}
         {isEditable && (

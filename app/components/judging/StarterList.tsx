@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { GradeDrafts } from '~/components/grading/useGradeDrafts';
 import { Badge } from '~/components/ui/badge';
+import { categoryName } from '~/lib/categoryName';
 import { formatEntered } from '~/lib/domain/gradeInput';
 import { cn } from '~/lib/utils';
 import { fullName, type TabletSlot } from './types';
@@ -40,7 +41,7 @@ export function StarterList({
             <span className={cn('min-w-0 flex-1', slot.withdrawn && 'line-through')}>
               <span className="block truncate font-semibold">{fullName(slot)}</span>
               <span className="block truncate text-sm text-muted-foreground">
-                {slot.clubName} · {slot.category} {t(`sexShort.${slot.sex}`)}
+                {slot.clubName} · {categoryName(slot.category, t)} {t(`sexShort.${slot.sex}`)}
               </span>
             </span>
             {slot.withdrawn ? (

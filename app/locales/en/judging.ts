@@ -12,7 +12,6 @@ export default {
     menu: 'Text size, language and appearance',
     smaller: 'Smaller text',
     larger: 'Larger text',
-    switchLanguage: 'Auf Deutsch wechseln',
   },
   division: '{{category}} {{sex}}, division {{number}}',
   sexShort: {

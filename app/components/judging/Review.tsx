@@ -6,6 +6,7 @@ import type { GradeDrafts } from '~/components/grading/useGradeDrafts';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { useApparatusName } from '~/hooks/useApparatusName';
+import { categoryName } from '~/lib/categoryName';
 import { formatEntered } from '~/lib/domain/gradeInput';
 import type { MissingGrade } from '~/lib/errors';
 import { cn } from '~/lib/utils';
@@ -102,7 +103,7 @@ export function Review({
               <span className={cn('min-w-0 flex-1 basis-32', slot.withdrawn && 'line-through')}>
                 <span className="block text-xl font-bold wrap-anywhere">{fullName(slot)}</span>
                 <span className="block truncate text-muted-foreground">
-                  {slot.clubName} · {slot.category} {t(`sexShort.${slot.sex}`)}
+                  {slot.clubName} · {categoryName(slot.category, t)} {t(`sexShort.${slot.sex}`)}
                 </span>
               </span>
               {slot.withdrawn ? (

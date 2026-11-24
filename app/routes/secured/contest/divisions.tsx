@@ -50,6 +50,7 @@ import { competitionContext, contestContext } from '~/context';
 import { useActionFetcher } from '~/hooks/useActionFetcher';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
+import { categoryName } from '~/lib/categoryName';
 import { actionError } from '~/lib/domainErrors.server';
 import {
   createDivision,
@@ -139,7 +140,11 @@ async function run(
   switch (values.intent) {
     case 'create': {
       const { category, sex, number } = await createDivision(competitionId, contestId, values);
-      const name = t('divisions:name', { category, sex: t(`common:sex.${sex}`), number });
+      const name = t('divisions:name', {
+        category: categoryName(category, t),
+        sex: t(`common:sex.${sex}`),
+        number,
+      });
       return t('divisions:create.done', { name });
     }
     case 'ground':

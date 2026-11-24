@@ -13,6 +13,7 @@ import {
 } from '~/components/ui/select';
 import type { Sex } from '~/generated/prisma/enums';
 import { useDocumentLanguage } from '~/hooks/useDocumentLanguage';
+import { categoryName } from '~/lib/categoryName';
 import { rankingTemplateSchema, type RankingTemplateOptions } from '~/lib/domain/rankingTemplate';
 
 export type PreviewGroup = {
@@ -59,7 +60,7 @@ export function TemplatePreview({
               {groups.map((group) => (
                 <SelectItem key={toKey(group)} value={toKey(group)}>
                   {showContest && `${group.contestName}: `}
-                  {group.category} {t(`sex.${group.sex}`)}
+                  {categoryName(group.category, t)} {t(`sex.${group.sex}`)}
                 </SelectItem>
               ))}
             </SelectContent>

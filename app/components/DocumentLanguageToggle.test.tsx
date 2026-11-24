@@ -17,12 +17,12 @@ it('starts with the language of the app and keeps a choice everywhere', async ()
       <DocumentLanguageToggle />
     </I18nextProvider>,
   );
-  const [german] = screen.getAllByRole('radio', { name: 'German' });
+  const [german] = screen.getAllByRole('radio', { name: 'Deutsch' });
   expect(german).not.toBeChecked();
   expect(readDocumentLanguage(document.cookie)).toBeNull();
 
   await userEvent.click(german);
-  for (const item of screen.getAllByRole('radio', { name: 'German' })) expect(item).toBeChecked();
+  for (const item of screen.getAllByRole('radio', { name: 'Deutsch' })) expect(item).toBeChecked();
   expect(readDocumentLanguage(document.cookie)).toBe('de');
 
   await userEvent.click(german);

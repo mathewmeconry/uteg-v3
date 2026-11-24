@@ -6,7 +6,7 @@ import { createStartersWorkbook } from '~/components/starters/startersWorkbook.s
 import { parseSheet } from '~/lib/domain/starterImport';
 import { createI18n } from '~/lib/i18n';
 import { listStarters, withdrawStarters } from '~/lib/starters.server';
-import { NAMESPACES } from '~/locales';
+import { LANGUAGES, NAMESPACES } from '~/locales';
 import {
   addMember,
   createClub,
@@ -124,7 +124,7 @@ describe('starters.xlsx', () => {
     expect((await read(data)).rowCount).toBe(1);
   });
 
-  it.each(['de', 'en'] as const)('can be imported again in %s', async (language) => {
+  it.each(LANGUAGES)('can be imported again in %s', async (language) => {
     const competition = await createCompetition();
     const division = await createDivision(competition.contest.id, { number: 3 });
     await createStarter(competition.id, {

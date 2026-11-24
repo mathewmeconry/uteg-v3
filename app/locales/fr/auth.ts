@@ -1,0 +1,58 @@
+import type { Translation } from '../types';
+import type de from '../de/auth';
+
+export default {
+  loginTitle: 'Se connecter',
+  registerTitle: 'Créer un compte',
+  noAccount: 'Pas encore de compte?',
+  haveAccount: 'Déjà un compte?',
+  repeatPassword: 'Répéter le mot de passe',
+  passwordHint: 'Au moins 8 caractères',
+  errors: {
+    email: 'Saisis une adresse e-mail valable',
+    passwordLength: 'Le mot de passe doit compter de 8 à 128 caractères',
+    passwordMismatch: 'Les mots de passe ne correspondent pas',
+    credentials: 'L’e-mail ou le mot de passe est incorrect',
+    registerFailed: 'Le compte n’a pas pu être créé. Si tu en as déjà un, connecte-toi.',
+    currentPassword: 'Le mot de passe actuel est incorrect',
+    emailFailed: 'Cette adresse e-mail ne peut pas être utilisée',
+  },
+  verify: {
+    title: 'Confirmer l’adresse e-mail',
+    sent: 'Nous avons envoyé un e-mail avec un code à {{email}}. Il est valable 10 minutes.',
+    code: 'Code',
+    confirm: 'Confirmer',
+    resend: 'Envoyer un nouveau code',
+    noCode: 'Pas reçu de code? Il existe peut-être déjà un compte avec un autre mot de passe.',
+    resent: 'Un nouveau code est en route.',
+    invalid: 'Le code est incorrect ou a expiré. Après trois essais, il t’en faut un nouveau.',
+  },
+  forgot: {
+    link: 'Mot de passe oublié?',
+    title: 'Réinitialiser le mot de passe',
+    hint: 'Tu recevras un lien pour définir un nouveau mot de passe.',
+    send: 'Envoyer le lien',
+    sent: 'S’il existe un compte avec cette adresse, nous t’avons envoyé un lien.',
+  },
+  reset: {
+    title: 'Définir un nouveau mot de passe',
+    save: 'Enregistrer le mot de passe',
+    done: 'Mot de passe modifié. Utilise-le pour te connecter.',
+    invalid: 'Le lien n’est pas valable ou a expiré. Demandes-en un nouveau.',
+    newLink: 'Demander un nouveau lien',
+  },
+  profile: {
+    title: 'Profil',
+    languageLabel: 'Langue de l’interface',
+    emailTitle: 'Adresse e-mail',
+    emailText: 'Elle te sert à te connecter.',
+    emailSave: 'Modifier l’adresse e-mail',
+    passwordText: 'Les autres appareils seront ensuite déconnectés.',
+    passwordTitle: 'Modifier le mot de passe',
+    currentPassword: 'Mot de passe actuel',
+    newPassword: 'Nouveau mot de passe',
+    passwordChanged: 'Mot de passe modifié. Les autres appareils ont été déconnectés.',
+    emailChanged: 'Adresse e-mail modifiée',
+    languageChanged: 'Langue modifiée',
+  },
+} satisfies Translation<typeof de>;

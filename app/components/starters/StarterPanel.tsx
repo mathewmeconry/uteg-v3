@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import type { ContestOptions } from '~/lib/contestOptions.server';
 import type { Assignment } from '~/lib/starters.server';
+import { categoryName } from '~/lib/categoryName';
 import { cn } from '~/lib/utils';
 import type { EgtApparatus } from '~/modules/egt/module';
 import { fittingDivisions } from './EntryFields';
@@ -65,7 +66,9 @@ export function StarterPanel({
       ) : (
         <>
           {isLocked && <p className="text-sm text-muted-foreground">{t('panel.locked')}</p>}
-          <Choices legend={`${t('division')} ${category} ${t(`common:sex.${sex}`)}`}>
+          <Choices
+            legend={`${t('division')} ${categoryName(category, t)} ${t(`common:sex.${sex}`)}`}
+          >
             {divisions.length === 0 && (
               <p className="text-sm text-muted-foreground">{t('assign.noDivisions')}</p>
             )}

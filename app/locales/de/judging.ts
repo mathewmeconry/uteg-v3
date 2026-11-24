@@ -9,7 +9,6 @@ export default {
     menu: 'Schrift, Sprache und Darstellung',
     smaller: 'Schrift kleiner',
     larger: 'Schrift grösser',
-    switchLanguage: 'Switch to English',
   },
   division: '{{category}} {{sex}}, Abteilung {{number}}',
   sexShort: {

@@ -1,6 +1,7 @@
 import { Circle, Document, Image, Page, Svg, Text, View } from '@react-pdf/renderer';
 import { Fragment } from 'react';
 import type { Sex } from '~/generated/prisma/client';
+import { categoryName } from '~/lib/categoryName';
 import { formatGrade } from '~/lib/domain/grade';
 import type { CoverImage } from '~/lib/domain/cover';
 import type { Award } from '~/lib/domain/ranking';
@@ -139,7 +140,7 @@ function RankingPage({
 }: PageProps & { coversBefore: number; covers: number }) {
   const fill = (pattern: string, filled = groups) =>
     fillPlaceholders(pattern, {
-      category: [...new Set(filled.map(({ category }) => category))].join(', '),
+      category: [...new Set(filled.map(({ category }) => categoryName(category, t)))].join(', '),
       sex: [...new Set(filled.map(({ sex }) => t(`pdf:sex.${sex}`)))].join(', '),
       competition: competition.name,
       location: competition.location,

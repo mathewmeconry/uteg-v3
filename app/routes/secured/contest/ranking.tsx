@@ -20,6 +20,7 @@ import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { useSexes } from '~/hooks/useSexes';
 import { patchContestConfig } from '~/lib/contests.server';
 import { findBrokenCovers } from '~/lib/covers.server';
+import { categoryName } from '~/lib/categoryName';
 import { getHonourQuota } from '~/lib/domain/ranking';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { parseForm, readForm } from '~/lib/forms.server';
@@ -191,9 +192,9 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
     <div className="lg:flex lg:gap-8">
       <CategoryList states={states} sex={sex} category={category} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <title>{`${t('title')} ${category} · UTEG`}</title>
+        <title>{`${t('title')} ${categoryName(category, t)} · UTEG`}</title>
         <PageHeader
-          title={`${t('title')} ${category} ${t(`common:sex.${sex}`)}`}
+          title={`${t('title')} ${categoryName(category, t)} ${t(`common:sex.${sex}`)}`}
           description={
             ranking.lastUpdated &&
             t('lastUpdated', { date: formatDateTime(ranking.lastUpdated, i18n.language) })
@@ -234,7 +235,7 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
                 selected={item === category}
                 isEmpty={!groups.some((group) => group.sex === sex && group.category === item)}
               >
-                {item}
+                {categoryName(item, t)}
               </ChoiceLink>
             ))}
           </ChoiceNav>
@@ -342,7 +343,7 @@ function CategoryList({
                             state ? 'font-semibold' : !isShown && 'text-muted-foreground',
                           )}
                         >
-                          {category}
+                          {categoryName(category, t)}
                         </span>
                         <span
                           className={cn(

@@ -7,6 +7,7 @@ import { draftKey, type GradeDrafts } from '~/components/grading/useGradeDrafts'
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import type { GradeResult } from '~/lib/gradeRequests';
+import { categoryName } from '~/lib/categoryName';
 import { cn } from '~/lib/utils';
 import { findNeighbour } from './judgeState';
 import { fullName, type TabletSlot } from './types';
@@ -151,7 +152,7 @@ export function StarterForm({
         <p className="text-lg wrap-anywhere @md:text-xl @2xl:text-2xl">
           {slot.clubName} ·{' '}
           <span className="font-bold">
-            {slot.category} {t(`sexShort.${slot.sex}`)}
+            {categoryName(slot.category, t)} {t(`sexShort.${slot.sex}`)}
           </span>
         </p>
       </div>

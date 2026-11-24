@@ -1,6 +1,12 @@
+/** The locale for the dates of a language of the app. */
+export function dateLocale(language: string) {
+  if (language === 'en') return 'en-GB';
+  return language === 'fr' ? 'fr-CH' : 'de-CH';
+}
+
 /** Point in time, always in Swiss time, e.g. 09.05.2026, 14:03. */
 export function formatDateTime(date: Date, language: string) {
-  return new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : 'de-CH', {
+  return new Intl.DateTimeFormat(dateLocale(language), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -15,7 +21,7 @@ export function formatDateTime(date: Date, language: string) {
  * day on the server and in every browser.
  */
 export function formatDateRange(start: Date, end: Date, language: string) {
-  const locale = language === 'en' ? 'en-GB' : 'de-CH';
+  const locale = dateLocale(language);
   function format(date: Date, options: Intl.DateTimeFormatOptions) {
     return new Intl.DateTimeFormat(locale, { day: 'numeric', timeZone: 'UTC', ...options }).format(
       date,
@@ -30,12 +36,12 @@ export function formatDateRange(start: Date, end: Date, language: string) {
     return `${format(start, { month: 'long' })} – ${last}`;
   }
   if (start.getUTCDate() === end.getUTCDate()) return last;
-  return `${start.getUTCDate()}${language === 'en' ? '' : '.'}–${last}`;
+  return `${start.getUTCDate()}${language === 'de' ? '.' : ''}–${last}`;
 }
 
 /** A plain day, see formatDateRange, with its weekday. */
 export function formatDay(date: Date, language: string) {
-  return new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : 'de-CH', {
+  return new Intl.DateTimeFormat(dateLocale(language), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
