@@ -1,6 +1,7 @@
 import { data } from 'react-router';
 import type { Route } from './+types/startersPdf';
 import { competitionContext, languageContext, type Context } from '~/context';
+import { Role } from '~/generated/prisma/enums';
 import { listStarters } from '~/lib/starters.server';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
@@ -15,7 +16,7 @@ export function loader({ request, context }: Route.LoaderArgs) {
 
 /** The same as a form, for many ids. */
 export function action({ request, context }: Route.ActionArgs) {
-  requireRole(context, 'VIEWER');
+  requireRole(context, Role.CHECK_IN);
   return startersPdf(request, context);
 }
 

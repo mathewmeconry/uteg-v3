@@ -49,13 +49,15 @@ function ariaCurrent({ to, active }: Pick<Item, 'to' | 'active'>, pathname: stri
 
 function useNavItems(): { main: Item[]; setup: Item[]; isSetup: boolean } {
   const { t } = useTranslation();
-  const { competition, contests, canEdit } = useCompetition();
+  const { competition, contests, canEdit, isCheckIn } = useCompetition();
   const params = useParams();
   const { pathname } = useLocation();
 
   const base = `/competitions/${competition.id}`;
   const contest = contests.find(({ id }) => id === params.contestId) ?? contests[0];
   const contestBase = contest && `${base}/contests/${contest.id}`;
+  const starters = item(`${base}/starters`, t('nav.starters'), UsersIcon);
+  if (isCheckIn) return { main: [starters], setup: [], isSetup: false };
 
   function item(to: string, label: string, icon: LucideIcon, ...alsoActive: string[]): Item {
     const active = [to, ...alsoActive].some(
@@ -70,7 +72,7 @@ function useNavItems(): { main: Item[]; setup: Item[]; isSetup: boolean } {
       // Every page is below it.
       active: pathname === base || pathname === `${base}/`,
     },
-    item(`${base}/starters`, t('nav.starters'), UsersIcon),
+    starters,
     ...(contestBase
       ? [
           item(
@@ -172,7 +174,7 @@ function TopLink({ to, label, active }: Pick<Item, 'to' | 'label' | 'active'>) {
 /** On phones and upright tablets the links are in `BottomNav`. */
 export function TopBar() {
   const { t } = useTranslation();
-  const { competition, role } = useCompetition();
+  const { competition, role, isCheckIn } = useCompetition();
   const { email } = useUser();
   const { main, setup, isSetup } = useNavItems();
 
@@ -186,14 +188,18 @@ export function TopBar() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-1">
-          <CompetitionSearch pages={[...main, ...setup]} />
-          <div className="hidden lg:block">
-            <TopLink
-              to={`/competitions/${competition.id}/settings`}
-              label={t('nav.setup')}
-              active={isSetup}
-            />
-          </div>
+          {!isCheckIn && (
+            <>
+              <CompetitionSearch pages={[...main, ...setup]} />
+              <div className="hidden lg:block">
+                <TopLink
+                  to={`/competitions/${competition.id}/settings`}
+                  label={t('nav.setup')}
+                  active={isSetup}
+                />
+              </div>
+            </>
+          )}
           <AccountMenu email={email} detail={t(`role.${role}`)} />
         </div>
       </div>
@@ -207,7 +213,10 @@ const TAB =
 export function BottomNav() {
   const { t } = useTranslation();
   const { main, setup, isSetup } = useNavItems();
+  const { isCheckIn } = useCompetition();
   const { pathname } = useLocation();
+  // There is nowhere else to go.
+  if (isCheckIn) return null;
 
   function tabColour(active: boolean) {
     return active ? 'text-foreground' : 'text-muted-foreground';

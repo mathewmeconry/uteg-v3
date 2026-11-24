@@ -62,6 +62,8 @@ export default {
       OWNER: 'Darf alles, auch Mitglieder verwalten und den Wettkampf löschen',
       EDITOR: 'Bearbeitet Teilnehmende, Abteilungen, Noten und Einstellungen',
       VIEWER: 'Sieht alles, ändert nichts',
+      CHECK_IN:
+        'Sieht nur die Teilnehmenden, fügt sie hinzu, ändert Personalien und entfernt sie. Teilt nicht ein',
     },
   },
   honour: {

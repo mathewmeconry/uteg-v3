@@ -8,10 +8,9 @@ import { FormField } from '~/components/FormField';
 import { SubmitButton } from '~/components/SubmitButton';
 import { VerifyForm } from '~/components/VerifyForm';
 import { Alert, AlertDescription } from '~/components/ui/alert';
-import { languageContext } from '~/context';
 import { callAuth } from '~/lib/auth/auth.server';
 import { parseForm, type FieldErrors } from '~/lib/forms.server';
-import { getT } from '~/middlewares/i18n.server';
+import { acceptedLanguage, getT } from '~/middlewares/i18n.server';
 
 type ActionData = { error?: string; errors?: FieldErrors; verify?: string };
 
@@ -43,7 +42,8 @@ export async function action({ request, context }: Route.ActionArgs) {
     password: values.password,
     // better-auth requires a name, the app only shows the address.
     name: values.email,
-    language: context.get(languageContext),
+    // Not languageContext: the cookie may be of somebody else who used this browser.
+    language: acceptedLanguage(request.headers.get('Accept-Language')),
   });
   if (response.status === 429) return data<ActionData>({ error: t('errors.tooManyRequests') }, 429);
   if (response.status >= 500) return data<ActionData>({ error: t('errors.generic') }, 500);

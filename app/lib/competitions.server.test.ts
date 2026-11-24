@@ -9,6 +9,7 @@ import {
   truncateTables,
 } from '~/tests/helpers';
 import { egtModule } from '~/modules/egt/module';
+import { auth } from './auth/auth.server';
 import {
   addMember,
   changeMemberRole,
@@ -117,7 +118,28 @@ describe('getCompetitionForUser and listCompetitions', () => {
     expect(await listCompetitions(stranger.id)).toEqual([]);
   });
 
+  it('makes admins owners of every competition, also of those with another role', async () => {
+    const foreign = await createTestCompetition();
+    const own = await createTestCompetition();
+    const admin = await createUser();
+    await addTestMember(own.id, admin.id, 'VIEWER');
+    await prisma.user.update({ where: { id: admin.id }, data: { isAdmin: true } });
+
+    for (const { id } of [foreign, own]) {
+      expect(await getCompetitionForUser(admin.id, id)).toMatchObject({ id, role: 'OWNER' });
+    }
+    expect((await listCompetitions(admin.id)).map(({ role }) => role)).toEqual(['OWNER', 'OWNER']);
+    expect(await errorCode(getCompetitionForUser(admin.id, 'nope'))).toBe('NOT_FOUND');
+  });
+
+  it('lets nobody register as an admin', async () => {
+    const body = { email: 'a@example.com', name: 'A', password: 'only-for-tests', isAdmin: true };
+    await auth.api.signUpEmail({ body });
+    expect(await prisma.user.findFirst()).toMatchObject({ isAdmin: false });
+  });
+
   it.each([
+    ['CHECK_IN', 'VIEWER', 'FORBIDDEN'],
     ['VIEWER', 'VIEWER', null],
     ['VIEWER', 'EDITOR', 'FORBIDDEN'],
     ['EDITOR', 'EDITOR', null],

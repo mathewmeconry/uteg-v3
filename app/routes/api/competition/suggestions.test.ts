@@ -13,12 +13,12 @@ import { action as clubs } from './clubs';
 
 beforeEach(truncateTables);
 
-it('suggests athletes of all competitions to editors', async () => {
+it.each(['EDITOR', 'CHECK_IN'] as const)('suggests all athletes to a %s', async (role) => {
   const competition = await createCompetition();
   const other = await createCompetition();
   const starter = await createStarter(other.id, { firstname: 'Anna', stvId: '77123' });
   const editor = await createUser();
-  await addMember(competition.id, editor.id, 'EDITOR');
+  await addMember(competition.id, editor.id, role);
 
   for (const query of ['ann', '7712']) {
     const { data } = await callRoute(athletes, {
