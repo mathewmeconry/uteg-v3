@@ -23,8 +23,8 @@ export default {
   emptyText: 'Dès qu’une division de cette catégorie est terminée, le classement apparaît ici.',
   lastUpdated: 'Dernière note: {{date}}',
   honourPercent: 'Distinctions (%)',
-  honourHint_one: '{{quota}} personne sur {{count}}',
-  honourHint_other: '{{quota}} personnes sur {{count}}',
+  honourHint_one: '{{quota}} sur {{count}} personne',
+  honourHint_other: '{{quota}} sur {{count}} personnes',
   honourInvalid: 'Nombre de 0 à 100',
   honourSaved: 'Distinctions enregistrées',
   states: {

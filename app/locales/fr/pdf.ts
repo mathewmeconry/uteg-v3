@@ -84,7 +84,7 @@ export default {
     title: 'Catégories',
     hint: 'Les classements de ces catégories sont imprimés avec ce modèle, les autres avec le modèle standard. Enregistré immédiatement.',
     of: 'dans «{{name}}»',
-    moved: '{{category}} était dans «{{name}}» et appartient maintenant à ce modèle.',
+    moved: '{{category}}: déplacement de «{{name}}» vers ce modèle.',
   },
   cover: {
     title: 'Page de couverture',

@@ -88,7 +88,7 @@ export default {
     roundFollows: 'La rotation {{round}} suit',
     toConfirm: 'Toutes les notes sont là, pas encore confirmées',
     roundOf: 'Rotation {{round}} sur {{rounds}}',
-    gradedOf: '{{graded}} notes sur {{total}}',
+    gradedOf: '{{graded}} sur {{total}} notes',
     pause: 'Pause',
     finished: 'Terminé',
     progressLabel: 'Avancement de {{division}}',

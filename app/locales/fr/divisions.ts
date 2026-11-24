@@ -96,7 +96,7 @@ export default {
   stop: {
     title_one: 'Arrêter la division?',
     title_other: 'Arrêter {{count}} divisions?',
-    text: 'Les tablettes ne les affichent plus. Les notes sont conservées. Après un nouveau démarrage, l’avancement reprend à la première rotation.',
+    text: 'La sélection disparaît des tablettes. Les notes sont conservées. Après un nouveau démarrage, l’avancement reprend à la première rotation.',
     done_one: 'Division arrêtée',
     done_other: '{{count}} divisions arrêtées',
   },

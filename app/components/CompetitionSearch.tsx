@@ -137,7 +137,7 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
   const starters = hasQuery
     ? (index?.starters ?? [])
         .filter(({ name, clubName, category }) =>
-          matches(name, clubName, category && categoryName(category, t)),
+          matches(name, clubName, category, category && categoryName(category, t)),
         )
         .slice(0, LIMIT)
     : [];
