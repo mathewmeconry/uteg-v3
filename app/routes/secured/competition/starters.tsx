@@ -35,6 +35,7 @@ import { fullName, toStarterRow, type StarterRow } from '~/components/starters/s
 import { StarterPanel } from '~/components/starters/StarterPanel';
 import { StartersTable } from '~/components/starters/StartersTable';
 import { StartersToolbar } from '~/components/starters/StartersToolbar';
+import { starterUpdates } from '~/components/starters/starterUpdates';
 import { Button } from '~/components/ui/button';
 import {
   DropdownMenu,
@@ -89,9 +90,10 @@ export async function action({ request, context }: Route.ActionArgs) {
     throw data(null, 403);
   }
   rejectNul(formData);
-  const success = (message: string) => {
+  /** `changed` are the ids of the starters, so the page only loads those again. */
+  const success = (message: string, changed: string[]) => {
     enqueueToast(context, { type: 'success', message });
-    return { ok: true as const };
+    return { ok: true as const, changed };
   };
 
   try {
@@ -107,10 +109,14 @@ export async function action({ request, context }: Route.ActionArgs) {
           divisionId: (!isCheckIn && divisionId) || undefined,
           startApparatus: (!isCheckIn && startApparatus) || undefined,
         };
-        const { outcome } = await createStarter(id, { ...person, athleteId, entries: [entry] });
+        const { starterId, outcome } = await createStarter(id, {
+          ...person,
+          athleteId,
+          entries: [entry],
+        });
         const message = t(`starters:${outcome}`, { name: fullName(person) });
         enqueueToast(context, { type: outcome === 'existing' ? 'info' : 'success', message });
-        return { ok: true as const };
+        return { ok: true as const, changed: [starterId] };
       }
       case 'update': {
         const { data: values, errors } = parseForm(formData, starterFormSchema(t));
@@ -133,22 +139,22 @@ export async function action({ request, context }: Route.ActionArgs) {
           entries: isInContest || category ? [entry] : [],
           updateAthlete: !isCheckIn && formData.get('updateAthlete') === 'on',
         });
-        return success(t('starters:updated', { name: fullName(person) }));
+        return success(t('starters:updated', { name: fullName(person) }), [starterId]);
       }
       case 'assign': {
         const assignments = parseAssignments(formData.get('assignments'));
         if (!assignments) return data({ error: t('errors.invalid') }, 400);
-        await assignEntries(id, assignments);
+        const changed = await assignEntries(id, assignments);
         // The panel shows it.
-        if (formData.has('quiet')) return { ok: true as const };
+        if (formData.has('quiet')) return { ok: true as const, changed };
         const count = assignments.reduce((sum, { entryIds }) => sum + entryIds.length, 0);
-        return success(t('starters:assigned', { count }));
+        return success(t('starters:assigned', { count }), changed);
       }
       case 'remove': {
         const ids = formData.getAll('id').map(String);
         if (ids.length === 0) return data({ error: t('errors.invalid') }, 400);
         await withdrawStarters(id, ids);
-        return success(t('starters:removed', { count: ids.length }));
+        return success(t('starters:removed', { count: ids.length }), ids);
       }
       default:
         return data({ error: t('errors.invalid') }, 400);
@@ -165,8 +171,29 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
+export function clientLoader({ request, params, serverLoader }: Route.ClientLoaderArgs) {
+  const { competitionId } = params;
+  const key = updatesKey(competitionId, new URL(request.url).searchParams);
+  return starterUpdates.load(key, request.signal, serverLoader, async (contest, ids) => {
+    const search = new URLSearchParams([['contest', contest], ...ids.map((id) => ['id', id])]);
+    const response = await fetch(`/api/competitions/${competitionId}/starters?${search}`, {
+      signal: request.signal,
+    });
+    if (!response.ok) throw response;
+    return response.json();
+  });
+}
+
 export function clientAction({ serverAction }: Route.ClientActionArgs) {
-  return keepPage(() => serverAction());
+  return keepPage(async () => {
+    const result = await serverAction();
+    if ('changed' in result) starterUpdates.changed(result.changed);
+    return result;
+  });
+}
+
+function updatesKey(competitionId: string, searchParams: URLSearchParams) {
+  return `${competitionId} ${searchParams.get('contest')}`;
 }
 
 function starterFormSchema(t: ServerT) {
@@ -227,7 +254,10 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
-  useLiveUpdates(`/api/events/${competition.id}`);
+  const key = updatesKey(competition.id, searchParams);
+  useEffect(() => starterUpdates.remember(key, loaderData), [key, loaderData]);
+  useEffect(() => () => starterUpdates.forget(), []);
+  useLiveUpdates(`/api/events/${competition.id}`, starterUpdates.note);
 
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(NO_FILTERS);

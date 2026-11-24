@@ -8,7 +8,7 @@ class FakeEventSource {
   static instances: FakeEventSource[] = [];
   readyState = 0;
   onopen?: () => void;
-  onmessage?: () => void;
+  onmessage?: (event: { data: string }) => void;
   onerror?: () => void;
   close = vi.fn();
 
@@ -20,8 +20,10 @@ class FakeEventSource {
 const loader = vi.fn(() => null);
 const healthz = vi.fn(async () => new Response('{}'));
 
+const note = vi.fn((_message: string | null) => true);
+
 function Page() {
-  return <p>{useLiveUpdates('/api/events/c1')}</p>;
+  return <p>{useLiveUpdates('/api/events/c1', note)}</p>;
 }
 
 async function renderPage() {
@@ -51,6 +53,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   FakeEventSource.instances = [];
   loader.mockClear();
+  note.mockReset().mockReturnValue(true);
   healthz.mockReset().mockImplementation(async () => new Response('{}'));
   vi.stubGlobal('EventSource', FakeEventSource);
   vi.stubGlobal('fetch', healthz);
@@ -76,11 +79,25 @@ describe('useLiveUpdates', () => {
 
   it('reloads once for events in quick succession', async () => {
     await renderPage();
-    lastSource().onmessage?.();
-    lastSource().onmessage?.();
-    lastSource().onmessage?.();
+    lastSource().onmessage?.({ data: 'grades' });
+    lastSource().onmessage?.({ data: 'grades' });
+    lastSource().onmessage?.({ data: 'grades' });
     await advance(1000);
     expect(loader).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores the events that note rejects', async () => {
+    note.mockImplementation((message) => message !== 'grades');
+    await renderPage();
+    lastSource().onmessage?.({ data: 'grades' });
+    await advance(1000);
+    expect(loader).not.toHaveBeenCalled();
+
+    lastSource().onmessage?.({ data: 'starters a b' });
+    await advance(1000);
+    expect(loader).toHaveBeenCalledTimes(1);
+    act(() => lastSource().onopen?.());
+    expect(note.mock.calls).toEqual([['grades'], ['starters a b'], [null]]);
   });
 
   it('reloads after connecting and reconnecting', async () => {
@@ -131,7 +148,7 @@ describe('useLiveUpdates', () => {
   it('stops when the page is left', async () => {
     const { unmount } = await renderPage();
     const source = lastSource();
-    source.onmessage?.();
+    source.onmessage?.({ data: 'grades' });
     unmount();
     await advance(120_000);
     expect(source.close).toHaveBeenCalled();

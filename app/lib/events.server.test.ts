@@ -31,6 +31,15 @@ describe('publish and subscribe', () => {
     expect(listenerCount('a')).toBe(0);
   });
 
+  it('names what changed unless it is too much', () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribe('a', listener);
+    publish('a', 'starters', ['x', 'y']);
+    publish('a', 'starters', Array(51).fill('x'));
+    unsubscribe();
+    expect(listener.mock.calls).toEqual([['starters x y'], ['starters']]);
+  });
+
   it('is not stopped by a failing listener', () => {
     const listener = vi.fn();
     const stops = [

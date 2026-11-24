@@ -64,9 +64,10 @@ const STARTER_INCLUDE = {
   entries: { include: { division: true } },
 } satisfies Prisma.StarterInclude;
 
-export async function listStarters(competitionId: string) {
+/** All of them, or those with the ids. */
+export async function listStarters(competitionId: string, ids?: string[]) {
   const starters = await prisma.starter.findMany({
-    where: { competitionId, deletedAt: null },
+    where: { id: ids && { in: ids }, competitionId, deletedAt: null },
     include: STARTER_INCLUDE,
     orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }, { id: 'asc' }],
   });
@@ -94,7 +95,7 @@ export async function createStarter(competitionId: string, input: NewStarter) {
     const { starterId, outcome } = await addStarter(tx, competitionId, input, () => true);
     return { starterId, outcome };
   });
-  publish(competitionId, 'starters');
+  publish(competitionId, 'starters', [result.starterId]);
   return result;
 }
 
@@ -245,7 +246,7 @@ export async function updateStarter(
       await saveEntry(tx, competitionId, { starterId, sex: after.sex }, patch);
     }
   });
-  publish(competitionId, 'starters');
+  publish(competitionId, 'starters', [starterId]);
 }
 
 /** Removes starters. Their entries keep slot and grades, see isVisible in domain/rotation. */
@@ -263,16 +264,18 @@ export async function withdrawStarters(competitionId: string, starterIds: string
       data: { withdrawnAt: now },
     });
   });
-  publish(competitionId, 'starters');
+  publish(competitionId, 'starters', starterIds);
 }
 
 export type Assignment = { entryIds: string[]; divisionId: string; startApparatus?: string | null };
 
 /**
  * Puts groups of entries into a division, and at the end of a lineup if given. Without a lineup they
- * keep theirs as far as it belongs to the division, null clears it. All or none.
+ * keep theirs as far as it belongs to the division, null clears it. All or none. Returns the ids of
+ * the starters.
  */
 export async function assignEntries(competitionId: string, assignments: readonly Assignment[]) {
+  const starterIds = new Set<string>();
   await prisma.$transaction(
     async (tx) => {
       await lockCompetition(tx, competitionId);
@@ -286,6 +289,7 @@ export async function assignEntries(competitionId: string, assignments: readonly
           if (!entry) throw new DomainError('NOT_FOUND');
           if (entry.withdrawnAt) throw new DomainError('ENTRY_WITHDRAWN');
           const { starterId, starter, contestId } = entry;
+          starterIds.add(starterId);
           await saveEntry(
             tx,
             competitionId,
@@ -297,7 +301,8 @@ export async function assignEntries(competitionId: string, assignments: readonly
     },
     { timeout: ASSIGN_TIMEOUT_MS },
   );
-  publish(competitionId, 'starters');
+  publish(competitionId, 'starters', [...starterIds]);
+  return [...starterIds];
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
