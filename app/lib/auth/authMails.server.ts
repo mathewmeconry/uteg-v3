@@ -12,6 +12,8 @@ const APP_URL = env.APP_URL.replace(/\/$/, '');
 
 // Per address, which anyone can register with to send it mails.
 const maySendCode = createRateLimit({ windowMs: 60 * 60_000, max: 10 });
+const maySendReset = createRateLimit({ windowMs: 60 * 60_000, max: 5 });
+const maySendExisting = createRateLimit({ windowMs: 60 * 60_000, max: 5 });
 
 /** `user` is who changes the address, otherwise it is the one with the address. */
 export async function sendCodeMail(email: string, code: string, user?: Record<string, unknown>) {
@@ -21,12 +23,14 @@ export async function sendCodeMail(email: string, code: string, user?: Record<st
 }
 
 export function sendResetMail(user: Recipient, token: string) {
+  if (!maySendReset(user.email)) return;
   const url = `${APP_URL}/reset-password?token=${encodeURIComponent(token)}`;
   sendInBackground(user, 'reset', { url });
 }
 
 /** Someone tried to register with an address that has an account. */
 export function sendExistingAccountMail(user: Recipient) {
+  if (!maySendExisting(user.email)) return;
   sendInBackground(user, 'existing', { url: `${APP_URL}/forgot-password` });
 }
 

@@ -21,6 +21,7 @@ export default {
     code: 'Code',
     confirm: 'Bestätigen',
     resend: 'Neuen Code senden',
+    noCode: 'Kein Code erhalten? Vielleicht gibt es schon ein Konto mit einem anderen Passwort.',
     resent: 'Ein neuer Code ist unterwegs.',
     invalid: 'Der Code ist falsch oder abgelaufen. Nach drei Versuchen brauchst du einen neuen.',
   },

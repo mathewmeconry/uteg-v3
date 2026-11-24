@@ -23,6 +23,7 @@ export default {
     code: 'Code',
     confirm: 'Confirm',
     resend: 'Send new code',
+    noCode: 'No code? There may already be an account with another password.',
     resent: 'A new code is on its way.',
     invalid: 'The code is wrong or has expired. After three attempts you need a new one.',
   },

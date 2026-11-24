@@ -1,4 +1,5 @@
 import { TriangleAlertIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data, Form, Link, useSearchParams } from 'react-router';
 import { z } from 'zod';
@@ -54,17 +55,25 @@ export async function action({ request, context }: Route.ActionArgs) {
 export default function Register({ actionData }: Route.ComponentProps) {
   const { t } = useTranslation(['auth', 'common']);
   const [searchParams] = useSearchParams();
+  const [password, setPassword] = useState('');
 
   if (actionData?.verify) {
     const redirectTo = searchParams.get('redirectTo') ?? '/home';
-    return <VerifyForm email={actionData.verify} redirectTo={redirectTo} />;
+    return <VerifyForm email={actionData.verify} password={password} redirectTo={redirectTo} />;
   }
 
   return (
     <>
       <title>{`${t('registerTitle')} · UTEG`}</title>
       <h1 className="mb-6 font-display text-3xl leading-tight">{t('registerTitle')}</h1>
-      <Form method="post" className="grid gap-5">
+      <Form
+        method="post"
+        // VerifyForm sends it again.
+        onSubmit={({ currentTarget }) =>
+          setPassword(String(new FormData(currentTarget).get('password')))
+        }
+        className="grid gap-5"
+      >
         {actionData?.error && (
           <Alert variant="destructive">
             <TriangleAlertIcon aria-hidden />

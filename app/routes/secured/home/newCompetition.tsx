@@ -56,9 +56,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   const user = getUser(context);
   const unknownEmails = await findUnknownEmails(emails);
-  if (!unknownEmails.every(() => mayInvite(user.id))) {
-    return data({ errors: { members: t('errors.tooManyRequests') } as FieldErrors }, 429);
-  }
 
   let competition;
   try {
@@ -77,6 +74,10 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   const failed = [];
   for (const member of members.data.filter(({ email }) => unknownEmails.includes(email))) {
+    if (!mayInvite(user.id)) {
+      failed.push(member.email);
+      continue;
+    }
     try {
       await inviteMember(competition, member, {
         email: user.email,

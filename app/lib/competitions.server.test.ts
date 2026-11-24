@@ -85,9 +85,15 @@ describe('createCompetition', () => {
 });
 
 describe('findUnknownEmails', () => {
-  it('returns the addresses without an account', async () => {
+  it('returns the addresses without a verified account', async () => {
     await createUser({ email: 'a@example.com' });
-    expect(await findUnknownEmails([' A@example.com', 'b@example.com'])).toEqual(['b@example.com']);
+    await prisma.user.create({ data: { id: 'c', name: 'c', email: 'c@example.com' } });
+    const emails = [' A@example.com', 'b@example.com', 'c@example.com'];
+    expect(await findUnknownEmails(emails)).toEqual(['b@example.com', 'c@example.com']);
+
+    const { id } = await createTestCompetition();
+    const add = addMember(id, { email: 'c@example.com', role: 'OWNER' });
+    expect(await errorCode(add)).toBe('USER_NOT_FOUND');
   });
 });
 

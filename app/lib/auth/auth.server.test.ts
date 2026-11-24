@@ -27,9 +27,13 @@ function inLastMail(pattern: RegExp) {
 const lastCode = () => inLastMail(/\b\d{6}\b/);
 const lastToken = () => inLastMail(/(?<=token=)\S+/);
 
+let client = 0;
+
 async function verify(form: Record<string, string>): Promise<any> {
-  const body = new URLSearchParams({ email: EMAIL, ...form });
-  const request = new Request('http://localhost/verify-email', { method: 'POST', body });
+  const body = new URLSearchParams({ email: EMAIL, password: PASSWORD, ...form });
+  // Passwords are limited per client, not what most tests are about.
+  const headers = { 'x-forwarded-for': `10.0.0.${++client}` };
+  const request = new Request('http://localhost/verify-email', { method: 'POST', body, headers });
   return action({ request, context: new RouterContextProvider() } as any);
 }
 
@@ -73,8 +77,25 @@ it('needs a new code after three wrong ones', async () => {
 
 it('limits the attempts per address', async () => {
   const email = 'limited@example.com';
-  for (let attempt = 0; attempt < 20; attempt++) await verify({ email, code: 'x' });
+  await auth.api.signUpEmail({ body: { email, name: email, password: PASSWORD } });
+  // Those who don't know the password can't use them up.
+  for (let attempt = 0; attempt < 21; attempt++) {
+    expect((await verify({ email, password: 'other', code: 'x' })).init.status).toBe(400);
+  }
+  for (let attempt = 0; attempt < 20; attempt++) {
+    expect((await verify({ email, code: 'x' })).init.status).toBe(400);
+  }
   expect((await verify({ email, code: 'x' })).init.status).toBe(429);
+});
+
+it('does not confirm the account of somebody else who registered with the address', async () => {
+  await register();
+  const code = await lastCode();
+  vi.mocked(sendMail).mockClear();
+  await verify({ password: 'of-the-owner', intent: 'resend' });
+  expect(sendMail).not.toHaveBeenCalled();
+  expect((await verify({ password: 'of-the-owner', code })).init.status).toBe(400);
+  expect(await prisma.user.findFirst()).toMatchObject({ emailVerified: false });
 });
 
 it.each(['/email-otp/verify-email', '/email-otp/send-verification-otp', '/sign-in/email-otp'])(
@@ -85,7 +106,7 @@ it.each(['/email-otp/verify-email', '/email-otp/send-verification-otp', '/sign-i
   },
 );
 
-it('resets the password once,which also verifies the address', async () => {
+it('resets the password once, which also verifies the address', async () => {
   await invite();
   await register();
   await auth.api.requestPasswordReset({ body: { email: EMAIL } });

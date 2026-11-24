@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
-import { auth, authCookies, callAuth, getUser, mayTryCode } from '~/lib/auth/auth.server';
+import { auth, authCookies, callAuth, getUser } from '~/lib/auth/auth.server';
 import { parseForm } from '~/lib/forms.server';
 import { prisma } from '~/lib/prisma.server';
 import { createRateLimit } from '~/lib/rateLimit.server';
@@ -71,6 +71,9 @@ export async function action({ request, context }: Route.ActionArgs) {
       if (await prisma.user.findUnique({ where: { email: values.email } })) {
         return data({ errors: { email: t('auth:errors.emailFailed') } }, 400);
       }
+      if (!mayRequestCode(user.id)) {
+        return data({ errors: { email: t('errors.tooManyRequests') } }, 429);
+      }
       await auth.api.requestEmailChangeEmailOTP({
         headers: request.headers,
         body: { newEmail: values.email },
@@ -81,7 +84,11 @@ export async function action({ request, context }: Route.ActionArgs) {
     case 'emailCode': {
       const { data: values } = parseForm(
         formData,
-        z.object({ newEmail: z.email(), code: z.string().trim() }),
+        z.object({
+          // better-auth ignores the case, so must the limit.
+          newEmail: z.string().toLowerCase().pipe(z.email()),
+          code: z.string().trim(),
+        }),
       );
       if (!values) throw data(null, 400);
       const { newEmail, code } = values;
@@ -140,6 +147,10 @@ export async function action({ request, context }: Route.ActionArgs) {
       throw data(null, 400);
   }
 }
+
+const mayRequestCode = createRateLimit({ windowMs: 60 * 60_000, max: 5 });
+// Per address, not per user: one person can have many accounts.
+const mayTryCode = createRateLimit({ windowMs: 60 * 60_000, max: 20 });
 
 // better-auth only limits requests to its own endpoints, and verifyPassword has none.
 const mayCheckPassword = createRateLimit({ windowMs: 60_000, max: 10 });

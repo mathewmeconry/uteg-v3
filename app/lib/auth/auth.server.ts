@@ -7,7 +7,6 @@ import { userContext, type Context } from '~/context';
 import { APP_ORIGIN, env } from '~/lib/env.server';
 import { acceptInvitations } from '~/lib/invitations.server';
 import { prisma } from '~/lib/prisma.server';
-import { createRateLimit } from '~/lib/rateLimit.server';
 import { LANGUAGES } from '~/locales';
 import { sendCodeMail, sendExistingAccountMail, sendResetMail } from './authMails.server';
 
@@ -69,7 +68,7 @@ export const auth = betterAuth({
     // Only called through auth.api by the profile page, which asks for the password first.
     '/update-user',
     '/verify-password',
-    // Addresses are verified with a code, see mayTryCode.
+    // Addresses are verified with a code, see routes/auth/verifyEmail.ts.
     '/send-verification-email',
     '/verify-email',
     // Only called through auth.api, limited per address. The others are not used.
@@ -95,9 +94,6 @@ export const auth = betterAuth({
     },
   },
 });
-
-/** Per address: better-auth allows three attempts per code, but any number of codes. */
-export const mayTryCode = createRateLimit({ windowMs: 60 * 60_000, max: 20 });
 
 export type User = typeof auth.$Infer.Session.user;
 

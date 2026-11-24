@@ -1,5 +1,6 @@
 import { MailIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '~/components/ui/alert';
 import { Button } from '~/components/ui/button';
@@ -8,7 +9,15 @@ import { CodeField } from './CodeField';
 import { SubmitButton } from './SubmitButton';
 
 /** Asks for the code that was sent to verify an address, after registering or logging in. */
-export function VerifyForm({ email, redirectTo }: { email: string; redirectTo: string }) {
+export function VerifyForm({
+  email,
+  password,
+  redirectTo,
+}: {
+  email: string;
+  password: string;
+  redirectTo: string;
+}) {
   const { t } = useTranslation('auth');
   const verify = useActionFetcher();
   const resend = useActionFetcher(() => toast.success(t('verify.resent')));
@@ -23,6 +32,7 @@ export function VerifyForm({ email, redirectTo }: { email: string; redirectTo: s
           <AlertDescription>{t('verify.sent', { email })}</AlertDescription>
         </Alert>
         <input type="hidden" name="email" value={email} />
+        <input type="hidden" name="password" value={password} />
         <input type="hidden" name="redirectTo" value={redirectTo} />
         <CodeField error={verify.errors?.code} className="h-12" />
         <SubmitButton size="lg" pending={verify.pending}>
@@ -34,13 +44,22 @@ export function VerifyForm({ email, redirectTo }: { email: string; redirectTo: s
           disabled={resend.pending}
           onClick={() =>
             void resend.submit(
-              { intent: 'resend', email },
+              { intent: 'resend', email, password },
               { method: 'post', action: '/verify-email' },
             )
           }
         >
           {t('verify.resend')}
         </Button>
+        <p className="text-sm text-muted-foreground">
+          {t('verify.noCode')}{' '}
+          <Link
+            to="/forgot-password"
+            className="inline-flex items-center font-semibold text-primary underline underline-offset-4 pointer-coarse:min-h-11"
+          >
+            {t('forgot.title')}
+          </Link>
+        </p>
       </verify.Form>
     </>
   );

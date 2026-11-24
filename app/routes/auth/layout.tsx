@@ -9,7 +9,7 @@ export const middleware: Route.MiddlewareFunction[] = [
   ({ request, context }, next) => {
     // Who forgot the password may still be signed in.
     const { pathname } = new URL(request.url);
-    if (context.get(userContext) && !pathname.startsWith('/reset-password')) {
+    if (context.get(userContext) && !/^\/(reset|forgot)-password/.test(pathname)) {
       throw redirect('/home');
     }
     return next();

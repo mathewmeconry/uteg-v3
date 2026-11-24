@@ -108,14 +108,14 @@ describe('create competition', () => {
     expect(vi.mocked(sendMail).mock.lastCall![0].to).toBe('new@example.com');
   });
 
-  it('limits the invitations and creates nothing', async () => {
+  it('limits the invitations and names the others', async () => {
     const user = await createUser();
     const members = JSON.stringify(
       Array.from({ length: 31 }, (_, i) => ({ email: `m${i}@example.com`, role: 'VIEWER' })),
     );
-    const { status } = await callRoute(action, { userId: user.id, form: { ...FORM, members } });
-    expect(status).toBe(429);
-    expect(await prisma.competition.count()).toBe(0);
+    const { toasts } = await callRoute(action, { userId: user.id, form: { ...FORM, members } });
+    expect(await prisma.invitation.count()).toBe(30);
+    expect(toasts[1].message).toContain('m30@example.com');
   });
 
   it.each([
