@@ -128,7 +128,7 @@ export default function Landing({ loaderData: { language } }: Route.ComponentPro
   const { t } = useTranslation(['landing', 'common', 'auth', 'ranking', 'pdf']);
 
   return (
-    <main id="content">
+    <main id="content" className="flex min-h-svh flex-col">
       <Hero language={language} />
 
       <Section title={t('import.title')} text={t('import.text')}>
@@ -256,7 +256,8 @@ export default function Landing({ loaderData: { language } }: Route.ComponentPro
         </div>
       </section>
 
-      <section className="overflow-hidden bg-ink text-ink-foreground">
+      {/* To the end of any window. The page may end within a pixel, the shadow fills the rest of it. */}
+      <section className="grow overflow-hidden bg-ink text-ink-foreground shadow-[0_1px_0_var(--ink)]">
         <div className="mx-auto flex max-w-[77.5rem] flex-col gap-x-14 gap-y-6 px-4 sm:px-6 lg:flex-row lg:items-center">
           <Rings className="h-56 shrink-0 self-start lg:h-72" />
           <div className="flex flex-col items-start gap-6 pb-12 lg:py-16">
@@ -296,7 +297,7 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="mx-auto grid max-w-[77.5rem] items-center gap-x-20 gap-y-6 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:py-28">
+    <section className="mx-auto grid w-full max-w-[77.5rem] items-center gap-x-20 gap-y-6 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:py-28">
       <div className={cn('grid gap-3', isReversed && 'lg:order-2')}>
         <Heading>{title}</Heading>
         <p className="max-w-[46ch] text-muted-foreground">{text}</p>
@@ -330,7 +331,7 @@ function createSlot(starter: string, grade: { value: number } | null) {
     lastname,
     clubName,
     withdrawn: false,
-    precision: 2 as const,
+    decimals: 2 as const,
     grade,
   };
 }
