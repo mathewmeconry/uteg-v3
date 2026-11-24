@@ -83,6 +83,12 @@ export default {
   ranking: {
     title: 'Classement',
     precision: 'Précision des notes',
+    averageDecimals: 'Moyenne au saut dans les classements et affichages',
+    averageDecimalsHint: 'Vaut aussi pour le total. Le calcul se fait toujours au millième.',
+    averageDecimalsOptions: {
+      decimals2: 'Arrondie au centième',
+      decimals3: 'Au millième',
+    },
     precisionOptions: {
       decimals2: '2 décimales',
       decimals3: '3 décimales (comme aux CS)',

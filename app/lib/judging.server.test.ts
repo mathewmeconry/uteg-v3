@@ -6,6 +6,7 @@ import {
   truncateTables,
 } from '~/tests/helpers';
 import { NAMESPACES } from '~/locales';
+import { egtModule } from '~/modules/egt/module';
 import { domainErrorMessage } from './domainErrors.server';
 import type { DomainError } from './errors';
 import { subscribe } from './events.server';
@@ -249,7 +250,22 @@ describe('getDisplayState', () => {
     expect(state).toMatchObject({ divisionIds: [division.id], round: 1, hidesInMs: null });
     expect(state.apparatus.map(({ apparatus }) => apparatus)).toEqual(WOMEN);
     expect(names(state.apparatus[1].rounds[1])).toBe('A');
-    expect(state.apparatus[0].rounds[0].slots[0].precision).toBe(2);
+    expect(state.apparatus[0].rounds[0].slots[0]).toMatchObject({ precision: 2, decimals: 2 });
+  });
+
+  it('shows the average as set, it counts in thousandths', async () => {
+    const { id, contest } = await createCompetition();
+    const division = await createDivision(contest.id, { category: 'K6', state: 'RUNNING' });
+    await addStarter(id, division, 'sprung');
+    const getSlot = async () =>
+      (await getDisplayState(id, 1)).apparatus.find(({ apparatus }) => apparatus === 'sprung')!
+        .rounds[0].slots[0];
+    expect(await getSlot()).toMatchObject({ precision: 3, decimals: 3 });
+    await prisma.contest.update({
+      where: { id: contest.id },
+      data: { config: { ...egtModule.defaultConfig, averageDecimals: 2 } },
+    });
+    expect(await getSlot()).toMatchObject({ precision: 3, decimals: 2 });
   });
 
   it('keeps the last round for five minutes', async () => {
@@ -809,7 +825,7 @@ describe('ending a division', () => {
 });
 
 describe('attempts', () => {
-  // Two decimals keep the average of two attempts exact, so it is only rounded in the ranking.
+  // Two decimals keep the average of two attempts exact in thousandths.
   it('have at most two decimals', async () => {
     const { id, contest } = await createCompetition();
     const division = await createDivision(contest.id, { category: 'K6', state: 'RUNNING' });

@@ -65,6 +65,20 @@ describe('EgtSettingsForm', () => {
     });
   });
 
+  it('can round how averages are shown', async () => {
+    renderForm();
+    await choose('Vault average in rankings and displays', 'Rounded to hundredths');
+    expect(await save()).toEqual({ ...egtModule.defaultConfig, averageDecimals: 2 });
+  });
+
+  it('shows every grade with three decimals when that is the precision', async () => {
+    renderForm();
+    const average = { name: 'Vault average in rankings and displays' };
+    expect(screen.getByRole('combobox', average)).toBeInTheDocument();
+    await choose('Precision of the grades', '3 decimals (as at the Swiss championships)');
+    expect(screen.queryByRole('combobox', average)).not.toBeInTheDocument();
+  });
+
   it('has no aggregation for a single attempt', async () => {
     renderForm();
     await choose('Attempts in K4', '1');

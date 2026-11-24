@@ -30,6 +30,7 @@ function slot(firstname: string, apparatus: string, patch: Partial<TabletSlot> =
     withdrawn: false,
     inputRule: { attempts: 1, aggregation: 'NONE' },
     precision: 2,
+    decimals: 2,
     grade: null,
     apparatus,
     ...patch,

@@ -4,7 +4,7 @@ import type { Sex } from '~/generated/prisma/client';
 import { categoryName } from '~/lib/categoryName';
 import { formatGrade } from '~/lib/domain/grade';
 import type { CoverImage } from '~/lib/domain/cover';
-import type { Award } from '~/lib/domain/ranking';
+import { getShownDecimals, type Award } from '~/lib/domain/ranking';
 import {
   fillPlaceholders,
   MAX_FOOTER_LINES,
@@ -12,6 +12,7 @@ import {
 } from '~/lib/domain/rankingTemplate';
 import type { RankingResult } from '~/lib/ranking.server';
 import type { ServerT } from '~/locales';
+import type { GradePrecision } from '~/modules/types';
 import {
   Cell,
   clamp,
@@ -46,8 +47,8 @@ export type RankingGroup = {
   /** Whether divisions are still running, and counted or not. */
   status: 'provisional' | 'incomplete' | null;
   missingGrades: number;
-  /** Decimals the ranks are based on. */
-  precision: 2 | 3;
+  /** What the ranks are based on. */
+  scoring: GradePrecision;
   apparatus: readonly string[];
   best: RankingResult['best'];
   entries: RankedEntry[];
@@ -251,16 +252,16 @@ function PageHead({
 
 function RankingTable({
   title,
-  group: { apparatus, best, entries, precision },
+  group: { apparatus, best, entries, scoring },
   options,
   t,
 }: Pick<PageProps, 'options' | 't'> & { title: React.ReactNode; group: RankingGroup }) {
   const { columns, nameFormat } = options;
-  // With fewer, different totals and ranks would look the same.
-  const decimals = precision === 3 ? 3 : options.decimals;
+  const decimalsOf = (key?: string) =>
+    options.decimals === 3 ? 3 : getShownDecimals(scoring, key);
   const rows = options.onlyAwarded ? entries.filter(({ award }) => award !== null) : entries;
   const oneName = nameFormat !== 'separate' && columns.firstname && columns.lastname;
-  const gradeWidth = decimals === 3 ? 3.6 : 3;
+  const gradeWidth = (key?: string) => (decimalsOf(key) === 3 ? 3.6 : 3);
 
   type Definition = {
     key: string;
@@ -321,19 +322,19 @@ function RankingTable({
     ...(columns.apparatus ? apparatus : []).map<Definition>((key) => ({
       key,
       label: t(`apparatusShort.${key as 'reck'}`),
-      width: gradeWidth,
+      width: gradeWidth(key),
       align: 'right',
       bold: ({ values }) =>
         options.highlightBest && values[key] !== null && values[key] === best[key],
-      value: ({ values }) => formatValue(values[key], decimals),
+      value: ({ values }) => formatValue(values[key], decimalsOf(key)),
     })),
     columns.total && {
       key: 'total',
       label: t('pdf:ranking.total'),
-      width: gradeWidth + 0.4,
+      width: gradeWidth() + 0.4,
       align: 'right',
       bold: () => true,
-      value: ({ total }) => formatValue(total, decimals),
+      value: ({ total }) => formatValue(total, decimalsOf()),
     },
     columns.award && {
       key: 'award',

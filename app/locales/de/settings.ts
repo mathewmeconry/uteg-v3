@@ -80,6 +80,12 @@ export default {
   ranking: {
     title: 'Rangliste',
     precision: 'Genauigkeit der Noten',
+    averageDecimals: 'Durchschnitt am Sprung in Ranglisten und Anzeigen',
+    averageDecimalsHint: 'Gilt auch für das Total. Gerechnet wird immer mit Tausendsteln.',
+    averageDecimalsOptions: {
+      decimals2: 'Auf Hundertstel gerundet',
+      decimals3: 'Mit Tausendsteln',
+    },
     precisionOptions: {
       decimals2: '2 Nachkommastellen',
       decimals3: '3 Nachkommastellen (wie an der SM)',

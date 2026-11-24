@@ -74,7 +74,7 @@ export default {
     results: 'Résultats',
     footerHint: 'Au maximum {{count}} lignes.',
     decimals: 'Décimales',
-    decimalsHint: 'Jamais moins que dans la notation.',
+    decimalsHint: 'Jamais moins que dans les paramètres de la compétition.',
     medalStyle: 'Médailles',
     medalStyles: { letters: 'Lettres (G, S, B)', icons: 'Symboles', none: 'Aucune' },
     highlightBest: 'Mettre en évidence les meilleures notes par engin',

@@ -38,7 +38,8 @@ React Router 8 (framework mode, SSR), Vite, TypeScript, Prisma 7 + PostgreSQL, T
 - Starting a division resets its progress. Grades are kept.
 - Sprung: two attempts, best counts; K6/K7 the average. Zero is a valid attempt.
   Attempts have two decimals, final grades up to three. The average of two attempts is therefore
-  exact in thousandths and only rounded for the ranking.
+  exact in thousandths. It always counts in thousandths, whatever the grade precision of the
+  contest. Rankings and displays show it, and the total, with three decimals or rounded to two.
 - An STV-ID only matches its owner if sex, first name and either birth year or last name are the
   same. Otherwise it is an error, unless the athlete was picked.
 - Ranking: only ENDED divisions (running ones on request as provisional). Missing grade = 0.
@@ -47,7 +48,7 @@ React Router 8 (framework mode, SSR), Vite, TypeScript, Prisma 7 + PostgreSQL, T
 
 Configurable per contest because the STV Weisungen leave it to the event: Auszeichnung percentage
 per category and sex, quota rounding (`round` as in v2, `ceil` as at the SM), grade precision
-(2 decimals as in v2, 3 as at the SM), and the tie-break order
+(2 decimals as in v2, 3 as at the SM), how averages are shown, and the tie-break order
 (default Boden, Schaukelringe, Sprung, Barren, Reck).
 
 ## Structure

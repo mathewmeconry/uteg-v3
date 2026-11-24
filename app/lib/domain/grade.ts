@@ -25,8 +25,7 @@ export function isGrade(value: number) {
 }
 
 /**
- * One of several attempts. They have two decimals, so the average of two is exact in thousandths
- * and only rounded once, for the ranking.
+ * One of several attempts. They have two decimals, so the average of two is exact in thousandths.
  */
 export function isAttempt(value: number) {
   return isGrade(value) && value % 10 === 0;

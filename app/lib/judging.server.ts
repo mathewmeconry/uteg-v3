@@ -4,6 +4,7 @@ import type { InputRule } from '~/modules/types';
 import { aggregate, isAttempt, isGrade } from './domain/grade';
 import { isSameGrade } from './domain/gradeInput';
 import { getCurrentRound, isEnded } from './domain/progress';
+import { getPrecision, getShownDecimals } from './domain/ranking';
 import {
   compareDivisions,
   getRoundCount,
@@ -428,6 +429,7 @@ function getSlots(divisions: readonly LoadedDivision[], apparatus: string, round
   return getRoundList(divisions, apparatus, round).map((entry) => {
     const { starter } = entry;
     const division = byId.get(entry.divisionId!)!;
+    const options = division.module.rankingOptions(division.category, division.sex);
     const grade = entry.grades.find((item) => item.apparatus === apparatus);
     return {
       entryId: entry.id,
@@ -442,8 +444,10 @@ function getSlots(divisions: readonly LoadedDivision[], apparatus: string, round
       clubName: starter.club.name,
       withdrawn: entry.withdrawnAt !== null,
       inputRule: division.module.inputRule(apparatus, division.category),
+      /** Decimals the grade counts with. */
+      precision: getPrecision(options, apparatus),
       /** Decimals the ranking and the displays show. */
-      precision: division.module.rankingOptions(division.category, division.sex).precision,
+      decimals: getShownDecimals(options, apparatus),
       grade: grade
         ? {
             version: grade.version,

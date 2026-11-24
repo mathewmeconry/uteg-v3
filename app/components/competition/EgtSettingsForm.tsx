@@ -123,6 +123,33 @@ export function EgtSettingsForm({
                   </Select>
                 )}
               </FormField>
+              {config.precision === 2 && (
+                <FormField
+                  label={t('ranking.averageDecimals')}
+                  hint={t('ranking.averageDecimalsHint')}
+                >
+                  {(props) => (
+                    <Select
+                      value={String(config.averageDecimals)}
+                      disabled={!canEdit || isSaving}
+                      onValueChange={(value) =>
+                        setConfig({ ...config, averageDecimals: value === '3' ? 3 : 2 })
+                      }
+                    >
+                      <SelectTrigger {...props} className="w-full max-w-md min-w-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PRECISIONS.map((decimals) => (
+                          <SelectItem key={decimals} value={decimals}>
+                            {t(`ranking.averageDecimalsOptions.decimals${decimals}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </FormField>
+              )}
               <div className="grid grid-cols-1 gap-3">
                 <div className="grid gap-1">
                   <h3 className="text-sm font-semibold">{t('ranking.tieBreak')}</h3>

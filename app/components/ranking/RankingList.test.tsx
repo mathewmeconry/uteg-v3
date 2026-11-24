@@ -9,6 +9,8 @@ const apparatus = ['reck', 'boden'];
 const options = {
   tieBreak: [],
   precision: 2,
+  averaged: [],
+  averageDecimals: 3,
   honourPercent: 100,
   honourRounding: 'round',
 } as const;
@@ -43,4 +45,18 @@ it('shows ranks, grades, the best ones and awards', () => {
   );
   expect(bea).toHaveTextContent(/2.*Bea Frei.*9\.25 \(Beste Note\).*–.*9\.25.*Silber/);
   expect(within(dana).getByText('Auszeichnung')).toBeInTheDocument();
+});
+
+it.each([
+  [3, /9\.00.*9\.075.*18\.075/],
+  [2, /9\.00.*9\.08.*18\.08/],
+] as const)('shows averages with %i decimals', (averageDecimals, text) => {
+  const scoring = { ...options, averaged: ['boden'], averageDecimals };
+  const ranking = rankEntries([entry('Anna', 9000, 9075)], apparatus, scoring);
+  render(
+    <I18nextProvider i18n={createI18n('de')}>
+      <RankingList {...ranking} apparatus={apparatus} options={scoring} />
+    </I18nextProvider>,
+  );
+  expect(screen.getAllByRole('row')[1]).toHaveTextContent(text);
 });

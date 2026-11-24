@@ -30,13 +30,13 @@ export async function loader({ request, params: { linkId } }: Route.LoaderArgs) 
     apparatus: apparatus.map(({ apparatus: key, rounds }) => ({
       apparatus: key,
       rounds: rounds.map(({ slots }) =>
-        slots.map(({ entryId, firstname, lastname, clubName, withdrawn, precision, grade }) => ({
+        slots.map(({ entryId, firstname, lastname, clubName, withdrawn, decimals, grade }) => ({
           entryId,
           firstname,
           lastname,
           clubName,
           withdrawn,
-          precision,
+          decimals,
           grade: grade && { value: grade.value },
         })),
       ),

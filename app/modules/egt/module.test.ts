@@ -11,6 +11,35 @@ function rankMen(grades: Record<string, Record<string, number>>) {
   ).entries.map(({ id, rank }) => [id, rank]);
 }
 
+describe('precision', () => {
+  it('averages the vault in K6 and K7', () => {
+    const averaged = (category: string) =>
+      egtModule.rankingOptions(config, category, 'FEMALE').averaged;
+    expect(['K5', 'K6', 'K7', 'KD'].map(averaged)).toEqual([[], ['sprung'], ['sprung'], []]);
+  });
+
+  it('shows averages with thousandths, also in configs stored before', () => {
+    const { averageDecimals: _, ...stored } = config;
+    expect(egtModule.configSchema.parse(stored).averageDecimals).toBe(3);
+  });
+
+  it.each([2, 3] as const)('ranks by the thousandths when %i are shown', (averageDecimals) => {
+    const { entries } = rankEntries(
+      [
+        { id: 'a', grades: { boden: 9225, sprung: 9075 } },
+        { id: 'b', grades: { boden: 9225, sprung: 9080 } },
+      ],
+      egtModule.apparatus(config, 'FEMALE'),
+      egtModule.rankingOptions({ ...config, averageDecimals }, 'K6', 'FEMALE'),
+    );
+    // Only the vault keeps its thousandths.
+    expect(entries.map(({ id, rank, total }) => [id, rank, total])).toEqual([
+      ['b', 1, 18310],
+      ['a', 2, 18305],
+    ]);
+  });
+});
+
 describe('default tie-break', () => {
   it('compares Boden first, then Schaukelringe, Sprung, Barren and Reck', () => {
     expect(config.tieBreak).toEqual(['boden', 'schaukelringe', 'sprung', 'barren', 'reck']);

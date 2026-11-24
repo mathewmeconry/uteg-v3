@@ -9,7 +9,7 @@ type Slot = {
   lastname: string;
   clubName: string;
   withdrawn: boolean;
-  precision: 2 | 3;
+  decimals: 2 | 3;
   grade: { value: number } | null;
 };
 
@@ -67,7 +67,7 @@ export function ApparatusPanel({
               className="new-grade shrink-0 figure leading-none text-brand"
               style={{ fontSize: size(50, 18) }}
             >
-              {count > 0 && current.grade && formatGrade(current.grade.value, current.precision)}
+              {count > 0 && current.grade && formatGrade(current.grade.value, current.decimals)}
             </p>
           </div>
         ) : (

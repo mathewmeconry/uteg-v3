@@ -30,6 +30,8 @@ const egtConfigSchema = z.object({
   }),
   honourRounding: z.enum(['round', 'ceil']),
   precision: z.union([z.literal(2), z.literal(3)]),
+  /** Only how averages are shown. Configs stored before this option do not have it. */
+  averageDecimals: z.union([z.literal(2), z.literal(3)]).default(3),
   tieBreak: z.array(z.enum(APPARATUS)),
   /** Input rules by apparatus; `categories` overrides the default for single categories. */
   inputs: z.partialRecord(
@@ -52,6 +54,7 @@ export const egtModule: ContestModule<EgtConfig> = {
     honourPercent: { FEMALE: honourDefaults('FEMALE'), MALE: honourDefaults('MALE') },
     honourRounding: 'round',
     precision: 2,
+    averageDecimals: 3,
     tieBreak: ['boden', 'schaukelringe', 'sprung', 'barren', 'reck'],
     inputs: {
       sprung: {
@@ -72,6 +75,10 @@ export const egtModule: ContestModule<EgtConfig> = {
   rankingOptions: (config, category, sex) => ({
     tieBreak: config.tieBreak,
     precision: config.precision,
+    averaged: ROTATION[sex].filter(
+      (apparatus) => egtModule.inputRule(config, apparatus, category).aggregation === 'AVG',
+    ),
+    averageDecimals: config.averageDecimals,
     honourPercent: config.honourPercent[sex][category] ?? DEFAULT_HONOUR_PERCENT,
     honourRounding: config.honourRounding,
   }),

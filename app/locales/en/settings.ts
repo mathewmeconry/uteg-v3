@@ -83,6 +83,12 @@ export default {
   ranking: {
     title: 'Ranking',
     precision: 'Precision of the grades',
+    averageDecimals: 'Vault average in rankings and displays',
+    averageDecimalsHint: 'Also applies to the total. The scoring always uses thousandths.',
+    averageDecimalsOptions: {
+      decimals2: 'Rounded to hundredths',
+      decimals3: 'With thousandths',
+    },
     precisionOptions: {
       decimals2: '2 decimals',
       decimals3: '3 decimals (as at the Swiss championships)',

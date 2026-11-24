@@ -24,6 +24,7 @@ function createSlot(entryId: string, patch: Partial<TabletSlot> = {}): TabletSlo
     withdrawn: false,
     inputRule: { attempts: 1, aggregation: 'NONE' },
     precision: 2,
+    decimals: 2,
     grade: null,
     apparatus: 'reck',
     ...patch,

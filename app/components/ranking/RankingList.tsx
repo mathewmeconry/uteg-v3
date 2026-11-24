@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '~/components/ui/table';
 import { formatGrade } from '~/lib/domain/grade';
-import type { Award } from '~/lib/domain/ranking';
+import { getShownDecimals, type Award } from '~/lib/domain/ranking';
 import type { RankingResult } from '~/lib/ranking.server';
 import { cn } from '~/lib/utils';
 
@@ -37,15 +37,15 @@ function AwardIcon({ award }: { award: Award | null }) {
 function Grade({
   value,
   best,
-  precision,
+  decimals,
 }: {
   value: number | null;
   best: number | null;
-  precision: 2 | 3;
+  decimals: 2 | 3;
 }) {
   const { t } = useTranslation('ranking');
   if (value === null) return <span className="text-muted-foreground">–</span>;
-  const grade = formatGrade(value, precision);
+  const grade = formatGrade(value, decimals);
   if (value !== best) return grade;
   return (
     <span
@@ -61,7 +61,7 @@ function Grade({
 /** A table, on phones a list. */
 export function RankingList({ entries, best, apparatus, options }: Ranking) {
   const { t } = useTranslation(['ranking', 'common']);
-  const { precision } = options;
+  const totalDecimals = getShownDecimals(options);
   // Below the last award there is a line.
   const lastAward = entries.findLastIndex(({ award }) => award);
   const isLimit = (index: number) => index === lastAward && index < entries.length - 1;
@@ -87,7 +87,7 @@ export function RankingList({ entries, best, apparatus, options }: Ranking) {
                 </p>
                 <AwardIcon award={entry.award} />
                 <span className="figure text-xl leading-tight">
-                  {formatGrade(entry.total, precision)}
+                  {formatGrade(entry.total, totalDecimals)}
                 </span>
               </div>
               <p className="text-sm wrap-anywhere text-muted-foreground">{entry.clubName}</p>
@@ -100,7 +100,11 @@ export function RankingList({ entries, best, apparatus, options }: Ranking) {
                       </abbr>
                     </dt>
                     <dd>
-                      <Grade value={entry.values[key]} best={best[key]} precision={precision} />
+                      <Grade
+                        value={entry.values[key]}
+                        best={best[key]}
+                        decimals={getShownDecimals(options, key)}
+                      />
                     </dd>
                   </div>
                 ))}
@@ -155,11 +159,15 @@ export function RankingList({ entries, best, apparatus, options }: Ranking) {
                 </TableCell>
                 {apparatus.map((key) => (
                   <TableCell key={key} className="text-right">
-                    <Grade value={entry.values[key]} best={best[key]} precision={precision} />
+                    <Grade
+                      value={entry.values[key]}
+                      best={best[key]}
+                      decimals={getShownDecimals(options, key)}
+                    />
                   </TableCell>
                 ))}
                 <TableCell className="figure text-right text-lg">
-                  {formatGrade(entry.total, precision)}
+                  {formatGrade(entry.total, totalDecimals)}
                 </TableCell>
                 <TableCell>
                   <AwardIcon award={entry.award} />

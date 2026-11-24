@@ -74,7 +74,7 @@ export default {
     results: 'Results',
     footerHint: 'At most {{count}} lines.',
     decimals: 'Decimals',
-    decimalsHint: 'Never fewer than the scoring uses.',
+    decimalsHint: 'Never fewer than in the settings of the competition.',
     medalStyle: 'Medals',
     medalStyles: { letters: 'Letters (G, S, B)', icons: 'Symbols', none: 'None' },
     highlightBest: 'Highlight the best grade per apparatus',
