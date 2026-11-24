@@ -1,7 +1,8 @@
 import { redirect } from 'react-router';
 import type { Route } from './+types/index';
-import { userContext } from '~/context';
+import { languageContext, userContext } from '~/context';
 
 export function loader({ context }: Route.LoaderArgs) {
-  return redirect(context.get(userContext) ? '/home' : '/login');
+  const target = context.get(userContext) ? '/home' : `/${context.get(languageContext)}`;
+  return redirect(target, { headers: { Vary: 'Accept-Language, Cookie' } });
 }

@@ -5,6 +5,7 @@ import deCompetition from './de/competition';
 import deDisplay from './de/display';
 import deDivisions from './de/divisions';
 import deJudging from './de/judging';
+import deLanding from './de/landing';
 import deMails from './de/mails';
 import dePdf from './de/pdf';
 import deRanking from './de/ranking';
@@ -16,6 +17,7 @@ import enCompetition from './en/competition';
 import enDisplay from './en/display';
 import enDivisions from './en/divisions';
 import enJudging from './en/judging';
+import enLanding from './en/landing';
 import enMails from './en/mails';
 import enPdf from './en/pdf';
 import enRanking from './en/ranking';
@@ -27,6 +29,7 @@ import frCompetition from './fr/competition';
 import frDisplay from './fr/display';
 import frDivisions from './fr/divisions';
 import frJudging from './fr/judging';
+import frLanding from './fr/landing';
 import frMails from './fr/mails';
 import frPdf from './fr/pdf';
 import frRanking from './fr/ranking';
@@ -52,6 +55,7 @@ const de = {
   pdf: dePdf,
   settings: deSettings,
   mails: deMails,
+  landing: deLanding,
 };
 
 export type Resources = typeof de;
@@ -69,6 +73,7 @@ export const NAMESPACES = [
   'pdf',
   'settings',
   'mails',
+  'landing',
 ] as const satisfies (keyof Resources)[];
 
 /** t() of loaders and actions, see getT. */
@@ -88,6 +93,7 @@ export const resources = {
     pdf: enPdf,
     settings: enSettings,
     mails: enMails,
+    landing: enLanding,
   },
   fr: {
     common: frCommon,
@@ -101,5 +107,6 @@ export const resources = {
     pdf: frPdf,
     settings: frSettings,
     mails: frMails,
+    landing: frLanding,
   },
 } satisfies Record<Language, object>;

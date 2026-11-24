@@ -1,13 +1,13 @@
 import { invalidUrlMiddleware } from './invalidUrl.server';
 import { securityHeadersMiddleware } from './securityHeaders.server';
 
-async function referrerPolicy(path: string) {
+async function getHeaders(path: string) {
   const request = new Request(`http://localhost${path}`);
   const response = (await securityHeadersMiddleware(
     { request } as any,
     async () => new Response(),
   )) as Response;
-  return response.headers.get('Referrer-Policy');
+  return response.headers;
 }
 
 describe('securityHeadersMiddleware', () => {
@@ -16,7 +16,16 @@ describe('securityHeadersMiddleware', () => {
     ['/DISPLAY/abc', 'no-referrer'],
     ['/competitions/1/judges', 'strict-origin-when-cross-origin'],
   ])('sets the referrer policy of %s to %s', async (path, policy) => {
-    expect(await referrerPolicy(path)).toBe(policy);
+    expect((await getHeaders(path)).get('Referrer-Policy')).toBe(policy);
+  });
+
+  it('lets search engines find the landing page only', async () => {
+    for (const path of ['/', '/de', '/fr/', '/en']) {
+      expect((await getHeaders(path)).get('X-Robots-Tag')).toBeNull();
+    }
+    for (const path of ['/login', '/denied', '/judge/abc', '/en/x']) {
+      expect((await getHeaders(path)).get('X-Robots-Tag')).toBe('noindex');
+    }
   });
 });
 

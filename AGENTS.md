@@ -22,7 +22,8 @@ status in `docs/PARITY.md`.
 
 - `app/routes.ts` all routes. `routes/secured/competition` and `routes/secured/contest` are the
   admin pages, `routes/judge.tsx` and `routes/display.tsx` the pages opened with a link
-  (`accessUrl`, `resolveAccess`, `AccessGate`), `routes/api` resource routes.
+  (`accessUrl`, `resolveAccess`, `AccessGate`), `routes/api` resource routes. `routes/landing.tsx` is
+  the public page at `/de`, `/fr` and `/en`, the only one search engines may list.
 - `app/context.ts` what middlewares pass to loaders and actions.
 - `app/middlewares/` session and login, competition and contest access, roles, Origin check,
   security headers, language, toasts.
