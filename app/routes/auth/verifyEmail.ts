@@ -3,7 +3,7 @@ import { hashPassword, verifyPassword } from 'better-auth/crypto';
 import { data, redirect } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/verifyEmail';
-import { auth, authCookies, callAuth } from '~/lib/auth/auth.server';
+import { auth, authCookies, callAuth, CLIENT_ADDRESS_HEADER } from '~/lib/auth/auth.server';
 import { safeRedirect } from '~/lib/auth/redirect';
 import { parseForm } from '~/lib/forms.server';
 import { prisma } from '~/lib/prisma.server';
@@ -38,7 +38,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   const tooMany = data({ errors: { code: t('errors.tooManyRequests') } }, 429);
   const invalid = data({ errors: { code: t('auth:verify.invalid') } }, 400);
-  if (!mayCheckPassword(request.headers.get('x-forwarded-for') ?? '')) return tooMany;
+  if (!mayCheckPassword(request.headers.get(CLIENT_ADDRESS_HEADER) ?? '')) return tooMany;
   // Otherwise a code would confirm the account, and the password, of somebody who registered with
   // this address before.
   if (!(await checkPassword(email, password))) return invalid;

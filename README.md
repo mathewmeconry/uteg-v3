@@ -65,9 +65,9 @@ output contain personal data, keep them out of the repository.
 Every push to `main` publishes one to ghcr.io. Run exactly one instance: live updates and rate
 limits are kept in memory.
 
-Put a TLS proxy in front that **replaces** `X-Forwarded-For` with the client address. Rate limiting
-of logins relies on it: with no such header, or one with several addresses, all visitors share one
-limit. Don't buffer responses of `/api/**/events` and `/api/events/**` (server-sent events).
+Put a TLS proxy in front that **replaces** `X-Real-IP` with the client address. Rate limiting of
+logins relies on it: without it all visitors share one limit. Behind another proxy, such as
+Cloudflare, it must be the address of the visitor and not the one of that proxy. Don't buffer responses of `/api/**/events` and `/api/events/**` (server-sent events).
 The app rejects bodies over 1 MB, or 20 MB where files are uploaded, and bodies without
 `Content-Length`. Limit them in the proxy as well (e.g. `client_max_body_size 20m`).
 `GET /healthz` checks the database connection.

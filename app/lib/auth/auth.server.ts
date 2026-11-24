@@ -10,6 +10,9 @@ import { prisma } from '~/lib/prisma.server';
 import { LANGUAGES } from '~/locales';
 import { sendCodeMail, sendExistingAccountMail, sendResetMail } from './authMails.server';
 
+/** Set by the proxy, see README. */
+export const CLIENT_ADDRESS_HEADER = 'x-real-ip';
+
 export const auth = betterAuth({
   baseURL: env.APP_URL,
   secret: env.BETTER_AUTH_SECRET,
@@ -82,6 +85,8 @@ export const auth = betterAuth({
     '/forget-password/email-otp',
     '/sign-in/email-otp',
   ],
+  // Proxies append to X-Forwarded-For, so clients could choose a part of it.
+  advanced: { ipAddress: { ipAddressHeaders: [CLIENT_ADDRESS_HEADER] } },
   rateLimit: {
     enabled: true,
     storage: 'memory',
@@ -103,7 +108,7 @@ export type User = typeof auth.$Infer.Session.user;
  */
 export function callAuth(request: Request, path: string, body: Record<string, unknown>) {
   const headers = new Headers({ 'Content-Type': 'application/json', Origin: APP_ORIGIN });
-  for (const name of ['cookie', 'user-agent', 'x-forwarded-for']) {
+  for (const name of ['cookie', 'user-agent', CLIENT_ADDRESS_HEADER]) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
   }
