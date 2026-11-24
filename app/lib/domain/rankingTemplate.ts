@@ -33,7 +33,7 @@ export const rankingTemplateSchema = z.object({
     })
     .prefault({}),
   nameFormat: z.enum(['firstLast', 'lastFirst', 'separate']).default('firstLast'),
-  /** At least, a contest with precision 3 is always printed with 3. */
+  /** At least, what the contest shows with 3 is always printed with 3. */
   decimals: z.union([z.literal(2), z.literal(3)]).default(2),
   medalStyle: z.enum(['letters', 'icons', 'none']).default('letters'),
   highlightBest: z.boolean().default(true),

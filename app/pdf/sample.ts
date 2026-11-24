@@ -2,6 +2,7 @@ import { rankEntries } from '~/lib/domain/ranking';
 import type { RankingGroup } from './RankingDocument';
 
 const APPARATUS = ['reck', 'boden', 'schaukelringe', 'sprung'];
+const SCORING = { precision: 2, averaged: [], averageDecimals: 3 } as const;
 
 const PEOPLE = [
   ['Anna', 'Müller', 'TV Altstetten', 'Zürich'],
@@ -38,11 +39,11 @@ export function createSampleGroups(): RankingGroup[] {
       sex: 'FEMALE',
       status: null,
       missingGrades: 0,
-      precision: 2,
+      scoring: SCORING,
       apparatus: APPARATUS,
       ...rankEntries(entries, APPARATUS, {
+        ...SCORING,
         tieBreak: APPARATUS,
-        precision: 2,
         honourPercent: 50,
         honourRounding: 'round',
       }),

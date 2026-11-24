@@ -1,4 +1,4 @@
-import type { RankingOptions } from '~/modules/types';
+import type { GradePrecision, RankingOptions } from '~/modules/types';
 import { roundGrade } from './grade';
 
 export type Award = 'GOLD' | 'SILVER' | 'BRONZE' | 'HONOUR';
@@ -31,7 +31,10 @@ export function rankEntries<Entry extends RankingInput>(
       const values = Object.fromEntries(
         apparatusList.map((apparatus) => {
           const grade = entry.grades[apparatus];
-          return [apparatus, grade === undefined ? null : roundGrade(grade, options.precision)];
+          return [
+            apparatus,
+            grade === undefined ? null : roundGrade(grade, getPrecision(options, apparatus)),
+          ];
         }),
       );
       const total = apparatusList.reduce((sum, apparatus) => sum + (values[apparatus] ?? 0), 0);
@@ -58,6 +61,20 @@ export function rankEntries<Entry extends RankingInput>(
     ]),
   );
   return { entries: ranked, best };
+}
+
+/** Decimals the grade on an apparatus counts with. */
+export function getPrecision({ precision, averaged }: GradePrecision, apparatus: string) {
+  return averaged.includes(apparatus) ? 3 : precision;
+}
+
+/** Decimals the grade on an apparatus is shown with, without one the total. */
+export function getShownDecimals(
+  { precision, averaged, averageDecimals }: GradePrecision,
+  apparatus?: string,
+) {
+  const isAveraged = apparatus === undefined ? averaged.length > 0 : averaged.includes(apparatus);
+  return isAveraged && averageDecimals === 3 ? 3 : precision;
 }
 
 /** How many ranks get a medal or an Auszeichnung. */

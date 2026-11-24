@@ -233,7 +233,7 @@ describe('ranking PDF', () => {
   it('prints the decimals the ranks are based on and highlights what is best then', async () => {
     const group: RankingGroup = {
       ...k5,
-      precision: 3,
+      scoring: { ...k5.scoring, precision: 3 },
       best: { ...k5.best, reck: 9124 },
       entries: k5.entries.map((entry, index) => ({
         ...entry,
@@ -246,6 +246,23 @@ describe('ranking PDF', () => {
       true,
     ]);
     expect(page.items.find(({ text }) => text === '9.121')).toMatchObject({ bold: false });
+  });
+
+  it.each([
+    [3, '9.075'],
+    [2, '9.08'],
+  ] as const)('prints averages with %i decimals', async (averageDecimals, text) => {
+    const group: RankingGroup = {
+      ...k5,
+      scoring: { precision: 2, averaged: ['sprung'], averageDecimals },
+      entries: [
+        { ...k5.entries[0], values: { ...k5.entries[0].values, reck: 9800, sprung: 9075 } },
+      ],
+    };
+    const [page] = await render({ decimals: 2 }, { groups: [group] });
+    const texts = page.items.map((item) => item.text);
+    expect(texts).toContain(text);
+    expect(texts).toContain('9.80');
   });
 
   // Both made react-pdf add pages forever.

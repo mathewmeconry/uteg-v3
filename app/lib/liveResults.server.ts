@@ -1,5 +1,6 @@
 import { getContestModule } from '~/modules/registry';
 import { formatGrade } from './domain/grade';
+import { getShownDecimals } from './domain/ranking';
 import { getJudgingState } from './judging.server';
 import { prisma } from './prisma.server';
 
@@ -19,7 +20,7 @@ export async function getLatestGrades(competitionId: string, limit: number) {
   return grades.map(({ id, apparatus, value, entry }) => {
     const { contest, division, starter } = entry;
     const category = entry.category ?? division?.category ?? '';
-    const { precision } = getContestModule(contest).rankingOptions(category, starter.sex);
+    const options = getContestModule(contest).rankingOptions(category, starter.sex);
     return {
       id,
       apparatus,
@@ -27,7 +28,7 @@ export async function getLatestGrades(competitionId: string, limit: number) {
       firstname: starter.firstname,
       lastname: starter.lastname,
       clubName: starter.club.name,
-      grade: formatGrade(value, precision),
+      grade: formatGrade(value, getShownDecimals(options, apparatus)),
     };
   });
 }

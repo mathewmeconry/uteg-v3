@@ -8,11 +8,18 @@ export type Aggregation = 'NONE' | 'MAX' | 'MIN' | 'AVG';
 /** How a grade is entered: one value, or several attempts combined into one. */
 export type InputRule = { attempts: number; aggregation: Aggregation };
 
-export type RankingOptions = {
-  /** Apparatus compared in order when totals are equal. Only orders the list, ranks stay shared. */
-  tieBreak: readonly string[];
+export type GradePrecision = {
   /** Decimals each grade is rounded to before summing. */
   precision: 2 | 3;
+  /** Apparatus whose grade is an average of attempts. It always counts in thousandths. */
+  averaged: readonly string[];
+  /** Decimals averages, and totals with one, are shown with. At least `precision`. */
+  averageDecimals: 2 | 3;
+};
+
+export type RankingOptions = GradePrecision & {
+  /** Apparatus compared in order when totals are equal. Only orders the list, ranks stay shared. */
+  tieBreak: readonly string[];
   /** Share of the ranked entries, in percent, that get a medal or an Auszeichnung. */
   honourPercent: number;
   honourRounding: 'round' | 'ceil';

@@ -71,7 +71,7 @@ export default {
     results: 'Resultate',
     footerHint: 'Höchstens {{count}} Zeilen.',
     decimals: 'Nachkommastellen',
-    decimalsHint: 'Nie weniger als in der Wertung.',
+    decimalsHint: 'Nie weniger als unter «Wertung» eingestellt.',
     medalStyle: 'Medaillen',
     medalStyles: { letters: 'Buchstaben (G, S, B)', icons: 'Symbole', none: 'Keine' },
     highlightBest: 'Beste Noten pro Gerät hervorheben',

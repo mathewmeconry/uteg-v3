@@ -31,7 +31,7 @@ export async function loadRankingGroup(
     category,
     sex,
     status: hasRunning ? status : null,
-    precision: options.precision,
+    scoring: options,
   };
 }
 

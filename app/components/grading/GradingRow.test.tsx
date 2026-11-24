@@ -26,6 +26,7 @@ function createSlot(patch: Partial<TabletSlot> = {}): TabletSlot {
     withdrawn: false,
     inputRule: { attempts: 1, aggregation: 'NONE' },
     precision: 2,
+    decimals: 2,
     grade: null,
     apparatus: 'reck',
     ...patch,

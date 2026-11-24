@@ -1,11 +1,13 @@
 import type { RankingOptions } from '~/modules/types';
-import { getHonourQuota, rankEntries } from './ranking';
+import { getHonourQuota, getShownDecimals, rankEntries } from './ranking';
 
 const WOMEN = ['reck', 'boden', 'schaukelringe', 'sprung'];
 
 const OPTIONS: RankingOptions = {
   tieBreak: ['schaukelringe', 'boden', 'reck', 'barren'],
   precision: 2,
+  averaged: [],
+  averageDecimals: 3,
   honourPercent: 33,
   honourRounding: 'round',
 };
@@ -21,6 +23,23 @@ function rank(totals: number[], options: Partial<RankingOptions> = {}) {
     { ...OPTIONS, ...options },
   ).entries;
 }
+
+describe('getShownDecimals', () => {
+  const shown = (options: Partial<RankingOptions>) =>
+    ['reck', 'sprung', undefined].map((apparatus) =>
+      getShownDecimals({ ...OPTIONS, ...options }, apparatus),
+    );
+
+  it('only shows thousandths of averages and totals with one', () => {
+    expect(shown({})).toEqual([2, 2, 2]);
+    expect(shown({ averaged: ['sprung'] })).toEqual([2, 3, 3]);
+    expect(shown({ averaged: ['sprung'], averageDecimals: 2 })).toEqual([2, 2, 2]);
+  });
+
+  it('is never less than the precision', () => {
+    expect(shown({ averaged: ['sprung'], averageDecimals: 2, precision: 3 })).toEqual([3, 3, 3]);
+  });
+});
 
 describe('rankEntries', () => {
   it('sums the apparatus, a missing grade counts 0', () => {
