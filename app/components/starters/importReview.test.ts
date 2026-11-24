@@ -51,6 +51,15 @@ describe('reviewReducer', () => {
     expect(all.map(({ firstname }) => firstname)).toEqual(['Muster', 'Frei']);
   });
 
+  it('sets the sex of the rows without one', () => {
+    const rows = load({ sex: undefined, category: 'KD' }, { sex: 'FEMALE' });
+    const set = reviewReducer(rows, { type: 'setMissingSex', sex: 'MALE' });
+    expect(set.map(({ sex, category }) => [sex, category])).toEqual([
+      ['MALE', 'KH'],
+      ['FEMALE', 'K5'],
+    ]);
+  });
+
   it('changes, removes and keeps rows by key', () => {
     let rows = load({}, {}, {});
     rows = reviewReducer(rows, { type: 'remove', key: 0 });

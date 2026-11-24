@@ -111,7 +111,7 @@ export default {
     drop: 'Dateien hierher ziehen oder auswählen',
     limits: 'XLSX, höchstens {{size}} MB pro Datei und {{rows}} Personen insgesamt',
     columnsHint:
-      'Alle Tabellenblätter mit den Spalten Vorname, Nachname, Jahrgang und Geschlecht werden gelesen. STV-ID, Kategorie und Abteilung sind freiwillig.',
+      'Alle Tabellenblätter mit den Spalten Vorname, Nachname und Jahrgang werden gelesen. STV-ID, Geschlecht, Kategorie und Abteilung sind freiwillig.',
     template: 'Vorlage herunterladen',
     reading: 'Dateien werden gelesen …',
     removeFile: '{{name}} entfernen',
@@ -126,6 +126,7 @@ export default {
     toReview: 'Prüfen',
     swap: 'Vor- und Nachname von Zeile {{row}} tauschen',
     swapAll: 'Alle Vor- und Nachnamen tauschen',
+    setMissingSex: 'Geschlecht für alle ohne Angabe',
     removeRow: 'Zeile {{row}} entfernen',
     row: 'Zeile {{row}}',
     field: '{{label}}, Zeile {{row}}',

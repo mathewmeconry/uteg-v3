@@ -1,6 +1,7 @@
 import { categoryForSex, type ImportedStarter } from '~/lib/domain/starterImport';
 import { starterSchema } from '~/lib/domain/starter';
 import type { ContestOptions } from '~/lib/contestOptions.server';
+import type { Sex } from '~/modules/types';
 
 /** A row being reviewed. Numbers are kept as typed. */
 export type ReviewRow = {
@@ -20,6 +21,7 @@ export type ReviewAction =
   | { type: 'change'; key: number; field: ReviewField; value: string }
   | { type: 'swap'; key: number }
   | { type: 'swapAll' }
+  | { type: 'setMissingSex'; sex: Sex }
   | { type: 'remove'; key: number }
   | { type: 'keep'; keys: number[] };
 
@@ -36,6 +38,8 @@ export function reviewReducer(rows: ReviewRow[], action: ReviewAction): ReviewRo
       return update(action.key, swapNames);
     case 'swapAll':
       return rows.map(swapNames);
+    case 'setMissingSex':
+      return rows.map((row) => (row.sex ? row : changeField(row, 'sex', action.sex)));
     case 'remove':
       return rows.filter(({ key }) => key !== action.key);
     case 'keep':

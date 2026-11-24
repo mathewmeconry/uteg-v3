@@ -114,7 +114,7 @@ export default {
     drop: 'Glisser les fichiers ici ou les choisir',
     limits: 'XLSX, au maximum {{size}} Mo par fichier et {{rows}} personnes au total',
     columnsHint:
-      'Toutes les feuilles avec les colonnes Prénom, Nom, Année de naissance et Sexe sont lues. ID FSG, Catégorie et Division sont facultatifs.',
+      'Toutes les feuilles avec les colonnes Prénom, Nom et Année de naissance sont lues. ID FSG, Sexe, Catégorie et Division sont facultatifs.',
     template: 'Télécharger le modèle',
     reading: 'Lecture des fichiers …',
     removeFile: 'Retirer {{name}}',
@@ -129,6 +129,7 @@ export default {
     toReview: 'Vérifier',
     swap: 'Permuter le prénom et le nom de la ligne {{row}}',
     swapAll: 'Permuter tous les prénoms et noms',
+    setMissingSex: 'Sexe pour toutes les lignes sans indication',
     removeRow: 'Retirer la ligne {{row}}',
     row: 'Ligne {{row}}',
     field: '{{label}}, ligne {{row}}',

@@ -33,7 +33,8 @@ const HEADERS: Record<Field, readonly string[]> = {
   divisionNumber: ['division', 'abteilung', 'div', 'abt'],
 };
 
-const REQUIRED_FIELDS: readonly Field[] = ['firstname', 'lastname', 'birthYear', 'sex'];
+// Without a sex column the sex is chosen in the review.
+const REQUIRED_FIELDS: readonly Field[] = ['firstname', 'lastname', 'birthYear'];
 
 const SEXES: Record<string, Sex> = {
   m: 'MALE',
@@ -58,8 +59,8 @@ export function parseSheets(sheets: readonly SheetCell[][][]): ImportedStarter[]
 }
 
 /**
- * The starters of a sheet, null when its header row is not one of a starter list. With `onlySex`
- * the sex may be missing.
+ * The starters of a sheet, null when its header row is not one of a starter list. `onlySex` is the
+ * sex of rows that do not give one.
  */
 export function parseSheet(rows: readonly SheetCell[][], onlySex?: Sex): ImportedStarter[] | null {
   const [header, ...data] = rows
@@ -68,9 +69,7 @@ export function parseSheet(rows: readonly SheetCell[][], onlySex?: Sex): Importe
   if (!header) return null;
 
   const columns = getColumns(header);
-  const isMissing = (field: Field) =>
-    columns[field] === undefined && !(field === 'sex' && onlySex !== undefined);
-  if (REQUIRED_FIELDS.some(isMissing)) return null;
+  if (REQUIRED_FIELDS.some((field) => columns[field] === undefined)) return null;
 
   return data.map((row) => {
     const get = (field: Field) => row[columns[field] ?? -1] ?? '';

@@ -4,9 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { EmptyState } from '~/components/EmptyState';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
+import { useSexes } from '~/hooks/useSexes';
 import type { ContestOptions } from '~/lib/contestOptions.server';
 import { categoryName } from '~/lib/categoryName';
 import { cn } from '~/lib/utils';
+import type { Sex } from '~/modules/types';
 import {
   invalidFields,
   isDivisionUnknown,
@@ -30,7 +32,9 @@ export function ImportReview({
   dispatch: Dispatch<ReviewAction>;
 }) {
   const { t } = useTranslation(['starters', 'common']);
+  const sexes = useSexes();
   const listRef = useRef<HTMLDivElement>(null);
+  const isSexMissing = rows.some(({ sex }) => !sex);
   const removedIndex = useRef<number>(null);
 
   const remove = useCallback(
@@ -56,11 +60,30 @@ export function ImportReview({
         <EmptyState title={t('import.noRows')} />
       ) : (
         <>
-          <div>
+          <div className="flex flex-wrap items-center gap-3">
             <Button type="button" variant="outline" onClick={() => dispatch({ type: 'swapAll' })}>
               <ArrowLeftRightIcon aria-hidden />
               {t('import.swapAll')}
             </Button>
+            {isSexMissing && (
+              <NativeSelect
+                className="w-auto"
+                value=""
+                aria-label={t('import.setMissingSex')}
+                onChange={(event) =>
+                  dispatch({ type: 'setMissingSex', sex: event.target.value as Sex })
+                }
+              >
+                <option value="" disabled>
+                  {t('import.setMissingSex')}
+                </option>
+                {sexes.map((sex) => (
+                  <option key={sex} value={sex}>
+                    {t(`common:sex.${sex}`)}
+                  </option>
+                ))}
+              </NativeSelect>
+            )}
           </div>
           <div
             aria-hidden

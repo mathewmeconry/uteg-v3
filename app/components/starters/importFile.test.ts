@@ -52,6 +52,26 @@ describe('readStarterFile', () => {
     });
   });
 
+  it('reads a starter sheet without a sex column among other sheets', async () => {
+    const result = await readStarterFile(
+      await file({
+        Vereinsdaten: [
+          ['Verein', 'BTV'],
+          ['Vorname', 'Kerstin'],
+        ],
+        'Anmeldung Ti': [
+          ['STV-Nummer', 'VORNAME', 'NACHNAME', 'Jahrgang', 'Kategorie', 'Vereinsname'],
+          [3824142, 'Maila', 'Grossmann', 2018, 1, 'BTV'],
+        ],
+        Tabelle1: [[1, null, 2022]],
+      }),
+    );
+    expect(result).toEqual({
+      starters: [expect.objectContaining({ firstname: 'Maila', sex: undefined, category: 'K1' })],
+      skippedSheets: ['Vereinsdaten', 'Tabelle1'],
+    });
+  });
+
   it('reads the result of formulas', async () => {
     const result = await readStarterFile(
       await file({
