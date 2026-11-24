@@ -12,6 +12,7 @@ export function DocumentLanguageToggle() {
     <ToggleGroup
       type="single"
       variant="outline"
+      size="lg"
       aria-label={t('documentLanguage')}
       title={t('documentLanguage')}
       value={language}
