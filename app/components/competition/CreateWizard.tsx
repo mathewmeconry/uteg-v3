@@ -12,7 +12,8 @@ import { FieldError, FieldLabel } from '~/components/ui/field';
 import type { MemberInput } from '~/lib/competitions.server';
 import { formatDateRange } from '~/lib/format';
 import { egtModule } from '~/modules/egt/module';
-import { CompetitionFields, GroundsField } from './CompetitionFields';
+import { SEXES } from '~/modules/types';
+import { CompetitionFields, GroundsField, SexesField, type Sexes } from './CompetitionFields';
 import { HonourPercentFields } from './HonourPercentFields';
 import { LogoField } from './LogoField';
 import { RoleSelect } from './RoleSelect';
@@ -22,6 +23,7 @@ type Step = (typeof STEPS)[number];
 
 const FIELD_STEPS: Record<string, Step> = {
   grounds: 'setup',
+  sexes: 'setup',
   modules: 'setup',
   config: 'modules',
   members: 'members',
@@ -53,6 +55,7 @@ export function CreateWizard({
 }) {
   const { t, i18n } = useTranslation(['competition', 'common', 'settings']);
   const [step, setStep] = useState<Step>('general');
+  const [sexes, setSexes] = useState<Sexes>('BOTH');
   const [modules, setModules] = useState<string[]>([...MODULES]);
   const [modulesError, setModulesError] = useState(false);
   const [honourPercent, setHonourPercent] = useState(egtModule.defaultConfig.honourPercent);
@@ -157,6 +160,7 @@ export function CreateWizard({
 
           <Section step="setup" current={step}>
             <GroundsField error={errors.grounds} />
+            <SexesField error={errors.sexes} value={sexes} onChange={setSexes} />
             <fieldset className="grid gap-3">
               <legend className="mb-2 text-sm font-semibold">{t('fields.modules')}</legend>
               {MODULES.map((module) => (
@@ -189,7 +193,11 @@ export function CreateWizard({
 
           <Section step="modules" current={step}>
             <p className="text-muted-foreground">{t('wizard.modulesText')}</p>
-            <HonourPercentFields value={honourPercent} onChange={setHonourPercent} />
+            <HonourPercentFields
+              sexes={sexes === 'BOTH' ? SEXES : [sexes]}
+              value={honourPercent}
+              onChange={setHonourPercent}
+            />
             {errors.config && <FieldError>{errors.config}</FieldError>}
           </Section>
 
@@ -277,6 +285,7 @@ export function CreateWizard({
                 </ReviewRow>
                 <ReviewRow step="setup" onEdit={goTo}>
                   <p>{`${t('fields.grounds')}: ${Number(review.get('grounds'))}`}</p>
+                  <p>{t(sexes === 'BOTH' ? 'fields.sexesBoth' : `fields.sexes${sexes}`)}</p>
                   {MODULES.filter((module) => modules.includes(module)).map((module) => (
                     <p key={module}>{t(`modules.${module}`)}</p>
                   ))}

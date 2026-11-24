@@ -224,6 +224,16 @@
   scrollbar-width: none;
 }
 
+/* A grade display: ink in the dark theme, light with a deeper coral in the light one. */
+@utility display-surface {
+  --ink: light-dark(oklch(0.975 var(--tint-soft)), oklch(0.27 var(--tint)));
+  --ink-foreground: light-dark(oklch(0.23 var(--tint)), oklch(0.975 var(--tint-soft)));
+  --ink-muted: light-dark(oklch(0.43 var(--tint)), oklch(0.8 var(--tint-soft)));
+  --ink-accent: light-dark(oklch(0.9 var(--tint-soft)), oklch(0.36 var(--tint)));
+  --brand: light-dark(oklch(0.55 0.19 35), oklch(0.78 0.16 35));
+  --panel: light-dark(oklch(1 0 0), oklch(0.19 var(--tint)));
+}
+
 /* A new grade on a display: lights up and settles. */
 @utility new-grade {
   animation: new-grade 1.6s ease-out;

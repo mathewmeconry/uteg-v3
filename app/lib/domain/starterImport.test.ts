@@ -7,6 +7,15 @@ function parseRow(...row: SheetCell[]) {
 }
 
 describe('parseSheet', () => {
+  it('needs no sex when only one takes part', () => {
+    const sheet = [
+      ['Vorname', 'Nachname', 'Jahrgang'],
+      ['Anna', 'Muster', 2010],
+    ];
+    expect(parseSheet(sheet)).toBeNull();
+    expect(parseSheet(sheet, 'FEMALE')).toMatchObject([{ firstname: 'Anna', sex: 'FEMALE' }]);
+  });
+
   it('reads a row', () => {
     expect(parseRow('1234', 'Anna', 'Muster', 2010, 'w', 'K5', 2)).toEqual({
       stvId: '1234',

@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { useSexes } from '~/hooks/useSexes';
 import { cn } from '~/lib/utils';
 import { SORT_KEYS, type Division } from './divisionList';
 
@@ -30,6 +31,7 @@ export function DivisionFilters({
   onSearch: (search: string) => void;
 }) {
   const { t } = useTranslation(['divisions', 'common']);
+  const sexes = useSexes();
   const [params, setParams] = useSearchParams();
   // Only on phones, elsewhere they are always shown.
   const [isOpen, setIsOpen] = useState(false);
@@ -56,7 +58,7 @@ export function DivisionFilters({
     {
       key: 'sex',
       label: t('common:fields.sex'),
-      options: (['FEMALE', 'MALE'] as const).map((value) => [value, t(`common:sex.${value}`)]),
+      options: sexes.map((value) => [value, t(`common:sex.${value}`)]),
     },
     {
       key: 'ground',
@@ -113,16 +115,18 @@ export function DivisionFilters({
           !isOpen && 'max-sm:hidden',
         )}
       >
-        {filters.map(({ key, label, options }) => (
-          <FilterSelect
-            key={key}
-            label={label}
-            value={params.get(key) ?? ALL}
-            isActive={params.has(key)}
-            options={[[ALL, t('filters.all')], ...options]}
-            onChange={(value) => set(key, value)}
-          />
-        ))}
+        {filters
+          .filter(({ key }) => key !== 'sex' || sexes.length > 1)
+          .map(({ key, label, options }) => (
+            <FilterSelect
+              key={key}
+              label={label}
+              value={params.get(key) ?? ALL}
+              isActive={params.has(key)}
+              options={[[ALL, t('filters.all')], ...options]}
+              onChange={(value) => set(key, value)}
+            />
+          ))}
         <FilterSelect
           label={t('filters.sort')}
           value={params.get('sort') ?? SORT_KEYS[0]}

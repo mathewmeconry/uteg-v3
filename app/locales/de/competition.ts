@@ -6,6 +6,10 @@ export default {
   fields: {
     startDate: 'Erster Tag',
     endDate: 'Letzter Tag',
+    sexes: 'Wer nimmt teil',
+    sexesBoth: 'Frauen und Männer',
+    sexesFEMALE: 'Nur Frauen',
+    sexesMALE: 'Nur Männer',
     grounds: 'Anzahl Wettkampfplätze',
     groundsHint: 'Jeder Platz hat eigene Geräte und eigene Zugänge für die Wertungsrichter.',
     logo: 'Logo',

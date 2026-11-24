@@ -13,12 +13,12 @@ import { prisma } from './prisma.server';
 export async function getOrCreateJudgeLinks(competitionId: string) {
   return prisma.$transaction(async (tx) => {
     // Someone else may open the page or remove a ground at the same time.
-    const { grounds } = await lockCompetition(tx, competitionId);
+    const { grounds, sexes } = await lockCompetition(tx, competitionId);
     const contests = await tx.contest.findMany({
       where: { competitionId },
       orderBy: { position: 'asc' },
     });
-    const apparatusList = getContestsApparatus(contests);
+    const apparatusList = getContestsApparatus(contests, sexes);
     const wanted = Array.from({ length: grounds }, (_, index) =>
       apparatusList.map((apparatus) => ({ ground: index + 1, apparatus })),
     ).flat();

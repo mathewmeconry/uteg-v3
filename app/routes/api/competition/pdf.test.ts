@@ -472,7 +472,7 @@ describe('judging sheets', () => {
       firstname: 'Noah',
       sex: 'MALE',
       divisionId: second.id,
-      lineupId: second.lineup('reck'),
+      lineupId: second.lineup('boden'),
     });
     const pages = await readText(
       await callRoute(sheets.action, {

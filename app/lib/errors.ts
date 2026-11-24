@@ -16,6 +16,8 @@ export type DomainErrorCode =
   | 'GRADES_MISSING'
   | 'GRADE_CHANGED'
   | 'GROUND_IN_USE'
+  | 'SEX_IN_USE'
+  | 'SEX_NOT_ALLOWED'
   | 'IMAGE_TOO_LARGE'
   | 'INVALID_APPARATUS'
   | 'INVALID_CATEGORY'

@@ -1,9 +1,13 @@
 import { z } from 'zod';
 import type { ContestModule, Sex } from '../types';
 
-/** Rotation order. The men's Barren comes last. */
 export const APPARATUS = ['reck', 'boden', 'schaukelringe', 'sprung', 'barren'] as const;
 export type EgtApparatus = (typeof APPARATUS)[number];
+
+const ROTATION: Record<Sex, readonly EgtApparatus[]> = {
+  FEMALE: ['reck', 'boden', 'schaukelringe', 'sprung'],
+  MALE: ['boden', 'schaukelringe', 'sprung', 'barren', 'reck'],
+};
 
 const CATEGORIES: Record<Sex, readonly string[]> = {
   FEMALE: ['K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'K7', 'KD'],
@@ -59,8 +63,7 @@ export const egtModule: ContestModule<EgtConfig> = {
       },
     },
   },
-  apparatus: (_config, sex) =>
-    sex === 'MALE' ? APPARATUS : APPARATUS.filter((apparatus) => apparatus !== 'barren'),
+  apparatus: (_config, sex) => ROTATION[sex],
   categories: (_config, sex) => CATEGORIES[sex],
   inputRule(config, apparatus, category) {
     const inputs = config.inputs[apparatus as EgtApparatus];

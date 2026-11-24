@@ -1,4 +1,4 @@
-import { Prisma } from '~/generated/prisma/client';
+import { Prisma, type Sex } from '~/generated/prisma/client';
 import { DomainError } from './errors';
 
 // Always lock in this order: competition, athletes, contests, divisions. NO KEY UPDATE does not
@@ -6,8 +6,9 @@ import { DomainError } from './errors';
 
 /** Serialises changes to the competition's starters, divisions and members. */
 export async function lockCompetition(tx: Prisma.TransactionClient, competitionId: string) {
-  const rows = await tx.$queryRaw<{ id: string; grounds: number }[]>`
-    SELECT id, grounds FROM competition WHERE id = ${competitionId} FOR NO KEY UPDATE`;
+  const rows = await tx.$queryRaw<{ id: string; grounds: number; sexes: Sex[] }[]>`
+    SELECT id, grounds, sexes::text[] FROM competition
+    WHERE id = ${competitionId} FOR NO KEY UPDATE`;
   if (rows.length === 0) throw new DomainError('NOT_FOUND');
   return rows[0];
 }

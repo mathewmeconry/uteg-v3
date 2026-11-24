@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ServerT } from '~/locales';
+import { SEXES, type Sex } from '~/modules/types';
 
 /** The details of a competition as sent by a form. */
 export function competitionSchema(t: ServerT) {
@@ -21,6 +22,10 @@ export function competitionSchema(t: ServerT) {
       startDate: date,
       endDate: date,
       grounds: z.coerce.number(grounds).int(grounds).min(1, grounds).max(20, grounds),
+      sexes: z
+        .enum([...SEXES, 'BOTH'])
+        .transform((value): Sex[] => (value === 'BOTH' ? [...SEXES] : [value]))
+        .optional(),
     })
     .refine(({ startDate, endDate }) => startDate <= endDate, {
       path: ['endDate'],

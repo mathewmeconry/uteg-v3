@@ -1,5 +1,5 @@
 import { egtModule } from './egt/module';
-import type { ContestModule } from './types';
+import { SEXES, type ContestModule, type Sex } from './types';
 
 const modules: Record<string, ContestModule> = {
   // Config is only ever read through configSchema, see getContestModule.
@@ -36,11 +36,11 @@ export function getContestModule(contest: StoredContest) {
   return bindModule(getModule(contest.module), contest.config);
 }
 
-/** Every apparatus of the contests, in rotation order. */
-export function getContestsApparatus(contests: readonly StoredContest[]) {
+/** Every apparatus of the contests for these sexes, in rotation order. */
+export function getContestsApparatus(contests: readonly StoredContest[], sexes: readonly Sex[]) {
   const keys = contests.flatMap((contest) => {
     const module = getContestModule(contest);
-    return [...module.apparatus('MALE'), ...module.apparatus('FEMALE')];
+    return SEXES.filter((sex) => sexes.includes(sex)).flatMap((sex) => module.apparatus(sex));
   });
   return [...new Set(keys)];
 }
