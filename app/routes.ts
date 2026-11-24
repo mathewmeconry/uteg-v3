@@ -6,7 +6,10 @@ export default [
   layout('routes/auth/layout.tsx', [
     route('login', 'routes/auth/login.tsx'),
     route('register', 'routes/auth/register.tsx'),
+    route('forgot-password', 'routes/auth/forgotPassword.tsx'),
+    route('reset-password', 'routes/auth/resetPassword.tsx'),
   ]),
+  route('verify-email', 'routes/auth/verifyEmail.ts'),
   route('logout', 'routes/auth/logout.ts'),
 
   layout('routes/secured/layout.tsx', [

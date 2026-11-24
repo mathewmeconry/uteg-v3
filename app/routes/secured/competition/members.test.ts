@@ -1,5 +1,7 @@
 import type { Role } from '~/generated/prisma/client';
 import { listMembers } from '~/lib/competitions.server';
+import { removeInvitation } from '~/lib/invitations.server';
+import { sendMail } from '~/lib/mail.server';
 import { prisma } from '~/lib/prisma.server';
 import { callRoute } from '~/tests/competitionRoutes';
 import { addMember, createCompetition, createUser, truncateTables } from '~/tests/helpers';
@@ -48,7 +50,6 @@ describe('members', () => {
   });
 
   it.each([
-    ['an unknown address', 'nobody@example.com'],
     ['a member', 'owner@example.com'],
     ['no address', 'x'],
   ])('does not add %s', async (_, email) => {
@@ -57,6 +58,34 @@ describe('members', () => {
     expect(status).toBe(400);
     expect(Object.keys(data.errors)).toEqual(['email']);
     expect(await listMembers(competition.id)).toHaveLength(2);
+  });
+
+  it('invites an address without an account, again with another role', async () => {
+    const { competition, load, post } = await setup();
+    await post({ intent: 'add', email: ' New@example.com', role: 'VIEWER' });
+    await post({ intent: 'add', email: 'new@example.com', role: 'EDITOR' });
+    const { invitations } = (await load()).data;
+    expect(invitations).toMatchObject([{ email: 'new@example.com', role: 'EDITOR' }]);
+    expect(vi.mocked(sendMail).mock.lastCall![0]).toMatchObject({
+      to: 'new@example.com',
+      subject: expect.stringContaining(competition.name),
+      text: expect.stringContaining('/register'),
+    });
+
+    // Not from another competition.
+    const other = await createCompetition();
+    await removeInvitation(other.id, invitations[0].id);
+    expect((await load()).data.invitations).toHaveLength(1);
+    await post({ intent: 'withdraw', invitationId: invitations[0].id });
+    expect((await load()).data.invitations).toEqual([]);
+  });
+
+  it('keeps an invitation whose mail could not be sent', async () => {
+    const { load, post } = await setup();
+    vi.mocked(sendMail).mockRejectedValueOnce(new Error('Resend answered 500'));
+    const { toasts } = await post({ intent: 'add', email: 'new@example.com', role: 'VIEWER' });
+    expect(toasts).toMatchObject([{ type: 'error' }]);
+    expect((await load()).data.invitations).toHaveLength(1);
   });
 
   it('changes roles and removes members', async () => {
@@ -97,6 +126,7 @@ describe('members', () => {
     await createUser({ email: 'helper@example.com' });
     const forms: Record<string, string>[] = [
       { intent: 'add', email: 'helper@example.com', role: 'OWNER' },
+      { intent: 'withdraw', invitationId: 'x' },
       { intent: 'role', userId: owner.id, role: 'VIEWER' },
       { intent: 'remove', userId: owner.id },
     ];

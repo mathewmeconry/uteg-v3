@@ -18,7 +18,7 @@ Paths in brackets point into `uteg-v2/frontend/src` unless prefixed `BE:` (`uteg
 - [x] P-12 Dashboard: starters, clubs, grades, **live results and progress per ground and apparatus**
 - [x] P-13 Settings: name, location, dates (not saved in v2), grounds, logo upload/delete
 - [x] P-14 **Contest settings**: honour %, quota rounding, precision, tie-break, vault inputs per category
-- [x] P-15 **Members**: add by email, role owner/editor/viewer, remove
+- [x] P-15 **Members**: add by email, invite addresses without an account, role owner/editor/viewer, remove
 - [x] P-16 **Delete competition**
 
 ## Starters

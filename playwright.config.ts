@@ -32,6 +32,9 @@ export default defineConfig({
       TEST_DB_NAME: DATABASE,
       DATABASE_URL: `${testDatabaseServer}/${DATABASE}`,
       BETTER_AUTH_SECRET: 'only-used-for-end-to-end-tests-0123456789',
+      // Required in production. The test sends no mails.
+      RESEND_API_KEY: 'not-a-key',
+      MAIL_FROM: 'e2e@example.com',
     },
   },
 });

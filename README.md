@@ -22,6 +22,8 @@ pnpm dev                   # http://localhost:5199
 | `DATABASE_URL`       | PostgreSQL connection                                                                                |
 | `APP_URL`            | Address the app is opened with. Requests from any other origin are rejected, also from a LAN address |
 | `BETTER_AUTH_SECRET` | At least 32 random characters, signs the session cookies                                             |
+| `RESEND_API_KEY`     | Key to send mails with [Resend](https://resend.com). Required in production, else mails are logged   |
+| `MAIL_FROM`          | Sender of mails, of a domain verified with Resend: `UTEG <noreply@example.com>`                      |
 | `LOG_LEVEL`          | pino level, `info` by default                                                                        |
 
 To judge from a tablet in the local network, set `APP_URL` to the address of the computer

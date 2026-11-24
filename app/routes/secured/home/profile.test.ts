@@ -1,44 +1,38 @@
 import { RouterContextProvider } from 'react-router';
 import { userContext } from '~/context';
-import { auth, authCookies } from '~/lib/auth/auth.server';
+import { sendMail } from '~/lib/mail.server';
 import { prisma } from '~/lib/prisma.server';
 import { truncateTables } from '~/tests/helpers';
+import { signUp } from '~/tests/signUp';
 import { action } from './profile';
 
 beforeEach(truncateTables);
 
 const PASSWORD = 'only-for-tests';
 
-async function signUp(email: string) {
-  const { headers, response } = await auth.api.signUpEmail({
-    body: { email, name: email, password: PASSWORD },
-    returnHeaders: true,
-  });
-  const cookie = authCookies({ headers })
-    .getSetCookie()
-    .map((value) => value.split(';')[0])
-    .join('; ');
+async function setup(email: string) {
+  const { user, cookie } = await signUp({ email, password: PASSWORD });
 
-  return async (newEmail: string, password: string) => {
+  const post = async (form: Record<string, string>) => {
     const context = new RouterContextProvider();
-    context.set(userContext, response.user as any);
-    const body = new URLSearchParams({
-      intent: 'email',
-      email: newEmail,
-      emailPassword: password,
-    });
+    context.set(userContext, user as any);
     const request = new Request('http://localhost/profile', {
       method: 'POST',
       headers: { cookie },
-      body,
+      body: new URLSearchParams(form),
     });
     const result: any = await action({ request, context } as any);
-    return result.init?.status ?? result.status;
+    return result.init?.status ?? result.status ?? 200;
+  };
+  return {
+    change: (newEmail: string, password: string) =>
+      post({ intent: 'email', email: newEmail, emailPassword: password }),
+    enterCode: (newEmail: string, code: string) => post({ intent: 'emailCode', newEmail, code }),
   };
 }
 
 it('limits guessing the password with the email form', async () => {
-  const change = await signUp('a@example.com');
+  const { change } = await setup('a@example.com');
   for (let attempt = 0; attempt < 10; attempt++) {
     expect(await change('b@example.com', 'wrong')).toBe(400);
   }
@@ -46,7 +40,23 @@ it('limits guessing the password with the email form', async () => {
   expect(await prisma.user.count({ where: { email: 'a@example.com' } })).toBe(1);
 
   // Others are not affected.
-  const other = await signUp('c@example.com');
-  expect(await other('d@example.com', PASSWORD)).toBe(302);
-  expect(await prisma.user.count({ where: { email: 'd@example.com' } })).toBe(1);
+  const other = await setup('c@example.com');
+  expect(await other.change('d@example.com', PASSWORD)).toBe(200);
+});
+
+it('changes the address with the code sent to the new one', async () => {
+  const { change, enterCode } = await setup('e@example.com');
+  expect(await change('f@example.com', PASSWORD)).toBe(200);
+  const { to, text } = vi.mocked(sendMail).mock.lastCall![0];
+  expect(to).toBe('f@example.com');
+  const code = /\b\d{6}\b/.exec(text)![0];
+
+  expect(await enterCode('f@example.com', 'x')).toBe(400);
+  expect(await enterCode('g@example.com', code)).toBe(400);
+  expect(await prisma.user.count({ where: { email: 'e@example.com' } })).toBe(1);
+
+  expect(await enterCode('f@example.com', code)).toBe(302);
+  expect(await prisma.user.findMany()).toMatchObject([
+    { email: 'f@example.com', name: 'f@example.com', emailVerified: true },
+  ]);
 });

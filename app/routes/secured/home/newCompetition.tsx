@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { Route } from './+types/newCompetition';
 import { CreateWizard } from '~/components/competition/CreateWizard';
 import { PageHeader } from '~/components/PageHeader';
+import { languageContext } from '~/context';
 import { Role } from '~/generated/prisma/enums';
 import { useUser } from '~/hooks/useUser';
 import { cleanLogo } from '~/lib/assets.server';
@@ -13,6 +14,8 @@ import { createCompetition, findUnknownEmails } from '~/lib/competitions.server'
 import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { DomainError } from '~/lib/errors';
 import { parseForm, type FieldErrors } from '~/lib/forms.server';
+import { inviteMember, mayInvite } from '~/lib/invitations.server';
+import { logger } from '~/lib/logger.server';
 import type { ServerT } from '~/locales';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
@@ -39,7 +42,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // createCompetition would take the default config.
   if (contests?.some(({ config }) => !config)) errors.config = t('competition:errors.config');
   const membersError = members.success
-    ? await getMembersError(emails, getUser(context).email, t)
+    ? getMembersError(emails, getUser(context).email, t)
     : t('errors.invalid');
   if (membersError) errors.members = membersError;
   try {
@@ -51,12 +54,18 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data({ errors }, 400);
   }
 
+  const user = getUser(context);
+  const unknownEmails = await findUnknownEmails(emails);
+  if (!unknownEmails.every(() => mayInvite(user.id))) {
+    return data({ errors: { members: t('errors.tooManyRequests') } as FieldErrors }, 429);
+  }
+
   let competition;
   try {
-    competition = await createCompetition(getUser(context).id, {
+    competition = await createCompetition(user.id, {
       ...details.data,
       contests,
-      members: members.data,
+      members: members.data.filter(({ email }) => !unknownEmails.includes(email)),
       logo,
     });
   } catch (error) {
@@ -65,11 +74,28 @@ export async function action({ request, context }: Route.ActionArgs) {
     return data({ errors: { [isConfig ? 'config' : 'members']: message } as FieldErrors }, 400);
   }
   enqueueToast(context, { type: 'success', message: t('competition:wizard.created') });
+
+  const failed = [];
+  for (const member of members.data.filter(({ email }) => unknownEmails.includes(email))) {
+    try {
+      await inviteMember(competition, member, {
+        email: user.email,
+        language: context.get(languageContext),
+      });
+    } catch (error) {
+      logger.error(error, 'Invitation could not be sent');
+      failed.push(member.email);
+    }
+  }
+  if (failed.length > 0) {
+    const message = t('competition:wizard.invitesFailed', { emails: failed.join(', ') });
+    enqueueToast(context, { type: 'error', message });
+  }
   return redirect(`/competitions/${competition.id}`);
 }
 
 /** Names the addresses that cannot become members. */
-async function getMembersError(emails: string[], ownEmail: string, t: ServerT) {
+function getMembersError(emails: string[], ownEmail: string, t: ServerT) {
   const invalid = emails.filter((email) => !z.email().safeParse(email).success);
   if (invalid.length > 0) {
     return t('competition:errors.invalidMembers', { emails: invalid.join(', ') });
@@ -78,10 +104,6 @@ async function getMembersError(emails: string[], ownEmail: string, t: ServerT) {
   const repeated = all.filter((email, index) => all.indexOf(email) !== index);
   if (repeated.length > 0) {
     return t('competition:errors.repeatedMembers', { emails: repeated.join(', ') });
-  }
-  const unknown = await findUnknownEmails(emails);
-  if (unknown.length > 0) {
-    return t('competition:errors.unknownMembers', { emails: unknown.join(', ') });
   }
 }
 

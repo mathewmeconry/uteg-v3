@@ -6,8 +6,12 @@ import { Rings } from '~/components/Rings';
 import { userContext } from '~/context';
 
 export const middleware: Route.MiddlewareFunction[] = [
-  ({ context }, next) => {
-    if (context.get(userContext)) throw redirect('/home');
+  ({ request, context }, next) => {
+    // Who forgot the password may still be signed in.
+    const { pathname } = new URL(request.url);
+    if (context.get(userContext) && !pathname.startsWith('/reset-password')) {
+      throw redirect('/home');
+    }
     return next();
   },
 ];

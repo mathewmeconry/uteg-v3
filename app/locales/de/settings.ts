@@ -29,7 +29,15 @@ export default {
   },
   members: {
     addTitle: 'Mitglied hinzufügen',
-    addHint: 'Die Person braucht bereits ein Konto.',
+    addHint: 'Wer noch kein Konto hat, erhält eine Einladung.',
+    invited: 'Die Einladung wurde verschickt.',
+    inviteFailed:
+      'Die Einladung ist gespeichert, aber die E-Mail konnte nicht verschickt werden. Füge die Adresse nochmals hinzu, um sie erneut zu senden.',
+    pending: 'Eingeladen, noch kein bestätigtes Konto',
+    withdraw: 'Einladung von {{email}} zurückziehen',
+    withdrawTitle: 'Einladung von {{email}} zurückziehen?',
+    withdrawText: 'Die Person erhält dann keinen Zugriff auf diesen Wettkampf.',
+    withdrawn: 'Die Einladung wurde zurückgezogen.',
     emailInvalid: 'Bitte eine gültige E-Mail-Adresse eingeben.',
     role: 'Rolle',
     rolesTitle: 'Wer darf was?',

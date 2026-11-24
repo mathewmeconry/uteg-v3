@@ -1,11 +1,11 @@
 import { createStaticHandler, RouterContextProvider } from 'react-router';
 import { userContext } from './context';
-import { auth, authCookies } from './lib/auth/auth.server';
 import { APP_ORIGIN } from './lib/env.server';
 import { getT } from './middlewares/i18n.server';
 import { enqueueToast } from './middlewares/toast.server';
 import { middleware } from './root';
 import { truncateTables } from './tests/helpers';
+import { signUp } from './tests/signUp';
 
 beforeEach(truncateTables);
 
@@ -48,14 +48,10 @@ const SAME_ORIGIN = { Origin: APP_ORIGIN };
 
 describe('the middlewares of every request', () => {
   it('load the session, the language and toasts and set security headers', async () => {
-    const { headers } = await auth.api.signUpEmail({
-      body: { email: 'a@example.com', name: 'A', password: 'only-for-tests' },
-      returnHeaders: true,
-    });
-    const cookies = authCookies({ headers }).getSetCookie();
+    const { cookie } = await signUp({ email: 'a@example.com', password: 'only-for-tests' });
     const response = await send('/', {
       ...SAME_ORIGIN,
-      Cookie: cookies.map((cookie) => cookie.split(';')[0]).join('; '),
+      Cookie: cookie,
       'Accept-Language': 'en',
     });
     expect(await response.json()).toBe('a@example.com');
@@ -70,16 +66,14 @@ describe('the middlewares of every request', () => {
     ['de', 'en', 'Speichern'],
   ])('prefer the language of the user (%s) to the one of the browser (%s)', async (...args) => {
     const [language, browser, text] = args;
-    const { headers } = await auth.api.signUpEmail({
-      body: { email: 'a@example.com', name: 'A', password: 'only-for-tests', language },
-      returnHeaders: true,
+    const { cookie } = await signUp({
+      email: 'a@example.com',
+      password: 'only-for-tests',
+      language,
     });
     const response = await send('/', {
       ...SAME_ORIGIN,
-      Cookie: authCookies({ headers })
-        .getSetCookie()
-        .map((cookie) => cookie.split(';')[0])
-        .join('; '),
+      Cookie: cookie,
       'Accept-Language': browser,
     });
     const toasts = response.headers.getSetCookie().find((cookie) => cookie.startsWith('toasts='));
