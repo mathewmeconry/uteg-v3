@@ -67,11 +67,9 @@ test('a competition from the first login to the ranking', async ({ page, browser
       await next.click();
       await expect(page.getByRole('heading', { name: heading, level: 2 })).toBeVisible();
     }
-    const create = page.getByRole('button', { name: 'Wettkampf erstellen' });
-    await expect(async () => {
-      await create.click();
-      await expect(page).toHaveURL(/competitions\/\w{26}$/, { timeout: 1_000 });
-    }).toPass();
+    // Held, the wizard ignores a submit right after "Weiter" as a double click.
+    await page.getByRole('button', { name: 'Wettkampf erstellen' }).click({ delay: 1_000 });
+    await expect(page).toHaveURL(/competitions\/\w{26}$/);
   });
   const competitionUrl = page.url();
 
