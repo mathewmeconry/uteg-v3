@@ -1,5 +1,7 @@
 import { getLogo } from '~/lib/assets.server';
 import { listMembers } from '~/lib/competitions.server';
+import { listInvitations } from '~/lib/invitations.server';
+import { sendMail } from '~/lib/mail.server';
 import { prisma } from '~/lib/prisma.server';
 import { egtModule } from '~/modules/egt/module';
 import { callRoute } from '~/tests/competitionRoutes';
@@ -70,7 +72,6 @@ describe('create competition', () => {
     ['large logo', { logo: new Blob([HUGE_JPEG]) }, 'logo'],
     ['broken members', { members: 'x' }, 'members'],
     ['member role', { members: '[{"email":"a@b.ch","role":"ADMIN"}]' }, 'members'],
-    ['unknown member', { members: '[{"email":"a@b.ch","role":"VIEWER"}]' }, 'members'],
   ])('reports an invalid field and creates nothing: %s', async (_, form, field) => {
     const user = await createUser();
     const { status, data } = await callRoute(action, {
@@ -82,11 +83,39 @@ describe('create competition', () => {
     expect(await prisma.competition.count()).toBe(0);
   });
 
-  it('names the unknown member', async () => {
+  it('invites members without an account and names those whose mail failed', async () => {
     const user = await createUser();
-    const members = JSON.stringify([{ email: 'nobody@example.com', role: 'VIEWER' }]);
-    const { data } = await callRoute(action, { userId: user.id, form: { ...FORM, members } });
-    expect(data.errors.members).toContain('nobody@example.com');
+    const helper = await createUser({ email: 'helper@example.com' });
+    const members = JSON.stringify([
+      { email: 'helper@example.com', role: 'EDITOR' },
+      { email: 'Failed@example.com', role: 'EDITOR' },
+      { email: 'new@example.com', role: 'VIEWER' },
+    ]);
+    vi.mocked(sendMail).mockRejectedValueOnce(new Error('Resend answered 500'));
+    const result = await callRoute(action, { userId: user.id, form: { ...FORM, members } });
+    expect(result.status).toBe(302);
+    expect(result.toasts).toMatchObject([
+      { type: 'success' },
+      { type: 'error', message: expect.stringContaining('failed@example.com.') },
+    ]);
+
+    const { id } = await prisma.competition.findFirstOrThrow();
+    expect(await listMembers(id)).toMatchObject([{ userId: user.id }, { userId: helper.id }]);
+    expect(await listInvitations(id)).toMatchObject([
+      { email: 'failed@example.com', role: 'EDITOR' },
+      { email: 'new@example.com', role: 'VIEWER' },
+    ]);
+    expect(vi.mocked(sendMail).mock.lastCall![0].to).toBe('new@example.com');
+  });
+
+  it('limits the invitations and names the others', async () => {
+    const user = await createUser();
+    const members = JSON.stringify(
+      Array.from({ length: 31 }, (_, i) => ({ email: `m${i}@example.com`, role: 'VIEWER' })),
+    );
+    const { toasts } = await callRoute(action, { userId: user.id, form: { ...FORM, members } });
+    expect(await prisma.invitation.count()).toBe(30);
+    expect(toasts[1].message).toContain('m30@example.com');
   });
 
   it.each([

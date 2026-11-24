@@ -1,7 +1,9 @@
+import { isAPIError } from 'better-auth/api';
 import { useTranslation } from 'react-i18next';
 import { data, Form, redirect } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/profile';
+import { CodeField } from '~/components/CodeField';
 import { FormField } from '~/components/FormField';
 import { PageHeader } from '~/components/PageHeader';
 import { Section, Sections } from '~/components/Section';
@@ -66,18 +68,44 @@ export async function action({ request, context }: Route.ActionArgs) {
       }
       if (values.email === user.email) return redirect('/profile');
 
-      const { headers } = await auth.api.changeEmail({
-        headers: request.headers,
-        body: { newEmail: values.email },
-        returnHeaders: true,
-      });
-      // better-auth also reports success when the address is taken.
-      const { email } = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
-      if (email !== values.email) {
+      if (await prisma.user.findUnique({ where: { email: values.email } })) {
         return data({ errors: { email: t('auth:errors.emailFailed') } }, 400);
       }
-      // Set at registration, see register.tsx.
-      await prisma.user.update({ where: { id: user.id }, data: { name: email } });
+      if (!mayRequestCode(user.id)) {
+        return data({ errors: { email: t('errors.tooManyRequests') } }, 429);
+      }
+      await auth.api.requestEmailChangeEmailOTP({
+        headers: request.headers,
+        body: { newEmail: values.email },
+      });
+      return data({ errors: {}, newEmail: values.email });
+    }
+
+    case 'emailCode': {
+      const { data: values } = parseForm(
+        formData,
+        z.object({
+          // better-auth ignores the case, so must the limit.
+          newEmail: z.string().toLowerCase().pipe(z.email()),
+          code: z.string().trim(),
+        }),
+      );
+      if (!values) throw data(null, 400);
+      const { newEmail, code } = values;
+      if (!mayTryCode(newEmail)) {
+        return data({ errors: { code: t('errors.tooManyRequests') }, newEmail }, 429);
+      }
+      let headers;
+      try {
+        ({ headers } = await auth.api.changeEmailEmailOTP({
+          headers: request.headers,
+          body: { newEmail, otp: code },
+          returnHeaders: true,
+        }));
+      } catch (error) {
+        if (!isAPIError(error)) throw error;
+        return data({ errors: { code: t('auth:verify.invalid') }, newEmail }, 400);
+      }
       enqueueToast(context, { type: 'success', message: t('auth:profile.emailChanged') });
       return redirect('/profile', { headers: authCookies({ headers }) });
     }
@@ -120,6 +148,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
+const mayRequestCode = createRateLimit({ windowMs: 60 * 60_000, max: 5 });
+// Per address, not per user: one person can have many accounts.
+const mayTryCode = createRateLimit({ windowMs: 60 * 60_000, max: 20 });
+
 // better-auth only limits requests to its own endpoints, and verifyPassword has none.
 const mayCheckPassword = createRateLimit({ windowMs: 60_000, max: 10 });
 
@@ -135,6 +167,7 @@ async function checkPassword(request: Request, password: string) {
 export default function Profile({ loaderData, actionData }: Route.ComponentProps) {
   const { t } = useTranslation(['auth', 'common']);
   const errors: Record<string, string | undefined> = actionData?.errors ?? {};
+  const newEmail = actionData && 'newEmail' in actionData ? actionData.newEmail : undefined;
 
   return (
     <>
@@ -193,6 +226,16 @@ export default function Profile({ loaderData, actionData }: Route.ComponentProps
               {t('profile.emailSave')}
             </SubmitButton>
           </Form>
+          {newEmail && (
+            <Form method="post" className="mt-7 grid max-w-md gap-5">
+              <p role="status">{t('verify.sent', { email: newEmail })}</p>
+              <input type="hidden" name="newEmail" value={newEmail} />
+              <CodeField errors={actionData?.errors} />
+              <SubmitButton name="intent" value="emailCode" className="justify-self-start">
+                {t('verify.confirm')}
+              </SubmitButton>
+            </Form>
+          )}
         </Section>
 
         <Section title={t('profile.passwordTitle')} description={t('profile.passwordText')}>

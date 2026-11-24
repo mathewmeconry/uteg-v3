@@ -30,7 +30,6 @@ export default {
     logoMissing: 'Select an image.',
     invalidMembers: 'Invalid email address: {{emails}}',
     repeatedMembers: 'Already a member or several times on the list: {{emails}}',
-    unknownMembers: 'No account found for: {{emails}}',
   },
   modules: {
     egt: 'Individual apparatus gymnastics (EGT)',
@@ -47,7 +46,7 @@ export default {
     modulesText:
       'The percentage of a category that receives an award, medals included. You can change this later.',
     membersText:
-      'You become the owner. Add other people who work on the competition with you. They need an account already.',
+      'You become the owner. Add other people who work on the competition with you. Anyone without an account receives an invitation.',
     noMembers: 'No other members',
     removeMember: 'Remove {{email}}',
     memberInvalid: 'Enter a valid email address.',
@@ -60,6 +59,8 @@ export default {
     honourMixed: '{{min}} to {{max}} %, depending on the category',
     create: 'Create competition',
     created: 'The competition was created.',
+    invitesFailed:
+      'These invitations could not be sent: {{emails}}. Add the addresses again under “Members”.',
   },
   dashboard: {
     starters: 'Starters',

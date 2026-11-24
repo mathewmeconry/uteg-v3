@@ -101,7 +101,8 @@ model Competition {
   updatedAt DateTime @updatedAt
 
   members             Member[]
-  contests            Contest[]
+  invitations         Invitation[]
+  contests           Contest[]
   starters            Starter[]
   accessLinks         AccessLink[]
   assets              Asset[]
@@ -122,6 +123,19 @@ model Member {
   @@unique([competitionId, userId])
   @@index([userId])
   @@map("member")
+}
+
+/// An address without an account. Becomes a member once the address is verified.
+model Invitation {
+  id            String      @id @default(ulid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  email         String
+  role          Role
+
+  @@unique([competitionId, email])
+  @@index([email])
+  @@map("invitation")
 }
 
 /// An uploaded image.

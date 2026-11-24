@@ -27,7 +27,6 @@ export default {
     logoMissing: 'Bitte ein Bild auswählen.',
     invalidMembers: 'Ungültige E-Mail-Adresse: {{emails}}',
     repeatedMembers: 'Bereits Mitglied oder mehrmals auf der Liste: {{emails}}',
-    unknownMembers: 'Kein Konto gefunden für: {{emails}}',
   },
   modules: {
     egt: 'Einzelgeräteturnen (EGT)',
@@ -44,7 +43,7 @@ export default {
     modulesText:
       'Wie viel Prozent einer Kategorie eine Auszeichnung erhalten, die Medaillen mitgezählt. Das lässt sich später ändern.',
     membersText:
-      'Du wirst Inhaber. Füge weitere Personen hinzu, die den Wettkampf mit dir bearbeiten. Sie brauchen bereits ein Konto.',
+      'Du wirst Inhaber. Füge weitere Personen hinzu, die den Wettkampf mit dir bearbeiten. Wer noch kein Konto hat, erhält eine Einladung.',
     noMembers: 'Keine weiteren Mitglieder',
     removeMember: '{{email}} entfernen',
     memberInvalid: 'Bitte eine gültige E-Mail-Adresse eingeben.',
@@ -57,6 +56,8 @@ export default {
     honourMixed: '{{min}} bis {{max}} %, je nach Kategorie',
     create: 'Wettkampf erstellen',
     created: 'Der Wettkampf wurde erstellt.',
+    invitesFailed:
+      'Diese Einladungen konnten nicht verschickt werden: {{emails}}. Füge die Adressen unter «Mitglieder» nochmals hinzu.',
   },
   dashboard: {
     starters: 'Teilnehmende',

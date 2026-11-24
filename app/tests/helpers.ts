@@ -21,7 +21,12 @@ export async function truncateTables() {
 export function createUser(data: { email?: string; name?: string } = {}) {
   const id = randomUUID();
   return prisma.user.create({
-    data: { id, name: data.name ?? 'Test', email: data.email ?? `${id}@example.com` },
+    data: {
+      id,
+      name: data.name ?? 'Test',
+      email: data.email ?? `${id}@example.com`,
+      emailVerified: true,
+    },
   });
 }
 

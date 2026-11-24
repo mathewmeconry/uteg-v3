@@ -153,11 +153,11 @@ export function listMembers(competitionId: string) {
   });
 }
 
-/** The addresses that have no account and cannot become members. */
+/** The addresses without a verified account, which have to be invited. */
 export async function findUnknownEmails(emails: readonly string[]) {
   const normalized = emails.map(normalizeEmail);
   const users = await prisma.user.findMany({
-    where: { email: { in: normalized } },
+    where: { email: { in: normalized }, emailVerified: true },
     select: { email: true },
   });
   const known = new Set(users.map(({ email }) => email));
@@ -200,7 +200,7 @@ function parseDetails(input: CompetitionDetails) {
 }
 
 /** better-auth stores emails in lower case. */
-function normalizeEmail(email: string) {
+export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
@@ -215,6 +215,10 @@ async function insertMember(
     where: { competitionId_userId: { competitionId, userId: user.id } },
   });
   if (existing) throw new DomainError('ALREADY_MEMBER');
+  // Anyone can register with the address of somebody else.
+  if (!user.emailVerified) throw new DomainError('USER_NOT_FOUND');
+  // Invited before they had the account.
+  await tx.invitation.deleteMany({ where: { competitionId, email: user.email } });
   return tx.member.create({ data: { competitionId, userId: user.id, role } });
 }
 

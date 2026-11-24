@@ -32,7 +32,15 @@ export default {
   },
   members: {
     addTitle: 'Add member',
-    addHint: 'The person needs an account already.',
+    addHint: 'Anyone without an account receives an invitation.',
+    invited: 'The invitation was sent.',
+    inviteFailed:
+      'The invitation is saved, but the email could not be sent. Add the address again to resend it.',
+    pending: 'Invited, no confirmed account yet',
+    withdraw: 'Withdraw invitation of {{email}}',
+    withdrawTitle: 'Withdraw the invitation of {{email}}?',
+    withdrawText: 'The person will then not get access to this competition.',
+    withdrawn: 'The invitation was withdrawn.',
     emailInvalid: 'Enter a valid email address.',
     role: 'Role',
     rolesTitle: 'Who can do what?',

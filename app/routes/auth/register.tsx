@@ -1,24 +1,23 @@
 import { TriangleAlertIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { data, Form, Link, redirect, useSearchParams } from 'react-router';
+import { data, Form, Link, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/register';
 import { FormField } from '~/components/FormField';
 import { SubmitButton } from '~/components/SubmitButton';
+import { VerifyForm } from '~/components/VerifyForm';
 import { Alert, AlertDescription } from '~/components/ui/alert';
-import { languageContext } from '~/context';
-import { authCookies, callAuth } from '~/lib/auth/auth.server';
-import { safeRedirect } from '~/lib/auth/redirect';
+import { callAuth } from '~/lib/auth/auth.server';
 import { parseForm, type FieldErrors } from '~/lib/forms.server';
-import { getT } from '~/middlewares/i18n.server';
+import { acceptedLanguage, getT } from '~/middlewares/i18n.server';
 
-type ActionData = { error?: string; errors?: FieldErrors };
+type ActionData = { error?: string; errors?: FieldErrors; verify?: string };
 
 export async function action({ request, context }: Route.ActionArgs) {
   const t = getT(context);
-  const formData = await request.formData();
   const { data: values, errors } = parseForm(
-    formData,
+    await request.formData(),
     z
       .object({
         email: z
@@ -43,31 +42,44 @@ export async function action({ request, context }: Route.ActionArgs) {
     password: values.password,
     // better-auth requires a name, the app only shows the address.
     name: values.email,
-    language: context.get(languageContext),
+    // Not languageContext: the cookie may be of somebody else who used this browser.
+    language: acceptedLanguage(request.headers.get('Accept-Language')),
   });
   if (response.status === 429) return data<ActionData>({ error: t('errors.tooManyRequests') }, 429);
   if (response.status >= 500) return data<ActionData>({ error: t('errors.generic') }, 500);
   if (!response.ok) return data<ActionData>({ error: t('auth:errors.registerFailed') }, 400);
 
-  return redirect(safeRedirect(formData.get('redirectTo')), { headers: authCookies(response) });
+  return data<ActionData>({ verify: values.email });
 }
 
 export default function Register({ actionData }: Route.ComponentProps) {
   const { t } = useTranslation(['auth', 'common']);
   const [searchParams] = useSearchParams();
+  const [password, setPassword] = useState('');
+
+  if (actionData?.verify) {
+    const redirectTo = searchParams.get('redirectTo') ?? '/home';
+    return <VerifyForm email={actionData.verify} password={password} redirectTo={redirectTo} />;
+  }
 
   return (
     <>
       <title>{`${t('registerTitle')} · UTEG`}</title>
       <h1 className="mb-6 font-display text-3xl leading-tight">{t('registerTitle')}</h1>
-      <Form method="post" className="grid gap-5">
+      <Form
+        method="post"
+        // VerifyForm sends it again.
+        onSubmit={({ currentTarget }) =>
+          setPassword(String(new FormData(currentTarget).get('password')))
+        }
+        className="grid gap-5"
+      >
         {actionData?.error && (
           <Alert variant="destructive">
             <TriangleAlertIcon aria-hidden />
             <AlertDescription>{actionData.error}</AlertDescription>
           </Alert>
         )}
-        <input type="hidden" name="redirectTo" value={searchParams.get('redirectTo') ?? '/home'} />
         <FormField
           label={t('common:fields.email')}
           error={actionData?.errors?.email}

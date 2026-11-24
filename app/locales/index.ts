@@ -5,6 +5,7 @@ import deCompetition from './de/competition';
 import deDisplay from './de/display';
 import deDivisions from './de/divisions';
 import deJudging from './de/judging';
+import deMails from './de/mails';
 import dePdf from './de/pdf';
 import deRanking from './de/ranking';
 import deSettings from './de/settings';
@@ -15,6 +16,7 @@ import enCompetition from './en/competition';
 import enDisplay from './en/display';
 import enDivisions from './en/divisions';
 import enJudging from './en/judging';
+import enMails from './en/mails';
 import enPdf from './en/pdf';
 import enRanking from './en/ranking';
 import enSettings from './en/settings';
@@ -38,6 +40,7 @@ const de = {
   ranking: deRanking,
   pdf: dePdf,
   settings: deSettings,
+  mails: deMails,
 };
 
 export type Resources = typeof de;
@@ -54,6 +57,7 @@ export const NAMESPACES = [
   'ranking',
   'pdf',
   'settings',
+  'mails',
 ] as const satisfies (keyof Resources)[];
 
 /** t() of loaders and actions, see getT. */
@@ -72,5 +76,6 @@ export const resources = {
     ranking: enRanking,
     pdf: enPdf,
     settings: enSettings,
+    mails: enMails,
   },
 } satisfies Record<Language, object>;

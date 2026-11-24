@@ -1,27 +1,20 @@
 import { RouterContextProvider } from 'react-router';
 import { competitionContext, userContext } from '~/context';
-import { auth, authCookies } from '~/lib/auth/auth.server';
 import { getCompetitionForUser } from '~/lib/competitions.server';
 import { publish } from '~/lib/events.server';
 import { prisma } from '~/lib/prisma.server';
 import { createCompetition, truncateTables } from '~/tests/helpers';
+import { signUp } from '~/tests/signUp';
 import { loader } from './events';
 
 beforeEach(truncateTables);
 
 async function open() {
-  const { headers, response } = await auth.api.signUpEmail({
-    body: { email: 'a@example.com', name: 'A', password: 'only-for-tests' },
-    returnHeaders: true,
-  });
-  const cookie = authCookies({ headers })
-    .getSetCookie()
-    .map((value) => value.split(';')[0])
-    .join('; ');
-  const competition = await createCompetition({ ownerId: response.user.id });
+  const { user, cookie } = await signUp({ email: 'a@example.com', password: 'only-for-tests' });
+  const competition = await createCompetition({ ownerId: user.id });
   const context = new RouterContextProvider();
-  context.set(userContext, response.user as any);
-  context.set(competitionContext, await getCompetitionForUser(response.user.id, competition.id));
+  context.set(userContext, user as any);
+  context.set(competitionContext, await getCompetitionForUser(user.id, competition.id));
   const request = new Request('http://localhost/api/events/x', { headers: { cookie } });
   const stream = (loader({ request, context } as any) as Response).body!.getReader();
   await stream.read();
