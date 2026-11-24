@@ -285,7 +285,8 @@ it('lets the check-in do everything but import and assign', async () => {
   const dialog = within(screen.getByRole('dialog'));
   expect(dialog.getByLabelText('Vorname')).toBeInTheDocument();
   expect(dialog.queryByLabelText('Geschlecht')).not.toBeInTheDocument();
-  expect(dialog.queryByLabelText('Kategorie')).not.toBeInTheDocument();
+  expect(dialog.getByLabelText('Kategorie')).toHaveValue('K5');
+  expect(dialog.queryByLabelText('Abteilung')).not.toBeInTheDocument();
 });
 
 it('lets viewers look and export only', async () => {

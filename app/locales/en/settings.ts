@@ -66,7 +66,7 @@ export default {
       EDITOR: 'Edits starters, divisions, grades and settings',
       VIEWER: 'Sees everything, changes nothing',
       CHECK_IN:
-        'Only sees the starters, adds them, edits personal data and removes them. Cannot assign',
+        'Only sees the starters, adds them, edits personal data and category and removes them. Cannot assign',
     },
   },
   honour: {
