@@ -7,7 +7,7 @@ import {
   truncateTables,
 } from '~/tests/helpers';
 import { prisma } from './prisma.server';
-import { getRanking } from './ranking.server';
+import { getRanking, listCategoryStates } from './ranking.server';
 
 const K5 = { category: 'K5', sex: 'FEMALE' } as const;
 
@@ -28,6 +28,31 @@ function add(competitionId: string, division: Division, firstname: string, data:
 
 const names = (ranking: Awaited<ReturnType<typeof getRanking>>) =>
   ranking.entries.map(({ firstname }) => firstname);
+
+describe('listCategoryStates', () => {
+  it('tells how far each category is', async () => {
+    const { id, contest } = await createCompetition();
+    const add = (category: string, ...states: ('PENDING' | 'RUNNING' | 'ENDED')[]) =>
+      Promise.all(
+        states.map((state, index) =>
+          createDivision(contest.id, { category, number: index + 1, state }),
+        ),
+      );
+    await add('K1', 'ENDED', 'ENDED');
+    await add('K2', 'ENDED', 'PENDING', 'RUNNING');
+    await add('K3', 'ENDED', 'PENDING');
+    await add('K4', 'PENDING');
+    await createDivision(contest.id, { category: 'K1', sex: 'MALE', state: 'RUNNING' });
+    const states = await listCategoryStates(id, contest.id);
+    expect(states.map(({ sex, category, state }) => `${sex} ${category} ${state}`)).toEqual([
+      'FEMALE K1 ENDED',
+      'FEMALE K2 RUNNING',
+      'FEMALE K3 PARTLY',
+      'FEMALE K4 PENDING',
+      'MALE K1 RUNNING',
+    ]);
+  });
+});
 
 describe('getRanking', () => {
   it('ranks the ended divisions of a category and sex', async () => {

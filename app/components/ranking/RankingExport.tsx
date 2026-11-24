@@ -43,6 +43,7 @@ export function RankingExport({
   competitionId,
   contestId,
   groups,
+  finished,
   current,
   provisional,
   templates,
@@ -50,6 +51,8 @@ export function RankingExport({
   competitionId: string;
   contestId: string;
   groups: Group[];
+  /** Those whose divisions have all ended. */
+  finished: Group[];
   current: Group;
   provisional: boolean;
   templates: Template[];
@@ -106,6 +109,16 @@ export function RankingExport({
             <DialogTitle>{t('export.title')}</DialogTitle>
             <DialogDescription>{t('export.text')}</DialogDescription>
           </DialogHeader>
+          {finished.length > 1 && (
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-self-start"
+              onClick={() => setSelected(finished.map(toKey))}
+            >
+              {t('export.selectFinished', { count: finished.length })}
+            </Button>
+          )}
           <input type="hidden" name="contest" value={contestId} />
           {provisional && <input type="hidden" name="provisional" value="1" />}
           {template && <input type="hidden" name="template" value={template} />}

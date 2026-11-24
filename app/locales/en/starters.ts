@@ -13,6 +13,11 @@ export default {
   divisionNumber: 'Division {{number}}',
   noDivision: 'No division',
   withoutDivision: 'Without division: {{count}}',
+  withoutApparatus: 'Without start apparatus: {{count}}',
+  panel: {
+    locked: 'The division is running or has ended. The assignment can still be changed with Edit.',
+    noCategory: 'Without a category the person cannot be assigned.',
+  },
   noCategory: 'No category',
   noApparatus: 'No start apparatus',
   choose: 'Please choose',

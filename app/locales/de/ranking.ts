@@ -24,7 +24,14 @@ export default {
   honourHint_other: '{{quota}} von {{count}} Personen',
   honourInvalid: 'Zahl von 0 bis 100',
   honourSaved: 'Auszeichnungen gespeichert',
+  states: {
+    PENDING: 'Geplant',
+    RUNNING: 'Läuft',
+    PARTLY: 'Angefangen',
+    ENDED: 'Fertig',
+  },
   export: {
+    selectFinished: 'Alle fertigen wählen ({{count}})',
     button: 'Als PDF drucken',
     title: 'Rangliste als PDF',
     text: 'Wähle die Kategorien und die Vorlage.',

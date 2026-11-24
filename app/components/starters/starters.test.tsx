@@ -11,17 +11,25 @@ import { ImportReview } from './ImportReview';
 import { reviewReducer } from './importReview';
 import { RemoveDialog } from './RemoveDialog';
 import { StarterDialog } from './StarterDialog';
+import { StarterPanel } from './StarterPanel';
 import type { StarterRow } from './starterRow';
 
 const APPARATUS = ['reck', 'boden'];
+const DIVISION = {
+  category: 'K5',
+  number: 1,
+  state: 'PENDING',
+  starterCount: 0,
+  apparatus: APPARATUS,
+} as const;
 const OPTIONS: ContestOptions = {
   id: 'contest',
   name: 'EGT',
   categories: { FEMALE: ['K5', 'KD'], MALE: ['K5', 'KH'] },
   apparatus: APPARATUS,
   divisions: [
-    { id: 'f1', category: 'K5', sex: 'FEMALE', number: 1, apparatus: APPARATUS },
-    { id: 'm1', category: 'K5', sex: 'MALE', number: 1, apparatus: APPARATUS },
+    { ...DIVISION, id: 'f1', sex: 'FEMALE' },
+    { ...DIVISION, id: 'm1', sex: 'MALE' },
   ],
 };
 const CLUB = { id: 'chur', name: 'TV Chur', location: 'Chur' };
@@ -76,6 +84,54 @@ beforeEach(() => {
   Element.prototype.hasPointerCapture = () => false;
 });
 afterEach(() => vi.unstubAllGlobals());
+
+describe('StarterPanel', () => {
+  const renderPanel = (starter: Partial<StarterRow>, options = OPTIONS) =>
+    renderPage(
+      <StarterPanel
+        starter={{ ...ANNA, ...starter }}
+        options={options}
+        onEdit={() => {}}
+        onClose={() => {}}
+      />,
+    );
+  const sent = ({ submitted }: ReturnType<typeof renderPage>) =>
+    submitted.mock.calls.map(([fields]) => JSON.parse(Object.fromEntries(fields).assignments));
+
+  it('assigns with one click, and again only when something changes', async () => {
+    const page = renderPanel({});
+    await userEvent.click(screen.getByRole('button', { name: /Abteilung 1/ }));
+    expect(page.submitted).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Reck' }));
+    expect(sent(page)).toEqual([
+      [{ entryIds: ['entry-anna'], divisionId: 'f1', startApparatus: 'reck' }],
+    ]);
+    expect(page.fields()).toMatchObject({ intent: 'assign', quiet: '1' });
+  });
+
+  it('offers the apparatus after the division', async () => {
+    const page = renderPanel({ divisionId: null, divisionNumber: null, startApparatus: null });
+    expect(screen.queryByRole('button', { name: 'Reck' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Abteilung 1/ }));
+    expect(sent(page)).toEqual([[{ entryIds: ['entry-anna'], divisionId: 'f1' }]]);
+  });
+
+  it('changes nothing about a division that runs', async () => {
+    const running = { ...OPTIONS.divisions[0], state: 'RUNNING' as const };
+    const other = { ...OPTIONS.divisions[0], id: 'f2', number: 2 };
+    const page = renderPanel({}, { ...OPTIONS, divisions: [running, other] });
+    for (const name of [/Abteilung 2/, 'Reck']) {
+      await userEvent.click(screen.getByRole('button', { name }));
+    }
+    expect(page.submitted).not.toHaveBeenCalled();
+    expect(screen.getByText(/läuft oder ist beendet/)).toBeInTheDocument();
+  });
+
+  it('needs a category', () => {
+    renderPanel({ category: null, divisionId: null });
+    expect(screen.queryByRole('group')).not.toBeInTheDocument();
+  });
+});
 
 function renderStarterDialog(starter?: StarterRow, result?: unknown) {
   const onClose = vi.fn();

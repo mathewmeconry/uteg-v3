@@ -61,6 +61,16 @@ export default {
     allCompetitions: 'All competitions',
     breadcrumbs: 'Parent pages',
   },
+  search: {
+    placeholder: 'Person, club, division or page',
+    hint: 'Finds people, clubs, divisions and pages.',
+    people: 'People',
+    pages: 'Pages',
+    now: 'Now: {{apparatus}}',
+    noCategory: 'no category',
+    withoutDivision: 'Not in a division',
+    empty: 'Nothing found',
+  },
   chooseDate: 'Choose a date',
   stepOf: 'Step {{step}} of {{count}}',
   saveStatus: {

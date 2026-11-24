@@ -26,6 +26,8 @@ export async function getContestOptions(competitionId: string, contestId: string
       category: division.category,
       sex: division.sex,
       number: division.number,
+      state: division.state,
+      starterCount: division.starterCount,
       apparatus: module.apparatus(division.sex),
     })),
   };

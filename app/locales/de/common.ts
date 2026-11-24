@@ -58,6 +58,16 @@ export default {
     allCompetitions: 'Alle Wettkämpfe',
     breadcrumbs: 'Übergeordnete Seiten',
   },
+  search: {
+    placeholder: 'Person, Verein, Abteilung oder Seite',
+    hint: 'Findet Personen, Vereine, Abteilungen und Seiten.',
+    people: 'Personen',
+    pages: 'Seiten',
+    now: 'Jetzt: {{apparatus}}',
+    noCategory: 'keine Kategorie',
+    withoutDivision: 'Nicht eingeteilt',
+    empty: 'Nichts gefunden',
+  },
   chooseDate: 'Datum wählen',
   stepOf: 'Schritt {{step}} von {{count}}',
   saveStatus: {

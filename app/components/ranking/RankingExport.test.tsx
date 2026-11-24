@@ -28,6 +28,7 @@ async function open(templates: ReturnType<typeof template>[], current: typeof K1
         competitionId="c"
         contestId="k"
         groups={[K1, K2]}
+        finished={[K1, K2]}
         current={current}
         provisional={false}
         templates={templates}
@@ -72,6 +73,12 @@ describe('RankingExport', () => {
     await open([template('Standard', { isDefault: true }), template('Andere')]);
     await userEvent.click(screen.getByLabelText('K2'));
     expect(getParams()).toMatchObject({ template: 'Standard' });
+  });
+
+  it('chooses all finished categories at once', async () => {
+    await open([]);
+    await userEvent.click(screen.getByRole('button', { name: 'Alle fertigen wählen (2)' }));
+    expect(getParams().groups).toEqual(['FEMALE:K1', 'FEMALE:K2']);
   });
 
   it('works without templates', async () => {

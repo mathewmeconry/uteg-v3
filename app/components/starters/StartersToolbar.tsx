@@ -53,6 +53,9 @@ export function StartersToolbar({
   const sexes = useSexes();
   const withoutDivision = rows.filter(({ divisionId }) => !divisionId).length;
   const isWithoutDivision = filters.division.length === 1 && filters.division[0] === '';
+  const withoutApparatus = rows.filter(({ startApparatus }) => !startApparatus).length;
+  const isWithoutApparatus =
+    filters.startApparatus.length === 1 && filters.startApparatus[0] === '';
   const isFiltered = search !== '' || FILTERS.some((key) => filters[key].length > 0);
 
   function optionLabel(key: Filter, value: string) {
@@ -124,6 +127,19 @@ export function StartersToolbar({
               onClick={() => onFilters({ ...filters, division: isWithoutDivision ? [] : [''] })}
             >
               {t('withoutDivision', { count: withoutDivision })}
+            </Button>
+          )}
+          {/* Otherwise mostly the same people. */}
+          {withoutDivision === 0 && withoutApparatus > 0 && (
+            <Button
+              variant="outline"
+              aria-pressed={isWithoutApparatus}
+              className="border-warning bg-[color-mix(in_oklab,var(--warning)_14%,var(--card))] aria-pressed:bg-warning aria-pressed:text-warning-foreground"
+              onClick={() =>
+                onFilters({ ...filters, startApparatus: isWithoutApparatus ? [] : [''] })
+              }
+            >
+              {t('withoutApparatus', { count: withoutApparatus })}
             </Button>
           )}
           {FILTERS.filter((key) => key !== 'sex' || sexes.length > 1).map((key) => (

@@ -31,6 +31,7 @@ import {
   type Sort,
 } from '~/components/starters/starterList';
 import { fullName, toStarterRow, type StarterRow } from '~/components/starters/starterRow';
+import { StarterPanel } from '~/components/starters/StarterPanel';
 import { StartersTable } from '~/components/starters/StartersTable';
 import { StartersToolbar } from '~/components/starters/StartersToolbar';
 import { Button } from '~/components/ui/button';
@@ -128,6 +129,8 @@ export async function action({ request, context }: Route.ActionArgs) {
         const assignments = parseAssignments(formData.get('assignments'));
         if (!assignments) return data({ error: t('errors.invalid') }, 400);
         await assignEntries(id, assignments);
+        // The panel shows it.
+        if (formData.has('quiet')) return { ok: true as const };
         const count = assignments.reduce((sum, { entryIds }) => sum + entryIds.length, 0);
         return success(t('starters:assigned', { count }));
       }
@@ -229,6 +232,13 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
     const starter = canEdit && starters.find(({ id }) => id === editId);
     return starter ? { type: 'edit', starter } : null;
   });
+  // The search may link to one while this page is open.
+  const [handledEditId, setHandledEditId] = useState(editId);
+  if (editId !== handledEditId) {
+    setHandledEditId(editId);
+    const starter = canEdit && starters.find(({ id }) => id === editId);
+    if (starter) setDialog({ type: 'edit', starter });
+  }
   const listRef = useRef<HTMLElement>(null);
 
   function closeDialog() {
@@ -273,6 +283,16 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
     });
   }, []);
   const edit = useCallback((starter: StarterRow) => setDialog({ type: 'edit', starter }), []);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const opened = canEdit && starters.find(({ id }) => id === openId);
+  const open = useCallback(
+    (starter: StarterRow) => {
+      // Where there is no room for the panel.
+      if (window.matchMedia('(width < 80rem)').matches) edit(starter);
+      else setOpenId(starter.id);
+    },
+    [edit],
+  );
   const remove = useCallback(
     (starter: StarterRow) => setDialog({ type: 'remove', starters: [starter] }),
     [],
@@ -393,22 +413,37 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
               columns={columns}
               onColumns={setColumns}
             />
-            {rows.length === 0 ? (
-              <EmptyState title={t('noMatchTitle')} text={t('noMatchText')} />
-            ) : (
-              <StartersTable
-                rows={rows}
-                columns={columns}
-                sort={sort}
-                onSort={sortBy}
-                canEdit={canEdit}
-                selected={selected}
-                onToggle={toggle}
-                onToggleAll={toggleAll}
-                onEdit={edit}
-                onRemove={remove}
-              />
-            )}
+            <div className="flex gap-4">
+              <div className="min-w-0 flex-1">
+                {rows.length === 0 ? (
+                  <EmptyState title={t('noMatchTitle')} text={t('noMatchText')} />
+                ) : (
+                  <StartersTable
+                    rows={rows}
+                    columns={columns}
+                    sort={sort}
+                    onSort={sortBy}
+                    canEdit={canEdit}
+                    selected={selected}
+                    openId={openId}
+                    onOpen={open}
+                    onToggle={toggle}
+                    onToggleAll={toggleAll}
+                    onEdit={edit}
+                    onRemove={remove}
+                  />
+                )}
+              </div>
+              {opened && (
+                <StarterPanel
+                  key={opened.id}
+                  starter={opened}
+                  options={contest}
+                  onEdit={() => edit(opened)}
+                  onClose={() => setOpenId(null)}
+                />
+              )}
+            </div>
           </>
         )}
       </section>

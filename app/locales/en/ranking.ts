@@ -27,7 +27,14 @@ export default {
   honourHint_other: '{{quota}} of {{count}} people',
   honourInvalid: 'A number from 0 to 100',
   honourSaved: 'Honours saved',
+  states: {
+    PENDING: 'Planned',
+    RUNNING: 'Running',
+    PARTLY: 'Begun',
+    ENDED: 'Finished',
+  },
   export: {
+    selectFinished: 'Choose all finished ({{count}})',
     button: 'Print as PDF',
     title: 'Ranking as PDF',
     text: 'Choose the categories and the template.',
