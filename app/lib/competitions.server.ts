@@ -6,6 +6,7 @@ import { DomainError } from './errors';
 import { publish } from './events.server';
 import { lockCompetition } from './locks.server';
 import { prisma } from './prisma.server';
+import { hasRole } from './roles';
 import { SEXES } from '~/modules/types';
 
 const detailsSchema = z
@@ -21,8 +22,6 @@ const detailsSchema = z
 
 export type CompetitionDetails = z.input<typeof detailsSchema>;
 export type MemberInput = { email: string; role: Role };
-
-const ROLE_LEVEL: Record<Role, number> = { CHECK_IN: 0, VIEWER: 1, EDITOR: 2, OWNER: 3 };
 
 // ── Competitions ─────────────────────────────────────────────────────────────
 
@@ -58,7 +57,7 @@ export async function getCompetitionForUser(
   const { members, ...competition } = found;
   const role = isAdmin ? 'OWNER' : members[0]?.role;
   if (!role) throw new DomainError('NOT_FOUND');
-  if (ROLE_LEVEL[role] < ROLE_LEVEL[minRole]) throw new DomainError('FORBIDDEN');
+  if (!hasRole(role, minRole)) throw new DomainError('FORBIDDEN');
   return { ...competition, role };
 }
 

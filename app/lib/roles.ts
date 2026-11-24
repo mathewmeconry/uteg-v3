@@ -1,7 +1,8 @@
-import type { Role } from '~/generated/prisma/enums';
+import { Role } from '~/generated/prisma/enums';
 
-const ROLES: Role[] = ['CHECK_IN', 'VIEWER', 'EDITOR', 'OWNER'];
+/** From the most to the least rights, as in the schema. */
+export const ROLES = Object.values(Role);
 
 export function hasRole(role: Role, minRole: Role) {
-  return ROLES.indexOf(role) >= ROLES.indexOf(minRole);
+  return ROLES.indexOf(role) <= ROLES.indexOf(minRole);
 }

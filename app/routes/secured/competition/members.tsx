@@ -4,7 +4,7 @@ import { data, Form, redirect, useNavigation } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/members';
 import { MemberRow } from '~/components/competition/MemberRow';
-import { ROLES, RoleSelect } from '~/components/competition/RoleSelect';
+import { RoleSelect } from '~/components/competition/RoleSelect';
 import { FormField } from '~/components/FormField';
 import { PageHeader } from '~/components/PageHeader';
 import { SubmitButton } from '~/components/SubmitButton';
@@ -16,6 +16,7 @@ import { getUser } from '~/lib/auth/auth.server';
 import { addMember, changeMemberRole, listMembers, removeMember } from '~/lib/competitions.server';
 import { actionError, domainErrorMessage } from '~/lib/domainErrors.server';
 import { parseForm } from '~/lib/forms.server';
+import { ROLES } from '~/lib/roles';
 import { safeClientAction } from '~/lib/safeClientAction';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
@@ -170,7 +171,7 @@ export default function Members({
             {t('members.rolesTitle')}
           </h2>
           <dl className="grid gap-3 sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-1">
-            {ROLES.toReversed().map((role) => (
+            {ROLES.map((role) => (
               <div key={role}>
                 <dt className="font-semibold">{t(`common:role.${role}`)}</dt>
                 <dd className="text-muted-foreground">{t(`members.roleText.${role}`)}</dd>
