@@ -7,12 +7,12 @@ function parseRow(...row: SheetCell[]) {
 }
 
 describe('parseSheet', () => {
-  it('needs no sex when only one takes part', () => {
+  it('needs no sex column, the sex is chosen later or the only one', () => {
     const sheet = [
       ['Vorname', 'Nachname', 'Jahrgang'],
       ['Anna', 'Muster', 2010],
     ];
-    expect(parseSheet(sheet)).toBeNull();
+    expect(parseSheet(sheet)).toMatchObject([{ firstname: 'Anna', sex: undefined }]);
     expect(parseSheet(sheet, 'FEMALE')).toMatchObject([{ firstname: 'Anna', sex: 'FEMALE' }]);
   });
 

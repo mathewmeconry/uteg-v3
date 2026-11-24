@@ -112,7 +112,7 @@ export default {
     drop: 'Drop files here or choose them',
     limits: 'XLSX, at most {{size}} MB per file and {{rows}} people in total',
     columnsHint:
-      'All sheets with the columns first name, last name, birth year and sex are read. STV ID, category and division are optional.',
+      'All sheets with the columns first name, last name and birth year are read. STV ID, sex, category and division are optional.',
     template: 'Download template',
     reading: 'Reading files …',
     removeFile: 'Remove {{name}}',
@@ -127,6 +127,7 @@ export default {
     toReview: 'Review',
     swap: 'Swap first and last name of row {{row}}',
     swapAll: 'Swap all first and last names',
+    setMissingSex: 'Sex for all rows without one',
     removeRow: 'Remove row {{row}}',
     row: 'Row {{row}}',
     field: '{{label}}, row {{row}}',
