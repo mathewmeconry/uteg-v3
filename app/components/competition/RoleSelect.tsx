@@ -8,8 +8,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import type { Role } from '~/generated/prisma/enums';
-
-export const ROLES: Role[] = ['VIEWER', 'EDITOR', 'OWNER'];
+import { ROLES } from '~/lib/roles';
 
 /** Select of a member's role. The remaining props go to the trigger. */
 export function RoleSelect({
@@ -31,7 +30,7 @@ export function RoleSelect({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {ROLES.map((role) => (
+        {ROLES.toReversed().map((role) => (
           <SelectItem key={role} value={role}>
             {t(`role.${role}`)}
           </SelectItem>

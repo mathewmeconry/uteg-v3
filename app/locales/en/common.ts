@@ -124,6 +124,7 @@ export default {
     OWNER: 'Owner',
     EDITOR: 'Editor',
     VIEWER: 'Viewer',
+    CHECK_IN: 'Check-in',
   },
   language: {
     de: 'German',

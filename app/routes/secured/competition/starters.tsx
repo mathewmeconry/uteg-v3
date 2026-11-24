@@ -44,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { competitionContext } from '~/context';
+import { Role } from '~/generated/prisma/enums';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { listClubs } from '~/lib/clubs.server';
@@ -62,7 +63,7 @@ import {
   type Assignment,
 } from '~/lib/starters.server';
 import type { ServerT } from '~/locales';
-import { requireRole } from '~/middlewares/competition.server';
+import { requireEditorOrCheckIn } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 
@@ -80,9 +81,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id, role } = requireEditorOrCheckIn(context);
+  const isCheckIn = role === Role.CHECK_IN;
   const t = getT(context);
   const formData = await request.formData();
+  if (isCheckIn && !['create', 'update', 'remove'].includes(String(formData.get('intent')))) {
+    throw data(null, 403);
+  }
   rejectNul(formData);
   const success = (message: string) => {
     enqueueToast(context, { type: 'success', message });
@@ -99,10 +104,15 @@ export async function action({ request, context }: Route.ActionArgs) {
         const entry = {
           contestId,
           category: category || undefined,
-          divisionId: divisionId || undefined,
-          startApparatus: startApparatus || undefined,
+          divisionId: (!isCheckIn && divisionId) || undefined,
+          startApparatus: (!isCheckIn && startApparatus) || undefined,
         };
-        const { outcome } = await createStarter(id, { ...person, athleteId, entries: [entry] });
+        const { outcome } = await createStarter(id, {
+          ...person,
+          athleteId,
+          entries: [entry],
+          keepCategory: isCheckIn,
+        });
         const message = t(`starters:${outcome}`, { name: fullName(person) });
         enqueueToast(context, { type: outcome === 'existing' ? 'info' : 'success', message });
         return { ok: true as const };
@@ -122,8 +132,10 @@ export async function action({ request, context }: Route.ActionArgs) {
         };
         await updateStarter(id, starterId, {
           ...person,
-          entries: isInContest || category ? [entry] : [],
-          updateAthlete: formData.get('updateAthlete') === 'on',
+          // Another sex would lose the category and division, which the check-in may not change.
+          sex: isCheckIn ? undefined : person.sex,
+          entries: !isCheckIn && (isInContest || category) ? [entry] : [],
+          updateAthlete: !isCheckIn && formData.get('updateAthlete') === 'on',
         });
         return success(t('starters:updated', { name: fullName(person) }));
       }
@@ -214,7 +226,8 @@ type OpenDialog =
 export default function Starters({ loaderData }: Route.ComponentProps) {
   const { starters, contest, clubs } = loaderData;
   const { t } = useTranslation(['starters', 'common']);
-  const { competition, contests, canEdit } = useCompetition();
+  const { competition, contests, canEdit, isCheckIn } = useCompetition();
+  const canEditPerson = canEdit || isCheckIn;
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -231,14 +244,14 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
   // closing the dialog should return to them.
   const editId = searchParams.get('edit');
   const [dialog, setDialog] = useState<OpenDialog | null>(() => {
-    const starter = canEdit && starters.find(({ id }) => id === editId);
+    const starter = canEditPerson && starters.find(({ id }) => id === editId);
     return starter ? { type: 'edit', starter } : null;
   });
   // The search may link to one while this page is open.
   const [handledEditId, setHandledEditId] = useState(editId);
   if (editId !== handledEditId) {
     setHandledEditId(editId);
-    const starter = canEdit && starters.find(({ id }) => id === editId);
+    const starter = canEditPerson && starters.find(({ id }) => id === editId);
     if (starter) setDialog({ type: 'edit', starter });
   }
   const listRef = useRef<HTMLElement>(null);
@@ -300,11 +313,11 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
   }
   const open = useCallback(
     (starter: StarterRow) => {
-      // Where there is no room for the panel.
-      if (window.matchMedia('(width < 80rem)').matches) edit(starter);
+      // Where there is no room for the panel, or nothing to assign.
+      if (isCheckIn || window.matchMedia('(width < 80rem)').matches) edit(starter);
       else setOpenId(starter.id);
     },
-    [edit],
+    [edit, isCheckIn],
   );
   const remove = useCallback(
     (starter: StarterRow) => setDialog({ type: 'remove', starters: [starter] }),
@@ -331,14 +344,16 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
     postIds(`/api/competitions/${competition.id}/${path}`, ids, { contestId: contest.id, target });
   }
 
-  const actions = canEdit && (
+  const actions = canEditPerson && (
     <>
-      <Button variant="outline" asChild>
-        <Link to={contests.length > 1 ? `import?contest=${contest.id}` : 'import'}>
-          <UploadIcon aria-hidden />
-          {t('common:actions.import')}
-        </Link>
-      </Button>
+      {canEdit && (
+        <Button variant="outline" asChild>
+          <Link to={contests.length > 1 ? `import?contest=${contest.id}` : 'import'}>
+            <UploadIcon aria-hidden />
+            {t('common:actions.import')}
+          </Link>
+        </Button>
+      )}
       <Button className="max-sm:grow" onClick={() => setDialog({ type: 'create' })}>
         <UserPlusIcon aria-hidden />
         {t('create')}
@@ -436,7 +451,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
                     columns={columns}
                     sort={sort}
                     onSort={sortBy}
-                    canEdit={canEdit}
+                    canEdit={canEditPerson}
                     selected={selected}
                     openId={openId}
                     onOpen={open}
@@ -466,7 +481,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
         )}
       </section>
 
-      {canEdit && selectedRows.length > 0 && (
+      {canEditPerson && selectedRows.length > 0 && (
         <SelectionBar
           role="toolbar"
           aria-label={t('actions')}
@@ -486,13 +501,15 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
             </p>
           }
         >
-          <Button
-            variant="brand"
-            onClick={() => setDialog({ type: 'assign', starters: selectedRows })}
-          >
-            <LayersIcon aria-hidden />
-            {t('assign.action')}
-          </Button>
+          {canEdit && (
+            <Button
+              variant="brand"
+              onClick={() => setDialog({ type: 'assign', starters: selectedRows })}
+            >
+              <LayersIcon aria-hidden />
+              {t('assign.action')}
+            </Button>
+          )}
           <Button
             variant="onInk"
             onClick={() => setDialog({ type: 'remove', starters: selectedRows })}
@@ -510,6 +527,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
           options={contest}
           clubs={clubs}
           startingIds={startingIds}
+          personOnly={isCheckIn}
           onClose={closeDialog}
         />
       )}

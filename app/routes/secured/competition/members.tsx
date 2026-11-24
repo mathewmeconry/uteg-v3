@@ -4,7 +4,7 @@ import { data, Form, redirect, useNavigation } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/members';
 import { MemberRow } from '~/components/competition/MemberRow';
-import { ROLES, RoleSelect } from '~/components/competition/RoleSelect';
+import { RoleSelect } from '~/components/competition/RoleSelect';
 import { FormField } from '~/components/FormField';
 import { PageHeader } from '~/components/PageHeader';
 import { SubmitButton } from '~/components/SubmitButton';
@@ -16,6 +16,7 @@ import { getUser } from '~/lib/auth/auth.server';
 import { addMember, changeMemberRole, listMembers, removeMember } from '~/lib/competitions.server';
 import { actionError, domainErrorMessage } from '~/lib/domainErrors.server';
 import { parseForm } from '~/lib/forms.server';
+import { ROLES } from '~/lib/roles';
 import { safeClientAction } from '~/lib/safeClientAction';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
@@ -30,7 +31,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'OWNER');
+  const { id } = requireRole(context, Role.OWNER);
   const t = getT(context);
   const formData = await request.formData();
 
@@ -98,7 +99,7 @@ export default function Members({
   const { t } = useTranslation(['settings', 'common']);
   const { isOwner } = useCompetition();
   const errors = useActionErrors(actionData);
-  const owners = members.filter(({ role }) => role === 'OWNER').length;
+  const owners = members.filter(({ role }) => role === Role.OWNER).length;
 
   const { state } = useNavigation();
   const emailInput = useRef<HTMLInputElement>(null);
@@ -123,7 +124,7 @@ export default function Members({
                 member={member}
                 canManage={isOwner}
                 isSelf={member.userId === ownId}
-                isLastOwner={member.role === 'OWNER' && owners === 1}
+                isLastOwner={member.role === Role.OWNER && owners === 1}
               />
             ))}
           </ul>
@@ -169,8 +170,8 @@ export default function Members({
           <h2 id="roles-title" className="mb-3 font-display text-lg">
             {t('members.rolesTitle')}
           </h2>
-          <dl className="grid gap-3 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-1">
-            {ROLES.toReversed().map((role) => (
+          <dl className="grid gap-3 sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-1">
+            {ROLES.map((role) => (
               <div key={role}>
                 <dt className="font-semibold">{t(`common:role.${role}`)}</dt>
                 <dd className="text-muted-foreground">{t(`members.roleText.${role}`)}</dd>

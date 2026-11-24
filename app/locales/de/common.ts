@@ -121,6 +121,7 @@ export default {
     OWNER: 'Inhaber',
     EDITOR: 'Bearbeiter',
     VIEWER: 'Betrachter',
+    CHECK_IN: 'Anmeldung',
   },
   language: {
     de: 'Deutsch',

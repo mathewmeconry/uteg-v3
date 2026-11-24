@@ -21,10 +21,12 @@ export function EntryFields({
   options,
   sex,
   defaultValue,
+  categoryOnly = false,
 }: {
   options: ContestOptions;
   sex: Sex | '';
   defaultValue: EntryValue;
+  categoryOnly?: boolean;
 }) {
   const { t } = useTranslation(['starters', 'common']);
   const [value, setValue] = useState(defaultValue);
@@ -51,38 +53,49 @@ export function EntryFields({
           </NativeSelect>
         )}
       </FormField>
-      <FormField label={t('division')}>
-        {(props) => (
-          <NativeSelect
-            {...props}
-            name="divisionId"
-            value={division?.id ?? ''}
-            disabled={divisions.length === 0}
-            onChange={(event) =>
-              setValue({ ...value, category, divisionId: event.target.value, startApparatus: '' })
-            }
-          >
-            <option value="">{t('noDivision')}</option>
-            <DivisionOptions divisions={divisions} />
-          </NativeSelect>
-        )}
-      </FormField>
-      <FormField label={t('common:fields.startApparatus')}>
-        {(props) => (
-          <NativeSelect
-            {...props}
-            name="startApparatus"
-            value={division?.apparatus.includes(value.startApparatus) ? value.startApparatus : ''}
-            disabled={!division}
-            onChange={(event) =>
-              setValue({ ...value, category, startApparatus: event.target.value })
-            }
-          >
-            <option value="">{t('noApparatus')}</option>
-            <ApparatusOptions division={division} />
-          </NativeSelect>
-        )}
-      </FormField>
+      {!categoryOnly && (
+        <>
+          <FormField label={t('division')}>
+            {(props) => (
+              <NativeSelect
+                {...props}
+                name="divisionId"
+                value={division?.id ?? ''}
+                disabled={divisions.length === 0}
+                onChange={(event) =>
+                  setValue({
+                    ...value,
+                    category,
+                    divisionId: event.target.value,
+                    startApparatus: '',
+                  })
+                }
+              >
+                <option value="">{t('noDivision')}</option>
+                <DivisionOptions divisions={divisions} />
+              </NativeSelect>
+            )}
+          </FormField>
+          <FormField label={t('common:fields.startApparatus')}>
+            {(props) => (
+              <NativeSelect
+                {...props}
+                name="startApparatus"
+                value={
+                  division?.apparatus.includes(value.startApparatus) ? value.startApparatus : ''
+                }
+                disabled={!division}
+                onChange={(event) =>
+                  setValue({ ...value, category, startApparatus: event.target.value })
+                }
+              >
+                <option value="">{t('noApparatus')}</option>
+                <ApparatusOptions division={division} />
+              </NativeSelect>
+            )}
+          </FormField>
+        </>
+      )}
     </div>
   );
 }

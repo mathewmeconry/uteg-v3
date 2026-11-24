@@ -1,11 +1,13 @@
 import { z } from 'zod';
-import type { Prisma, Role } from '~/generated/prisma/client';
+import { Role, type Prisma } from '~/generated/prisma/client';
 import { insertLogo } from './assets.server';
 import { parseContestConfig } from './contests.server';
 import { DomainError } from './errors';
 import { publish } from './events.server';
 import { lockCompetition } from './locks.server';
 import { prisma } from './prisma.server';
+import { hasRole } from './roles';
+import { isAdmin } from './users.server';
 import { SEXES } from '~/modules/types';
 
 const detailsSchema = z
@@ -22,36 +24,42 @@ const detailsSchema = z
 export type CompetitionDetails = z.input<typeof detailsSchema>;
 export type MemberInput = { email: string; role: Role };
 
-const ROLE_LEVEL: Record<Role, number> = { VIEWER: 0, EDITOR: 1, OWNER: 2 };
-
 // ── Competitions ─────────────────────────────────────────────────────────────
 
-/** The competitions the user is a member of, newest first. */
-/** The competitions of the user, with their role. */
+/** The competitions of the user with their role, newest first. Admins get all, as owners. */
 export async function listCompetitions(userId: string) {
+  const ownsAll = await isAdmin(userId);
   const competitions = await prisma.competition.findMany({
-    where: { members: { some: { userId } } },
+    where: ownsAll ? {} : { members: { some: { userId } } },
     include: { members: { where: { userId }, select: { role: true } } },
     orderBy: [{ startDate: 'desc' }, { name: 'asc' }],
   });
-  return competitions.map(({ members: [{ role }], ...competition }) => ({ ...competition, role }));
+  return competitions.map(({ members: [member], ...competition }) => ({
+    ...competition,
+    role: ownsAll ? Role.OWNER : member.role,
+  }));
 }
 
 /** The competition with the user's role. Strangers cannot tell whether it exists. */
 export async function getCompetitionForUser(
   userId: string,
   competitionId: string,
-  minRole: Role = 'VIEWER',
+  minRole: Role = Role.CHECK_IN,
 ) {
-  const member = await prisma.member.findUnique({
-    where: { competitionId_userId: { competitionId, userId } },
+  const ownsAll = await isAdmin(userId);
+  const found = await prisma.competition.findUnique({
+    where: { id: competitionId },
     include: {
-      competition: { include: { contests: { orderBy: [{ position: 'asc' }, { id: 'asc' }] } } },
+      members: { where: { userId }, select: { role: true } },
+      contests: { orderBy: [{ position: 'asc' }, { id: 'asc' }] },
     },
   });
-  if (!member) throw new DomainError('NOT_FOUND');
-  if (ROLE_LEVEL[member.role] < ROLE_LEVEL[minRole]) throw new DomainError('FORBIDDEN');
-  return { ...member.competition, role: member.role };
+  if (!found) throw new DomainError('NOT_FOUND');
+  const { members, ...competition } = found;
+  const role = ownsAll ? Role.OWNER : members[0]?.role;
+  if (!role) throw new DomainError('NOT_FOUND');
+  if (!hasRole(role, minRole)) throw new DomainError('FORBIDDEN');
+  return { ...competition, role };
 }
 
 export async function createCompetition(
@@ -75,7 +83,7 @@ export async function createCompetition(
     const competition = await tx.competition.create({
       data: {
         ...details,
-        members: { create: { userId, role: 'OWNER' } },
+        members: { create: { userId, role: Role.OWNER } },
         contests: { create: contests },
       },
     });
@@ -168,7 +176,7 @@ export async function addMember(competitionId: string, input: MemberInput) {
 export async function changeMemberRole(competitionId: string, userId: string, role: Role) {
   await prisma.$transaction(async (tx) => {
     const member = await lockMember(tx, competitionId, userId);
-    if (role !== 'OWNER') await assertNotLastOwner(tx, member);
+    if (role !== Role.OWNER) await assertNotLastOwner(tx, member);
     await tx.member.update({ where: { id: member.id }, data: { role } });
   });
   publish(competitionId, 'settings');
@@ -224,11 +232,11 @@ async function assertNotLastOwner(
   tx: Prisma.TransactionClient,
   member: { competitionId: string; userId: string; role: Role },
 ) {
-  if (member.role !== 'OWNER') return;
+  if (member.role !== Role.OWNER) return;
   const others = await tx.member.count({
     where: {
       competitionId: member.competitionId,
-      role: 'OWNER',
+      role: Role.OWNER,
       userId: { not: member.userId },
     },
   });
