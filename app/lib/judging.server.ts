@@ -66,6 +66,15 @@ export async function getJudgingState(competitionId: string, ground: number, app
   };
 }
 
+/** Where divisions are running, for choosing a ground. */
+export async function listRunningDivisions(competitionId: string) {
+  const divisions = await prisma.division.findMany({
+    where: { state: 'RUNNING', contest: { competitionId } },
+    select: { id: true, category: true, sex: true, number: true, ground: true },
+  });
+  return divisions.toSorted((a, b) => a.ground - b.ground || compareDivisions(a, b));
+}
+
 /** How long a display shows the last grades after the last division ended. */
 const DISPLAY_LINGER_MS = 5 * 60_000;
 

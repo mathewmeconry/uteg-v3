@@ -13,15 +13,18 @@ import { ConflictNotice, RejectedNotice, SaveState } from './SaveState';
 import { draftKey, type GradeDrafts } from './useGradeDrafts';
 import { findInput, useGradeEditing } from './useGradeEditing';
 
-/** One starter in the grading tables of a ground. */
+/** One starter in the list of an apparatus. */
 export function GradingRow({
   slot,
   position,
+  isNext = false,
   drafts,
   canEdit,
 }: {
   slot: TabletSlot;
   position: number;
+  /** The first one without a grade in the current round. */
+  isNext?: boolean;
   drafts: GradeDrafts;
   canEdit: boolean;
 }) {
@@ -41,6 +44,8 @@ export function GradingRow({
   const key = draftKey(slot);
   const name = fullName(slot);
   const isEditable = canEdit && !slot.withdrawn;
+  // In place of the club, and not while typing, so that nothing moves.
+  const showsState = isEditable && state.isDirty && (!isActive || state.isConflict);
 
   function findNext() {
     let next = row.current?.nextElementSibling;
@@ -53,17 +58,24 @@ export function GradingRow({
     <li
       ref={row}
       {...handlers}
+      aria-current={isNext ? 'step' : undefined}
       className={cn(
-        'flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2',
+        'flex flex-wrap items-center gap-x-2 gap-y-1.5 py-2 pr-2 pl-3',
+        isNext && 'bg-accent',
         state.isDirty && 'bg-warning/15',
       )}
     >
-      <span className="w-6 text-right text-muted-foreground tabular-nums">{position}.</span>
-      <span className={cn('min-w-40 flex-1', slot.withdrawn && 'line-through')}>
+      <span className="w-6 text-muted-foreground tabular-nums">{position}.</span>
+      <span className={cn('min-w-0 flex-1 basis-28', slot.withdrawn && 'line-through')}>
         <span className="block font-medium">{name}</span>
-        <span className="block text-sm text-muted-foreground">
-          {slot.clubName} · {slot.category} {t(`sexShort.${slot.sex}`)}
-        </span>
+        {!showsState && (
+          <span className="block truncate text-xs text-muted-foreground">
+            {slot.category} {t(`sexShort.${slot.sex}`)} {slot.divisionNumber} · {slot.clubName}
+          </span>
+        )}
+        {isEditable && (
+          <SaveState state={state} className={showsState ? 'min-h-0 text-xs' : 'sr-only'} />
+        )}
       </span>
       {slot.withdrawn && <Badge variant="outline">{t('withdrawn')}</Badge>}
       {!isEditable && (
@@ -78,12 +90,12 @@ export function GradingRow({
             evaluated={state.evaluated}
             rule={slot.inputRule}
             name={name}
+            compact
             showRequired={showRequired}
             onChange={change}
             onSubmit={goToNext}
           />
-          <SaveState state={state} className="w-48 text-sm" />
-          <div className="flex gap-1">
+          <div className="ml-auto flex gap-1">
             {/* Typed before a reload, or refused: that does not save by itself. */}
             {state.isDirty &&
               !isActive &&

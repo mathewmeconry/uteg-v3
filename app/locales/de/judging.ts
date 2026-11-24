@@ -124,7 +124,8 @@ export default {
     empty: 'Pause',
   },
   grading: {
-    text: 'Laufende Abteilungen',
+    inUse: 'Läuft',
+    free: 'Frei',
     keys: 'Noten werden automatisch gespeichert. Enter: nächste Person · Esc: Eingabe verwerfen · Alt+Entf oder Alt+Rücktaste: Note löschen',
     nothingRuns: 'Auf diesem Wettkampfplatz läuft keine Abteilung',
     nothingRunsText: 'Starte eine Abteilung, um hier Noten einzugeben.',
@@ -147,9 +148,9 @@ export default {
     },
     noLineups: 'Noch niemand eingeteilt',
     noLineupsText: 'Noten lassen sich erfassen, sobald die Teilnehmenden ein Startgerät haben.',
-    currentRound: 'Aktueller Durchgang: {{number}}',
+    rounds: 'Durchgang',
+    current: 'Aktuell',
     finished: 'Alle Durchgänge bestätigt',
-    roundsOf: 'Durchgänge am Gerät {{apparatus}}',
     saveRow: 'Note von {{name}} speichern',
     deleteRow: 'Note von {{name}} löschen',
     deleteTitle: 'Note löschen?',
@@ -162,7 +163,7 @@ export default {
     confirmed: 'Durchgang bestätigt',
     unsavedCount_one: '{{count}} ungespeicherte Eingabe',
     unsavedCount_other: '{{count}} ungespeicherte Eingaben',
-    nobody: 'Niemand startet in diesem Durchgang an diesem Gerät.',
+    nobody: 'Pause, niemand am Gerät.',
   },
   links: {
     intro:

@@ -157,6 +157,16 @@ describe('loading', () => {
     expect((await load(context, '?ground=2')).apparatus).toEqual([]);
   });
 
+  it('shows the first ground in use when none was chosen', async () => {
+    const { context, division } = await setup();
+    await prisma.division.update({ where: { id: division.id }, data: { ground: 2 } });
+    expect(await load(context)).toMatchObject({
+      ground: 2,
+      running: [{ id: division.id, ground: 2 }],
+    });
+    expect((await load(context, '?ground=1')).ground).toBe(1);
+  });
+
   it.each(['?ground=3', '?ground=0', '?ground=x', '?ground=1.5'])(
     'falls back to the first ground for %s',
     async (query) => {
