@@ -8,7 +8,7 @@ Paths in brackets point into `uteg-v2/frontend/src` unless prefixed `BE:` (`uteg
 - [ ] P-01 Login, register (email, password, repeated), logout
 - [ ] P-02 Profile: email, language, **change password** (empty tab in v2)
 - [ ] P-03 de/en, detected from the browser, user preference wins; Swiss spelling, dates in locale
-- [ ] P-04 Competition layout: sidebar, collapses to a drawer on small screens
+- [ ] P-04 Competition layout: bar at the top, tabs at the bottom on small screens
 - [ ] P-05 404 and error pages (missing in v2)
 
 ## Competitions

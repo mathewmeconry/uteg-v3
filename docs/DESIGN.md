@@ -65,9 +65,11 @@ Archivo variable (self-hosted, SIL OFL), one family in two cuts.
 
 ## Page anatomy
 
-- **Shell**: sidebar with the competition switcher, then the work in order (Vorbereitung, Wettkampf,
-  Auswertung, Verwaltung), account at the bottom. Below 1024px (phones, upright tablets): ink bar
-  with menu, name, account, 56px high. Sticky elements use `top-14 lg:top-0`.
+- **Shell**: ink bar, 56px high, with the competition switcher, the four pages of the daily work
+  (Übersicht, Teilnehmende, Abteilungen, Rangliste), "Einrichten" and the account. What is set up once
+  is in "Einrichten", its pages are listed on the left. Below 1024px (phones, upright tablets) the
+  four and "Mehr" are tabs at the bottom edge. The bar navigates, states are on the pages. Sticky
+  elements use `top-14` and `bottom-(--bottom-nav)`.
 - **`PageHeader`**: breadcrumbs (sub pages only), title, `status` (connection, state), description,
   actions on the right with the main one last.
 - **`Toolbar`**: filters and settings of the list below.

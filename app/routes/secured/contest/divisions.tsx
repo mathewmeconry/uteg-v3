@@ -1,4 +1,5 @@
 import {
+  ClipboardPenIcon,
   FileTextIcon,
   LayersIcon,
   PlayIcon,
@@ -9,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { data, useSearchParams } from 'react-router';
+import { data, Link, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/divisions';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
@@ -246,6 +247,14 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
         status={<ConnectionBadge status={status} />}
         actions={
           <>
+            {running.length > 0 && (
+              <Button asChild variant="outline">
+                <Link to="../grading" relative="path">
+                  <ClipboardPenIcon aria-hidden />
+                  {t('common:nav.grading')}
+                </Link>
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
@@ -307,7 +316,7 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
               <div className="rounded-xl border bg-card">
                 <div
                   className={cn(
-                    'sticky top-14 z-[5] flex min-h-12 flex-wrap items-center gap-2 rounded-t-xl border-b px-2 py-1 lg:top-0',
+                    'sticky top-14 z-[5] flex min-h-12 flex-wrap items-center gap-2 rounded-t-xl border-b px-2 py-1',
                     selected.length > 0 ? 'bg-ink text-ink-foreground' : 'bg-muted',
                   )}
                 >
