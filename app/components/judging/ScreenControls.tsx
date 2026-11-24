@@ -1,4 +1,4 @@
-import { AArrowDownIcon, AArrowUpIcon, LanguagesIcon, SlidersHorizontalIcon } from 'lucide-react';
+import { AArrowDownIcon, AArrowUpIcon, SlidersHorizontalIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ThemeItems } from '~/components/ThemeItems';
 import { Button } from '~/components/ui/button';
@@ -6,11 +6,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { FONT_SCALES } from '~/hooks/useFontScale';
-import { LANGUAGES, type Language } from '~/locales';
+import { LANGUAGES } from '~/locales';
 
 /** Font size, language and theme of a tablet or display, for its ink header. */
 export function ScreenControls({
@@ -20,10 +23,9 @@ export function ScreenControls({
   scale: number;
   onScale: (step: 1 | -1) => void;
 }) {
-  const { t, i18n } = useTranslation('judging');
+  const { t, i18n } = useTranslation(['judging', 'common']);
 
-  function switchLanguage() {
-    const language: Language = LANGUAGES[i18n.language === LANGUAGES[0] ? 1 : 0];
+  function switchLanguage(language: string) {
     void i18n.changeLanguage(language);
     // Only for the next load, so it may fail.
     fetch('/api/language', {
@@ -61,10 +63,19 @@ export function ScreenControls({
           <AArrowUpIcon aria-hidden />
           {t('screen.larger')}
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={switchLanguage}>
-          <LanguagesIcon aria-hidden />
-          {t('screen.switchLanguage')}
-        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel id="language">{t('common:fields.language')}</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          aria-labelledby="language"
+          value={i18n.language}
+          onValueChange={switchLanguage}
+        >
+          {LANGUAGES.map((language) => (
+            <DropdownMenuRadioItem key={language} value={language} lang={language}>
+              {t(`common:language.${language}`)}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <ThemeItems />
       </DropdownMenuContent>

@@ -58,7 +58,7 @@ app/
   lib/               <domain>.server.ts services, pure helpers, tests next to the code
   modules/           contest modules (egt), registry, shared types
   pdf/               react-pdf documents
-  locales/{de,en}/
+  locales/{de,fr,en}/
   middlewares/       auth, competition access, i18n
   routes/            auth, secured, judge, display, api
 prisma/  docs/  e2e/

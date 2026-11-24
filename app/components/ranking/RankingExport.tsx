@@ -2,6 +2,7 @@ import { FileTextIcon, TriangleAlertIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DocumentLanguageToggle } from '~/components/DocumentLanguageToggle';
+import { categoryName } from '~/lib/categoryName';
 import { Alert, AlertDescription } from '~/components/ui/alert';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
@@ -150,7 +151,7 @@ export function RankingExport({
                           checked={selected.includes(key)}
                           onCheckedChange={(checked) => select(key, checked === true)}
                         />
-                        {group.category}
+                        {categoryName(group.category, t)}
                       </Label>
                     );
                   })}

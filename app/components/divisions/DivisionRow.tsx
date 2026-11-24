@@ -27,6 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
+import { categoryName } from '~/lib/categoryName';
 import { cn } from '~/lib/utils';
 import type { Division } from './divisionList';
 import { useDivisionName } from './useDivisionName';
@@ -107,7 +108,7 @@ export function DivisionRow({
               className="inline-flex flex-wrap items-baseline gap-x-2 underline-offset-4 hover:underline pointer-coarse:min-h-11 pointer-coarse:items-center"
             >
               <span className="font-semibold">
-                {division.category} {t(`common:sex.${division.sex}`)}
+                {categoryName(division.category, t)} {t(`common:sex.${division.sex}`)}
               </span>
               <span className="text-muted-foreground">
                 {t('number', { number: division.number })}

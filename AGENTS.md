@@ -14,7 +14,7 @@ status in `docs/PARITY.md`.
 - React Router 8 (framework mode, SSR), Vite 8, React 19, TypeScript
 - Prisma 7 with PostgreSQL, better-auth (email and password, email-otp plugin for codes), mails with Resend and MJML
 - Tailwind 4, shadcn (new-york, in `app/components/ui`), lucide, sonner
-- i18next (de, en), zod 4, pino, @react-pdf/renderer, exceljs, dnd-kit
+- i18next (de, fr, en), zod 4, pino, @react-pdf/renderer, exceljs, dnd-kit
 - vitest + Testing Library, Playwright
 - pnpm only, Node >= 24. One process: live updates and rate limits are in memory.
 
@@ -29,7 +29,7 @@ status in `docs/PARITY.md`.
 - `app/lib/*.server.ts` services, the only place with database access besides auth.
   `app/lib/domain/` pure rules (rotation, progress, grades, ranking, import).
 - `app/modules/` contest modules.
-- `app/components/` shared components, `app/hooks/`, `app/locales/{de,en}/<namespace>.ts`.
+- `app/components/` shared components, `app/hooks/`, `app/locales/{de,fr,en}/<namespace>.ts`.
 - `app/tests/` test database and helpers.
 
 ## Writing a route
@@ -67,11 +67,12 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 ## Texts
 
-- Every text is in a locale file. German is the source, `en` has `satisfies Translation<typeof de>`,
+- Every text is in a locale file. German is the source, the others have `satisfies Translation<typeof de>`,
   so missing keys fail the typecheck. Keys of `common` need no prefix: `t('actions.save')`,
   others `useTranslation('starters')` or `t('starters:title')`.
 - Never call the global i18next: components use `useTranslation`, the server `getT(context)`.
 - German in Swiss spelling (ss, never ß), neutral or "du".
+- French with "tu" and the terms of the FSG Directives, gender-neutral, no space before : ; ! ? and inside « ».
 - Dates and numbers must format the same on the server and in the browser (explicit locale and time
   zone, see `lib/format.ts`).
 

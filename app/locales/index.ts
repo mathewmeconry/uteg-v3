@@ -21,8 +21,19 @@ import enPdf from './en/pdf';
 import enRanking from './en/ranking';
 import enSettings from './en/settings';
 import enStarters from './en/starters';
+import frAuth from './fr/auth';
+import frCommon from './fr/common';
+import frCompetition from './fr/competition';
+import frDisplay from './fr/display';
+import frDivisions from './fr/divisions';
+import frJudging from './fr/judging';
+import frMails from './fr/mails';
+import frPdf from './fr/pdf';
+import frRanking from './fr/ranking';
+import frSettings from './fr/settings';
+import frStarters from './fr/starters';
 
-export const LANGUAGES = ['de', 'en'] as const;
+export const LANGUAGES = ['de', 'fr', 'en'] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 export function isLanguage(value: unknown): value is Language {
@@ -77,5 +88,18 @@ export const resources = {
     pdf: enPdf,
     settings: enSettings,
     mails: enMails,
+  },
+  fr: {
+    common: frCommon,
+    auth: frAuth,
+    competition: frCompetition,
+    starters: frStarters,
+    divisions: frDivisions,
+    judging: frJudging,
+    display: frDisplay,
+    ranking: frRanking,
+    pdf: frPdf,
+    settings: frSettings,
+    mails: frMails,
   },
 } satisfies Record<Language, object>;

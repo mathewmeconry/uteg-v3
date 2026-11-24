@@ -1,5 +1,6 @@
 import { ArrowDownIcon, ArrowUpIcon, Columns3Icon, SearchIcon, XIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { categoryName } from '~/lib/categoryName';
 import { Button } from '~/components/ui/button';
 import {
   DropdownMenu,
@@ -59,7 +60,7 @@ export function StartersToolbar({
   const isFiltered = search !== '' || FILTERS.some((key) => filters[key].length > 0);
 
   function optionLabel(key: Filter, value: string) {
-    if (key === 'category') return value || t('noCategory');
+    if (key === 'category') return categoryName(value, t) || t('noCategory');
     if (key === 'division') return value ? t('divisionNumber', { number: value }) : t('noDivision');
     if (key === 'sex') return t(`common:sex.${value as StarterRow['sex']}`);
     if (key === 'startApparatus') {

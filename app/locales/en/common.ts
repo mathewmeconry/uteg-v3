@@ -127,10 +127,12 @@ export default {
     CHECK_IN: 'Check-in',
   },
   language: {
-    de: 'German',
+    de: 'Deutsch',
     en: 'English',
+    fr: 'Français',
   },
   documentLanguage: 'Language of documents',
+  categoryPrefix: 'K',
   ground: 'Ground {{number}}',
   round: 'Round {{number}}',
   starterCount_one: '{{count}} starter',

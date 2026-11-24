@@ -1,6 +1,7 @@
 import { Document, Page, Text, View } from '@react-pdf/renderer';
 import type { Sex } from '~/generated/prisma/client';
 import type { GradingState } from '~/lib/judging.server';
+import { categoryName } from '~/lib/categoryName';
 import type { ServerT } from '~/locales';
 import {
   Cell,
@@ -144,7 +145,7 @@ function Sheet({ slots, t }: { slots: Slot[]; t: ServerT }) {
               {slot.clubName}
             </Cell>
             <Cell column={CATEGORY} style={struck}>
-              {slot.category}
+              {categoryName(slot.category, t)}
             </Cell>
             {numbers.map((number) => (
               <View key={number} style={box}>
@@ -173,5 +174,9 @@ function divisionLabel(
   { category, sex, number }: { category: string; sex: Sex; number: number },
   t: ServerT,
 ) {
-  return t('pdf:division', { category, sex: t(`pdf:sex.${sex}`), number });
+  return t('pdf:division', {
+    category: categoryName(category, t),
+    sex: t(`pdf:sex.${sex}`),
+    number,
+  });
 }

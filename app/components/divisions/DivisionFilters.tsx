@@ -1,6 +1,7 @@
 import { ListFilterIcon, SearchIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { categoryName } from '~/lib/categoryName';
 import { useSearchParams } from 'react-router';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
@@ -53,7 +54,7 @@ export function DivisionFilters({
     {
       key: 'category',
       label: t('common:fields.category'),
-      options: categories.map((value) => [value, value]),
+      options: categories.map((value) => [value, categoryName(value, t)]),
     },
     {
       key: 'sex',

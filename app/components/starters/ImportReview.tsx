@@ -5,6 +5,7 @@ import { EmptyState } from '~/components/EmptyState';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import type { ContestOptions } from '~/lib/contestOptions.server';
+import { categoryName } from '~/lib/categoryName';
 import { cn } from '~/lib/utils';
 import {
   invalidFields,
@@ -186,9 +187,13 @@ const Row = memo(function Row({
       <Cell label={t('common:fields.category')}>
         <NativeSelect {...control('category', t('common:fields.category'))}>
           <option value="">–</option>
-          {row.category && !categories.includes(row.category) && <option>{row.category}</option>}
+          {row.category && !categories.includes(row.category) && (
+            <option value={row.category}>{categoryName(row.category, t)}</option>
+          )}
           {categories.map((category) => (
-            <option key={category}>{category}</option>
+            <option key={category} value={category}>
+              {categoryName(category, t)}
+            </option>
           ))}
         </NativeSelect>
         {error('category')}

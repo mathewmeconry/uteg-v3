@@ -1,5 +1,6 @@
 import { Document, Page, Text, View } from '@react-pdf/renderer';
 import type { Sex } from '~/generated/prisma/client';
+import { categoryName } from '~/lib/categoryName';
 import type { ServerT } from '~/locales';
 import {
   Cell,
@@ -107,7 +108,7 @@ export function StartersDocument({
                   <Cell column={NAME}>{`${row.lastname} ${row.firstname}`}</Cell>
                   <Cell column={BIRTH_YEAR}>{row.birthYear}</Cell>
                   <Cell column={SEX}>{t(`sex.${row.sex}`)}</Cell>
-                  <Cell column={CATEGORY}>{row.category}</Cell>
+                  <Cell column={CATEGORY}>{row.category && categoryName(row.category, t)}</Cell>
                   <Cell column={DIVISION}>{row.divisionNumber}</Cell>
                   <Cell column={APPARATUS}>
                     {row.apparatus && t(`apparatus.${row.apparatus as 'reck'}`)}

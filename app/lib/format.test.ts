@@ -8,6 +8,8 @@ it.each([
   ['de', '2026-05-09', '2027-05-09', '9. Mai 2026 – 9. Mai 2027'],
   ['en', '2026-05-09', '2026-05-10', '9–10 May 2026'],
   ['en', '2026-05-30', '2026-06-01', '30 May – 1 June 2026'],
+  ['fr', '2026-05-09', '2026-05-10', '9–10 mai 2026'],
+  ['fr', '2026-05-30', '2026-06-01', '30 mai – 1 juin 2026'],
 ])('%s: %s to %s', (language, start, end, expected) => {
   expect(formatDateRange(new Date(start), new Date(end), language)).toBe(expected);
 });

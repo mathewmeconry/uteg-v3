@@ -123,11 +123,15 @@ export default {
     VIEWER: 'Betrachter',
     CHECK_IN: 'Anmeldung',
   },
+  // Each in its own language, so everyone finds theirs.
   language: {
     de: 'Deutsch',
-    en: 'Englisch',
+    en: 'English',
+    fr: 'Français',
   },
   documentLanguage: 'Sprache der Dokumente',
+  // See categoryName().
+  categoryPrefix: 'K',
   ground: 'Wettkampfplatz {{number}}',
   round: 'Durchgang {{number}}',
   starterCount_one: '{{count}} Teilnehmende:r',

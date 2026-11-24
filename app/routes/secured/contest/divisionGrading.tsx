@@ -15,6 +15,7 @@ import { readForm } from '~/lib/forms.server';
 import { runConfirmRound, runDeleteGrade } from '~/lib/gradingActions.server';
 import { getGradingState, getJudgingState } from '~/lib/judging.server';
 import { safeClientAction } from '~/lib/safeClientAction';
+import { categoryName } from '~/lib/categoryName';
 import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 
@@ -85,7 +86,7 @@ export default function DivisionGrading({ loaderData }: Route.ComponentProps) {
   const drafts = useOutletContext<GradeDrafts>();
 
   const name = t('division', {
-    category: division.category,
+    category: categoryName(division.category, t),
     sex: t(`sexShort.${division.sex}`),
     number: division.number,
   });
