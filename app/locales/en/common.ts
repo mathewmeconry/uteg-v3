@@ -39,7 +39,7 @@ export default {
   },
   nav: {
     main: 'Main navigation',
-    setup: 'Setup',
+    setup: 'Settings',
     more: 'More',
     account: 'Account',
     home: 'Competitions',
