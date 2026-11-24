@@ -17,6 +17,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { AccountMenu } from '~/components/AccountMenu';
+import { CompetitionSearch } from '~/components/CompetitionSearch';
 import { Logo } from '~/components/Logo';
 import {
   DropdownMenu,
@@ -173,7 +174,7 @@ export function TopBar() {
   const { t } = useTranslation();
   const { competition, role } = useCompetition();
   const { email } = useUser();
-  const { main, isSetup } = useNavItems();
+  const { main, setup, isSetup } = useNavItems();
 
   return (
     <header className="sticky top-0 z-10 bg-ink text-ink-foreground dark:border-b">
@@ -185,6 +186,7 @@ export function TopBar() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-1">
+          <CompetitionSearch pages={[...main, ...setup]} />
           <div className="hidden lg:block">
             <TopLink
               to={`/competitions/${competition.id}/settings`}

@@ -10,6 +10,12 @@ export default {
   divisionNumber: 'Abteilung {{number}}',
   noDivision: 'Keine Abteilung',
   withoutDivision: 'Ohne Abteilung: {{count}}',
+  withoutApparatus: 'Ohne Startgerät: {{count}}',
+  panel: {
+    locked:
+      'Die Abteilung läuft oder ist beendet. Mit Bearbeiten lässt sich die Einteilung trotzdem ändern.',
+    noCategory: 'Ohne Kategorie kann die Person nicht eingeteilt werden.',
+  },
   noCategory: 'Keine Kategorie',
   noApparatus: 'Kein Startgerät',
   choose: 'Bitte wählen',

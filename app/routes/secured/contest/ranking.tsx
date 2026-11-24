@@ -1,4 +1,4 @@
-import { TriangleAlertIcon, TrophyIcon } from 'lucide-react';
+import { CheckIcon, TriangleAlertIcon, TrophyIcon } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { data, Link, useSearchParams } from 'react-router';
@@ -24,14 +24,14 @@ import { getHonourQuota } from '~/lib/domain/ranking';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { parseForm, readForm } from '~/lib/forms.server';
 import { formatDateTime } from '~/lib/format';
-import { getRanking, listRankingGroups } from '~/lib/ranking.server';
+import { getRanking, listCategoryStates, listRankingGroups } from '~/lib/ranking.server';
 import { listRankingTemplates } from '~/lib/rankingTemplates.server';
 import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 import { egtModule, type EgtConfig } from '~/modules/egt/module';
-import { SEXES } from '~/modules/types';
+import { SEXES, type Sex } from '~/modules/types';
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const competition = context.get(competitionContext);
@@ -52,7 +52,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     [...groups, ...started].find((group) => group.sex === sex)?.category ??
     categories[0];
 
-  const [brokenCovers, ranking, templates] = await Promise.all([
+  const [states, brokenCovers, ranking, templates] = await Promise.all([
+    listCategoryStates(competition.id, contestId),
     findBrokenCovers(competition.id),
     getRanking(competition.id, contestId, { category, sex, provisional }),
     listRankingTemplates(competition.id),
@@ -64,6 +65,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     categories,
     provisional,
     groups,
+    states,
     ranking,
     quota: getHonourQuota(ranking.entries.length, ranking.options),
     templates: templates.map(({ id, name, isDefault, assignments }) => ({
@@ -163,8 +165,8 @@ function ChoiceNav({
 }
 
 export default function Ranking({ loaderData }: Route.ComponentProps) {
-  const { contestId, sex, category, categories, provisional, groups, ranking, quota, templates } =
-    loaderData;
+  const { contestId, sex, category, categories, provisional, groups, states } = loaderData;
+  const { ranking, quota, templates } = loaderData;
   const { t, i18n } = useTranslation(['ranking', 'common']);
   const { competition, canEdit } = useCompetition();
   const sexes = useSexes();
@@ -186,95 +188,183 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
   }
 
   return (
-    <div className="flex flex-col">
-      <title>{`${t('title')} ${category} · UTEG`}</title>
-      <PageHeader
-        title={t('title')}
-        description={
-          ranking.lastUpdated &&
-          t('lastUpdated', { date: formatDateTime(ranking.lastUpdated, i18n.language) })
-        }
-        status={<ConnectionBadge status={status} />}
-        actions={
-          <RankingExport
-            competitionId={competition.id}
-            contestId={contestId}
-            groups={groups}
-            current={{ sex, category }}
-            provisional={provisional}
-            templates={templates}
-          />
-        }
-      />
+    <div className="lg:flex lg:gap-8">
+      <CategoryList states={states} sex={sex} category={category} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <title>{`${t('title')} ${category} · UTEG`}</title>
+        <PageHeader
+          title={`${t('title')} ${category} ${t(`common:sex.${sex}`)}`}
+          description={
+            ranking.lastUpdated &&
+            t('lastUpdated', { date: formatDateTime(ranking.lastUpdated, i18n.language) })
+          }
+          status={<ConnectionBadge status={status} />}
+          actions={
+            <RankingExport
+              competitionId={competition.id}
+              contestId={contestId}
+              groups={groups}
+              finished={states.filter(({ state }) => state === 'ENDED')}
+              current={{ sex, category }}
+              provisional={provisional}
+              templates={templates}
+            />
+          }
+        />
 
-      <Toolbar className="mb-2 gap-x-3">
-        {sexes.length > 1 && (
-          <ChoiceNav label={t('common:fields.sex')} className="max-sm:w-full max-sm:*:flex-1">
-            {sexes.map((item) => (
-              <ChoiceLink key={item} params={{ sex: item, category }} selected={item === sex}>
-                {t(`common:sex.${item}`)}
+        {/* Where there is no room for the list. */}
+        <Toolbar className="mb-2 gap-x-3 lg:hidden">
+          {sexes.length > 1 && (
+            <ChoiceNav label={t('common:fields.sex')} className="max-sm:w-full max-sm:*:flex-1">
+              {sexes.map((item) => (
+                <ChoiceLink key={item} params={{ sex: item, category }} selected={item === sex}>
+                  {t(`common:sex.${item}`)}
+                </ChoiceLink>
+              ))}
+            </ChoiceNav>
+          )}
+          <ChoiceNav
+            label={t('common:fields.category')}
+            className="max-sm:grid max-sm:w-full max-sm:grid-cols-4"
+          >
+            {categories.map((item) => (
+              <ChoiceLink
+                key={item}
+                params={{ sex, category: item }}
+                selected={item === category}
+                isEmpty={!groups.some((group) => group.sex === sex && group.category === item)}
+              >
+                {item}
               </ChoiceLink>
             ))}
           </ChoiceNav>
-        )}
-        <ChoiceNav
-          label={t('common:fields.category')}
-          className="max-sm:grid max-sm:w-full max-sm:grid-cols-4"
-        >
-          {categories.map((item) => (
-            <ChoiceLink
-              key={item}
-              params={{ sex, category: item }}
-              selected={item === category}
-              isEmpty={!groups.some((group) => group.sex === sex && group.category === item)}
-            >
-              {item}
-            </ChoiceLink>
-          ))}
-        </ChoiceNav>
-      </Toolbar>
+        </Toolbar>
 
-      {/* On phones the results come first. */}
-      <Toolbar className="max-sm:order-last max-sm:mt-6 max-sm:mb-0 max-sm:border-t max-sm:pt-4">
-        <Label htmlFor={provisionalId} className="min-h-11 leading-normal font-normal">
-          <Switch id={provisionalId} checked={provisional} onCheckedChange={toggleProvisional} />
-          {t('provisional')}
-        </Label>
-        {canEdit ? (
-          <HonourForm
-            key={`${sex}-${category}-${honourPercent}`}
-            sex={sex}
-            category={category}
-            percent={honourPercent}
-            hint={hint}
-          />
+        {/* On phones the results come first. */}
+        <Toolbar className="max-sm:order-last max-sm:mt-6 max-sm:mb-0 max-sm:border-t max-sm:pt-4">
+          <Label htmlFor={provisionalId} className="min-h-11 leading-normal font-normal">
+            <Switch id={provisionalId} checked={provisional} onCheckedChange={toggleProvisional} />
+            {t('provisional')}
+          </Label>
+          {canEdit ? (
+            <HonourForm
+              key={`${sex}-${category}-${honourPercent}`}
+              sex={sex}
+              category={category}
+              percent={honourPercent}
+              hint={hint}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {t('honourPercent')}: {honourPercent} · {hint}
+            </p>
+          )}
+        </Toolbar>
+
+        {ranking.hasRunning && (
+          <Alert variant="warning" className="mb-4">
+            <TriangleAlertIcon aria-hidden />
+            <AlertTitle>{t('runningTitle')}</AlertTitle>
+            <AlertDescription>
+              {t(provisional ? 'provisionalText' : 'runningText')}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {ranking.missingGrades > 0 && (
+          <Alert variant="warning" className="mb-4">
+            <TriangleAlertIcon aria-hidden />
+            <AlertTitle>{t('missingGrades', { count: ranking.missingGrades })}</AlertTitle>
+          </Alert>
+        )}
+
+        {count === 0 ? (
+          <EmptyState icon={TrophyIcon} title={t('emptyTitle')} text={t('emptyText')} />
         ) : (
-          <p className="text-sm text-muted-foreground">
-            {t('honourPercent')}: {honourPercent} · {hint}
-          </p>
+          <RankingList {...ranking} />
         )}
-      </Toolbar>
-
-      {ranking.hasRunning && (
-        <Alert variant="warning" className="mb-4">
-          <TriangleAlertIcon aria-hidden />
-          <AlertTitle>{t('runningTitle')}</AlertTitle>
-          <AlertDescription>{t(provisional ? 'provisionalText' : 'runningText')}</AlertDescription>
-        </Alert>
-      )}
-
-      {ranking.missingGrades > 0 && (
-        <Alert variant="warning" className="mb-4">
-          <TriangleAlertIcon aria-hidden />
-          <AlertTitle>{t('missingGrades', { count: ranking.missingGrades })}</AlertTitle>
-        </Alert>
-      )}
-
-      {count === 0 ? (
-        <EmptyState icon={TrophyIcon} title={t('emptyTitle')} text={t('emptyText')} />
-      ) : (
-        <RankingList {...ranking} />
-      )}
+      </div>
     </div>
+  );
+}
+
+/** The categories of the competition and how far they are. */
+function CategoryList({
+  states,
+  sex: shownSex,
+  category: shownCategory,
+}: {
+  states: Route.ComponentProps['loaderData']['states'];
+  sex: Sex;
+  category: string;
+}) {
+  const { t } = useTranslation(['ranking', 'common']);
+  const [params] = useSearchParams();
+  const sexes = useSexes();
+
+  function search(sex: Sex, category: string) {
+    const next = new URLSearchParams(params);
+    next.set('sex', sex);
+    next.set('category', category);
+    return `?${next}`;
+  }
+
+  return (
+    <nav
+      aria-label={t('common:fields.category')}
+      className="sticky top-22 hidden max-h-[calc(100dvh-7rem)] w-52 shrink-0 gap-5 self-start overflow-y-auto lg:grid"
+    >
+      {sexes.map((sex) => {
+        const items = states.filter((item) => item.sex === sex);
+        return (
+          items.length > 0 && (
+            <div key={sex}>
+              <h2 className="mb-1 px-3 text-xs font-semibold text-muted-foreground">
+                {t(`common:sex.${sex}`)}
+              </h2>
+              <ul className="grid gap-0.5">
+                {items.map(({ category, state }) => {
+                  const isShown = sex === shownSex && category === shownCategory;
+                  return (
+                    <li key={category}>
+                      <Link
+                        to={search(sex, category)}
+                        preventScrollReset
+                        aria-current={isShown ? 'page' : undefined}
+                        className={cn(
+                          'flex min-h-10 items-center justify-between gap-3 rounded-md px-3 hover:bg-accent pointer-coarse:min-h-11',
+                          isShown &&
+                            'bg-ink text-ink-foreground hover:bg-ink dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            state ? 'font-semibold' : !isShown && 'text-muted-foreground',
+                          )}
+                        >
+                          {category}
+                        </span>
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1.5 text-xs',
+                            !isShown && 'text-muted-foreground',
+                          )}
+                        >
+                          {state === 'ENDED' && <CheckIcon aria-hidden className="size-3.5" />}
+                          {state === 'RUNNING' && (
+                            <span aria-hidden className="size-2 rounded-full bg-brand" />
+                          )}
+                          {state && t(`states.${state}`)}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )
+        );
+      })}
+    </nav>
   );
 }

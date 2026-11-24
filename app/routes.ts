@@ -56,6 +56,7 @@ export default [
       route('grades', 'routes/api/competition/grades.ts'),
       route('athletes', 'routes/api/competition/athletes.ts'),
       route('clubs', 'routes/api/competition/clubs.ts'),
+      route('search', 'routes/api/competition/search.ts'),
       route('starters.xlsx', 'routes/api/competition/startersXlsx.ts'),
       route('pdf/ranking', 'routes/api/competition/rankingPdf.ts'),
       route('pdf/starters', 'routes/api/competition/startersPdf.ts'),

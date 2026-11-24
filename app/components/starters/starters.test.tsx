@@ -11,17 +11,25 @@ import { ImportReview } from './ImportReview';
 import { reviewReducer } from './importReview';
 import { RemoveDialog } from './RemoveDialog';
 import { StarterDialog } from './StarterDialog';
+import { StarterPanel } from './StarterPanel';
 import type { StarterRow } from './starterRow';
 
 const APPARATUS = ['reck', 'boden'];
+const DIVISION = {
+  category: 'K5',
+  number: 1,
+  state: 'PENDING',
+  starterCount: 0,
+  apparatus: APPARATUS,
+} as const;
 const OPTIONS: ContestOptions = {
   id: 'contest',
   name: 'EGT',
   categories: { FEMALE: ['K5', 'KD'], MALE: ['K5', 'KH'] },
   apparatus: APPARATUS,
   divisions: [
-    { id: 'f1', category: 'K5', sex: 'FEMALE', number: 1, apparatus: APPARATUS },
-    { id: 'm1', category: 'K5', sex: 'MALE', number: 1, apparatus: APPARATUS },
+    { ...DIVISION, id: 'f1', sex: 'FEMALE' },
+    { ...DIVISION, id: 'm1', sex: 'MALE' },
   ],
 };
 const CLUB = { id: 'chur', name: 'TV Chur', location: 'Chur' };
@@ -76,6 +84,62 @@ beforeEach(() => {
   Element.prototype.hasPointerCapture = () => false;
 });
 afterEach(() => vi.unstubAllGlobals());
+
+describe('StarterPanel', () => {
+  function renderPanel(starter: Partial<StarterRow>, options = OPTIONS, pending = false) {
+    const onAssign = vi.fn();
+    renderPage(
+      <StarterPanel
+        starter={{ ...ANNA, ...starter }}
+        options={options}
+        pending={pending}
+        onAssign={onAssign}
+        onEdit={() => {}}
+        onClose={() => {}}
+      />,
+    );
+    return onAssign;
+  }
+
+  it('assigns with one click, and again only when something changes', async () => {
+    const onAssign = renderPanel({});
+    await userEvent.click(screen.getByRole('button', { name: /Abteilung 1/ }));
+    expect(onAssign).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Reck' }));
+    expect(onAssign.mock.calls).toEqual([
+      [{ entryIds: ['entry-anna'], divisionId: 'f1', startApparatus: 'reck' }],
+    ]);
+  });
+
+  it('waits for the assignment before', async () => {
+    const onAssign = renderPanel({}, OPTIONS, true);
+    await userEvent.click(screen.getByRole('button', { name: 'Reck' }));
+    expect(onAssign).not.toHaveBeenCalled();
+  });
+
+  it('offers the apparatus after the division', async () => {
+    const onAssign = renderPanel({ divisionId: null, divisionNumber: null, startApparatus: null });
+    expect(screen.queryByRole('button', { name: 'Reck' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Abteilung 1/ }));
+    expect(onAssign).toHaveBeenCalledWith({ entryIds: ['entry-anna'], divisionId: 'f1' });
+  });
+
+  it('changes nothing about a division that runs', async () => {
+    const running = { ...OPTIONS.divisions[0], state: 'RUNNING' as const };
+    const other = { ...OPTIONS.divisions[0], id: 'f2', number: 2 };
+    const onAssign = renderPanel({}, { ...OPTIONS, divisions: [running, other] });
+    for (const name of [/Abteilung 2/, 'Reck']) {
+      await userEvent.click(screen.getByRole('button', { name }));
+    }
+    expect(onAssign).not.toHaveBeenCalled();
+    expect(screen.getByText(/läuft oder ist beendet/)).toBeInTheDocument();
+  });
+
+  it('needs a category', () => {
+    renderPanel({ category: null, divisionId: null });
+    expect(screen.queryByRole('group')).not.toBeInTheDocument();
+  });
+});
 
 function renderStarterDialog(starter?: StarterRow, result?: unknown) {
   const onClose = vi.fn();

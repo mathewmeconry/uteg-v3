@@ -23,6 +23,28 @@ export async function listRankingGroups(competitionId: string, contestId: string
   );
 }
 
+/** How far each category is, without divisions `null`, in the order of the module. */
+export async function listCategoryStates(competitionId: string, contestId: string) {
+  const { module } = await getContest(competitionId, contestId);
+  const divisions = await prisma.division.groupBy({
+    by: ['sex', 'category', 'state'],
+    where: { contestId },
+  });
+  return (['FEMALE', 'MALE'] as const).flatMap((sex) =>
+    module.categories(sex).flatMap((category) => {
+      const states = new Set(
+        divisions
+          .filter((division) => division.sex === sex && division.category === category)
+          .map(({ state }) => state),
+      );
+      const only = [...states].at(0) ?? null;
+      const isPartly = states.size > 1;
+      const state = states.has('RUNNING') ? 'RUNNING' : isPartly ? ('PARTLY' as const) : only;
+      return [{ sex, category, state }];
+    }),
+  );
+}
+
 /** The ranking of the ended divisions, `provisional` adds the running ones. */
 export async function getRanking(
   competitionId: string,
