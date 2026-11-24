@@ -59,7 +59,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 export const clientAction = safeClientAction;
 
-export default function Grading({ loaderData }: Route.ComponentProps) {
+export default function Grading({ loaderData, params: { contestId } }: Route.ComponentProps) {
   const { t } = useTranslation(['judging', 'common']);
   const { competition, canEdit } = useCompetition();
   const apparatusName = useApparatusName();
@@ -76,6 +76,12 @@ export default function Grading({ loaderData }: Route.ComponentProps) {
     <>
       <title>{`${t('gradingTitle')} · UTEG`}</title>
       <PageHeader
+        breadcrumbs={[
+          {
+            to: `/competitions/${competition.id}/contests/${contestId}/divisions`,
+            label: t('common:nav.divisions'),
+          },
+        ]}
         title={t('gradingTitle')}
         actions={
           <>

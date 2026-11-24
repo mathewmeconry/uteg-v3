@@ -478,7 +478,7 @@ function TemplateEditor({
           </FormActions>
         </Form>
       </div>
-      <div className="xl:sticky xl:top-8 xl:self-start">
+      <div className="xl:sticky xl:top-22 xl:self-start">
         <TemplatePreview
           competitionId={competition.id}
           template={template}
@@ -488,7 +488,7 @@ function TemplateEditor({
       </div>
       <DiscardDialog
         when={isDirty}
-        // The target may show the same template, e.g. the link in the sidebar.
+        // The target may show the same template, e.g. the link in the navigation.
         onDiscard={onDiscard}
       />
     </div>

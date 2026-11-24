@@ -1,5 +1,5 @@
 export default {
-  title: 'Einstellungen',
+  title: 'Wettkampf',
   contestTitle: 'Wertung',
   membersTitle: 'Mitglieder',
   readOnly: 'Mit der Rolle Betrachter kannst du nichts ändern.',

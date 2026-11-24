@@ -63,14 +63,8 @@
   --border: oklch(0.89 var(--tint-soft));
   --input: oklch(0.63 var(--tint));
   --ring: oklch(0.5 var(--tint));
-  --sidebar: oklch(0.948 var(--tint-soft));
-  --sidebar-foreground: oklch(0.31 var(--tint));
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: oklch(0.895 var(--tint-soft));
-  --sidebar-accent-foreground: oklch(0.23 var(--tint));
-  --sidebar-border: oklch(0.885 var(--tint-soft));
-  --sidebar-ring: var(--ring);
+  /* Height of the links at the bottom edge, where they are shown. */
+  --bottom-nav: 0px;
 }
 
 :root {
@@ -100,11 +94,6 @@
     --border: oklch(0.335 var(--tint));
     --input: oklch(0.535 var(--tint));
     --ring: oklch(0.75 var(--tint));
-    --sidebar: oklch(0.165 var(--tint-soft));
-    --sidebar-foreground: oklch(0.87 var(--tint-soft));
-    --sidebar-accent: oklch(0.285 var(--tint));
-    --sidebar-accent-foreground: oklch(0.975 var(--tint-soft));
-    --sidebar-border: oklch(0.29 var(--tint));
   }
 }
 
@@ -150,14 +139,6 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 /* Titles and big figures: the narrow, heavy cut of the typeface. */
@@ -188,17 +169,24 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Nothing that gets the focus stays behind the floating bar, or the bar at the top. */
+  html:has([data-slot='bottom-nav']) {
+    @media (width < 64rem) {
+      --bottom-nav: 4rem;
+    }
+  }
+
+  /* Nothing that gets the focus stays behind the floating bar, or those at the top and bottom. */
   html {
     scroll-padding-top: 4rem;
+    scroll-padding-bottom: var(--bottom-nav);
   }
 
   html:has([data-slot='selection-bar']) {
-    scroll-padding-bottom: 12rem;
+    scroll-padding-bottom: calc(12rem + var(--bottom-nav));
   }
 
   html:has([data-slot='form-actions']) {
-    scroll-padding-bottom: 7rem;
+    scroll-padding-bottom: calc(7rem + var(--bottom-nav));
   }
 
   h1,
@@ -286,8 +274,7 @@
   [data-slot='tabs-trigger'],
   [data-slot='toggle-group-item'],
   [data-slot='dropdown-menu-item'],
-  [data-slot='command-item'],
-  [data-slot='sidebar-menu-button'] {
+  [data-slot='command-item'] {
     min-height: 2.75rem;
   }
 

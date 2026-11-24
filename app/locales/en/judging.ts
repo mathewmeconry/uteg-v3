@@ -4,7 +4,7 @@ import type de from '../de/judging';
 export default {
   title: 'Judging',
   gradingTitle: 'Grading',
-  judgesTitle: 'Judges',
+  judgesTitle: 'Tablets',
   linkInvalidTitle: 'Invalid link',
   linkInvalidText: 'The link was reset. Scan the current QR code.',
   linkIgnored: 'The link you opened is no longer valid. This page still works.',

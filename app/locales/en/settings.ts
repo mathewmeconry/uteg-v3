@@ -2,7 +2,7 @@ import type { Translation } from '../types';
 import type de from '../de/settings';
 
 export default {
-  title: 'Settings',
+  title: 'Competition',
   contestTitle: 'Scoring',
   membersTitle: 'Members',
   readOnly: 'As a viewer you cannot change anything.',
