@@ -137,6 +137,10 @@ export default {
     deleteOn: 'Note am Gerät {{apparatus}} löschen ({{grade}})',
     confirmRow: 'Bestätigen',
     confirmShort: 'DG {{number}}',
+    confirmOthers: 'Gilt auch für: {{names}}.',
+    missing_one: '{{count}} Note fehlt',
+    missing_other: '{{count}} Noten fehlen',
+    missingWith: 'mit {{names}}',
     stage: {
       now: 'Turnt jetzt an diesem Gerät',
       later: 'Noch nicht an der Reihe',

@@ -169,6 +169,49 @@ it('offers to send again what was refused, below the row', async () => {
   expect(input('Anna', 'Reck')).toHaveValue('');
 });
 
+it('moves nothing in the grid while grades wait for the connection', async () => {
+  send.mockImplementation((url) =>
+    url === URL ? Promise.reject(new TypeError('offline')) : Promise.resolve(new Response('ok')),
+  );
+  const user = setup();
+  const count = screen.getAllByRole('row').length;
+  await user.type(input('Anna', 'Reck'), '9');
+  await user.click(input('Bea', 'Reck'));
+  expect(
+    await screen.findByLabelText('Wird gesendet, sobald die Verbindung zurück ist'),
+  ).toBeInTheDocument();
+  expect(screen.getAllByRole('row')).toHaveLength(count);
+  expect(screen.queryByRole('button', { name: /verwerfen/ })).not.toBeInTheDocument();
+});
+
+it('lets go of what was typed for someone who was withdrawn or left', async () => {
+  const draft = (entryId: string, name: string) => [
+    `reck:${entryId}`,
+    {
+      entryId,
+      apparatus: 'reck',
+      name,
+      inputRule: { attempts: 1, aggregation: 'NONE' },
+      fields: { attempts: [], final: '9' },
+      base: null,
+      queued: false,
+      sent: false,
+      saving: false,
+      rejected: null,
+    },
+  ];
+  const stored = [draft('Anna', 'Anna Frei'), draft('gone', 'Dora Frei')];
+  localStorage.setItem('test', JSON.stringify(stored));
+  const user = setup({ patch: { 'Anna reck': { withdrawn: true } } });
+  for (const name of ['Anna', 'Dora']) {
+    await user.click(
+      screen.getByRole('button', { name: `Eingabe für ${name} Frei, Reck verwerfen` }),
+    );
+  }
+  expect(screen.queryByText(/Dora Frei/)).not.toBeInTheDocument();
+  expect(localStorage.getItem('test')).toBe('[]');
+});
+
 it('deletes from the menu of the row, after asking', async () => {
   const user = setup({ patch: { 'Anna reck': { grade: grade(9000) } } });
   await user.click(screen.getByRole('button', { name: 'Weitere Aktionen für Anna Frei' }));

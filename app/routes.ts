@@ -27,6 +27,7 @@ export default [
       route('contests/:contestId', 'routes/secured/contest/layout.tsx', [
         route('divisions', 'routes/secured/contest/divisions.tsx'),
         route('divisions/:divisionId', 'routes/secured/contest/division.tsx', [
+          index('routes/secured/contest/divisionIndex.ts'),
           route('lineups', 'routes/secured/contest/lineups.tsx'),
           route('grading', 'routes/secured/contest/divisionGrading.tsx'),
         ]),

@@ -96,8 +96,10 @@ export function GradeInputs({
     <div
       ref={container}
       className={cn(
-        'flex items-start',
-        large ? 'flex-wrap gap-4' : compact ? 'gap-1' : 'flex-wrap gap-2',
+        'flex flex-wrap items-start',
+        large ? 'gap-4' : compact ? 'gap-1' : 'gap-2',
+        // Attempts and the final grade stay next to each other, errors go below.
+        compact && count > 0 && 'w-57',
       )}
     >
       {controls.map((control, position) => {
@@ -132,7 +134,9 @@ export function GradeInputs({
                   : compact
                     ? control.index < count
                       ? `${control.index + 1}.`
-                      : undefined
+                      : count > 0
+                        ? t('input.grade')
+                        : undefined
                     : control.label
               }
               readOnly={control.readOnly}
@@ -151,7 +155,10 @@ export function GradeInputs({
               onKeyDown={(event) => onKeyDown(event, control.index)}
             />
             {!large && error && (
-              <p id={errorId} className="w-24 text-xs font-medium text-destructive">
+              <p
+                id={errorId}
+                className={cn('text-xs font-medium text-destructive', compact ? 'w-18' : 'w-24')}
+              >
                 {t(`input.errors.${error}`)}
               </p>
             )}

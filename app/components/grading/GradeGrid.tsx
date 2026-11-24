@@ -3,6 +3,7 @@ import {
   LoaderCircleIcon,
   SaveIcon,
   Trash2Icon,
+  TriangleAlertIcon,
   UndoIcon,
 } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
@@ -25,15 +26,19 @@ import {
   TableRow,
 } from '~/components/ui/table';
 import { useApparatusName } from '~/hooks/useApparatusName';
-import { formatEntered } from '~/lib/domain/gradeInput';
+import { roundGrade } from '~/lib/domain/grade';
+import { evaluateFields, formatEntered } from '~/lib/domain/gradeInput';
 import { cn } from '~/lib/utils';
 import { GradeInputs } from './GradeInputs';
-import { ConflictNotice, RejectedNotice, SaveState } from './SaveState';
-import { draftKey, type GradeDrafts } from './useGradeDrafts';
+import { ConflictNotice, RejectedNotice } from './SaveState';
+import { draftKey, isUntouched, type Draft, type GradeDrafts } from './useGradeDrafts';
 import { findInput, useGradeEditing } from './useGradeEditing';
 
 type ApparatusRounds = { apparatus: string; rounds: readonly TabletRound[] };
 type Stage = 'done' | 'now' | 'later';
+
+/** Next to the fields, where it moves nothing. */
+const MARK = 'absolute top-1/2 right-0 size-3.5 -translate-y-1/2 text-muted-foreground';
 
 /** All grades of a division: a row per starter, grouped by lineup, and a column per apparatus. */
 export function GradeGrid({
@@ -55,6 +60,7 @@ export function GradeGrid({
 }) {
   const { t } = useTranslation(['judging', 'common']);
   const apparatusName = useApparatusName();
+  const [activeKey, setActiveKey] = useState<string | null>(null);
   const cells = new Map(
     apparatus.flatMap(({ apparatus: key, rounds }) =>
       rounds.flatMap(({ round, slots }) =>
@@ -85,74 +91,78 @@ export function GradeGrid({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="sticky left-0 z-[1] min-w-36 bg-muted">
-              {t('common:fields.name')}
-            </TableHead>
-            {apparatus.map(({ apparatus: key }) => (
-              <TableHead key={key}>{apparatusName(key)}</TableHead>
-            ))}
-            <TableHead className="text-right">{t('grading.sum')}</TableHead>
-            {canEdit && (
-              <TableHead className="w-12">
-                <span className="sr-only">{t('grading.more')}</span>
-              </TableHead>
-            )}
-          </TableRow>
-        </TableHeader>
-        {lineups.map(({ apparatus: start, starters }) => {
-          const current = getCurrent(starters[0]);
-          return (
-            <tbody key={start} className="border-b last:border-b-0">
-              <tr className="border-b bg-muted/60">
-                <th
-                  scope="rowgroup"
-                  colSpan={apparatus.length + (canEdit ? 3 : 2)}
-                  className="px-3 py-2 text-left font-semibold"
-                >
-                  <span className="sticky left-3">
-                    {t('grading.lineup', { apparatus: apparatusName(start) })}
-                    {current && (
-                      <span className="ml-3 font-normal text-muted-foreground">
-                        {t('grading.now', { apparatus: current })}
-                      </span>
-                    )}
-                  </span>
-                </th>
-              </tr>
-              {starters.map((starter) => (
-                <StarterRow
-                  key={starter.entryId}
-                  starter={starter}
-                  cells={apparatus.flatMap(
-                    ({ apparatus: key }) =>
-                      cells.get(draftKey({ ...starter, apparatus: key })) ?? [],
-                  )}
-                  drafts={drafts}
-                  canEdit={canEdit}
-                />
-              ))}
-            </tbody>
-          );
-        })}
-        {confirm && (
-          <TableFooter>
+    <>
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableHead scope="row" className="sticky left-0 z-[1] bg-muted">
-                {t('grading.confirmRow')}
+              <TableHead className="sticky left-0 z-[1] min-w-36 bg-muted">
+                {t('common:fields.name')}
               </TableHead>
               {apparatus.map(({ apparatus: key }) => (
-                <TableCell key={key}>{confirm(key)}</TableCell>
+                <TableHead key={key}>{apparatusName(key)}</TableHead>
               ))}
-              <TableCell colSpan={canEdit ? 2 : 1} />
+              <TableHead className="text-right">{t('grading.sum')}</TableHead>
+              {canEdit && (
+                <TableHead className="w-12">
+                  <span className="sr-only">{t('grading.more')}</span>
+                </TableHead>
+              )}
             </TableRow>
-          </TableFooter>
-        )}
-      </Table>
-    </div>
+          </TableHeader>
+          {lineups.map(({ apparatus: start, starters }) => {
+            const current = getCurrent(starters[0]);
+            return (
+              <tbody key={start} className="border-b last:border-b-0">
+                <tr className="border-b bg-muted/60">
+                  <th
+                    scope="rowgroup"
+                    colSpan={apparatus.length + (canEdit ? 3 : 2)}
+                    className="px-3 py-2 text-left font-semibold"
+                  >
+                    <span className="sticky left-3">
+                      {t('grading.lineup', { apparatus: apparatusName(start) })}
+                      {current && (
+                        <span className="ml-3 font-normal text-muted-foreground">
+                          {t('grading.now', { apparatus: current })}
+                        </span>
+                      )}
+                    </span>
+                  </th>
+                </tr>
+                {starters.map((starter) => (
+                  <StarterRow
+                    key={starter.entryId}
+                    starter={starter}
+                    cells={apparatus.flatMap(
+                      ({ apparatus: key }) =>
+                        cells.get(draftKey({ ...starter, apparatus: key })) ?? [],
+                    )}
+                    drafts={drafts}
+                    canEdit={canEdit}
+                    onActiveChange={setActiveKey}
+                  />
+                ))}
+              </tbody>
+            );
+          })}
+          {confirm && (
+            <TableFooter>
+              <TableRow>
+                <TableHead scope="row" className="sticky left-0 z-[1] bg-muted">
+                  {t('grading.confirmRow')}
+                </TableHead>
+                {apparatus.map(({ apparatus: key }) => (
+                  <TableCell key={key}>{confirm(key)}</TableCell>
+                ))}
+                <TableCell colSpan={canEdit ? 2 : 1} />
+              </TableRow>
+            </TableFooter>
+          )}
+        </Table>
+      </div>
+      {canEdit && <Unsaved drafts={drafts} slots={cells} activeKey={activeKey} />}
+    </>
   );
 }
 
@@ -161,141 +171,158 @@ function StarterRow({
   cells,
   drafts,
   canEdit,
+  onActiveChange,
 }: {
   starter: TabletSlot;
   cells: { slot: TabletSlot; stage: Stage }[];
   drafts: GradeDrafts;
   canEdit: boolean;
+  /** The draft key of the cell with the focus. */
+  onActiveChange: (key: string | null) => void;
 }) {
   const { t } = useTranslation(['judging', 'common']);
   const apparatusName = useApparatusName();
   const row = useRef<HTMLTableRowElement>(null);
-  const [active, setActive] = useState<string | null>(null);
   const name = fullName(starter);
   const isEditable = canEdit && !starter.withdrawn;
   const states = cells.map(({ slot }) => ({ slot, state: drafts.get(slot) }));
-  const saved = states.flatMap(({ state }) => state.saved?.value ?? []);
-  // What is being typed is not worth a notice yet.
-  const notices = states.filter(
-    ({ slot, state }) =>
-      state.isConflict ||
-      state.rejected ||
-      state.isWaiting ||
-      (state.isDirty && !state.isSaving && slot.apparatus !== active),
+  // Rounded like in the ranking.
+  const saved = states.flatMap(({ slot, state }) =>
+    state.saved ? roundGrade(state.saved.value, slot.precision) : [],
   );
 
   return (
-    <>
-      <tr ref={row} className="border-b last:border-b-0">
-        <th
-          scope="row"
-          className={cn(
-            'sticky left-0 z-[1] bg-card px-3 py-2 text-left font-normal',
-            notices.length > 0 && 'bg-warning/15',
+    <tr ref={row} className="border-b last:border-b-0">
+      <th scope="row" className="sticky left-0 z-[1] bg-card px-3 py-2 text-left font-normal">
+        <span className={cn('block font-semibold', starter.withdrawn && 'line-through')}>
+          {name}
+        </span>
+        <span className="block text-xs text-muted-foreground">
+          {starter.withdrawn ? t('withdrawn') : starter.clubName}
+        </span>
+      </th>
+      {cells.map(({ slot, stage }) => (
+        <GradeCell
+          key={slot.apparatus}
+          slot={slot}
+          stage={stage}
+          drafts={drafts}
+          isEditable={isEditable}
+          onActiveChange={(isActive) => onActiveChange(isActive ? draftKey(slot) : null)}
+        />
+      ))}
+      <td className="figure px-3 py-2 text-right text-base">
+        {saved.length > 0 && formatEntered(saved.reduce((sum, value) => sum + value, 0))}
+      </td>
+      {canEdit && (
+        <td className="px-1">
+          {isEditable && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  disabled={saved.length === 0}
+                  aria-label={t('grading.moreFor', { name })}
+                >
+                  <EllipsisVerticalIcon aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {states.map(
+                  ({ slot, state }) =>
+                    state.saved && (
+                      <DropdownMenuItem
+                        key={slot.apparatus}
+                        variant="destructive"
+                        disabled={state.isDirty}
+                        onSelect={() =>
+                          row.current
+                            ?.querySelector<HTMLElement>(
+                              `[data-apparatus="${slot.apparatus}"] [data-delete]`,
+                            )
+                            ?.click()
+                        }
+                      >
+                        <Trash2Icon aria-hidden />
+                        {t('grading.deleteOn', {
+                          apparatus: apparatusName(slot.apparatus),
+                          grade: formatEntered(state.saved.value),
+                        })}
+                      </DropdownMenuItem>
+                    ),
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-        >
-          <span className={cn('block font-semibold', starter.withdrawn && 'line-through')}>
-            {name}
-          </span>
-          <span className="block text-xs text-muted-foreground">
-            {starter.withdrawn ? t('withdrawn') : starter.clubName}
-          </span>
-        </th>
-        {cells.map(({ slot, stage }) => (
-          <GradeCell
-            key={slot.apparatus}
-            slot={slot}
-            stage={stage}
-            drafts={drafts}
-            isEditable={isEditable}
-            onActiveChange={(isActive) => setActive(isActive ? slot.apparatus : null)}
-          />
-        ))}
-        <td className="figure px-3 py-2 text-right text-base">
-          {saved.length > 0 && formatEntered(saved.reduce((sum, value) => sum + value, 0))}
         </td>
-        {canEdit && (
-          <td className="px-1">
-            {isEditable && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    disabled={saved.length === 0}
-                    aria-label={t('grading.moreFor', { name })}
-                  >
-                    <EllipsisVerticalIcon aria-hidden />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {states.map(
-                    ({ slot, state }) =>
-                      state.saved && (
-                        <DropdownMenuItem
-                          key={slot.apparatus}
-                          variant="destructive"
-                          disabled={state.isDirty}
-                          onSelect={() =>
-                            row.current
-                              ?.querySelector<HTMLElement>(
-                                `[data-apparatus="${slot.apparatus}"] [data-delete]`,
-                              )
-                              ?.click()
-                          }
-                        >
-                          <Trash2Icon aria-hidden />
-                          {t('grading.deleteOn', {
-                            apparatus: apparatusName(slot.apparatus),
-                            grade: formatEntered(state.saved.value),
-                          })}
-                        </DropdownMenuItem>
-                      ),
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </td>
-        )}
-      </tr>
-      {isEditable && notices.length > 0 && (
-        <tr className="border-b bg-warning/15 last:border-b-0">
-          <td colSpan={cells.length + 3} className="px-3 pb-3">
-            <ul className="grid gap-2">
-              {notices.map(({ slot }) => (
-                <li key={slot.apparatus}>
-                  <Notice slot={slot} drafts={drafts} />
-                </li>
-              ))}
-            </ul>
-          </td>
-        </tr>
       )}
-    </>
+    </tr>
   );
 }
 
-/** What has to be decided about a grade that could not be saved. */
-function Notice({ slot, drafts }: { slot: TabletSlot; drafts: GradeDrafts }) {
+/**
+ * Grades that were not saved and have to be decided on, also of starters the grid no longer has.
+ * Below the grid, where nothing moves while typing.
+ */
+function Unsaved({
+  drafts,
+  slots,
+  activeKey,
+}: {
+  drafts: GradeDrafts;
+  slots: ReadonlyMap<string, { slot: TabletSlot }>;
+  activeKey: string | null;
+}) {
+  const open = [...drafts.drafts].filter(([key, draft]) => {
+    if (isUntouched(draft)) return false;
+    const slot = slots.get(key)?.slot;
+    // These are sent by themselves.
+    if (!slot) return !draft.saving && !draft.queued;
+    const state = drafts.get(slot);
+    if (state.isConflict || state.rejected) return true;
+    return state.isDirty && !state.isSaving && !state.isWaiting && key !== activeKey;
+  });
+  if (open.length === 0) return null;
+
+  return (
+    <ul className="divide-y rounded-xl border border-warning bg-[color-mix(in_oklab,var(--warning)_14%,var(--card))]">
+      {open.map(([key, draft]) => (
+        <li key={key} className="px-4 py-3">
+          <Notice draft={draft} slot={slots.get(key)?.slot} drafts={drafts} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Notice({ draft, slot, drafts }: { draft: Draft; slot?: TabletSlot; drafts: GradeDrafts }) {
   const { t } = useTranslation(['judging', 'common']);
-  const apparatus = useApparatusName()(slot.apparatus);
-  const state = drafts.get(slot);
-  const key = draftKey(slot);
-  const name = `${fullName(slot)}, ${apparatus}`;
+  const apparatus = useApparatusName()(draft.apparatus);
+  const state = slot && drafts.get(slot);
+  const key = draftKey(draft);
+  const name = `${draft.name}, ${apparatus}`;
+  const { grade } = evaluateFields(draft.fields, draft.inputRule);
+  const rejected = state ? state.rejected : draft.rejected;
 
   function discard() {
-    if (!state.wasSent || window.confirm(t('discardSent', { name }))) drafts.discard(key);
+    if (!draft.sent || window.confirm(t('discardSent', { name }))) drafts.discard(key);
   }
 
   return (
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span className="font-semibold">{apparatus}</span>
-        <SaveState state={state} className="text-sm" />
-        {!state.isConflict && (
+        <span>
+          <span className="font-semibold">{name}:</span>{' '}
+          <span className="tabular-nums">
+            {grade ? formatEntered(grade.value) : t('save.unfinished')}
+          </span>
+        </span>
+        <span className="text-sm">{t('save.unsaved')}</span>
+        {!state?.isConflict && (
           <span className="flex gap-2">
             {/* Typed before a reload, or refused: that does not save by itself. */}
-            {!state.isWaiting && state.evaluated.grade && (
+            {slot && !slot.withdrawn && grade && (
               <Button
                 size="sm"
                 aria-label={t('grading.saveRow', { name })}
@@ -317,14 +344,14 @@ function Notice({ slot, drafts }: { slot: TabletSlot; drafts: GradeDrafts }) {
           </span>
         )}
       </div>
-      {state.isConflict && (
+      {state?.isConflict && (
         <ConflictNotice
           state={state}
           onUseSaved={() => drafts.discard(key)}
           onUseOwn={() => void drafts.overwrite(key, state.saved)}
         />
       )}
-      {state.rejected && <RejectedNotice code={state.rejected} />}
+      {rejected && <RejectedNotice code={rejected} />}
     </div>
   );
 }
@@ -380,6 +407,12 @@ function GradeCell({
         state.isDirty && 'bg-warning/25',
       )}
     >
+      {stage === 'now' && (
+        <>
+          <span aria-hidden className="absolute top-1 left-1 size-1.5 rounded-full bg-brand" />
+          <span className="sr-only">{t('grading.stage.now')}</span>
+        </>
+      )}
       {isEditable ? (
         <>
           <GradeInputs
@@ -392,11 +425,15 @@ function GradeCell({
             onChange={change}
             onSubmit={goToNext}
           />
-          {state.isSaving && (
-            <LoaderCircleIcon
-              aria-hidden
-              className="absolute top-1/2 right-0 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground"
-            />
+          {state.isSaving ? (
+            <LoaderCircleIcon aria-hidden className={cn(MARK, 'animate-spin')} />
+          ) : (
+            state.isWaiting && (
+              <TriangleAlertIcon
+                aria-label={t('save.waiting')}
+                className={cn(MARK, 'text-destructive')}
+              />
+            )
           )}
           <ConfirmDialog
             destructive

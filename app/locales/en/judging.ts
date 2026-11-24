@@ -139,6 +139,10 @@ export default {
     deleteOn: 'Delete grade on {{apparatus}} ({{grade}})',
     confirmRow: 'Confirm',
     confirmShort: 'Rd {{number}}',
+    confirmOthers: 'Also applies to: {{names}}.',
+    missing_one: '{{count}} grade missing',
+    missing_other: '{{count}} grades missing',
+    missingWith: 'with {{names}}',
     stage: {
       now: 'Now on this apparatus',
       later: 'Not their turn yet',
