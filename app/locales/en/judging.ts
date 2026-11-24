@@ -179,16 +179,16 @@ export default {
     resetFor: 'Reset link: {{name}}',
     resetTitle: 'Reset link?',
     resetText:
-      '{{name}}: The old link is locked out at once. The judges have to scan the new QR code. Printed manuals become invalid.',
+      '{{name}}: The old link stops working at once. The judges have to scan the new QR code. Printed manuals become invalid.',
     resetDone: 'Link reset',
     resetAll: 'Reset all',
     resetAllTitle: 'Reset all links?',
     resetAllText:
-      'The old links of all grounds are locked out at once. The judges have to scan the new QR codes. Printed manuals become invalid.',
+      'The old links of all grounds stop working at once. The judges have to scan the new QR codes. Printed manuals become invalid.',
     resetAllDone: 'Links reset',
     resetGround: 'Reset ground {{number}}',
     resetGroundTitle: 'Reset all links of ground {{number}}?',
     resetGroundText:
-      'The old links of this ground are locked out at once. The judges have to scan the new QR codes. Printed manuals become invalid.',
+      'The old links of this ground stop working at once. The judges have to scan the new QR codes. Printed manuals become invalid.',
   },
 } satisfies Translation<typeof de>;
