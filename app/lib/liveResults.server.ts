@@ -1,9 +1,7 @@
 import { getContestModule } from '~/modules/registry';
 import { formatGrade } from './domain/grade';
-import { getJudgingState, type JudgingState } from './judging.server';
+import { getJudgingState } from './judging.server';
 import { prisma } from './prisma.server';
-
-const LATEST_PER_APPARATUS = 2;
 
 export type LatestGrade = Awaited<ReturnType<typeof getLatestGrades>>[number];
 export type LiveGround = Awaited<ReturnType<typeof getLiveGrounds>>[number];
@@ -34,14 +32,15 @@ export async function getLatestGrades(competitionId: string, limit: number) {
   });
 }
 
-/** What happens on each ground: running divisions and, per apparatus, the round and last grades. */
+/** What happens on each ground: running divisions and, per apparatus, the round and who is next. */
 export async function getLiveGrounds(competitionId: string, grounds: number) {
-  const contests = await prisma.contest.findMany({ where: { competitionId } });
-  const modules = new Map(contests.map((contest) => [contest.id, getContestModule(contest)]));
-
   return Promise.all(
     Array.from({ length: grounds }, async (_, index) => {
       const state = await getJudgingState(competitionId, index + 1);
+      const apparatusInUse = state.apparatus.filter(({ status }) => status !== 'WAITING');
+      const firstRound = Math.min(
+        ...apparatusInUse.map(({ currentRound, rounds }) => currentRound ?? rounds.length),
+      );
       return {
         ground: state.ground,
         divisions: state.divisions.map(
@@ -51,44 +50,24 @@ export async function getLiveGrounds(competitionId: string, grounds: number) {
             return { id, contestId, category, sex, number, round, rounds, percent };
           },
         ),
-        apparatus: state.apparatus
-          .filter(({ status }) => status !== 'WAITING')
-          .map(({ apparatus, status, currentRound, rounds }) => {
-            const slots = currentRound === null ? [] : rounds[currentRound].slots;
-            const active = slots.filter(({ withdrawn }) => !withdrawn);
-            return {
-              apparatus,
-              status,
-              /** 1-based, the last one when finished. */
-              round: currentRound === null ? rounds.length : currentRound + 1,
-              rounds: rounds.length,
-              graded: active.filter(({ grade }) => grade).length,
-              total: active.length,
-              latest: getLatest(rounds).map(({ entryId, contestId, grade, ...slot }) => {
-                const options = modules.get(contestId)!.rankingOptions(slot.category, slot.sex);
-                return {
-                  entryId,
-                  /** 1-based, may be an earlier one. */
-                  round: slot.round,
-                  firstname: slot.firstname,
-                  lastname: slot.lastname,
-                  clubName: slot.clubName,
-                  grade: formatGrade(grade.value, options.precision),
-                };
-              }),
-            };
-          }),
+        apparatus: apparatusInUse.map(({ apparatus, status, currentRound, rounds }) => {
+          const slots = currentRound === null ? [] : rounds[currentRound].slots;
+          const active = slots.filter(({ withdrawn }) => !withdrawn);
+          const next = active.find(({ grade }) => !grade);
+          return {
+            apparatus,
+            status,
+            /** 1-based, the last one when finished. */
+            round: currentRound === null ? rounds.length : currentRound + 1,
+            rounds: rounds.length,
+            /** Confirmed its round while others are still in it. */
+            isAhead: currentRound !== null && currentRound > firstRound,
+            graded: active.filter(({ grade }) => grade).length,
+            total: active.length,
+            next: next ? `${next.firstname} ${next.lastname}` : null,
+          };
+        }),
       };
     }),
   );
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function getLatest(rounds: JudgingState['apparatus'][number]['rounds']) {
-  return rounds
-    .flatMap(({ slots }, index) => slots.map((slot) => ({ ...slot, round: index + 1 })))
-    .flatMap((slot) => (slot.grade && !slot.withdrawn ? [{ ...slot, grade: slot.grade }] : []))
-    .toSorted((a, b) => +b.grade.updatedAt - +a.grade.updatedAt)
-    .slice(0, LATEST_PER_APPARATUS);
 }

@@ -3,8 +3,6 @@ import type { listDivisions } from '~/lib/divisions.server';
 export type Division = Awaited<ReturnType<typeof listDivisions>>[number];
 
 export const FILTER_KEYS = ['category', 'sex', 'ground', 'state'] as const;
-export const SORT_KEYS = ['category', 'number', 'sex', 'ground', 'state', 'starters'] as const;
-
 /** The filters are in the URL, so they survive a reload and the way back from the lineups. */
 export function filterDivisions(divisions: readonly Division[], params: URLSearchParams) {
   return divisions.filter((division) =>
@@ -21,26 +19,47 @@ export function matchesSearch(text: string, search: string) {
   return words.every((word) => text.toLowerCase().includes(word));
 }
 
-const STATE_ORDER = ['RUNNING', 'PENDING', 'ENDED'];
+const STATE_ORDER = ['ENDED', 'RUNNING', 'PENDING'];
 
-/** The server sorts by category, sex and number, which is kept within the same ground or state. */
-export function sortDivisions(divisions: readonly Division[], key: string | null) {
-  switch (key) {
-    case 'number':
-      return divisions.toSorted((a, b) => a.number - b.number);
-    case 'sex':
-      return divisions.toSorted((a, b) => Number(a.sex === 'MALE') - Number(b.sex === 'MALE'));
-    case 'ground':
-      return divisions.toSorted((a, b) => a.ground - b.ground);
-    case 'state':
-      return divisions.toSorted(
-        (a, b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state),
-      );
-    case 'starters':
-      return divisions.toSorted((a, b) => b.starterCount - a.starterCount);
-    default:
-      return [...divisions];
-  }
+/** The order of a ground: what has ended, what is running, and what is due next. */
+export function inRunningOrder(divisions: readonly Division[]) {
+  return divisions.toSorted(
+    (a, b) =>
+      STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state) ||
+      (a.state === 'ENDED' ? Number(a.endedAt) - Number(b.endedAt) : 0) ||
+      a.position - b.position ||
+      Number(a.createdAt) - Number(b.createdAt),
+  );
+}
+
+export type DivisionMove = { id: string; ground: number; beforeId?: string };
+
+/** What `moveDivision` does, to show it before the server has answered. */
+export function applyMove(divisions: readonly Division[], { id, ground, beforeId }: DivisionMove) {
+  const others = divisions.filter((division) => division.id !== id);
+  const onGround = others
+    .filter((division) => division.ground === ground)
+    .toSorted((a, b) => a.position - b.position || Number(a.createdAt) - Number(b.createdAt));
+  const before = onGround.findIndex((division) => division.id === beforeId);
+  // Between two positions.
+  const position =
+    before < 0 ? (onGround.at(-1)?.position ?? 0) + 1 : onGround[before].position - 0.5;
+  return divisions.map((division) =>
+    division.id === id ? { ...division, ground, position } : division,
+  );
+}
+
+/** One place up or down among the planned ones of the ground, which are in running order. */
+export function stepMove(
+  planned: readonly Division[],
+  id: string,
+  step: -1 | 1,
+): DivisionMove | null {
+  const index = planned.findIndex((division) => division.id === id);
+  const target = index + step;
+  if (index < 0 || target < 0 || target >= planned.length) return null;
+  const beforeId = planned[step < 0 ? target : target + 1]?.id;
+  return { id, ground: planned[index].ground, beforeId };
 }
 
 /** What to point out before these divisions start. `running` are the running ones of all contests. */

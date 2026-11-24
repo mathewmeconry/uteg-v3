@@ -64,6 +64,7 @@ export async function createDivision(
         category,
         sex,
         ground,
+        position: await nextPosition(tx, competitionId, ground),
         number: (last._max.number ?? 0) + 1,
         apparatus: { create: module.apparatus(sex).map((apparatus) => ({ apparatus })) },
       },
@@ -73,6 +74,7 @@ export async function createDivision(
   return division;
 }
 
+/** On another ground it is due last. */
 export async function updateDivision(
   competitionId: string,
   divisionId: string,
@@ -82,7 +84,39 @@ export async function updateDivision(
     const competition = await lockCompetition(tx, competitionId);
     assertGround(ground, competition.grounds);
     await lockDivisions(tx, competitionId, [divisionId]);
-    await tx.division.update({ where: { id: divisionId }, data: { ground } });
+    const division = await tx.division.findUniqueOrThrow({ where: { id: divisionId } });
+    if (division.ground === ground) return;
+    const position = await nextPosition(tx, competitionId, ground);
+    await tx.division.update({ where: { id: divisionId }, data: { ground, position } });
+  });
+  publish(competitionId, 'divisions');
+}
+
+/** Puts a planned division before another one of the ground, without `beforeId` at the end. */
+export async function moveDivision(
+  competitionId: string,
+  divisionId: string,
+  { ground, beforeId }: { ground: number; beforeId?: string },
+) {
+  await prisma.$transaction(async (tx) => {
+    const competition = await lockCompetition(tx, competitionId);
+    assertGround(ground, competition.grounds);
+    await lockDivisions(tx, competitionId);
+    const [state] = await lockAndGetStates(tx, competitionId, [divisionId]);
+    if (state !== 'PENDING') throw new DomainError('DIVISION_NOT_PENDING');
+
+    const others = await tx.division.findMany({
+      where: { ground, contest: { competitionId }, id: { not: divisionId } },
+      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true },
+    });
+    const ids = others.map(({ id }) => id);
+    // It may have been moved or deleted meanwhile.
+    const index = beforeId ? ids.indexOf(beforeId) : -1;
+    ids.splice(index < 0 ? ids.length : index, 0, divisionId);
+    for (const [index, id] of ids.entries()) {
+      await tx.division.update({ where: { id }, data: { ground, position: index + 1 } });
+    }
   });
   publish(competitionId, 'divisions');
 }
@@ -162,6 +196,14 @@ function assertGround(ground: number, grounds: number) {
   if (!Number.isInteger(ground) || ground < 1 || ground > grounds) {
     throw new DomainError('INVALID_GROUND');
   }
+}
+
+async function nextPosition(tx: Prisma.TransactionClient, competitionId: string, ground: number) {
+  const last = await tx.division.aggregate({
+    where: { ground, contest: { competitionId } },
+    _max: { position: true },
+  });
+  return (last._max.position ?? 0) + 1;
 }
 
 async function lockAndGetStates(

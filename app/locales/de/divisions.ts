@@ -19,18 +19,16 @@ export default {
   noMatch: 'Keine Abteilung passt zum Filter',
   resetFilters: 'Filter zurücksetzen',
   filters: {
-    label: 'Abteilungen filtern und sortieren',
+    label: 'Abteilungen filtern',
     all: 'Alle',
-    sort: 'Sortierung',
     search: 'Suche',
-    sortKeys: {
-      category: 'Kategorie',
-      number: 'Nummer',
-      sex: 'Geschlecht',
-      ground: 'Wettkampfplatz',
-      state: 'Status',
-      starters: 'Anzahl Teilnehmende',
-    },
+  },
+  order: {
+    text: 'Von oben nach unten, wie geturnt wird.',
+    drag: '{{name}} verschieben',
+    up: 'Nach oben',
+    down: 'Nach unten',
+    emptyGround: 'Keine Abteilung auf diesem Platz',
   },
   sheets: {
     title: 'Notenblätter',
@@ -67,6 +65,11 @@ export default {
     restartTitle: 'Beendete Abteilung neu starten?',
     text: 'Die Tablets auf dem Wettkampfplatz zeigen die Abteilungen sofort an.',
     restart: 'Neu starten',
+    submit_one: 'Abteilung starten',
+    submit_other: '{{count}} Abteilungen starten',
+    others: 'Weitere gleichzeitig starten',
+    othersPlanned: '{{count}} geplant',
+    othersChosen: '{{count}} gewählt',
     ended: 'Bereits beendet',
     endedText:
       'Der Fortschritt beginnt wieder beim ersten Durchgang. Die Noten bleiben erhalten. Bis zum erneuten Ende fehlen diese Abteilungen in der Rangliste:',

@@ -160,6 +160,7 @@ export default {
     DIVISION_MISMATCH: 'The division does not match the category or sex.',
     RULE_IN_USE:
       'How the vault counts cannot change any more, because attempts were already entered in this category.',
+    DIVISION_NOT_PENDING: 'Only planned divisions can be moved.',
     DIVISION_NOT_RUNNING: 'The division is not running.',
     DIVISION_RUNNING: 'This is not possible while the division is running.',
     ENTRY_NOT_IN_DIVISION: 'This person is no longer in this division.',

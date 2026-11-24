@@ -14,7 +14,7 @@ import {
 } from '~/components/ui/select';
 import { useSexes } from '~/hooks/useSexes';
 import { cn } from '~/lib/utils';
-import { SORT_KEYS, type Division } from './divisionList';
+import type { Division } from './divisionList';
 
 // Radix does not allow empty values.
 const ALL = 'all';
@@ -127,13 +127,6 @@ export function DivisionFilters({
               onChange={(value) => set(key, value)}
             />
           ))}
-        <FilterSelect
-          label={t('filters.sort')}
-          value={params.get('sort') ?? SORT_KEYS[0]}
-          isActive={false}
-          options={SORT_KEYS.map((key) => [key, t(`filters.sortKeys.${key}`)])}
-          onChange={(value) => set('sort', value)}
-        />
       </div>
     </div>
   );

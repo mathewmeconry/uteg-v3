@@ -88,7 +88,7 @@ test('a competition from the first login to the ranking', async ({ page, browser
       await dialog.getByRole('button', { name: 'Erstellen' }).click();
       await expect(dialog).toBeHidden();
     }
-    await expect(page.getByRole('heading', { level: 2 })).toHaveCount(DIVISIONS.length);
+    await expect(page.getByRole('heading', { level: 3 })).toHaveCount(DIVISIONS.length);
     return page.url().replace(/\/divisions$/, '');
   });
 
@@ -116,7 +116,7 @@ test('a competition from the first login to the ranking', async ({ page, browser
     for (const division of DIVISIONS) {
       await page.goto(`${contestUrl}/divisions`);
       const row = page.getByRole('listitem').filter({ hasText: division.category });
-      await row.getByRole('link', { name: 'Riegen' }).click();
+      await row.getByRole('link', { name: division.category }).click();
       await page.waitForURL('**/lineups');
       for (const [apparatus, names] of Object.entries(division.lineups)) {
         const title = APPARATUS[apparatus as Apparatus];
@@ -162,7 +162,7 @@ test('a competition from the first login to the ranking', async ({ page, browser
     await page.getByRole('checkbox', { name: 'Alle auswählen' }).check();
     await page.getByRole('button', { name: 'Starten', exact: true }).first().click();
     const dialog = page.getByRole('alertdialog');
-    await dialog.getByRole('button', { name: 'Starten' }).click();
+    await dialog.getByRole('button', { name: `${DIVISIONS.length} Abteilungen starten` }).click();
     // Nobody touches the tablets and the display.
     await expect(display.getByRole('region', { name: 'Reck' })).toContainText('Anna Frei');
   });
@@ -195,7 +195,8 @@ test('a competition from the first login to the ranking', async ({ page, browser
 
   await test.step('correct a grade after the end', async () => {
     const row = page.getByRole('listitem').filter({ hasText: WOMEN.category });
-    await row.getByRole('link', { name: 'Noteneingabe' }).click();
+    await row.getByRole('button', { name: /^Weitere Aktionen/ }).click();
+    await page.getByRole('menuitem', { name: 'Noteneingabe' }).click();
     await page.waitForURL('**/grading');
     const reck = page.getByRole('region', { name: 'Reck' });
     await reck.getByRole('tab', { name: 'Durchgang 1' }).click();

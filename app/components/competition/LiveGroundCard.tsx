@@ -1,69 +1,60 @@
-import { CheckIcon } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import { CheckIcon, PlayIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import type { Division } from '~/components/divisions/divisionList';
+import { useDivisionName } from '~/components/divisions/useDivisionName';
 import { StatusBadge } from '~/components/StatusBadge';
 import { Button } from '~/components/ui/button';
-import type { Sex } from '~/generated/prisma/enums';
 import type { LiveGround } from '~/lib/liveResults.server';
-import { cn } from '~/lib/utils';
 import { RoundMeter } from './RoundMeter';
 
-/** The running divisions of a ground, and the round and last grades of each apparatus. */
+/** How many of the planned divisions are shown. */
+const QUEUE_LENGTH = 3;
+
+/** The running divisions of a ground, where each apparatus is, and what is due next. */
 export function LiveGroundCard({
   ground: { ground, divisions, apparatus },
-  next,
-  divisionsUrl,
+  planned,
+  divisionUrl,
+  onStart,
 }: {
   ground: LiveGround;
-  /** The first division of this ground that is not started yet. */
-  next?: { category: string; sex: Sex; number: number };
-  /** For those who can start it. */
-  divisionsUrl?: string;
+  /** The planned divisions of this ground in running order. */
+  planned: Division[];
+  divisionUrl: (division: { id: string; contestId: string }) => string;
+  /** For those who can start them. */
+  onStart?: (division: Division) => void;
 }) {
   const { t } = useTranslation(['competition', 'common']);
+  const divisionName = useDivisionName();
 
   return (
     <section className="overflow-hidden rounded-xl border bg-card">
-      <div className="grid gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[11rem_1fr]">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:block">
+      <div className="grid gap-3 px-4 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <h3 className="font-display text-xl leading-tight">
             {t('common:ground', { number: ground })}
           </h3>
           {divisions.length > 0 && (
-            <StatusBadge tone="live" className="sm:mt-1.5">
-              {t('common:divisionState.RUNNING')}
-            </StatusBadge>
+            <StatusBadge tone="live">{t('common:divisionState.RUNNING')}</StatusBadge>
           )}
         </div>
         {divisions.length === 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <p className="text-muted-foreground">
-              {next ? (
-                <>
-                  {t('dashboard.nextDivision')}{' '}
-                  <span className="font-semibold text-foreground">
-                    {`${next.category} ${t(`common:sex.${next.sex}`)}, ${t('dashboard.division', { number: next.number })}`}
-                  </span>
-                </>
-              ) : (
-                t('dashboard.groundIdle')
-              )}
-            </p>
-            {next && divisionsUrl && (
-              <Button asChild variant="outline">
-                <Link to={divisionsUrl}>{t('dashboard.toDivisions')}</Link>
-              </Button>
-            )}
-          </div>
+          <p className="text-muted-foreground">{t('dashboard.groundIdle')}</p>
         ) : (
-          <ul className="grid content-center gap-3">
-            {divisions.map(({ id, category, sex, number, round, rounds, percent }) => {
-              const name = `${category} ${t(`common:sex.${sex}`)}, ${t('dashboard.division', { number })}`;
+          <ul className="grid gap-3">
+            {divisions.map((division) => {
+              const { id, round, rounds, percent } = division;
+              const name = divisionName(division);
               return (
                 <li key={id} className="grid gap-1.5">
-                  <div className="flex flex-wrap justify-between gap-x-4">
-                    <span className="font-semibold">{name}</span>
+                  <div className="flex flex-wrap items-center justify-between gap-x-4">
+                    <Link
+                      to={divisionUrl(division)}
+                      className="inline-flex items-center font-semibold underline-offset-4 hover:underline pointer-coarse:min-h-11"
+                    >
+                      {name}
+                    </Link>
                     <span className="text-muted-foreground tabular-nums">
                       {t('dashboard.roundOf', { round: Math.min(round + 1, rounds), rounds })}
                     </span>
@@ -80,72 +71,90 @@ export function LiveGroundCard({
         )}
       </div>
       {apparatus.length > 0 && (
-        <ul
-          className="grid gap-px border-t bg-border sm:grid-cols-2 2xl:grid-cols-[repeat(var(--count),minmax(0,1fr))]"
-          style={{ '--count': apparatus.length } as CSSProperties}
-        >
+        <ul className="divide-y border-t">
           {apparatus.map((item) => (
-            <ApparatusCell key={item.apparatus} item={item} />
+            <ApparatusRow key={item.apparatus} item={item} />
           ))}
         </ul>
+      )}
+      {planned.length > 0 && (
+        <div className="border-t bg-muted px-4 py-3">
+          <h4 className="mb-1 text-xs font-semibold text-muted-foreground">
+            {t('dashboard.queue')}
+          </h4>
+          <ol className="grid gap-1">
+            {planned.slice(0, QUEUE_LENGTH).map((division) => (
+              <li
+                key={division.id}
+                className="flex min-h-10 flex-wrap items-center justify-between gap-x-4"
+              >
+                <span>
+                  <Link
+                    to={divisionUrl(division)}
+                    className="inline-flex items-center font-semibold underline-offset-4 hover:underline pointer-coarse:min-h-11"
+                  >
+                    {divisionName(division)}
+                  </Link>{' '}
+                  <span className="text-sm text-muted-foreground">
+                    {t('common:starterCount', { count: division.starterCount })}
+                  </span>
+                </span>
+                {onStart && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    aria-label={`${t('common:actions.start')}: ${divisionName(division)}`}
+                    onClick={() => onStart(division)}
+                  >
+                    <PlayIcon aria-hidden />
+                    {t('common:actions.start')}
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ol>
+          {planned.length > QUEUE_LENGTH && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t('dashboard.queueMore', { count: planned.length - QUEUE_LENGTH })}
+            </p>
+          )}
+        </div>
       )}
     </section>
   );
 }
 
-function ApparatusCell({ item }: { item: LiveGround['apparatus'][number] }) {
+function ApparatusRow({ item }: { item: LiveGround['apparatus'][number] }) {
   const { t } = useTranslation(['competition', 'common']);
-  const { apparatus, status, round, graded, total, latest } = item;
-  const isFinished = status === 'FINISHED';
+  const { apparatus, status, round, isAhead, graded, total, next } = item;
+
+  function detail() {
+    if (status === 'FINISHED') return null;
+    if (isAhead) return t('dashboard.roundFollows', { round });
+    if (total === 0) return t('dashboard.pause');
+    return next ? t('dashboard.now', { name: next }) : t('dashboard.toConfirm');
+  }
 
   return (
-    <li className="bg-card px-4 py-3 sm:max-2xl:last:odd:col-span-2">
-      <div className="flex min-h-6 flex-wrap items-center justify-between gap-x-3">
-        <h4 className="font-semibold">
-          {t(`common:apparatus.${apparatus}` as 'common:apparatus.reck')}
-        </h4>
-        {isFinished ? (
-          <StatusBadge tone="done" icon={CheckIcon}>
-            {t('dashboard.finished')}
-          </StatusBadge>
-        ) : (
-          <p className="text-sm text-muted-foreground tabular-nums">
-            {t('common:round', { number: round })}:{' '}
-            <span className={cn(total > 0 && graded === total && 'font-semibold text-success')}>
-              {total === 0 ? t('dashboard.pause') : t('dashboard.gradedOf', { graded, total })}
-            </span>
-          </p>
-        )}
-      </div>
-      {latest.length === 0 ? (
-        <p className="mt-1 text-sm text-muted-foreground">{t('dashboard.noGrades')}</p>
+    <li className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 px-4 py-1.5 sm:grid-cols-[9rem_minmax(0,1fr)_auto]">
+      <h4 className="font-semibold">
+        {t(`common:apparatus.${apparatus}` as 'common:apparatus.reck')}
+      </h4>
+      <p className="truncate text-sm text-muted-foreground max-sm:col-span-2 max-sm:row-start-2">
+        {detail()}
+      </p>
+      {status === 'FINISHED' ? (
+        <StatusBadge tone="done" icon={CheckIcon}>
+          {t('dashboard.finished')}
+        </StatusBadge>
+      ) : isAhead ? (
+        <StatusBadge tone="done" icon={CheckIcon}>
+          {t('dashboard.ready')}
+        </StatusBadge>
       ) : (
-        // The last of an odd number is twice as wide, see above.
-        <ul className="mt-1.5 grid gap-1.5 sm:max-2xl:in-[li:last-child:nth-child(odd)]:grid-cols-2 sm:max-2xl:in-[li:last-child:nth-child(odd)]:gap-x-8">
-          {latest.map((item, index) => {
-            const isEarlier = !isFinished && item.round < round;
-            return (
-              <li
-                key={`${item.entryId} ${item.round}`}
-                // The one before is only interesting where there is room.
-                className={cn('flex items-end justify-between gap-3', index > 0 && 'max-sm:hidden')}
-              >
-                <div className="min-w-0 leading-snug">
-                  {isEarlier && item.round !== latest[index - 1]?.round && (
-                    <p className="text-xs text-muted-foreground">
-                      {t('common:round', { number: item.round })}
-                    </p>
-                  )}
-                  <p className="truncate">{`${item.firstname} ${item.lastname}`}</p>
-                  <p className="truncate text-sm text-muted-foreground">{item.clubName}</p>
-                </div>
-                <span className={cn('figure text-xl', isEarlier && 'text-muted-foreground')}>
-                  {item.grade}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <span className="text-sm tabular-nums">
+          {total > 0 && t('dashboard.gradedOf', { graded, total })}
+        </span>
       )}
     </li>
   );

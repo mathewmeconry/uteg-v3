@@ -22,18 +22,16 @@ export default {
   noMatch: 'No division matches the filter',
   resetFilters: 'Reset filters',
   filters: {
-    label: 'Filter and sort divisions',
+    label: 'Filter divisions',
     all: 'All',
-    sort: 'Sort by',
     search: 'Search',
-    sortKeys: {
-      category: 'Category',
-      number: 'Number',
-      sex: 'Sex',
-      ground: 'Ground',
-      state: 'State',
-      starters: 'Number of starters',
-    },
+  },
+  order: {
+    text: 'From top to bottom, as they compete.',
+    drag: 'Move {{name}}',
+    up: 'Move up',
+    down: 'Move down',
+    emptyGround: 'No division on this ground',
   },
   sheets: {
     title: 'Judging sheets',
@@ -69,6 +67,11 @@ export default {
     restartTitle: 'Restart ended division?',
     text: 'The tablets on the ground show the divisions at once.',
     restart: 'Restart',
+    submit_one: 'Start division',
+    submit_other: 'Start {{count}} divisions',
+    others: 'Start others at the same time',
+    othersPlanned: '{{count}} planned',
+    othersChosen: '{{count}} chosen',
     ended: 'Already ended',
     endedText:
       'Progress starts again at the first round. Grades are kept. Until they end again, these divisions are missing from the ranking:',

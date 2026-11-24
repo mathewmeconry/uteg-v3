@@ -298,6 +298,8 @@ model Division {
   // 1, 2, 3 … within contest, category and sex.
   number    Int
   ground    Int
+  // Order in which the divisions of a ground are due. May have gaps.
+  position  Int
   state     DivisionState @default(PENDING)
   startedAt DateTime?
   endedAt   DateTime?

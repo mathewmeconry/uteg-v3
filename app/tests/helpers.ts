@@ -63,6 +63,7 @@ export async function createDivision(
     sex?: Sex;
     number?: number;
     ground?: number;
+    position?: number;
     state?: 'PENDING' | 'RUNNING' | 'ENDED';
   } = {},
 ) {
@@ -77,6 +78,7 @@ export async function createDivision(
       sex,
       number: data.number ?? 1,
       ground: data.ground ?? 1,
+      position: data.position ?? data.number ?? 1,
       state,
       startedAt: state === 'PENDING' ? null : new Date(Date.now() - 60_000),
       endedAt: state === 'ENDED' ? new Date() : null,

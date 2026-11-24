@@ -9,6 +9,7 @@ import {
   createDivision,
   deleteDivisions,
   listDivisions,
+  moveDivision,
   startDivisions,
   stopDivisions,
   updateDivision,
@@ -109,6 +110,65 @@ describe('updateDivision', () => {
     const other = await createCompetition({ grounds: 2 });
     const foreign = updateDivision(other.id, division.id, { ground: 1 });
     expect(await errorCode(foreign)).toBe('NOT_FOUND');
+  });
+
+  it('is due last on another ground and keeps its place on the same', async () => {
+    const { id, contest } = await createCompetition({ grounds: 2 });
+    const create = (ground: number) => createDivision(id, contest.id, { ...INPUT, ground });
+    const [first, second] = [await create(1), await create(1)];
+    expect([first.position, second.position, (await create(2)).position]).toEqual([1, 2, 1]);
+    await updateDivision(id, first.id, { ground: 1 });
+    expect(await listDivisions(id, { ids: [first.id] })).toMatchObject([{ position: 1 }]);
+    await updateDivision(id, first.id, { ground: 2 });
+    expect(await listDivisions(id, { ids: [first.id] })).toMatchObject([{ position: 2 }]);
+  });
+});
+
+describe('moveDivision', () => {
+  async function setup() {
+    const { id, contest } = await createCompetition({ grounds: 2 });
+    const create = (ground: number) => createDivision(id, contest.id, { ...INPUT, ground });
+    const divisions = [await create(1), await create(1), await create(1), await create(2)];
+    const [a, b, c, x] = divisions.map((division) => division.id);
+    const names = new Map([a, b, c, x].map((divisionId, index) => [divisionId, 'abcx'[index]]));
+    const order = async (ground: number) =>
+      (await prisma.division.findMany({ where: { ground }, orderBy: { position: 'asc' } }))
+        .map((division) => names.get(division.id))
+        .join('');
+    return { id, a, b, c, x, order };
+  }
+
+  it('moves within a ground and to another one', async () => {
+    const { id, a, c, x, order } = await setup();
+    await moveDivision(id, c, { ground: 1, beforeId: a });
+    expect(await order(1)).toBe('cab');
+    await moveDivision(id, c, { ground: 1 });
+    expect(await order(1)).toBe('abc');
+    await moveDivision(id, a, { ground: 2, beforeId: x });
+    expect([await order(1), await order(2)]).toEqual(['bc', 'ax']);
+  });
+
+  it('goes to the end when the one after it left the ground', async () => {
+    const { id, a, x, order } = await setup();
+    await moveDivision(id, a, { ground: 1, beforeId: x });
+    expect(await order(1)).toBe('bca');
+  });
+
+  it('keeps the place of one that was started and stopped', async () => {
+    const { id, a, b, c, order } = await setup();
+    await startDivisions(id, [b]);
+    await moveDivision(id, c, { ground: 1, beforeId: a });
+    await stopDivisions(id, [b]);
+    expect(await order(1)).toBe('cab');
+  });
+
+  it('only moves planned divisions of the competition to one of its grounds', async () => {
+    const { id, a } = await setup();
+    expect(await errorCode(moveDivision(id, a, { ground: 3 }))).toBe('INVALID_GROUND');
+    const other = await createCompetition({ grounds: 2 });
+    expect(await errorCode(moveDivision(other.id, a, { ground: 1 }))).toBe('NOT_FOUND');
+    await startDivisions(id, [a]);
+    expect(await errorCode(moveDivision(id, a, { ground: 2 }))).toBe('DIVISION_NOT_PENDING');
   });
 });
 
