@@ -1,10 +1,18 @@
 import { RouterContextProvider, UNSAFE_ErrorResponseImpl } from 'react-router';
+import type { RouteConfigEntry } from '@react-router/dev/routes';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import routes from '~/routes';
 import { competitionContext, contestContext, userContext } from '~/context';
 import type { Role } from '~/generated/prisma/client';
 import { addMember, createCompetition, createUser, truncateTables } from '~/tests/helpers';
 import { authMiddleware } from './auth.server';
-import { competitionMiddleware, contestMiddleware, requireRole } from './competition.server';
+import {
+  competitionMiddleware,
+  contestMiddleware,
+  requireRole,
+  viewerApiMiddleware,
+  viewerPageMiddleware,
+} from './competition.server';
 
 beforeEach(truncateTables);
 
@@ -96,6 +104,28 @@ describe('competitionMiddleware', () => {
   it.each([undefined, 'unknown'])('answers id %j with 404', async (competitionId) => {
     const { context } = await setup('OWNER');
     expect((await run(competitionMiddleware, context, { competitionId })).status).toBe(404);
+  });
+});
+
+describe('viewer middlewares', () => {
+  it.each([
+    ['CHECK_IN', 302, 403],
+    ['VIEWER', 200, 200],
+  ] as const)('answer a %s with %i on pages and %i in the API', async (role, page, api) => {
+    const { competition, context } = await setup(role);
+    await run(competitionMiddleware, context, { competitionId: competition.id });
+    expect((await run(viewerPageMiddleware, context)).status).toBe(page);
+    expect((await run(viewerApiMiddleware, context)).status).toBe(api);
+  });
+
+  it('are around every page but the starters', () => {
+    const { children } = (routes as RouteConfigEntry[])
+      .flatMap((entry) => entry.children ?? [])
+      .find(({ file }) => file === 'routes/secured/competition/layout.tsx')!;
+    expect(children!.map(({ file }) => file)).toEqual([
+      'routes/secured/competition/starters.tsx',
+      'routes/secured/competition/viewerLayout.tsx',
+    ]);
   });
 });
 

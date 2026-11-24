@@ -31,7 +31,12 @@ export async function loader({ request, params: { assetId }, context }: Route.Lo
   });
 }
 
+/** Or an admin, who is one of every competition. */
 async function isMember(userId: string | undefined, competitionId: string) {
   if (!userId) return false;
-  return (await prisma.member.count({ where: { userId, competitionId } })) > 0;
+  const where = {
+    id: userId,
+    OR: [{ isAdmin: true }, { memberships: { some: { competitionId } } }],
+  };
+  return (await prisma.user.count({ where })) > 0;
 }

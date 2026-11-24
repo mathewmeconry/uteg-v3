@@ -9,7 +9,7 @@ import {
 } from '~/components/ui/select';
 import type { Role } from '~/generated/prisma/enums';
 
-export const ROLES: Role[] = ['VIEWER', 'EDITOR', 'OWNER'];
+export const ROLES: Role[] = ['CHECK_IN', 'VIEWER', 'EDITOR', 'OWNER'];
 
 /** Select of a member's role. The remaining props go to the trigger. */
 export function RoleSelect({

@@ -16,24 +16,27 @@ export default [
       route('competitions/new', 'routes/secured/home/newCompetition.tsx'),
     ]),
     route('competitions/:competitionId', 'routes/secured/competition/layout.tsx', [
-      index('routes/secured/competition/dashboard.tsx'),
+      // The only page for the check-in.
       route('starters', 'routes/secured/competition/starters.tsx'),
-      route('starters/import', 'routes/secured/competition/startersImport.tsx'),
-      route('judges', 'routes/secured/competition/judges.tsx'),
-      route('displays', 'routes/secured/competition/displays.tsx'),
-      route('templates', 'routes/secured/competition/templates.tsx'),
-      route('settings', 'routes/secured/competition/settings.tsx'),
-      route('members', 'routes/secured/competition/members.tsx'),
-      route('contests/:contestId', 'routes/secured/contest/layout.tsx', [
-        route('divisions', 'routes/secured/contest/divisions.tsx'),
-        route('divisions/:divisionId', 'routes/secured/contest/division.tsx', [
-          index('routes/secured/contest/divisionIndex.ts'),
-          route('lineups', 'routes/secured/contest/lineups.tsx'),
-          route('grading', 'routes/secured/contest/divisionGrading.tsx'),
+      layout('routes/secured/competition/viewerLayout.tsx', [
+        index('routes/secured/competition/dashboard.tsx'),
+        route('starters/import', 'routes/secured/competition/startersImport.tsx'),
+        route('judges', 'routes/secured/competition/judges.tsx'),
+        route('displays', 'routes/secured/competition/displays.tsx'),
+        route('templates', 'routes/secured/competition/templates.tsx'),
+        route('settings', 'routes/secured/competition/settings.tsx'),
+        route('members', 'routes/secured/competition/members.tsx'),
+        route('contests/:contestId', 'routes/secured/contest/layout.tsx', [
+          route('divisions', 'routes/secured/contest/divisions.tsx'),
+          route('divisions/:divisionId', 'routes/secured/contest/division.tsx', [
+            index('routes/secured/contest/divisionIndex.ts'),
+            route('lineups', 'routes/secured/contest/lineups.tsx'),
+            route('grading', 'routes/secured/contest/divisionGrading.tsx'),
+          ]),
+          route('grading', 'routes/secured/contest/grading.tsx'),
+          route('ranking', 'routes/secured/contest/ranking.tsx'),
+          route('settings', 'routes/secured/contest/settings.tsx'),
         ]),
-        route('grading', 'routes/secured/contest/grading.tsx'),
-        route('ranking', 'routes/secured/contest/ranking.tsx'),
-        route('settings', 'routes/secured/contest/settings.tsx'),
       ]),
     ]),
   ]),

@@ -69,9 +69,15 @@ function Address() {
 
 async function renderPage({
   canEdit = true,
+  isCheckIn = false,
   entries = ['/'],
   link = 'returnBack',
-}: { canEdit?: boolean; entries?: string[]; link?: 'returnBack' | 'plain' } = {}) {
+}: {
+  canEdit?: boolean;
+  isCheckIn?: boolean;
+  entries?: string[];
+  link?: 'returnBack' | 'plain';
+} = {}) {
   const linkState = link === 'returnBack' ? { returnBack: true } : undefined;
   const Stub = createRoutesStub([
     {
@@ -81,6 +87,7 @@ async function renderPage({
         competition: { id: 'c' },
         contests: [{ id: 'contest', name: 'EGT' }],
         canEdit,
+        isCheckIn,
       }),
       Component: () => (
         <I18nextProvider i18n={createI18n('de')}>
@@ -257,6 +264,22 @@ it.each([
 ])('ignores the link for %s', async (_, options) => {
   await renderPage(options);
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+it('lets the check-in edit the person and remove only', async () => {
+  const { user, table, rows } = await renderPage({ canEdit: false, isCheckIn: true });
+  for (const name of ['Exportieren', 'Importieren', 'Einteilen']) {
+    expect(screen.queryByText(name)).not.toBeInTheDocument();
+  }
+  await user.click(within(rows()[0]).getByRole('checkbox'));
+  expect(screen.getByRole('button', { name: 'Entfernen' })).toBeEnabled();
+  expect(screen.queryByRole('button', { name: 'Einteilen' })).not.toBeInTheDocument();
+
+  await user.click(table.getByText('Anna001'));
+  const dialog = within(screen.getByRole('dialog'));
+  expect(dialog.getByLabelText('Vorname')).toBeInTheDocument();
+  expect(dialog.queryByLabelText('Geschlecht')).not.toBeInTheDocument();
+  expect(dialog.queryByLabelText('Kategorie')).not.toBeInTheDocument();
 });
 
 it('lets viewers look and export only', async () => {

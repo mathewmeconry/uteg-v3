@@ -169,7 +169,7 @@ export default function Members({
           <h2 id="roles-title" className="mb-3 font-display text-lg">
             {t('members.rolesTitle')}
           </h2>
-          <dl className="grid gap-3 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-1">
+          <dl className="grid gap-3 sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-1">
             {ROLES.toReversed().map((role) => (
               <div key={role}>
                 <dt className="font-semibold">{t(`common:role.${role}`)}</dt>

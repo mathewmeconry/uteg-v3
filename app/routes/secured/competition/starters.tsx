@@ -80,9 +80,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id, role } = context.get(competitionContext);
+  const isCheckIn = role === 'CHECK_IN';
+  if (!isCheckIn) requireRole(context, 'EDITOR');
   const t = getT(context);
   const formData = await request.formData();
+  if (isCheckIn && !['update', 'remove'].includes(String(formData.get('intent')))) {
+    throw data(null, 403);
+  }
   rejectNul(formData);
   const success = (message: string) => {
     enqueueToast(context, { type: 'success', message });
@@ -122,8 +127,10 @@ export async function action({ request, context }: Route.ActionArgs) {
         };
         await updateStarter(id, starterId, {
           ...person,
-          entries: isInContest || category ? [entry] : [],
-          updateAthlete: formData.get('updateAthlete') === 'on',
+          // Another sex would lose the category and division, which the check-in may not change.
+          sex: isCheckIn ? undefined : person.sex,
+          entries: !isCheckIn && (isInContest || category) ? [entry] : [],
+          updateAthlete: !isCheckIn && formData.get('updateAthlete') === 'on',
         });
         return success(t('starters:updated', { name: fullName(person) }));
       }
@@ -214,7 +221,8 @@ type OpenDialog =
 export default function Starters({ loaderData }: Route.ComponentProps) {
   const { starters, contest, clubs } = loaderData;
   const { t } = useTranslation(['starters', 'common']);
-  const { competition, contests, canEdit } = useCompetition();
+  const { competition, contests, canEdit, isCheckIn } = useCompetition();
+  const canEditPerson = canEdit || isCheckIn;
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -231,14 +239,14 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
   // closing the dialog should return to them.
   const editId = searchParams.get('edit');
   const [dialog, setDialog] = useState<OpenDialog | null>(() => {
-    const starter = canEdit && starters.find(({ id }) => id === editId);
+    const starter = canEditPerson && starters.find(({ id }) => id === editId);
     return starter ? { type: 'edit', starter } : null;
   });
   // The search may link to one while this page is open.
   const [handledEditId, setHandledEditId] = useState(editId);
   if (editId !== handledEditId) {
     setHandledEditId(editId);
-    const starter = canEdit && starters.find(({ id }) => id === editId);
+    const starter = canEditPerson && starters.find(({ id }) => id === editId);
     if (starter) setDialog({ type: 'edit', starter });
   }
   const listRef = useRef<HTMLElement>(null);
@@ -300,11 +308,11 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
   }
   const open = useCallback(
     (starter: StarterRow) => {
-      // Where there is no room for the panel.
-      if (window.matchMedia('(width < 80rem)').matches) edit(starter);
+      // Where there is no room for the panel, or nothing to assign.
+      if (isCheckIn || window.matchMedia('(width < 80rem)').matches) edit(starter);
       else setOpenId(starter.id);
     },
-    [edit],
+    [edit, isCheckIn],
   );
   const remove = useCallback(
     (starter: StarterRow) => setDialog({ type: 'remove', starters: [starter] }),
@@ -356,7 +364,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
         }
         actions={
           <>
-            {starters.length > 0 && (
+            {starters.length > 0 && !isCheckIn && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -436,7 +444,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
                     columns={columns}
                     sort={sort}
                     onSort={sortBy}
-                    canEdit={canEdit}
+                    canEdit={canEditPerson}
                     selected={selected}
                     openId={openId}
                     onOpen={open}
@@ -466,7 +474,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
         )}
       </section>
 
-      {canEdit && selectedRows.length > 0 && (
+      {canEditPerson && selectedRows.length > 0 && (
         <SelectionBar
           role="toolbar"
           aria-label={t('actions')}
@@ -486,13 +494,15 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
             </p>
           }
         >
-          <Button
-            variant="brand"
-            onClick={() => setDialog({ type: 'assign', starters: selectedRows })}
-          >
-            <LayersIcon aria-hidden />
-            {t('assign.action')}
-          </Button>
+          {canEdit && (
+            <Button
+              variant="brand"
+              onClick={() => setDialog({ type: 'assign', starters: selectedRows })}
+            >
+              <LayersIcon aria-hidden />
+              {t('assign.action')}
+            </Button>
+          )}
           <Button
             variant="onInk"
             onClick={() => setDialog({ type: 'remove', starters: selectedRows })}
@@ -510,6 +520,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
           options={contest}
           clubs={clubs}
           startingIds={startingIds}
+          personOnly={isCheckIn}
           onClose={closeDialog}
         />
       )}

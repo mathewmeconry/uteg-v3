@@ -57,6 +57,7 @@ export default {
       OWNER: 'Can do everything, including managing members and deleting the competition',
       EDITOR: 'Edits starters, divisions, grades and settings',
       VIEWER: 'Sees everything, changes nothing',
+      CHECK_IN: 'Only sees the starters, edits their personal data and removes them. Cannot assign',
     },
   },
   honour: {

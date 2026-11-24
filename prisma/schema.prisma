@@ -16,6 +16,8 @@ model User {
   emailVerified Boolean  @default(false)
   image         String?
   language      String   @default("de")
+  // Owner of every competition. Only set in the database.
+  isAdmin       Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -79,6 +81,8 @@ enum Role {
   OWNER
   EDITOR
   VIEWER
+  // Edits and removes starters, sees nothing else.
+  CHECK_IN
 }
 
 model Competition {

@@ -46,6 +46,7 @@ export function StarterDialog({
   options,
   clubs,
   startingIds,
+  personOnly = false,
   onClose,
 }: {
   competitionId: string;
@@ -53,6 +54,8 @@ export function StarterDialog({
   options: ContestOptions;
   clubs: ClubOption[];
   startingIds: ReadonlySet<string>;
+  /** Leaves out the assignment, the sex it depends on, and the master data. */
+  personOnly?: boolean;
   onClose: () => void;
 }) {
   const { t } = useTranslation(['starters', 'common']);
@@ -201,7 +204,7 @@ export function StarterDialog({
                 hint={difference('birthYear') ?? (starter ? undefined : t('form.birthYearHint'))}
               />
               {/* The sex of a suggested person may be one that does not take part. */}
-              {sexes.length === 1 && person.sex === sexes[0] ? (
+              {personOnly || (sexes.length === 1 && person.sex === sexes[0]) ? (
                 <input type="hidden" name="sex" value={person.sex} />
               ) : (
                 <FormField
@@ -243,19 +246,22 @@ export function StarterDialog({
                   value={club}
                   onChange={setClub}
                   controlProps={props}
+                  canCreate={!personOnly}
                 />
               )}
             </FormField>
-            <EntryFields
-              options={options}
-              sex={person.sex}
-              defaultValue={{
-                category: starter?.category ?? '',
-                divisionId: starter?.divisionId ?? '',
-                startApparatus: starter?.startApparatus ?? '',
-              }}
-            />
-            {starter && (
+            {!personOnly && (
+              <EntryFields
+                options={options}
+                sex={person.sex}
+                defaultValue={{
+                  category: starter?.category ?? '',
+                  divisionId: starter?.divisionId ?? '',
+                  startApparatus: starter?.startApparatus ?? '',
+                }}
+              />
+            )}
+            {starter && !personOnly && (
               <Label className="flex items-start gap-3 rounded-lg bg-muted p-3 leading-normal font-normal">
                 <Checkbox
                   name="updateAthlete"

@@ -22,36 +22,44 @@ const detailsSchema = z
 export type CompetitionDetails = z.input<typeof detailsSchema>;
 export type MemberInput = { email: string; role: Role };
 
-const ROLE_LEVEL: Record<Role, number> = { VIEWER: 0, EDITOR: 1, OWNER: 2 };
+const ROLE_LEVEL: Record<Role, number> = { CHECK_IN: 0, VIEWER: 1, EDITOR: 2, OWNER: 3 };
 
 // ── Competitions ─────────────────────────────────────────────────────────────
 
-/** The competitions the user is a member of, newest first. */
-/** The competitions of the user, with their role. */
+/** The competitions of the user with their role, newest first. Admins get all, as owners. */
 export async function listCompetitions(userId: string) {
+  const isAdmin = await isAdminUser(userId);
   const competitions = await prisma.competition.findMany({
-    where: { members: { some: { userId } } },
+    where: isAdmin ? {} : { members: { some: { userId } } },
     include: { members: { where: { userId }, select: { role: true } } },
     orderBy: [{ startDate: 'desc' }, { name: 'asc' }],
   });
-  return competitions.map(({ members: [{ role }], ...competition }) => ({ ...competition, role }));
+  return competitions.map(({ members: [member], ...competition }) => ({
+    ...competition,
+    role: isAdmin ? 'OWNER' : member.role,
+  }));
 }
 
 /** The competition with the user's role. Strangers cannot tell whether it exists. */
 export async function getCompetitionForUser(
   userId: string,
   competitionId: string,
-  minRole: Role = 'VIEWER',
+  minRole: Role = 'CHECK_IN',
 ) {
-  const member = await prisma.member.findUnique({
-    where: { competitionId_userId: { competitionId, userId } },
+  const isAdmin = await isAdminUser(userId);
+  const found = await prisma.competition.findUnique({
+    where: { id: competitionId },
     include: {
-      competition: { include: { contests: { orderBy: [{ position: 'asc' }, { id: 'asc' }] } } },
+      members: { where: { userId }, select: { role: true } },
+      contests: { orderBy: [{ position: 'asc' }, { id: 'asc' }] },
     },
   });
-  if (!member) throw new DomainError('NOT_FOUND');
-  if (ROLE_LEVEL[member.role] < ROLE_LEVEL[minRole]) throw new DomainError('FORBIDDEN');
-  return { ...member.competition, role: member.role };
+  if (!found) throw new DomainError('NOT_FOUND');
+  const { members, ...competition } = found;
+  const role = isAdmin ? 'OWNER' : members[0]?.role;
+  if (!role) throw new DomainError('NOT_FOUND');
+  if (ROLE_LEVEL[role] < ROLE_LEVEL[minRole]) throw new DomainError('FORBIDDEN');
+  return { ...competition, role };
 }
 
 export async function createCompetition(
@@ -184,6 +192,10 @@ export async function removeMember(competitionId: string, userId: string) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+async function isAdminUser(userId: string) {
+  return (await prisma.user.count({ where: { id: userId, isAdmin: true } })) > 0;
+}
 
 function parseDetails(input: CompetitionDetails) {
   const result = detailsSchema.safeParse(input);

@@ -34,6 +34,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     role,
     canEdit: hasRole(role, 'EDITOR'),
     isOwner: role === 'OWNER',
+    isCheckIn: role === 'CHECK_IN',
   };
 }
 

@@ -125,6 +125,33 @@ describe('access', () => {
     expect(await starters()).toMatchObject([{ id: starter.id, deletedAt: null }]);
   });
 
+  it('lets the check-in edit the person, but not the sex and the assignment, and remove', async () => {
+    const { competition, call, anna, club } = await setup();
+    const checkIn = await createUser();
+    await addMember(competition.id, checkIn.id, 'CHECK_IN');
+    const division = await createDivision(competition.contest.id);
+    const assigned = { category: 'K5', divisionId: division.id, startApparatus: 'boden' };
+    const { id } = await createStarter(competition.id, { ...assigned });
+
+    expect((await call(anna, checkIn.id)).status).toBe(403);
+    expect((await call({ intent: 'assign', assignments: '[]' }, checkIn.id)).status).toBe(403);
+
+    const update = { ...anna, intent: 'update', starterId: id, sex: 'MALE', category: 'K6' };
+    const { data } = await call({ ...update, updateAthlete: 'on' }, checkIn.id);
+    expect(data).toEqual({ ok: true });
+    const [starter] = await starters();
+    expect(starter).toMatchObject({
+      firstname: 'Anna',
+      clubId: club.id,
+      sex: 'FEMALE',
+      entries: [assigned],
+    });
+    expect(starter.athlete.firstname).not.toBe('Anna');
+
+    expect((await call({ intent: 'remove', id }, checkIn.id)).data).toEqual({ ok: true });
+    expect((await starters())[0].deletedAt).not.toBeNull();
+  });
+
   it('does not touch starters of other competitions', async () => {
     const { call, anna } = await setup();
     const other = await createCompetition();

@@ -27,6 +27,15 @@ pnpm dev                   # http://localhost:5199
 To judge from a tablet in the local network, set `APP_URL` to the address of the computer
 (`http://192.168.1.20:5199`) and run `pnpm dev --host`.
 
+## Admins
+
+Admins see all competitions and have the rights of an owner in them. Make an account one in the
+database:
+
+```sql
+UPDATE "user" SET "isAdmin" = true WHERE email = 'me@example.com';
+```
+
 ## Checks
 
 ```sh

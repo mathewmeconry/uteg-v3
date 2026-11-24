@@ -1,4 +1,4 @@
-import { data, type MiddlewareFunction } from 'react-router';
+import { data, redirect, type MiddlewareFunction } from 'react-router';
 import { competitionContext, contestContext, type Context } from '~/context';
 import type { Role } from '~/generated/prisma/client';
 import { getUser } from '~/lib/auth/auth.server';
@@ -7,7 +7,10 @@ import { getContest } from '~/lib/contests.server';
 import { DomainError } from '~/lib/errors';
 import { hasRole } from '~/lib/roles';
 
-/** Loads the competition of a member. Needs authMiddleware before it. */
+/**
+ * Loads the competition of a member. Needs authMiddleware before it. The role may be CHECK_IN, see
+ * the middlewares below.
+ */
 export const competitionMiddleware: MiddlewareFunction<Response> = async (
   { params, context },
   next,
@@ -17,6 +20,19 @@ export const competitionMiddleware: MiddlewareFunction<Response> = async (
     requireParam(params.competitionId),
   ).catch(notFound);
   context.set(competitionContext, competition);
+  return next();
+};
+
+/** Sends the check-in to the starters, the only page it may see. */
+export const viewerPageMiddleware: MiddlewareFunction<Response> = ({ context }, next) => {
+  const { id, role } = context.get(competitionContext);
+  if (!hasRole(role, 'VIEWER')) throw redirect(`/competitions/${id}/starters`);
+  return next();
+};
+
+/** Denies the check-in. */
+export const viewerApiMiddleware: MiddlewareFunction<Response> = ({ context }, next) => {
+  requireRole(context, 'VIEWER');
   return next();
 };
 
