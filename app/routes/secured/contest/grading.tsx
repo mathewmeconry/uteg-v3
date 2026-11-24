@@ -1,6 +1,6 @@
 import { ClipboardPenIcon, UsersIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { data, Link, useSearchParams } from 'react-router';
+import { data, Link, redirect, useSearchParams } from 'react-router';
 import type { Route } from './+types/grading';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
 import { EmptyState } from '~/components/EmptyState';
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
-import { competitionContext } from '~/context';
+import { competitionContext, contestContext } from '~/context';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { readForm } from '~/lib/forms.server';
@@ -31,10 +31,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { id, grounds } = context.get(competitionContext);
   const running = await listRunningDivisions(id);
   const requested = Number(new URL(request.url).searchParams.get('ground'));
-  const ground =
-    Number.isInteger(requested) && requested >= 1 && requested <= grounds
-      ? requested
-      : (running[0]?.ground ?? 1);
+  if (!Number.isInteger(requested) || requested < 1 || requested > grounds) {
+    // In the address, so that the page stays there when divisions start and end.
+    const { id: contestId } = context.get(contestContext);
+    throw redirect(
+      `/competitions/${id}/contests/${contestId}/grading?ground=${running[0]?.ground ?? 1}`,
+    );
+  }
+  const ground = requested;
 
   const loadedAt = Date.now();
   const { divisions, apparatus } = await getJudgingState(id, ground);

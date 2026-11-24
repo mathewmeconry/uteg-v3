@@ -173,5 +173,29 @@ describe('confirming', () => {
 it('shows the last round when all are confirmed', () => {
   setup(createApparatus({ reck: null, boden: null }));
   expect(names('Boden')).toEqual(['Bea', 'Anna']);
-  expect(card('Boden').getByText('Alle Durchgänge bestätigt')).toBeVisible();
+  expect(card('Boden').getByText('Durchgang 2 · Alle Durchgänge bestätigt')).toBeVisible();
+});
+
+it('goes back to the current round, also from an input that is not saved', async () => {
+  const user = setup(createApparatus({ reck: 1, boden: 1 }));
+  await user.click(round('Durchgang 1'));
+  await user.type(card('Reck').getByLabelText('Note Anna Frei'), '95');
+  await user.click(round('Aktuell'));
+  expect(names('Reck')).toEqual([]);
+  expect(round('Durchgang 1, 1 ungespeicherte Eingabe')).toBeVisible();
+});
+
+it('does not call a round the next one when it has begun', () => {
+  setup(
+    createApparatus({ reck: 0, boden: 1 }).map((item) => ({
+      ...item,
+      rounds: item.rounds.map((entry) => ({
+        ...entry,
+        slots: entry.slots.map((person, index) =>
+          index === 0 ? { ...person, grade: GRADE } : person,
+        ),
+      })),
+    })),
+  );
+  expect(card('Boden').getByText('Durchgang 2')).toBeVisible();
 });

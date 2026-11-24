@@ -64,7 +64,13 @@ export function RoundBoard({
         aria-label={t('grading.rounds')}
         className="flex w-fit flex-wrap gap-1 rounded-lg border bg-card p-1"
       >
-        <RoundButton isChosen={chosen === null} onClick={() => setChosen(null)}>
+        <RoundButton
+          isChosen={chosen === null}
+          onClick={() => {
+            setChosen(null);
+            setEdited({});
+          }}
+        >
           {t('grading.current')}
         </RoundButton>
         {Array.from({ length: roundCount }, (_, round) => {
@@ -172,11 +178,10 @@ function ApparatusCard({
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 border-b px-4 py-3">
         <h2 className="text-lg font-bold">{name}</h2>
         <p className="text-sm text-muted-foreground">
-          {currentRound === null
-            ? t('grading.finished')
-            : isCurrent && isAhead
-              ? t('competition:dashboard.roundFollows', { round: round + 1 })
-              : t('common:round', { number: round + 1 })}
+          {isCurrent && isAhead && graded === 0
+            ? t('competition:dashboard.roundFollows', { round: round + 1 })
+            : t('common:round', { number: round + 1 })}
+          {currentRound === null && ` · ${t('grading.finished')}`}
         </p>
       </div>
       {slots.length === 0 ? (
@@ -206,9 +211,12 @@ function ApparatusCard({
             // A dialog that is open must not become the one of the next round.
             key={[round, ...divisionIds].join(' ')}
             trigger={
-              <Button variant="outline">
+              <Button
+                variant="outline"
+                aria-label={t('grading.confirmRound', { number: round + 1 })}
+              >
                 <CheckIcon aria-hidden />
-                {t('grading.confirmRound', { number: round + 1 })}
+                {t('common:actions.confirm')}
               </Button>
             }
             title={t('grading.confirmTitle', { number: round + 1 })}
