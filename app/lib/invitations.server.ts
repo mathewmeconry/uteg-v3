@@ -1,9 +1,8 @@
 import type { Language } from '~/locales';
 import { normalizeEmail, type MemberInput } from './competitions.server';
-import { env } from './env.server';
 import { publish } from './events.server';
-import { createI18n } from './i18n';
 import { sendMail } from './mail.server';
+import { APP_URL, createMail } from './mailTemplate.server';
 import { prisma } from './prisma.server';
 import { createRateLimit } from './rateLimit.server';
 
@@ -33,17 +32,13 @@ export async function inviteMember(
   });
   publish(competition.id, 'settings');
 
-  const { t } = createI18n(inviter.language);
-  await sendMail({
-    to: email,
-    subject: t('mails:invitation.subject', { competition: competition.name }),
-    text: t('mails:invitation.text', {
-      competition: competition.name,
-      inviter: inviter.email,
-      email,
-      url: `${env.APP_URL.replace(/\/$/, '')}/register`,
-    }),
+  const mail = await createMail('invitation', inviter.language, {
+    competition: competition.name,
+    inviter: inviter.email,
+    email,
+    url: `${APP_URL}/register`,
   });
+  await sendMail({ to: email, ...mail });
 }
 
 export async function removeInvitation(competitionId: string, id: string) {

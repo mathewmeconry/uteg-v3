@@ -47,8 +47,9 @@ it('limits guessing the password with the email form', async () => {
 it('changes the address with the code sent to the new one', async () => {
   const { change, enterCode } = await setup('e@example.com');
   expect(await change('f@example.com', PASSWORD)).toBe(200);
-  const { to, text } = vi.mocked(sendMail).mock.lastCall![0];
-  expect(to).toBe('f@example.com');
+  const toNew = expect.objectContaining({ to: 'f@example.com' });
+  await vi.waitFor(() => expect(sendMail).toHaveBeenLastCalledWith(toNew));
+  const { text } = vi.mocked(sendMail).mock.lastCall![0];
   const code = /\b\d{6}\b/.exec(text)![0];
 
   expect(await enterCode('f@example.com', 'x')).toBe(400);

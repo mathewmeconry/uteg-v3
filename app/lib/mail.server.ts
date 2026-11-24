@@ -2,10 +2,10 @@ import { setTimeout } from 'node:timers/promises';
 import { env } from './env.server';
 import { logger } from './logger.server';
 
-type Mail = { to: string; subject: string; text: string };
+type Mail = { to: string; subject: string; html: string; text: string };
 
 /** Sends a mail with Resend. Without an API key, which production requires, it is only logged. */
-export async function sendMail({ to, subject, text }: Mail) {
+export async function sendMail({ to, subject, html, text }: Mail) {
   if (!env.RESEND_API_KEY) {
     logger.info(`Mail not sent, RESEND_API_KEY is not set.\n${subject}\n\n${text}`);
     return;
@@ -17,7 +17,7 @@ export async function sendMail({ to, subject, text }: Mail) {
         Authorization: `Bearer ${env.RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: env.MAIL_FROM, to, subject, text }),
+      body: JSON.stringify({ from: env.MAIL_FROM, to, subject, html, text }),
       signal: AbortSignal.timeout(10_000),
     });
   let response = await send();

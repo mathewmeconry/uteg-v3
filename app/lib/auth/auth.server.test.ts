@@ -129,7 +129,7 @@ it('does not tell whether an address has an account', async () => {
   await register();
   const again = await register();
   expect(again.token).toBeNull();
-  expect(vi.mocked(sendMail).mock.lastCall![0].text).toContain('/forgot-password');
+  await inLastMail(/\/forgot-password/);
   expect(await prisma.user.count()).toBe(1);
 
   vi.mocked(sendMail).mockClear();

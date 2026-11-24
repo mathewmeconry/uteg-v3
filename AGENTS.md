@@ -12,7 +12,7 @@ status in `docs/PARITY.md`.
 ## Stack
 
 - React Router 8 (framework mode, SSR), Vite 8, React 19, TypeScript
-- Prisma 7 with PostgreSQL, better-auth (email and password, email-otp plugin for codes), mails with Resend
+- Prisma 7 with PostgreSQL, better-auth (email and password, email-otp plugin for codes), mails with Resend and MJML
 - Tailwind 4, shadcn (new-york, in `app/components/ui`), lucide, sonner
 - i18next (de, en), zod 4, pino, @react-pdf/renderer, exceljs, dnd-kit
 - vitest + Testing Library, Playwright
