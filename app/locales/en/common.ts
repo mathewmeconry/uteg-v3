@@ -38,7 +38,7 @@ export default {
     dark: 'Dark',
   },
   nav: {
-    main: 'Competition',
+    main: 'Main navigation',
     setup: 'Setup',
     more: 'More',
     account: 'Account',

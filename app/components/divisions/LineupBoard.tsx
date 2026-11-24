@@ -423,7 +423,7 @@ function LineupColumn({
       style={{ minHeight }}
       className={cn(
         'rounded-xl border bg-card',
-        id === UNASSIGNED && '@2xl:sticky @2xl:top-17 @2xl:self-start lg:@2xl:top-3',
+        id === UNASSIGNED && '@2xl:sticky @2xl:top-17 @2xl:self-start',
         isOver && 'border-primary ring-2 ring-primary/30',
       )}
     >

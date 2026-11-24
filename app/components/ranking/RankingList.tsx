@@ -111,7 +111,7 @@ export function RankingList({ entries, best, apparatus, options }: Ranking) {
       </ol>
 
       <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
-        {/* Five apparatus also fit next to the sidebar of a tablet. */}
+        {/* Five apparatus also fit on an upright tablet. */}
         <Table className="max-lg:[&_td]:px-1.5 max-lg:[&_th]:px-1.5">
           <TableHeader>
             <TableRow>

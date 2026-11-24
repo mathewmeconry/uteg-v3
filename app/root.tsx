@@ -95,7 +95,8 @@ export function Layout({ children }: { children: ReactNode }) {
           <NavigationProgress />
           {children}
         </TooltipProvider>
-        <Toaster position="top-center" />
+        {/* Below the bar at the top. */}
+        <Toaster position="top-center" offset={{ top: '4rem' }} mobileOffset={{ top: '4rem' }} />
         <ScrollRestoration />
         <Scripts />
       </body>
