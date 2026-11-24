@@ -14,6 +14,7 @@ import { data, Link, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/divisions';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
+import { DivisionBoard } from '~/components/divisions/DivisionBoard';
 import {
   CreateDialog,
   DeleteDialog,
@@ -23,11 +24,14 @@ import {
 } from '~/components/divisions/DivisionDialogs';
 import { DivisionFilters } from '~/components/divisions/DivisionFilters';
 import {
+  applyMove,
   FILTER_KEYS,
   filterDivisions,
+  inRunningOrder,
   matchesSearch,
-  sortDivisions,
+  stepMove,
   type Division,
+  type DivisionMove,
 } from '~/components/divisions/divisionList';
 import { DivisionRow, type RowAction } from '~/components/divisions/DivisionRow';
 import { useDivisionName } from '~/components/divisions/useDivisionName';
@@ -50,6 +54,7 @@ import {
   createDivision,
   deleteDivisions,
   listDivisions,
+  moveDivision,
   startDivisions,
   stopDivisions,
   updateDivision,
@@ -91,6 +96,7 @@ const schema = z.discriminatedUnion('intent', [
     ground,
   }),
   z.object({ intent: z.literal('ground'), division, ground }),
+  z.object({ intent: z.literal('move'), division, ground, before: z.string().optional() }),
   z.object({ intent: z.literal('delete'), division }),
   z.object({ intent: z.literal('start'), division, restart: z.stringbool().default(false) }),
   z.object({ intent: z.literal('stop'), division }),
@@ -113,7 +119,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       if (found.length !== values.division.length) throw new DomainError('NOT_FOUND');
     }
     const message = await run(id, contest.id, values, t);
-    enqueueToast(context, { type: 'success', message });
+    if (message) enqueueToast(context, { type: 'success', message });
     return null;
   } catch (error) {
     return actionError(error, t);
@@ -122,13 +128,13 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 export const clientAction = safeClientAction;
 
-/** Returns what to tell the user. */
+/** Returns what to tell the user, if it is not visible anyway. */
 async function run(
   competitionId: string,
   contestId: string,
   values: z.infer<typeof schema>,
   t: ServerT,
-): Promise<string> {
+): Promise<string | null> {
   switch (values.intent) {
     case 'create': {
       const { category, sex, number } = await createDivision(competitionId, contestId, values);
@@ -138,6 +144,12 @@ async function run(
     case 'ground':
       await updateDivision(competitionId, values.division[0], { ground: values.ground });
       return t('divisions:ground.done');
+    case 'move':
+      await moveDivision(competitionId, values.division[0], {
+        ground: values.ground,
+        beforeId: values.before,
+      });
+      return null;
     case 'delete':
       await deleteDivisions(competitionId, values.division);
       return t('divisions:remove.done', { count: values.division.length });
@@ -158,7 +170,7 @@ type OpenDialog = {
 };
 
 export default function Divisions({ loaderData }: Route.ComponentProps) {
-  const { divisions, running, categories } = loaderData;
+  const { running, categories } = loaderData;
   const { t } = useTranslation(['divisions', 'common']);
   const { competition, canEdit } = useCompetition();
   const status = useLiveUpdates(`/api/events/${competition.id}`);
@@ -167,12 +179,26 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
   const [dialog, setDialog] = useState<OpenDialog | null>(null);
   const [search, setSearch] = useState('');
   const { Form, pending } = useActionFetcher(() => setDialog(null));
+  const mover = useActionFetcher();
   const divisionName = useDivisionName();
   const content = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
 
-  const visible = sortDivisions(filterDivisions(divisions, params), params.get('sort')).filter(
-    (item) => matchesSearch(searchText(item), search),
+  const divisions = mover.formData
+    ? applyMove(loaderData.divisions, {
+        id: String(mover.formData.get('division')),
+        ground: Number(mover.formData.get('ground')),
+        beforeId: mover.formData.get('before')?.toString(),
+      })
+    : loaderData.divisions;
+  const planned = inRunningOrder(divisions.filter(({ state }) => state === 'PENDING'));
+  const visible = filterDivisions(divisions, params).filter((item) =>
+    matchesSearch(searchText(item), search),
+  );
+  const isFiltered = search.trim() !== '' || FILTER_KEYS.some((key) => params.has(key));
+  // Empty ones too, to drop divisions on.
+  const shownGrounds = Array.from({ length: competition.grounds }, (_, index) => index + 1).filter(
+    (number) => !isFiltered || visible.some(({ ground }) => ground === number),
   );
   // Nothing happens to divisions the filter hides.
   const selected = visible.filter(({ id }) => selection.has(id));
@@ -188,6 +214,19 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
       }
       return next;
     });
+  }
+
+  function move({ id, ground, beforeId }: DivisionMove) {
+    const before = beforeId && { before: beforeId };
+    void mover.submit(
+      { intent: 'move', division: id, ground: String(ground), ...before },
+      { method: 'post' },
+    );
+  }
+
+  function stepTo(id: string, plannedOnGround: Division[], step: -1 | 1) {
+    const target = stepMove(plannedOnGround, id, step);
+    return target ? () => move(target) : undefined;
   }
 
   function searchText(item: Division) {
@@ -243,7 +282,7 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
       <title>{`${t('title')} · UTEG`}</title>
       <PageHeader
         title={t('title')}
-        description={t('count', { count: divisions.length })}
+        description={`${t('count', { count: divisions.length })}. ${t('order.text')}`}
         status={<ConnectionBadge status={status} />}
         actions={
           <>
@@ -313,10 +352,10 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
                 }
               />
             ) : (
-              <div className="rounded-xl border bg-card">
+              <>
                 <div
                   className={cn(
-                    'sticky top-14 z-[5] flex min-h-12 flex-wrap items-center gap-2 rounded-t-xl border-b px-2 py-1',
+                    'sticky top-14 z-[5] mb-5 flex min-h-12 flex-wrap items-center gap-2 rounded-xl border px-2 py-1',
                     selected.length > 0 ? 'bg-ink text-ink-foreground' : 'bg-muted',
                   )}
                 >
@@ -395,8 +434,8 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
                     </>
                   )}
                 </div>
-                <ul className="divide-y">
-                  {visible.map((item) => (
+                <DivisionBoard divisions={visible} grounds={shownGrounds} onMove={move}>
+                  {(item, plannedOnGround) => (
                     <DivisionRow
                       key={item.id}
                       division={item}
@@ -405,10 +444,12 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
                       sheetsHref={sheetsHref([item.id])}
                       onSelect={(isSelected) => select([item.id], isSelected)}
                       onAction={(action) => openDialog(action, [item.id])}
+                      onUp={stepTo(item.id, plannedOnGround, -1)}
+                      onDown={stepTo(item.id, plannedOnGround, 1)}
                     />
-                  ))}
-                </ul>
-              </div>
+                  )}
+                </DivisionBoard>
+              </>
             )}
           </>
         )}
@@ -433,7 +474,7 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
       case 'create':
         return <CreateDialog categories={categories} grounds={grounds} {...props} />;
       case 'start':
-        return <StartDialog divisions={targets} running={running} {...props} />;
+        return <StartDialog divisions={targets} planned={planned} running={running} {...props} />;
       case 'stop':
         return <StopDialog divisions={targets} {...props} />;
       case 'delete':

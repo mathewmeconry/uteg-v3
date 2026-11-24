@@ -1,4 +1,4 @@
-import { InfoIcon, TriangleAlertIcon } from 'lucide-react';
+import { ChevronRightIcon, InfoIcon, TriangleAlertIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormField } from '~/components/FormField';
@@ -14,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '~/components/ui/alert-dialog';
+import { Checkbox } from '~/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,8 @@ import { useDivisionName } from './useDivisionName';
 type DialogProps = {
   Form: ReturnType<typeof useActionFetcher>['Form'];
   pending: boolean;
+  /** Where the divisions are, on other pages. */
+  action?: string;
   onSubmit: () => void;
   onClose: () => void;
   onCloseAutoFocus: (event: Event) => void;
@@ -54,6 +57,7 @@ function DivisionConfirm({
   divisions,
   Form,
   pending,
+  action,
   onSubmit,
   onClose,
   onCloseAutoFocus,
@@ -81,7 +85,7 @@ function DivisionConfirm({
           <AlertDialogDescription>{isEmpty ? t('nothingLeft') : text}</AlertDialogDescription>
         </AlertDialogHeader>
         {children}
-        <Form method="post" onSubmit={onSubmit}>
+        <Form method="post" action={action} onSubmit={onSubmit}>
           {Object.entries(fields).map(([name, value]) => (
             <input key={name} type="hidden" name={name} value={value} />
           ))}
@@ -150,14 +154,86 @@ function Warning({
   );
 }
 
-/** Starts the given divisions that are not running yet. Ended ones are restarted. */
+/** Other planned divisions that are started together with the chosen one. */
+function OtherDivisions({
+  divisions,
+  chosen,
+  onChange,
+}: {
+  divisions: Division[];
+  chosen: ReadonlySet<string>;
+  onChange: (chosen: ReadonlySet<string>) => void;
+}) {
+  const { t } = useTranslation(['divisions', 'common']);
+  const name = useDivisionName();
+  const count = divisions.filter(({ id }) => chosen.has(id)).length;
+
+  return (
+    <details className="group overflow-hidden rounded-lg border">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 bg-muted px-3 text-sm [&::-webkit-details-marker]:hidden">
+        <ChevronRightIcon aria-hidden className="size-4 shrink-0 group-open:rotate-90" />
+        <span className="flex-1 font-semibold">{t('start.others')}</span>
+        <span className="text-muted-foreground">
+          {count > 0
+            ? t('start.othersChosen', { count })
+            : t('start.othersPlanned', { count: divisions.length })}
+        </span>
+      </summary>
+      <ul className="max-h-64 divide-y overflow-y-auto border-t">
+        {divisions.map((division) => (
+          <li key={division.id}>
+            <label
+              htmlFor={`start-${division.id}`}
+              className="flex min-h-12 items-center gap-3 px-3 py-1.5 text-sm"
+            >
+              <Checkbox
+                id={`start-${division.id}`}
+                checked={chosen.has(division.id)}
+                onCheckedChange={(checked) => {
+                  const next = new Set(chosen);
+                  if (checked === true) next.add(division.id);
+                  else next.delete(division.id);
+                  onChange(next);
+                }}
+              />
+              <span className="grid">
+                <span className="font-semibold">{name(division)}</span>
+                <span className="text-muted-foreground">
+                  {t('common:starterCount', { count: division.starterCount })}
+                </span>
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+/**
+ * Starts the given divisions that are not running yet. Ended ones are restarted. `planned` are those
+ * that can be started together with a single one, in running order.
+ */
 export function StartDialog({
   divisions: selected,
+  planned = [],
   running,
   ...dialog
-}: DialogProps & { divisions: Division[]; running: Division[] }) {
+}: DialogProps & { divisions: Division[]; planned?: Division[]; running: Division[] }) {
   const { t } = useTranslation(['divisions', 'common']);
-  const divisions = selected.filter(({ state }) => state !== 'RUNNING');
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+  // Live updates come before the answer.
+  const [sent, setSent] = useState<Division[]>([]);
+  const isSent = dialog.pending && sent.length > 0;
+  const [first] = selected;
+  const others =
+    selected.length === 1 && first.state === 'PENDING'
+      ? planned.filter(({ id, ground }) => id !== first.id && ground === first.ground)
+      : [];
+  const current = [...selected, ...others.filter(({ id }) => chosen.has(id))].filter(
+    ({ state }) => state !== 'RUNNING',
+  );
+  const divisions = isSent ? sent : current;
   const { ended, progress, unassigned, behind } = getStartWarnings(divisions, running);
   const pending = divisions.filter(({ state }) => state === 'PENDING');
   const onlyRestarts = ended.length > 0 && pending.length === 0;
@@ -171,13 +247,22 @@ export function StartDialog({
           : t('start.title', { count: divisions.length })
       }
       text={t('start.text')}
-      confirmLabel={onlyRestarts ? t('start.restart') : t('common:actions.start')}
+      confirmLabel={
+        onlyRestarts ? t('start.restart') : t('start.submit', { count: divisions.length || 1 })
+      }
       destructive={ended.length > 0}
       fields={{ intent: 'start', ...(ended.length > 0 && { restart: 'true' }) }}
       divisions={divisions}
       {...dialog}
+      onSubmit={() => {
+        setSent(divisions);
+        dialog.onSubmit();
+      }}
     >
       {pending.length > 0 && <DivisionNames divisions={pending} detail={ground} />}
+      {others.length > 0 && !isSent && (
+        <OtherDivisions divisions={others} chosen={chosen} onChange={setChosen} />
+      )}
       {ended.length > 0 && (
         <Warning severe title={t('start.ended')} text={t('start.endedText')}>
           <DivisionNames divisions={ended} detail={ground} />

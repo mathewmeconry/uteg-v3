@@ -67,26 +67,14 @@ describe('getLiveGrounds', () => {
     ]);
   });
 
-  it('has the running divisions, progress and the last grade per apparatus', async () => {
+  it('has the running divisions, progress and who is next per apparatus', async () => {
     const { id, contest } = await createCompetition({ grounds: 2 });
     const division = await createDivision(contest.id, { ground: 2, state: 'RUNNING' });
     const onReck = { divisionId: division.id, startApparatus: 'reck' };
-    const first = await createStarter(id, {
-      ...onReck,
-      firstname: 'A',
-      lastname: 'One',
-      grades: { reck: 9100 },
-    });
-    const second = await createStarter(id, {
-      ...onReck,
-      firstname: 'B',
-      lastname: 'Two',
-      grades: { reck: 9200 },
-    });
-    await createStarter(id, onReck);
+    await createStarter(id, { ...onReck, grades: { reck: 9100 } });
+    await createStarter(id, { ...onReck, grades: { reck: 9200 } });
     await createStarter(id, { ...onReck, withdrawnAt: new Date() });
-    await setGradeTime(first.entry.id, 'reck', '2026-05-01T11:00:00Z');
-    await setGradeTime(second.entry.id, 'reck', '2026-05-01T10:00:00Z');
+    await createStarter(id, { ...onReck, firstname: 'C', lastname: 'Three' });
     await prisma.divisionApparatus.updateMany({
       where: { divisionId: division.id, apparatus: 'boden' },
       data: { completedRounds: 1 },
@@ -110,12 +98,11 @@ describe('getLiveGrounds', () => {
       rounds: 4,
       graded: 2,
       total: 3,
-      latest: [
-        { firstname: 'A', lastname: 'One', round: 1, grade: '9.10' },
-        { firstname: 'B', lastname: 'Two', round: 1, grade: '9.20' },
-      ],
+      isAhead: false,
+      next: 'C Three',
     });
-    expect(ground.apparatus[1]).toMatchObject({ round: 2, graded: 0, total: 3, latest: [] });
+    expect(ground.apparatus[1]).toMatchObject({ round: 2, graded: 0, total: 3, isAhead: true });
+    expect(ground.apparatus[2]).toMatchObject({ total: 0, isAhead: false, next: null });
   });
 
   it('marks an apparatus that confirmed all rounds', async () => {

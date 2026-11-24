@@ -25,6 +25,9 @@ function division(id: string, values: Partial<Division>) {
     sex: 'FEMALE',
     number: 1,
     ground: 1,
+    position: 1,
+    createdAt: new Date(0),
+    endedAt: null,
     state: 'PENDING',
     round: 0,
     rounds: 4,
@@ -99,7 +102,7 @@ async function renderPage(url = '/') {
   return router;
 }
 
-const rows = () => screen.queryAllByRole('heading', { level: 2 }).map((row) => row.textContent);
+const rows = () => screen.queryAllByRole('heading', { level: 3 }).map((row) => row.textContent);
 const button = (name: RegExp | string) => screen.getByRole('button', { name });
 
 it('keeps the page when an action fails', () => {
@@ -112,7 +115,7 @@ describe('search', () => {
     const search = screen.getByRole('searchbox', { name: 'Suche' });
     await userEvent.click(screen.getByRole('checkbox', { name: 'Alle auswählen' }));
     await userEvent.type(search, 'männlich platz 1 beendet');
-    expect(rows()).toEqual(['K6 Männlich']);
+    expect(rows()).toEqual(['K6 MännlichAbteilung 1']);
     expect(screen.getByText('1 ausgewählt')).toBeInTheDocument();
   });
 
@@ -120,9 +123,30 @@ describe('search', () => {
     await renderPage('/?category=K7');
     await userEvent.type(screen.getByRole('searchbox'), 'x');
     await userEvent.click(button('Filter zurücksetzen'));
-    await waitFor(() => expect(rows()).toEqual(['K5 Weiblich', 'K6 Männlich']));
+    // What ended comes first.
+    await waitFor(() =>
+      expect(rows()).toEqual(['K6 MännlichAbteilung 1', 'K5 WeiblichAbteilung 1']),
+    );
     expect(screen.getByRole('searchbox')).toHaveValue('');
     expect(document.body).not.toHaveFocus();
+  });
+});
+
+describe('running order', () => {
+  it('moves from the menu and shows it before the server has answered', async () => {
+    divisions = [division('a', {}), division('b', { category: 'K6', position: 2 })];
+    action.mockImplementation(() => new Promise(() => {}));
+    await renderPage();
+    await userEvent.click(button(/^Weitere Aktionen für K6/));
+    expect(screen.getByRole('menuitem', { name: 'Nach unten' })).toHaveAttribute('data-disabled');
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Nach oben' }));
+    expect(action).toHaveBeenCalledWith([
+      ['intent', 'move'],
+      ['division', 'b'],
+      ['ground', '1'],
+      ['before', 'a'],
+    ]);
+    expect(rows()).toEqual(['K6 WeiblichAbteilung 1', 'K5 WeiblichAbteilung 1']);
   });
 });
 
@@ -168,7 +192,7 @@ describe('dialog while sending', () => {
     action.mockImplementation(() => new Promise((resolve) => (answer = resolve)));
     await userEvent.click(button(/^Starten: K5/));
     const dialog = within(screen.getByRole('alertdialog'));
-    await userEvent.click(dialog.getByRole('button', { name: 'Starten' }));
+    await userEvent.click(dialog.getByRole('button', { name: 'Abteilung starten' }));
     expect(action).toHaveBeenCalledWith([
       ['intent', 'start'],
       ['division', 'a'],

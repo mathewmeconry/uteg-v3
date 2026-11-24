@@ -84,7 +84,7 @@ describe('StartDialog', () => {
     ]);
     expect(screen.queryByRole('group')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Starten' }));
+    await userEvent.click(screen.getByRole('button', { name: '2 Abteilungen starten' }));
     expect(submitted).toHaveBeenCalledWith([
       ['intent', 'start'],
       ['division', 'a'],
@@ -93,13 +93,38 @@ describe('StartDialog', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
+  it('starts other planned divisions of the ground together with a single one', async () => {
+    const planned = [
+      division('a'),
+      division('b', { number: 2, unassignedCount: 2 }),
+      division('c', { number: 3 }),
+      division('d', { number: 4, ground: 2 }),
+    ];
+    const submitted = renderDialog((props) => (
+      <StartDialog divisions={[planned[0]]} planned={planned} running={[]} {...props} />
+    ));
+    expect(screen.queryByText(/Wer kein Startgerät hat/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByText('Weitere gleichzeitig starten'));
+    expect(screen.getAllByRole('checkbox')).toHaveLength(2);
+    await userEvent.click(screen.getByRole('checkbox', { name: /Abteilung 2/ }));
+    expect(screen.getByText(/Wer kein Startgerät hat/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '2 Abteilungen starten' }));
+    expect(submitted).toHaveBeenCalledWith([
+      ['intent', 'start'],
+      ['division', 'a'],
+      ['division', 'b'],
+    ]);
+  });
+
   it('stays open when it failed', async () => {
     const submitted = renderDialog(
       (props) => <StartDialog divisions={[division('a')]} running={[]} {...props} />,
       data({ error: 'Geht nicht.' }, 400),
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Starten' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Starten' })).toBeEnabled());
+    await userEvent.click(screen.getByRole('button', { name: 'Abteilung starten' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Abteilung starten' })).toBeEnabled(),
+    );
     expect(submitted).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -131,7 +156,7 @@ describe('StartDialog', () => {
   it('cannot be confirmed once someone else started the division', () => {
     const running = division('a', { state: 'RUNNING' });
     renderDialog((props) => <StartDialog divisions={[running]} running={[running]} {...props} />);
-    expect(screen.getByRole('button', { name: 'Starten' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Abteilung starten' })).toBeDisabled();
   });
 });
 

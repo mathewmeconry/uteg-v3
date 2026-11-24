@@ -1,8 +1,10 @@
 import {
+  applyMove,
   filterDivisions,
   getStartWarnings,
+  inRunningOrder,
   matchesSearch,
-  sortDivisions,
+  stepMove,
   type Division,
 } from './divisionList';
 
@@ -12,6 +14,8 @@ function division(id: string, data: Partial<Division> = {}) {
     category: 'K5',
     sex: 'FEMALE',
     ground: 1,
+    position: 1,
+    createdAt: new Date(5),
     state: 'PENDING',
     starterCount: 0,
     unassignedCount: 0,
@@ -55,23 +59,52 @@ describe('matchesSearch', () => {
   });
 });
 
-describe('sortDivisions', () => {
+describe('inRunningOrder', () => {
+  it('has what ended by its end, what runs, and what is planned by position', () => {
+    const list = [
+      division('a', { position: 4 }),
+      division('b', { position: 3 }),
+      division('c', { position: 5, state: 'RUNNING' }),
+      division('d', { position: 1, state: 'ENDED', endedAt: new Date(2000) }),
+      division('e', { position: 2, state: 'ENDED', endedAt: new Date(1000) }),
+      division('f', { position: 4, createdAt: new Date(1) }),
+    ];
+    expect(ids(inRunningOrder(list))).toBe('edcbfa');
+  });
+});
+
+describe('moving', () => {
   const list = [
-    division('a', { number: 2, sex: 'MALE', ground: 2, state: 'ENDED', starterCount: 3 }),
-    division('b', { number: 3, ground: 1, state: 'PENDING', starterCount: 9 }),
-    division('c', { number: 1, ground: 2, state: 'RUNNING', starterCount: 3 }),
+    division('a', { position: 1 }),
+    division('b', { position: 2 }),
+    division('c', { position: 3 }),
+    division('x', { position: 1, ground: 2 }),
   ];
+  const onGround = (moved: Division[], ground: number) =>
+    ids(inRunningOrder(moved).filter((item) => item.ground === ground));
 
   it.each([
-    [null, 'abc'],
-    ['category', 'abc'],
-    ['number', 'cab'],
-    ['sex', 'bca'],
-    ['ground', 'bac'],
-    ['state', 'cba'],
-    ['starters', 'bac'],
-  ])('%s', (key, expected) => {
-    expect(ids(sortDivisions(list, key))).toBe(expected);
+    [{ id: 'c', ground: 1, beforeId: 'a' }, 'cab', 'x'],
+    [{ id: 'a', ground: 1 }, 'bca', 'x'],
+    [{ id: 'a', ground: 1, beforeId: 'c' }, 'bac', 'x'],
+    [{ id: 'a', ground: 2, beforeId: 'x' }, 'bc', 'ax'],
+    [{ id: 'a', ground: 2, beforeId: 'gone' }, 'bc', 'xa'],
+  ])('shows %j', (move, first, second) => {
+    const moved = applyMove(list, move);
+    expect([onGround(moved, 1), onGround(moved, 2)]).toEqual([first, second]);
+  });
+
+  it('steps up and down', () => {
+    const planned = list.slice(0, 3);
+    const step = (id: string, by: -1 | 1) => {
+      const move = stepMove(planned, id, by);
+      return move && onGround(applyMove(list, move), 1);
+    };
+    expect(step('b', -1)).toBe('bac');
+    expect(step('a', 1)).toBe('bac');
+    expect(step('b', 1)).toBe('acb');
+    expect(step('a', -1)).toBeNull();
+    expect(step('c', 1)).toBeNull();
   });
 });
 

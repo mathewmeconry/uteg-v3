@@ -157,6 +157,7 @@ export default {
     DIVISION_MISMATCH: 'Die Abteilung passt nicht zu Kategorie oder Geschlecht.',
     RULE_IN_USE:
       'Die Wertung am Sprung kann nicht mehr geändert werden, weil in dieser Kategorie schon Versuche erfasst sind.',
+    DIVISION_NOT_PENDING: 'Nur geplante Abteilungen lassen sich verschieben.',
     DIVISION_NOT_RUNNING: 'Die Abteilung läuft nicht.',
     DIVISION_RUNNING: 'Das geht nicht, solange die Abteilung läuft.',
     ENTRY_NOT_IN_DIVISION: 'Diese Person ist nicht mehr in dieser Abteilung.',
