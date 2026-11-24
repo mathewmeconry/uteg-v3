@@ -56,8 +56,10 @@ pnpm migrate:v2 <dump.sql> [<storage directory of v2>]
 ```
 
 Copies a `mariadb-dump` of uteg-v2 into a database without competitions, athletes and clubs, all or
-nothing. Accounts get no password. Logos are only copied with the storage directory. Dumps and the
-output contain personal data, keep them out of the repository.
+nothing. Accounts get no password, also existing ones with an unverified address lose theirs:
+everyone has to use "Passwort vergessen", which verifies the address. No mails are sent. Logos are
+only copied with the storage directory. Dumps and the output contain personal data, keep them out of
+the repository.
 
 ## Production
 

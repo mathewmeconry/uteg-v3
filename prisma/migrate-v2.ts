@@ -288,7 +288,10 @@ function convert(read: (table: string) => Row[]) {
   };
 }
 
-/** Accounts that exist already stay as they are. Returns the members of the competitions. */
+/**
+ * v2 never verified addresses, so everyone has to reset the password, which verifies the address.
+ * Accounts with a verified address stay as they are. Returns the members of the competitions.
+ */
 async function createUsers(
   tx: Prisma.TransactionClient,
   users: Row[],
@@ -298,9 +301,12 @@ async function createUsers(
   const userIds = new Map<string | null, string>();
   for (const row of users) {
     const email = text(row.email).trim().toLowerCase();
-    // Addresses are not verified, so someone else may have signed up with it.
-    if (await tx.user.findUnique({ where: { email } })) {
-      print(`${email} has an account already, it gets the competitions of v2`);
+    const existing = await tx.user.findUnique({ where: { email } });
+    if (existing) print(`${email} has an account already, it gets the competitions of v2`);
+    if (existing && !existing.emailVerified) {
+      // Someone else may have signed up with it.
+      await tx.account.deleteMany({ where: { userId: existing.id } });
+      await tx.session.deleteMany({ where: { userId: existing.id } });
     }
     const user = await tx.user.upsert({
       where: { email },
