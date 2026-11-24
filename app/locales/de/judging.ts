@@ -1,7 +1,7 @@
 export default {
   title: 'Werten',
   gradingTitle: 'Noteneingabe',
-  judgesTitle: 'Tablets',
+  judgesTitle: 'Wertungsrichter',
   linkInvalidTitle: 'Link ungültig',
   linkInvalidText: 'Der Link wurde zurückgesetzt. Scanne den aktuellen QR-Code.',
   linkIgnored: 'Der geöffnete Link ist nicht mehr gültig. Diese Seite funktioniert weiterhin.',
@@ -166,7 +166,7 @@ export default {
   },
   links: {
     intro:
-      'Jedes Gerät hat einen Link für sein Tablet. Wer den Link hat, kann dort Noten eingeben. Gib ihn nur an die Wertungsrichter weiter.',
+      'Jedes Gerät hat einen Link für das Tablet oder Mobiltelefon der Wertungsrichter. Wer den Link hat, kann Noten eingeben. Gib ihn nur an die Wertungsrichter weiter.',
     grounds: 'Wettkampfplätze',
     qr: 'QR-Code: {{name}}',
     open: '{{name}} öffnen',
@@ -178,16 +178,16 @@ export default {
     resetFor: 'Link zurücksetzen: {{name}}',
     resetTitle: 'Link zurücksetzen?',
     resetText:
-      '{{name}}: Das Tablet mit dem alten Link wird sofort gesperrt. Es muss den neuen QR-Code scannen. Ausgedruckte Anleitungen werden ungültig.',
+      '{{name}}: Der alte Link wird sofort gesperrt. Die Wertungsrichter müssen den neuen QR-Code scannen. Ausgedruckte Anleitungen werden ungültig.',
     resetDone: 'Link zurückgesetzt',
     resetAll: 'Alle zurücksetzen',
     resetAllTitle: 'Alle Links zurücksetzen?',
     resetAllText:
-      'Alle Tablets auf allen Wettkampfplätzen werden sofort gesperrt und müssen die neuen QR-Codes scannen. Ausgedruckte Anleitungen werden ungültig.',
+      'Die alten Links aller Wettkampfplätze werden sofort gesperrt. Die Wertungsrichter müssen die neuen QR-Codes scannen. Ausgedruckte Anleitungen werden ungültig.',
     resetAllDone: 'Links zurückgesetzt',
     resetGround: 'Wettkampfplatz {{number}} zurücksetzen',
     resetGroundTitle: 'Alle Links von Wettkampfplatz {{number}} zurücksetzen?',
     resetGroundText:
-      'Alle Tablets dieses Wettkampfplatzes werden sofort gesperrt und müssen die neuen QR-Codes scannen. Ausgedruckte Anleitungen werden ungültig.',
+      'Die alten Links dieses Wettkampfplatzes werden sofort gesperrt. Die Wertungsrichter müssen die neuen QR-Codes scannen. Ausgedruckte Anleitungen werden ungültig.',
   },
 };

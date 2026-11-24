@@ -48,7 +48,7 @@ export default {
     grading: 'Noteneingabe',
     ranking: 'Rangliste',
     contestSettings: 'Wertung',
-    judges: 'Tablets',
+    judges: 'Wertungsrichter',
     displays: 'Notenanzeigen',
     templates: 'PDF-Vorlagen',
     settings: 'Wettkampf',
