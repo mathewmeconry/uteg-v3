@@ -29,10 +29,12 @@ const lastToken = () => inLastMail(/(?<=token=)\S+/);
 
 let client = 0;
 
-async function verify(form: Record<string, string>): Promise<any> {
-  const body = new URLSearchParams({ email: EMAIL, password: PASSWORD, ...form });
+async function verify(
+  form: Record<string, string>,
   // Passwords are limited per client, not what most tests are about.
-  const headers = { 'x-forwarded-for': `10.0.0.${++client}` };
+  headers: Record<string, string> = { 'x-real-ip': `10.0.0.${++client}` },
+): Promise<any> {
+  const body = new URLSearchParams({ email: EMAIL, password: PASSWORD, ...form });
   const request = new Request('http://localhost/verify-email', { method: 'POST', body, headers });
   return action({ request, context: new RouterContextProvider() } as any);
 }
@@ -86,6 +88,36 @@ it('limits the attempts per address', async () => {
     expect((await verify({ email, code: 'x' })).init.status).toBe(400);
   }
   expect((await verify({ email, code: 'x' })).init.status).toBe(429);
+});
+
+describe('limits the passwords per client, whatever X-Forwarded-For says', () => {
+  const headersOf = (ip: string, attempt: number) => ({
+    'x-real-ip': ip,
+    'x-forwarded-for': `10.2.0.${attempt}, 10.3.0.1`,
+  });
+
+  it('at the login', async () => {
+    const login = async (ip: string, attempt: number) => {
+      const request = new Request('http://localhost', { headers: headersOf(ip, attempt) });
+      const body = { email: EMAIL, password: PASSWORD };
+      return (await callAuth(request, '/sign-in/email', body)).status;
+    };
+    for (let attempt = 0; attempt < 10; attempt++) {
+      expect(await login('10.1.0.1', attempt)).toBe(401);
+    }
+    expect(await login('10.1.0.1', 10)).toBe(429);
+    expect(await login('10.1.0.2', 11)).toBe(401);
+  });
+
+  it('with a code', async () => {
+    const enter = async (ip: string, attempt: number) =>
+      (await verify({ code: 'x' }, headersOf(ip, attempt))).init.status;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      expect(await enter('10.1.0.3', attempt)).toBe(400);
+    }
+    expect(await enter('10.1.0.3', 10)).toBe(429);
+    expect(await enter('10.1.0.4', 11)).toBe(400);
+  });
 });
 
 it('does not confirm the account of somebody else who registered with the address', async () => {
