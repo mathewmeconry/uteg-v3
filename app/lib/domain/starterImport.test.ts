@@ -44,6 +44,18 @@ describe('parseSheet', () => {
     });
   });
 
+  it('reads French sheets', () => {
+    const sheet = [
+      ['N° FSG', 'Nom', 'Prénom', 'Année de naissance', 'Sexe', 'Catégorie', 'Division'],
+      ['55', 'Muster', 'Anna', 2011, 'Féminin', 'C3', 1],
+      ['56', 'Muster', 'Max', 2000, 'H', 'CH', 2],
+    ];
+    expect(parseSheet(sheet)).toMatchObject([
+      { stvId: '55', firstname: 'Anna', sex: 'FEMALE', category: 'K3', divisionNumber: 1 },
+      { stvId: '56', firstname: 'Max', sex: 'MALE', category: 'KH', divisionNumber: 2 },
+    ]);
+  });
+
   it('accepts a header without STV-ID, category and division', () => {
     const rows = parseSheet([
       ['Name', 'Vorname', 'JG', 'Bio. Geschlecht'],

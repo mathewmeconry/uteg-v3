@@ -1,6 +1,7 @@
 import { CircleCheckBigIcon, HourglassIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { categoryName } from '~/lib/categoryName';
 import { useRevalidator } from 'react-router';
 import { isUntouched, useGradeDrafts } from '~/components/grading/useGradeDrafts';
 import { EmptyState } from '~/components/EmptyState';
@@ -217,7 +218,8 @@ export function Tablet({
                 {data.divisions
                   .filter(({ id }) => data.divisionIds.includes(id))
                   .map(
-                    ({ category, sex, number }) => `${category} ${t(`sexShort.${sex}`)} ${number}`,
+                    ({ category, sex, number }) =>
+                      `${categoryName(category, t)} ${t(`sexShort.${sex}`)} ${number}`,
                   )
                   .join(', ')}
               </span>

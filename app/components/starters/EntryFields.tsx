@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { categoryName } from '~/lib/categoryName';
 import { FormField } from '~/components/FormField';
 import type { ContestOptions, DivisionOption } from '~/lib/contestOptions.server';
 import type { EgtApparatus } from '~/modules/egt/module';
@@ -48,7 +49,9 @@ export function EntryFields({
           >
             <option value="">{t('noCategory')}</option>
             {categories.map((key) => (
-              <option key={key}>{key}</option>
+              <option key={key} value={key}>
+                {categoryName(key, t)}
+              </option>
             ))}
           </NativeSelect>
         )}

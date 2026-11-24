@@ -1,6 +1,7 @@
 import { ChevronRightIcon, InfoIcon, TriangleAlertIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { categoryName } from '~/lib/categoryName';
 import { FormField } from '~/components/FormField';
 import { RadioChips } from '~/components/RadioChips';
 import { SubmitButton } from '~/components/SubmitButton';
@@ -448,7 +449,7 @@ export function CreateDialog({
         legend={t('common:fields.category')}
         name="category"
         value={category}
-        options={categories[sex].map((value) => ({ value, label: value }))}
+        options={categories[sex].map((value) => ({ value, label: categoryName(value, t) }))}
         onChange={setCategory}
       />
       <GroundField grounds={grounds} defaultValue={1} />

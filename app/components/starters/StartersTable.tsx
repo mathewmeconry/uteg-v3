@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '~/components/ui/table';
+import { categoryName } from '~/lib/categoryName';
 import { cn } from '~/lib/utils';
 import type { EgtApparatus } from '~/modules/egt/module';
 import { columnText, type Column, type Sort } from './starterList';
@@ -175,7 +176,9 @@ const StarterTableRow = memo(function StarterTableRow({
             ? t(`common:sex.${row.sex}`)
             : column === 'startApparatus' && row.startApparatus
               ? t(`common:apparatus.${row.startApparatus as EgtApparatus}`)
-              : columnText(row, column)}
+              : column === 'category'
+                ? categoryName(columnText(row, column), t)
+                : columnText(row, column)}
           {index === 0 && row.differs && <DiffersMark />}
         </TableCell>
       ))}
@@ -198,7 +201,7 @@ const StarterCard = memo(function StarterCard({
 }: RowProps) {
   const { t } = useTranslation(['starters', 'common']);
   const entry = [
-    row.category ?? t('noCategory'),
+    row.category ? categoryName(row.category, t) : t('noCategory'),
     row.divisionNumber && t('divisionNumber', { number: row.divisionNumber }),
     row.startApparatus && t(`common:apparatus.${row.startApparatus as EgtApparatus}`),
   ];

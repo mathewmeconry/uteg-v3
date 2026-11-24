@@ -1,5 +1,6 @@
 import { CheckIcon, ClipboardPenIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { categoryName } from '~/lib/categoryName';
 import { data, Link } from 'react-router';
 import type { Route } from './+types/grading';
 import { ConfirmDialog } from '~/components/ConfirmDialog';
@@ -129,7 +130,10 @@ export default function Grading({ loaderData, params: { contestId } }: Route.Com
           <p className="text-muted-foreground">
             {t('grading.text')}:{' '}
             {divisions
-              .map(({ category, sex, number }) => `${category} ${t(`sexShort.${sex}`)} ${number}`)
+              .map(
+                ({ category, sex, number }) =>
+                  `${categoryName(category, t)} ${t(`sexShort.${sex}`)} ${number}`,
+              )
               .join(', ')}
           </p>
           {apparatus.map(({ apparatus: key, rounds, currentRound, divisionIds }) => (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { categoryName } from '~/lib/categoryName';
 import { useFetcher } from 'react-router';
 import { FormField } from '~/components/FormField';
 import { SubmitButton } from '~/components/SubmitButton';
@@ -97,7 +98,7 @@ export function AssignDialog({
                   className="grid gap-3 border-t pt-4 first-of-type:border-t-0 first-of-type:pt-0"
                 >
                   <legend className="float-left mb-3 font-display text-lg">
-                    {category} · {t(`common:sex.${sex}`)} ({entryIds.length})
+                    {categoryName(category, t)} · {t(`common:sex.${sex}`)} ({entryIds.length})
                   </legend>
                   {divisions.length === 0 ? (
                     <p className="text-sm text-muted-foreground">{t('assign.noDivisions')}</p>

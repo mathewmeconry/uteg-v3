@@ -1,5 +1,6 @@
 import { BellIcon, XIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { categoryName } from '~/lib/categoryName';
 import { Button } from '~/components/ui/button';
 import type { Notice } from './judgeState';
 
@@ -19,7 +20,11 @@ export function Notices({
     }
     if ('name' in notice) return t(`notices.${notice.kind}`, { name: notice.name });
     const { category, sex, number } = notice.division;
-    const division = t('division', { category, number, sex: t(`sexShort.${sex}`) });
+    const division = t('division', {
+      category: categoryName(category, t),
+      number,
+      sex: t(`sexShort.${sex}`),
+    });
     return t(`notices.${notice.kind}`, { division });
   }
 

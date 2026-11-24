@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { categoryName } from '~/lib/categoryName';
 import { FormField } from '~/components/FormField';
 import { Button } from '~/components/ui/button';
 import { FieldLabel } from '~/components/ui/field';
@@ -75,7 +76,7 @@ export function HonourPercentFields({
                   key={category}
                   label={
                     <>
-                      {category}
+                      {categoryName(category, t)}
                       <span className="sr-only">{t(`common:sex.${sex}`)}</span>
                       <span>%</span>
                     </>

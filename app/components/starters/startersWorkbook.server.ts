@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { categoryName } from '~/lib/categoryName';
 import type { EgtApparatus } from '~/modules/egt/module';
 import type { ServerT } from '~/locales';
 import type { StarterRow } from './starterRow';
@@ -33,7 +34,7 @@ export async function createStartersWorkbook(rows: readonly StarterRow[], t: Ser
       birthYear: row.birthYear,
       club: row.club.name,
       location: row.club.location,
-      category: row.category,
+      category: row.category && categoryName(row.category, t),
       division: row.divisionNumber,
       startApparatus: row.startApparatus && t(`apparatus.${row.startApparatus as EgtApparatus}`),
     });

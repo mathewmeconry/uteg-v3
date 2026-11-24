@@ -6,6 +6,7 @@ import { fullName, type TabletSlot } from '~/components/judging/types';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { useApparatusName } from '~/hooks/useApparatusName';
+import { categoryName } from '~/lib/categoryName';
 import { formatEntered } from '~/lib/domain/gradeInput';
 import { cn } from '~/lib/utils';
 import { GradeInputs } from './GradeInputs';
@@ -62,7 +63,7 @@ export function GradingRow({
       <span className={cn('min-w-40 flex-1', slot.withdrawn && 'line-through')}>
         <span className="block font-medium">{name}</span>
         <span className="block text-sm text-muted-foreground">
-          {slot.clubName} · {slot.category} {t(`sexShort.${slot.sex}`)}
+          {slot.clubName} · {categoryName(slot.category, t)} {t(`sexShort.${slot.sex}`)}
         </span>
       </span>
       {slot.withdrawn && <Badge variant="outline">{t('withdrawn')}</Badge>}

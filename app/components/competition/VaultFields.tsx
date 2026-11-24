@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { categoryName } from '~/lib/categoryName';
 import {
   Select,
   SelectContent,
@@ -46,7 +47,7 @@ export function VaultFields({
           return (
             <tr key={category}>
               <th scope="row" className="py-1 text-left font-medium">
-                {category}
+                {categoryName(category, t)}
               </th>
               <td className="py-1 pr-2">
                 <Select
@@ -59,7 +60,7 @@ export function VaultFields({
                   }
                 >
                   <SelectTrigger
-                    aria-label={t('vault.attemptsOf', { category })}
+                    aria-label={t('vault.attemptsOf', { category: categoryName(category, t) })}
                     className="w-full"
                   >
                     <SelectValue />
@@ -82,7 +83,7 @@ export function VaultFields({
                   }
                 >
                   <SelectTrigger
-                    aria-label={t('vault.aggregationOf', { category })}
+                    aria-label={t('vault.aggregationOf', { category: categoryName(category, t) })}
                     className="w-full"
                   >
                     <SelectValue />
