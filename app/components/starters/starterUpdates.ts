@@ -18,6 +18,8 @@ export function createStarterUpdates() {
   const changedIds = new Map<string, number>();
   /** 0 when only the ids changed. */
   let allChangedAt = 0;
+  let loads = 0;
+  let newestLoaded = 0;
 
   function changed(ids: readonly string[]) {
     clock++;
@@ -60,6 +62,7 @@ export function createStarterUpdates() {
       // So everything counts as changed until it is loaded.
       if (!isPartial) allChangedAt = ++clock;
       const startedAt = clock;
+      const load = ++loads;
 
       const changes =
         isPartial && last?.key === key
@@ -69,6 +72,9 @@ export function createStarterUpdates() {
       const data =
         changes && last?.key === key ? mergeChanges(last.data, ids, changes) : await loadAll();
       signal.throwIfAborted();
+      // The load after an action is not aborted by those after it, so it may answer last.
+      if (load < newestLoaded) return last?.key === key ? last.data : data;
+      newestLoaded = load;
       last = { key, data };
       // What changed while loading belongs to the next time.
       for (const [id, changedAt] of changedIds) if (changedAt <= startedAt) changedIds.delete(id);

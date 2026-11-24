@@ -100,6 +100,22 @@ describe('load', () => {
     expect(loadSome).toHaveBeenLastCalledWith('contest', ['b']);
   });
 
+  it('keeps newer rows when an older load answers later', async () => {
+    const { updates, loadSome, load } = setup();
+    const answers: ((changes: StarterChanges) => void)[] = [];
+    loadSome.mockImplementation(() => new Promise((resolve) => answers.push(resolve)));
+    updates.note('starters a');
+    // After an action, which an event does not abort.
+    const older = load();
+    updates.note('starters a');
+    const newer = load();
+    const current = row('a', { firstname: 'new' });
+    answers[1]({ starters: [current], contest });
+    await newer;
+    answers[0]({ starters: [row('a', { firstname: 'old' })], contest });
+    expect((await older).starters[0]).toBe(current);
+  });
+
   it('makes up for an aborted load', async () => {
     const { updates, loadAll, loadSome, load } = setup();
     updates.note('starters a');

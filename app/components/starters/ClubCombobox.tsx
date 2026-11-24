@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover
 import { FormAlert } from './FormAlert';
 import { useActionError } from './keepPage';
 import { commandFilter } from './starterList';
+import { starterUpdates } from './starterUpdates';
 
 export type ClubOption = { id: string; name: string; location: string };
 
@@ -176,6 +177,8 @@ function NewClub({
     setResult(response);
     if (!response.club) return;
     onCreated(response.club);
+    // The clubs only come with everything.
+    starterUpdates.note(null);
     void revalidate();
   }
 
