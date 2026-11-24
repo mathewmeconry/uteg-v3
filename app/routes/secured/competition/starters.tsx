@@ -14,6 +14,7 @@ import { data, Link, useFetcher, useLocation, useNavigate, useSearchParams } fro
 import { toast } from 'sonner';
 import { z } from 'zod';
 import type { Route } from './+types/starters';
+import { DocumentLanguageToggle } from '~/components/DocumentLanguageToggle';
 import { EmptyState } from '~/components/EmptyState';
 import { PageHeader } from '~/components/PageHeader';
 import { SelectionBar } from '~/components/SelectionBar';
@@ -397,6 +398,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
         }
         actions={
           <>
+            {starters.length > 0 && <DocumentLanguageToggle />}
             {starters.length > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

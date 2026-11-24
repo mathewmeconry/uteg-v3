@@ -1,9 +1,9 @@
 import { data } from 'react-router';
 import type { Route } from './+types/judgingSheetsPdf';
-import { competitionContext, languageContext, type Context } from '~/context';
+import { competitionContext, type Context } from '~/context';
 import { getGradingState } from '~/lib/judging.server';
 import { requireRole } from '~/middlewares/competition.server';
-import { getT } from '~/middlewares/i18n.server';
+import { getDocumentI18n } from '~/middlewares/i18n.server';
 import { parseGround, readParams } from '~/pdf/request.server';
 import { pdfResponse } from '~/pdf/response.server';
 
@@ -20,7 +20,7 @@ export function action({ request, context }: Route.ActionArgs) {
 
 async function judgingSheetsPdf(request: Request, context: Context) {
   const competition = context.get(competitionContext);
-  const t = getT(context);
+  const { language, t } = getDocumentI18n(request, context);
   const params = await readParams(request);
   const divisionIds = [...new Set(params.getAll('division'))];
   const grounds = [...new Set(params.getAll('ground').map(parseGround))];
@@ -37,7 +37,7 @@ async function judgingSheetsPdf(request: Request, context: Context) {
   return pdfResponse(
     {
       type: 'judgingSheets',
-      language: context.get(languageContext),
+      language,
       props: { grounds: states, competitionName: competition.name },
     },
     { name: `${t('pdf:sheets.title')} ${competition.name}`, signal: request.signal, t },

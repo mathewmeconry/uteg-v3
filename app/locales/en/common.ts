@@ -130,6 +130,7 @@ export default {
     de: 'German',
     en: 'English',
   },
+  documentLanguage: 'Language of documents',
   ground: 'Ground {{number}}',
   round: 'Round {{number}}',
   starterCount_one: '{{count}} starter',

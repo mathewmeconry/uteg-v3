@@ -603,6 +603,21 @@ describe('judging manual', () => {
     expect(one[0].links).toEqual([accessUrl(link)]);
   });
 
+  it('is in the chosen language', async () => {
+    const { id } = await createCompetition();
+    const call = async (language: string) =>
+      readText(
+        await callRoute(manual.loader, {
+          competitionId: id,
+          role: 'EDITOR',
+          cookie: `language=x; documentLanguage=${language}`,
+        }),
+      );
+    expect((await call('en'))[0]).toContain('Horizontal bar · Ground 1');
+    // The one of the app.
+    expect((await call('xx'))[0]).toContain('Reck · Wettkampfplatz 1');
+  });
+
   it('prints a link that opens the tablet', async () => {
     const { id } = await createCompetition();
     const [, link] = await getOrCreateJudgeLinks(id);
