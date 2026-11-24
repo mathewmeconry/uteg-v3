@@ -145,10 +145,12 @@ describe('editing', () => {
 describe('loading', () => {
   const load = (context: any, query = '') =>
     loader({ request: new Request(`http://localhost/${query}`), context, params: {} } as any);
+  const redirected = async (context: any, query?: string) =>
+    (await load(context, query).catch((response) => response)).headers.get('Location');
 
   it('shows the running divisions of a ground', async () => {
     const { context } = await setup();
-    const data = await load(context);
+    const data = await load(context, '?ground=1');
     expect(data.apparatus).toHaveLength(4);
     expect(data.apparatus[0].rounds[0].slots[0]).toMatchObject({
       apparatus: 'reck',
@@ -157,11 +159,21 @@ describe('loading', () => {
     expect((await load(context, '?ground=2')).apparatus).toEqual([]);
   });
 
+  it('shows the first ground in use when none was chosen', async () => {
+    const { context, division } = await setup();
+    await prisma.division.update({ where: { id: division.id }, data: { ground: 2 } });
+    expect(await redirected(context)).toMatch(/^\/competitions\/.+\/grading\?ground=2$/);
+    expect(await load(context, '?ground=1')).toMatchObject({
+      ground: 1,
+      running: [{ id: division.id, ground: 2 }],
+    });
+  });
+
   it.each(['?ground=3', '?ground=0', '?ground=x', '?ground=1.5'])(
     'falls back to the first ground for %s',
     async (query) => {
       const { context } = await setup();
-      expect((await load(context, query)).ground).toBe(1);
+      expect(await redirected(context, query)).toMatch(/\/grading\?ground=1$/);
     },
   );
 

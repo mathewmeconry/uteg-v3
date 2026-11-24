@@ -1,36 +1,51 @@
-import { CheckIcon, ClipboardPenIcon } from 'lucide-react';
+import { ClipboardPenIcon, UsersIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { categoryName } from '~/lib/categoryName';
-import { data, Link } from 'react-router';
+import { data, Link, redirect, useSearchParams } from 'react-router';
 import type { Route } from './+types/grading';
-import { ConfirmDialog } from '~/components/ConfirmDialog';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
 import { EmptyState } from '~/components/EmptyState';
 import { GradingSaveStatus } from '~/components/grading/GradingSaveStatus';
-import { GradingTable } from '~/components/grading/GradingTable';
+import { RoundBoard } from '~/components/grading/RoundBoard';
 import { useGradeDrafts } from '~/components/grading/useGradeDrafts';
 import { PageHeader } from '~/components/PageHeader';
 import { Button } from '~/components/ui/button';
-import { competitionContext } from '~/context';
-import { useApparatusName } from '~/hooks/useApparatusName';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
+import { competitionContext, contestContext } from '~/context';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
+import { categoryName } from '~/lib/categoryName';
 import { readForm } from '~/lib/forms.server';
 import { runConfirmRound, runDeleteGrade } from '~/lib/gradingActions.server';
-import { getJudgingState } from '~/lib/judging.server';
+import { getJudgingState, listRunningDivisions } from '~/lib/judging.server';
 import { safeClientAction } from '~/lib/safeClientAction';
 import { requireRole } from '~/middlewares/competition.server';
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { id, grounds } = context.get(competitionContext);
+  const running = await listRunningDivisions(id);
   const requested = Number(new URL(request.url).searchParams.get('ground'));
-  const ground =
-    Number.isInteger(requested) && requested >= 1 && requested <= grounds ? requested : 1;
+  if (!Number.isInteger(requested) || requested < 1 || requested > grounds) {
+    // In the address, so that the page stays there when divisions start and end.
+    const { id: contestId } = context.get(contestContext);
+    throw redirect(
+      `/competitions/${id}/contests/${contestId}/grading?ground=${running[0]?.ground ?? 1}`,
+    );
+  }
+  const ground = requested;
 
   const loadedAt = Date.now();
   const { divisions, apparatus } = await getJudgingState(id, ground);
   return {
     ground,
+    running,
     loadedAt,
     divisions,
     apparatus: apparatus
@@ -61,17 +76,43 @@ export async function action({ request, context }: Route.ActionArgs) {
 export const clientAction = safeClientAction;
 
 export default function Grading({ loaderData, params: { contestId } }: Route.ComponentProps) {
-  const { t } = useTranslation(['judging', 'common']);
+  const { t } = useTranslation(['judging', 'divisions', 'common']);
   const { competition, canEdit } = useCompetition();
-  const apparatusName = useApparatusName();
+  const [, setSearchParams] = useSearchParams();
   const status = useLiveUpdates(`/api/events/${competition.id}`);
-  const { ground, divisions, apparatus, loadedAt } = loaderData;
+  const { ground, running, divisions, apparatus, loadedAt } = loaderData;
 
   const drafts = useGradeDrafts({
     url: `/api/competitions/${competition.id}/grades`,
     storageKey: `grading:${competition.id}`,
     loadedAt,
   });
+
+  const hasStarters = apparatus.some(({ rounds }) => rounds.some(({ slots }) => slots.length > 0));
+  const grounds = Array.from({ length: competition.grounds }, (_, index) => {
+    const number = index + 1;
+    return { number, divisions: running.filter((division) => division.ground === number) };
+  });
+  const inUse = grounds.filter((item) => item.divisions.length > 0);
+  const free = grounds.filter((item) => item.divisions.length === 0);
+
+  function listNames(items: typeof running) {
+    return items
+      .map(
+        ({ category, sex, number }) =>
+          `${categoryName(category, t)} ${t(`sexShort.${sex}`)} ${number}`,
+      )
+      .join(', ');
+  }
+
+  function groundItem({ number, divisions: here }: (typeof grounds)[number]) {
+    return (
+      <SelectItem key={number} value={String(number)}>
+        {t('common:ground', { number })}
+        {here.length > 0 && ` · ${listNames(here)}`}
+      </SelectItem>
+    );
+  }
 
   return (
     <>
@@ -92,19 +133,30 @@ export default function Grading({ loaderData, params: { contestId } }: Route.Com
         }
       />
       {competition.grounds > 1 && (
-        <nav aria-label={t('common:fields.ground')} className="mb-4 flex flex-wrap gap-2">
-          {Array.from({ length: competition.grounds }, (_, index) => index + 1).map((number) => (
-            <Button key={number} asChild variant={number === ground ? 'default' : 'outline'}>
-              <Link
-                to={{ search: `?ground=${number}` }}
-                aria-current={number === ground ? 'page' : undefined}
-                preventScrollReset
-              >
-                {t('common:ground', { number })}
-              </Link>
-            </Button>
-          ))}
-        </nav>
+        <Select
+          value={String(ground)}
+          onValueChange={(value) =>
+            setSearchParams({ ground: value }, { preventScrollReset: true })
+          }
+        >
+          <SelectTrigger aria-label={t('common:fields.ground')} className="mb-4 max-w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" align="start">
+            {inUse.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>{t('grading.inUse')}</SelectLabel>
+                {inUse.map(groundItem)}
+              </SelectGroup>
+            )}
+            {free.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>{t('grading.free')}</SelectLabel>
+                {free.map(groundItem)}
+              </SelectGroup>
+            )}
+          </SelectContent>
+        </Select>
       )}
 
       {divisions.length === 0 ? (
@@ -120,66 +172,38 @@ export default function Grading({ loaderData, params: { contestId } }: Route.Com
             </Button>
           }
         />
+      ) : !hasStarters ? (
+        <EmptyState
+          icon={UsersIcon}
+          title={t('grading.noLineups')}
+          text={t('grading.noLineupsText')}
+          action={
+            <Button asChild variant="outline">
+              <Link
+                to={`/competitions/${competition.id}/contests/${divisions[0].contestId}/divisions/${divisions[0].id}/lineups`}
+              >
+                {t('divisions:lineupsTitle')}
+              </Link>
+            </Button>
+          }
+        />
       ) : (
-        <div className="grid gap-6">
+        <div className="grid gap-4">
+          {competition.grounds === 1 && (
+            <p className="text-muted-foreground">{listNames(running)}</p>
+          )}
+          <RoundBoard
+            key={ground}
+            ground={ground}
+            apparatus={apparatus}
+            drafts={drafts}
+            canEdit={canEdit}
+          />
           {canEdit && (
             <p className="text-sm text-muted-foreground pointer-coarse:hidden">
               {t('grading.keys')}
             </p>
           )}
-          <p className="text-muted-foreground">
-            {t('grading.text')}:{' '}
-            {divisions
-              .map(
-                ({ category, sex, number }) =>
-                  `${categoryName(category, t)} ${t(`sexShort.${sex}`)} ${number}`,
-              )
-              .join(', ')}
-          </p>
-          {apparatus.map(({ apparatus: key, rounds, currentRound, divisionIds }) => (
-            <GradingTable
-              key={`${ground}-${key}`}
-              apparatus={key}
-              rounds={rounds}
-              currentRound={currentRound ?? rounds.length - 1}
-              subtitle={
-                currentRound === null
-                  ? t('grading.finished')
-                  : t('grading.currentRound', { number: currentRound + 1 })
-              }
-              drafts={drafts}
-              canEdit={canEdit}
-              footer={(round) => {
-                if (!canEdit || round !== currentRound) return null;
-                const isOpen = rounds[round].slots.some((slot) => {
-                  const { saved, isDirty } = drafts.get(slot);
-                  return !slot.withdrawn && (saved === null || isDirty);
-                });
-                return (
-                  <div className="flex justify-end border-t px-4 py-3">
-                    <ConfirmDialog
-                      trigger={
-                        <Button disabled={isOpen}>
-                          <CheckIcon aria-hidden />
-                          {t('grading.confirmRound', { number: round + 1 })}
-                        </Button>
-                      }
-                      title={t('grading.confirmTitle', { number: round + 1 })}
-                      description={t('grading.confirmText', { apparatus: apparatusName(key) })}
-                      confirmLabel={t('common:actions.confirm')}
-                      fields={{
-                        intent: 'confirm',
-                        ground: String(ground),
-                        apparatus: key,
-                        round: String(round),
-                        divisionIds: [...divisionIds],
-                      }}
-                    />
-                  </div>
-                );
-              }}
-            />
-          ))}
         </div>
       )}
     </>

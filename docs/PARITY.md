@@ -51,7 +51,7 @@ Paths in brackets point into `uteg-v2/frontend/src` unless prefixed `BE:` (`uteg
 - [ ] P-46 Future rounds: all rounds of this apparatus with the current starter marked
 - [ ] P-47 Live list: added/removed starters with a notice, removed ones struck through
 - [ ] P-48 Resume after reload; unsaved input survives a reload and a lost connection
-- [ ] P-49 Grading by ground in the admin area (tables per apparatus, round tabs)
+- [ ] P-49 Grading by ground in the admin area (a list per apparatus in starting order, one choice of round)
 - [ ] P-50 Grading of one division in any state (corrections after the end)
 
 ## Displays

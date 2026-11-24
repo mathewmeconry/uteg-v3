@@ -117,6 +117,9 @@ export default function Dashboard({
           key={ground.ground}
           ground={ground}
           planned={planned.filter((division) => division.ground === ground.ground)}
+          gradingUrl={(contestId) =>
+            `/competitions/${competition.id}/contests/${contestId}/grading?ground=${ground.ground}`
+          }
           divisionUrl={divisionUrl}
           onStart={canEdit ? start : undefined}
         />

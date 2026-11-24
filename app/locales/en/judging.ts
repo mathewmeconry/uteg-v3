@@ -125,7 +125,8 @@ export default {
     empty: 'Pause',
   },
   grading: {
-    text: 'Running divisions',
+    inUse: 'Running',
+    free: 'Free',
     keys: 'Grades are saved by themselves. Enter: next person · Esc: discard input · Alt+Delete or Alt+Backspace: delete grade',
     nothingRuns: 'No division is running on this ground',
     nothingRunsText: 'Start a division to enter grades here.',
@@ -148,9 +149,9 @@ export default {
     },
     noLineups: 'Nobody is in a lineup yet',
     noLineupsText: 'Grades can be entered as soon as the starters have a start apparatus.',
-    currentRound: 'Current round: {{number}}',
+    rounds: 'Round',
+    current: 'Current',
     finished: 'All rounds confirmed',
-    roundsOf: 'Rounds on {{apparatus}}',
     saveRow: 'Save the grade of {{name}}',
     deleteRow: 'Delete the grade of {{name}}',
     deleteTitle: 'Delete grade?',
@@ -162,7 +163,7 @@ export default {
     confirmed: 'Round confirmed',
     unsavedCount_one: '{{count}} unsaved input',
     unsavedCount_other: '{{count}} unsaved inputs',
-    nobody: 'Nobody starts on this apparatus in this round.',
+    nobody: 'Break, nobody on this apparatus.',
   },
   links: {
     intro:

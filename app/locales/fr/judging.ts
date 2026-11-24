@@ -126,7 +126,8 @@ export default {
     empty: 'Pause',
   },
   grading: {
-    text: 'Divisions en cours',
+    inUse: 'En cours',
+    free: 'Libre',
     keys: 'Les notes sont enregistrées automatiquement. Entrée: personne suivante · Échap: abandonner la saisie · Alt+Suppr ou Alt+Retour arrière: supprimer la note',
     nothingRuns: 'Aucune division en cours sur cette place',
     nothingRunsText: 'Démarre une division pour saisir des notes ici.',
@@ -149,9 +150,9 @@ export default {
     },
     noLineups: 'Encore personne dans les groupes',
     noLineupsText: 'Les notes peuvent être saisies dès que les gymnastes ont un engin de départ.',
-    currentRound: 'Rotation actuelle: {{number}}',
+    rounds: 'Rotation',
+    current: 'Actuelle',
     finished: 'Toutes les rotations sont confirmées',
-    roundsOf: 'Rotations à l’engin {{apparatus}}',
     saveRow: 'Enregistrer la note de {{name}}',
     deleteRow: 'Supprimer la note de {{name}}',
     deleteTitle: 'Supprimer la note?',
@@ -164,7 +165,7 @@ export default {
     confirmed: 'Rotation confirmée',
     unsavedCount_one: '{{count}} saisie non enregistrée',
     unsavedCount_other: '{{count}} saisies non enregistrées',
-    nobody: 'Personne ne passe à cet engin pendant cette rotation.',
+    nobody: 'Pause, personne à cet engin.',
   },
   links: {
     intro:

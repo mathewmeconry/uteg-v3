@@ -1,4 +1,4 @@
-import { CheckIcon, PlayIcon } from 'lucide-react';
+import { CheckIcon, ClipboardPenIcon, PlayIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Division } from '~/components/divisions/divisionList';
@@ -15,12 +15,15 @@ const QUEUE_LENGTH = 3;
 export function LiveGroundCard({
   ground: { ground, divisions, apparatus },
   planned,
+  gradingUrl,
   divisionUrl,
   onStart,
 }: {
   ground: LiveGround;
   /** The planned divisions of this ground in running order. */
   planned: Division[];
+  /** Where the grades of this ground are entered. */
+  gradingUrl: (contestId: string) => string;
   divisionUrl: (division: { id: string; contestId: string }, page?: 'grading') => string;
   /** For those who can start them. */
   onStart?: (division: Division) => void;
@@ -36,7 +39,16 @@ export function LiveGroundCard({
             {t('common:ground', { number: ground })}
           </h3>
           {divisions.length > 0 && (
-            <StatusBadge tone="live">{t('common:divisionState.RUNNING')}</StatusBadge>
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusBadge tone="live">{t('common:divisionState.RUNNING')}</StatusBadge>
+              <Button asChild size="sm" variant="outline">
+                <Link to={gradingUrl(divisions[0].contestId)}>
+                  <ClipboardPenIcon aria-hidden />
+                  {t('common:nav.grading')}
+                  <span className="sr-only">{t('common:ground', { number: ground })}</span>
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
         {divisions.length === 0 ? (
