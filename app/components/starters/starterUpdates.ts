@@ -44,7 +44,7 @@ export function createStarterUpdates() {
     /** For useLiveUpdates. */
     note(message: string | null) {
       const [topic, ...ids] = message?.split(' ') ?? [];
-      if (topic === 'grades' || topic === 'settings') return false;
+      if (topic === 'grades') return false;
       if (topic === 'starters' && ids.length > 0) changed(ids);
       else allChangedAt = ++clock;
       return true;

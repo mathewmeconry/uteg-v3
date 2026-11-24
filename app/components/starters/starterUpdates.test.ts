@@ -25,7 +25,7 @@ describe('note', () => {
   it('ignores what the page does not show', () => {
     const { updates } = setup();
     const messages = ['grades', 'settings', 'divisions', 'starters', 'starters a', null];
-    expect(messages.map(updates.note)).toEqual([false, false, true, true, true, true]);
+    expect(messages.map(updates.note)).toEqual([false, true, true, true, true, true]);
   });
 });
 

@@ -125,7 +125,7 @@ describe('access', () => {
     expect(await starters()).toMatchObject([{ id: starter.id, deletedAt: null }]);
   });
 
-  it('lets the check-in edit the person, but not the sex and the assignment, and remove', async () => {
+  it('lets the check-in edit person and category, but not sex and assignment, and remove', async () => {
     const { competition, call, anna, club } = await setup();
     const checkIn = await createUser();
     await addMember(competition.id, checkIn.id, 'CHECK_IN');
@@ -135,7 +135,7 @@ describe('access', () => {
 
     expect((await call({ intent: 'assign', assignments: '[]' }, checkIn.id)).status).toBe(403);
 
-    const update = { ...anna, intent: 'update', starterId: id, sex: 'MALE', category: 'K6' };
+    const update = { ...anna, intent: 'update', starterId: id, sex: 'MALE' };
     const { data } = await call({ ...update, updateAthlete: 'on' }, checkIn.id);
     expect(data).toEqual({ ok: true, changed: [id] });
     const [starter] = await starters();
@@ -147,11 +147,19 @@ describe('access', () => {
     });
     expect(starter.athlete.firstname).not.toBe('Anna');
 
+    // The division is of the old category. Another one cannot be sent along.
+    const k6 = await createDivision(competition.contest.id, { category: 'K6' });
+    const move = { ...update, category: 'K6', divisionId: k6.id, startApparatus: 'reck' };
+    expect((await call(move, checkIn.id)).data).toMatchObject({ ok: true });
+    expect((await starters())[0].entries).toMatchObject([
+      { category: 'K6', divisionId: null, startApparatus: null },
+    ]);
+
     expect((await call({ intent: 'remove', id }, checkIn.id)).data).toMatchObject({ ok: true });
     expect((await starters())[0].deletedAt).not.toBeNull();
   });
 
-  it('lets the check-in add people with a category, but not change one that way', async () => {
+  it('lets the check-in add people with a category, but without a division', async () => {
     const { competition, call, anna } = await setup();
     const checkIn = await createUser();
     await addMember(competition.id, checkIn.id, 'CHECK_IN');
@@ -161,14 +169,6 @@ describe('access', () => {
     expect(await starters()).toMatchObject([
       { firstname: 'Anna', entries: [{ category: 'K5', divisionId: null }] },
     ]);
-
-    await prisma.entry.updateMany({ data: { divisionId: division.id } });
-    const kept = [{ category: 'K5', divisionId: division.id }];
-    await call({ ...anna, category: 'K6' }, checkIn.id);
-    expect((await starters())[0].entries).toMatchObject(kept);
-    await call({ intent: 'remove', id: (await starters())[0].id }, checkIn.id);
-    await call({ ...anna, category: 'K6' }, checkIn.id);
-    expect(await starters()).toMatchObject([{ deletedAt: null, entries: kept }]);
   });
 
   it('does not touch starters of other competitions', async () => {

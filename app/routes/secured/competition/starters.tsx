@@ -113,7 +113,6 @@ export async function action({ request, context }: Route.ActionArgs) {
           ...person,
           athleteId,
           entries: [entry],
-          keepCategory: isCheckIn,
         });
         const message = t(`starters:${outcome}`, { name: fullName(person) });
         enqueueToast(context, { type: outcome === 'existing' ? 'info' : 'success', message });
@@ -129,14 +128,15 @@ export async function action({ request, context }: Route.ActionArgs) {
         const entry = {
           contestId,
           category: category || null,
-          divisionId: divisionId || null,
-          startApparatus: startApparatus || null,
+          // The check-in keeps them as far as they fit the category.
+          divisionId: isCheckIn ? undefined : divisionId || null,
+          startApparatus: isCheckIn ? undefined : startApparatus || null,
         };
         await updateStarter(id, starterId, {
           ...person,
-          // Another sex would lose the category and division, which the check-in may not change.
+          // Another sex would lose the division, which the check-in cannot assign again.
           sex: isCheckIn ? undefined : person.sex,
-          entries: !isCheckIn && (isInContest || category) ? [entry] : [],
+          entries: isInContest || category ? [entry] : [],
           updateAthlete: !isCheckIn && formData.get('updateAthlete') === 'on',
         });
         return success(t('starters:updated', { name: fullName(person) }), [starterId]);
