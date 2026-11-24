@@ -35,7 +35,7 @@ export default {
     dark: 'Dunkel',
   },
   nav: {
-    main: 'Wettkampf',
+    main: 'Hauptnavigation',
     setup: 'Einrichten',
     more: 'Mehr',
     account: 'Konto',

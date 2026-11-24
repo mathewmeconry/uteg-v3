@@ -40,6 +40,12 @@ import { cn } from '~/lib/utils';
 
 type Item = { to: string; label: string; icon: LucideIcon; active: boolean };
 
+/** Only the link of the page itself, not of a page above it, is the current page. */
+function ariaCurrent({ to, active }: Pick<Item, 'to' | 'active'>, pathname: string) {
+  if (!active) return undefined;
+  return pathname.replace(/\/$/, '') === to ? 'page' : 'true';
+}
+
 function useNavItems(): { main: Item[]; setup: Item[]; isSetup: boolean } {
   const { t } = useTranslation();
   const { competition, contests, canEdit } = useCompetition();
@@ -147,10 +153,11 @@ function CompetitionSwitcher() {
 }
 
 function TopLink({ to, label, active }: Pick<Item, 'to' | 'label' | 'active'>) {
+  const { pathname } = useLocation();
   return (
     <Link
       to={to}
-      aria-current={active ? 'page' : undefined}
+      aria-current={ariaCurrent({ to, active }, pathname)}
       className={cn(
         'flex h-10 items-center rounded-md px-3 text-sm font-semibold whitespace-nowrap hover:bg-ink-accent pointer-coarse:h-11',
         active ? 'bg-ink-accent' : 'text-ink-muted hover:text-ink-foreground',
@@ -198,6 +205,7 @@ const TAB =
 export function BottomNav() {
   const { t } = useTranslation();
   const { main, setup, isSetup } = useNavItems();
+  const { pathname } = useLocation();
 
   function tabColour(active: boolean) {
     return active ? 'text-foreground' : 'text-muted-foreground';
@@ -213,7 +221,7 @@ export function BottomNav() {
         <Link
           key={to}
           to={to}
-          aria-current={active ? 'page' : undefined}
+          aria-current={ariaCurrent({ to, active }, pathname)}
           className={cn(TAB, tabColour(active))}
         >
           <Icon aria-hidden strokeWidth={active ? 2.5 : 2} className="size-5" />
@@ -221,7 +229,10 @@ export function BottomNav() {
         </Link>
       ))}
       <DropdownMenu>
-        <DropdownMenuTrigger className={cn(TAB, tabColour(isSetup))}>
+        <DropdownMenuTrigger
+          aria-current={isSetup ? 'true' : undefined}
+          className={cn(TAB, tabColour(isSetup))}
+        >
           <MenuIcon aria-hidden strokeWidth={isSetup ? 2.5 : 2} className="size-5" />
           {t('nav.more')}
         </DropdownMenuTrigger>
