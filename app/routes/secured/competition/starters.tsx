@@ -30,6 +30,7 @@ import {
   NO_FILTERS,
   sortStarters,
   type Column,
+  type Filters,
   type Sort,
 } from '~/components/starters/starterList';
 import { fullName, toStarterRow, type StarterRow } from '~/components/starters/starterRow';
@@ -247,6 +248,10 @@ type OpenDialog =
   | { type: 'assign'; starters: StarterRow[] }
   | { type: 'remove'; starters: StarterRow[] };
 
+function filterClub(id: string | null): Filters {
+  return { ...NO_FILTERS, club: id ? [id] : [] };
+}
+
 export default function Starters({ loaderData }: Route.ComponentProps) {
   const { starters, contest, clubs } = loaderData;
   const { t } = useTranslation(['starters', 'common']);
@@ -260,8 +265,17 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
   useEffect(() => () => starterUpdates.forget(), []);
   useLiveUpdates(`/api/events/${competition.id}`, starterUpdates.note);
 
-  const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState(NO_FILTERS);
+  // The search of the competition links to a club with ?club=<id>, and to a starter with
+  // ?starter=<id> for those who cannot edit.
+  const linkedClubId = searchParams.get('club');
+  const linkedId = searchParams.get('starter');
+  const [search, setSearch] = useState(() => {
+    const starter = starters.find(({ id }) => id === linkedId);
+    return starter ? fullName(starter) : '';
+  });
+  const [filters, setFilters] = useState(() =>
+    starters.some(({ club }) => club.id === linkedClubId) ? filterClub(linkedClubId) : NO_FILTERS,
+  );
   const [sort, setSort] = useState<Sort>({ column: 'lastname', direction: 'asc' });
   const [columns, setColumns] = useState<Column[]>(
     COLUMNS.filter((column) => column !== 'location'),
@@ -280,6 +294,19 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
     setHandledEditId(editId);
     const starter = canEditPerson && starters.find(({ id }) => id === editId);
     if (starter) setDialog({ type: 'edit', starter });
+  }
+  // By visit: the same link again must work after the list was searched for someone else.
+  const [handledVisit, setHandledVisit] = useState(location.key);
+  if (location.key !== handledVisit) {
+    setHandledVisit(location.key);
+    const starter = starters.find(({ id }) => id === linkedId);
+    if (starter) {
+      setSearch(fullName(starter));
+      setFilters(NO_FILTERS);
+    } else if (starters.some(({ club }) => club.id === linkedClubId)) {
+      setSearch('');
+      setFilters(filterClub(linkedClubId));
+    }
   }
   const listRef = useRef<HTMLElement>(null);
 

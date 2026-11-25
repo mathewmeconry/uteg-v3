@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router';
 import { useDivisionName } from '~/components/divisions/useDivisionName';
 import { commandFilter } from '~/components/starters/starterList';
 import { useReturnFocus } from '~/components/starters/useReturnFocus';
-import { StatusBadge } from '~/components/StatusBadge';
 import {
   Command,
   CommandGroup,
@@ -15,7 +14,6 @@ import {
   CommandList,
 } from '~/components/ui/command';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '~/components/ui/dialog';
-import { useApparatusName } from '~/hooks/useApparatusName';
 import { useCompetition } from '~/hooks/useCompetition';
 import type { SearchIndex } from '~/lib/searchIndex.server';
 
@@ -24,7 +22,7 @@ const LIMIT = 12;
 
 type Page = { to: string; label: string; icon: LucideIcon };
 
-/** Finds people, divisions and pages of the competition. Opens with Ctrl+K. */
+/** Finds people, clubs, divisions and pages of the competition. Opens with Ctrl+K. */
 export function CompetitionSearch({ pages }: { pages: Page[] }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -87,7 +85,6 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
   const [hasFailed, setHasFailed] = useState(false);
   const navigate = useNavigate();
   const divisionName = useDivisionName();
-  const apparatusName = useApparatusName();
   const [query, setQuery] = useState('');
   // What the arrow keys chose, until something else is typed.
   const [chosen, setChosen] = useState('');
@@ -120,11 +117,10 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
     return `${base}/contests/${contestId}/divisions/${id}/${page}`;
   }
 
-  function starterUrl({ id, contestId, division }: SearchIndex['starters'][number]) {
-    if (division) return divisionUrl(division);
+  function starterUrl({ id, contestId }: SearchIndex['starters'][number]) {
     const params = new URLSearchParams();
     if (contestId && contests.length > 1) params.set('contest', contestId);
-    if (canEdit) params.set('edit', id);
+    params.set(canEdit ? 'edit' : 'starter', id);
     return `${base}/starters?${params}`;
   }
 
@@ -135,11 +131,10 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
 
   const hasQuery = query.trim() !== '';
   const starters = hasQuery
-    ? (index?.starters ?? [])
-        .filter(({ name, clubName, category }) =>
-          matches(name, clubName, category, category && categoryName(category, t)),
-        )
-        .slice(0, LIMIT)
+    ? (index?.starters ?? []).filter(({ name }) => matches(name)).slice(0, LIMIT)
+    : [];
+  const clubs = hasQuery
+    ? (index?.clubs ?? []).filter(({ name, location }) => matches(name, location)).slice(0, LIMIT)
     : [];
   const divisions = (index?.divisions ?? [])
     .filter((division) =>
@@ -148,9 +143,15 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
         : division.state === 'RUNNING',
     )
     .slice(0, LIMIT);
-  const foundPages = pages.filter(({ label }) => matches(label));
+  const foundPages = pages
+    .map((page) => {
+      const contest = contests.find(({ id }) => page.to.startsWith(`${base}/contests/${id}/`));
+      const name = contest && contestName(contest.id);
+      return { ...page, label: [page.label, name].filter(Boolean).join(', ') };
+    })
+    .filter(({ label }) => matches(label));
   const values = [
-    ...[...starters, ...divisions].map(({ id }) => id),
+    ...[...starters, ...clubs, ...divisions].map(({ id }) => id),
     ...foundPages.map(({ to }) => to),
   ];
   const isEmpty = values.length === 0;
@@ -178,7 +179,7 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
         {starters.length > 0 && (
           <CommandGroup heading={t('search.people')}>
             {starters.map((starter) => {
-              const { id, name, sex, clubName, category, division, apparatus } = starter;
+              const { id, name, sex, clubName, category, division } = starter;
               const group = category ? `${categoryName(category, t)} ${t(`sex.${sex}`)}` : null;
               return (
                 <CommandItem key={id} value={id} onSelect={() => go(starterUrl(starter))}>
@@ -194,20 +195,23 @@ function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
                         .join(', ')}
                     </span>
                   </span>
-                  {apparatus ? (
-                    <StatusBadge tone="live">
-                      {t('search.now', { apparatus: apparatusName(apparatus) })}
-                    </StatusBadge>
-                  ) : (
-                    <span className="shrink-0 text-muted-foreground">
-                      {division
-                        ? t(`divisionState.${division.state}`)
-                        : t('search.withoutDivision')}
-                    </span>
-                  )}
                 </CommandItem>
               );
             })}
+          </CommandGroup>
+        )}
+        {clubs.length > 0 && (
+          <CommandGroup heading={t('search.clubs')}>
+            {clubs.map(({ id, name, location }) => (
+              <CommandItem
+                key={id}
+                value={id}
+                onSelect={() => go(`${base}/starters?${new URLSearchParams({ club: id })}`)}
+              >
+                <span className="min-w-0 flex-1 truncate font-semibold">{name}</span>
+                <span className="shrink-0 text-muted-foreground">{location}</span>
+              </CommandItem>
+            ))}
           </CommandGroup>
         )}
         {divisions.length > 0 && (

@@ -266,6 +266,17 @@ it.each([
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
+it('shows viewers the starter of a link', async () => {
+  const { rows } = await renderPage({ entries: ['/?starter=003'], canEdit: false });
+  expect(screen.getByRole('searchbox')).toHaveValue('Anna003 Muster');
+  expect(rows()).toHaveLength(1);
+});
+
+it('filters by the club of a link', async () => {
+  await renderPage({ entries: ['/?club=buchs'] });
+  expect(screen.getByText('25 von 100 Teilnehmenden')).toBeInTheDocument();
+});
+
 it('lets the check-in do everything but import and assign', async () => {
   const { user, table, rows } = await renderPage({ canEdit: false, isCheckIn: true });
   expect(screen.getByRole('button', { name: 'Exportieren' })).toBeEnabled();
