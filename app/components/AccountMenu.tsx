@@ -1,4 +1,4 @@
-import { CircleUserIcon, LogOutIcon, UserIcon } from 'lucide-react';
+import { CircleUserIcon, LogOutIcon, ShieldIcon, UserIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSubmit } from 'react-router';
 import { ThemeItems } from '~/components/ThemeItems';
@@ -11,10 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
+import { useUser } from '~/hooks/useUser';
 
 /** `detail` is a second line, e.g. the role. */
-export function AccountMenu({ email, detail }: { email: string; detail?: string }) {
+export function AccountMenu({ detail }: { detail?: string }) {
   const { t } = useTranslation();
+  const { email, isAdmin } = useUser();
   const submit = useSubmit();
 
   return (
@@ -43,6 +45,14 @@ export function AccountMenu({ email, detail }: { email: string; detail?: string 
             {t('nav.profile')}
           </Link>
         </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem asChild>
+            <Link to="/admin">
+              <ShieldIcon aria-hidden />
+              {t('nav.admin')}
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={() => submit(null, { method: 'post', action: '/logout' })}>
           <LogOutIcon aria-hidden />
           {t('nav.logout')}

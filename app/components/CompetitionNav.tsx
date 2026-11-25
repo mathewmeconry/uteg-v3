@@ -35,7 +35,6 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { useCompetition } from '~/hooks/useCompetition';
-import { useUser } from '~/hooks/useUser';
 import { formatDateRange } from '~/lib/format';
 import { cn } from '~/lib/utils';
 
@@ -175,7 +174,6 @@ function TopLink({ to, label, active }: Pick<Item, 'to' | 'label' | 'active'>) {
 export function TopBar() {
   const { t } = useTranslation();
   const { competition, role, isCheckIn } = useCompetition();
-  const { email } = useUser();
   const { main, setup, isSetup } = useNavItems();
 
   return (
@@ -200,7 +198,7 @@ export function TopBar() {
               </div>
             </>
           )}
-          <AccountMenu email={email} detail={t(`role.${role}`)} />
+          <AccountMenu detail={t(`role.${role}`)} />
         </div>
       </div>
     </header>

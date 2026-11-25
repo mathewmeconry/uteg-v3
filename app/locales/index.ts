@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import deAdmin from './de/admin';
 import deAuth from './de/auth';
 import deCommon from './de/common';
 import deCompetition from './de/competition';
@@ -11,6 +12,7 @@ import dePdf from './de/pdf';
 import deRanking from './de/ranking';
 import deSettings from './de/settings';
 import deStarters from './de/starters';
+import enAdmin from './en/admin';
 import enAuth from './en/auth';
 import enCommon from './en/common';
 import enCompetition from './en/competition';
@@ -23,6 +25,7 @@ import enPdf from './en/pdf';
 import enRanking from './en/ranking';
 import enSettings from './en/settings';
 import enStarters from './en/starters';
+import frAdmin from './fr/admin';
 import frAuth from './fr/auth';
 import frCommon from './fr/common';
 import frCompetition from './fr/competition';
@@ -56,6 +59,7 @@ const de = {
   settings: deSettings,
   mails: deMails,
   landing: deLanding,
+  admin: deAdmin,
 };
 
 export type Resources = typeof de;
@@ -74,6 +78,7 @@ export const NAMESPACES = [
   'settings',
   'mails',
   'landing',
+  'admin',
 ] as const satisfies (keyof Resources)[];
 
 /** t() of loaders and actions, see getT. */
@@ -94,6 +99,7 @@ export const resources = {
     settings: enSettings,
     mails: enMails,
     landing: enLanding,
+    admin: enAdmin,
   },
   fr: {
     common: frCommon,
@@ -108,5 +114,6 @@ export const resources = {
     settings: frSettings,
     mails: frMails,
     landing: frLanding,
+    admin: frAdmin,
   },
 } satisfies Record<Language, object>;

@@ -41,6 +41,7 @@ export default {
     account: 'Konto',
     home: 'Wettkämpfe',
     profile: 'Profil',
+    admin: 'Administration',
     logout: 'Abmelden',
     dashboard: 'Übersicht',
     starters: 'Teilnehmende',
@@ -203,6 +204,8 @@ export default {
     STARTER_REMOVED:
       'Diese Person wurde aus dem Wettkampf entfernt. Füge sie wieder hinzu, statt die STV-ID zu ändern.',
     STV_ID_CONFLICT: 'Diese STV-ID gehört bereits zu einer anderen Person.',
+    USER_IS_LAST_OWNER:
+      'Dieses Konto ist der einzige Inhaber eines Wettkampfs. Mache dort zuerst jemand anderes zum Inhaber oder lösche den Wettkampf.',
     USER_NOT_FOUND: 'Es gibt kein Konto mit dieser E-Mail-Adresse.',
   },
 };
