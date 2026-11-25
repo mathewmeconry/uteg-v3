@@ -14,11 +14,6 @@ export default {
   noDivision: 'Pas de division',
   withoutDivision: 'Sans division: {{count}}',
   withoutApparatus: 'Sans engin de départ: {{count}}',
-  panel: {
-    locked:
-      'La division est en cours ou terminée. Avec Modifier, la répartition peut quand même être changée.',
-    noCategory: 'Sans catégorie, la personne ne peut pas être répartie.',
-  },
   noCategory: 'Pas de catégorie',
   noApparatus: 'Pas d’engin de départ',
   choose: 'À choisir',
@@ -73,6 +68,7 @@ export default {
     linked: 'Personne existante choisie: {{name}}',
     suggestions: 'Suggestions',
     alreadyStarts: 'participe déjà',
+    grades: 'Modifier les notes',
     updateAthlete: 'Modifier aussi les données de base de la personne',
     updateAthleteHint:
       'Si la case n’est pas cochée, le nom, l’année de naissance et le sexe ne valent que pour ce concours. Les autres concours ne changent jamais.',

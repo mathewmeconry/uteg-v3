@@ -21,7 +21,6 @@ const OPTIONS: ContestOptions = {
       sex: 'FEMALE',
       number: 1,
       state: 'PENDING',
-      starterCount: 0,
       apparatus: [],
     },
   ],

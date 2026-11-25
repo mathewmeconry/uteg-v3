@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useReducer, type ReactNode } from 'react';
 import { I18nextProvider } from 'react-i18next';
@@ -11,7 +11,6 @@ import { ImportReview } from './ImportReview';
 import { reviewReducer } from './importReview';
 import { RemoveDialog } from './RemoveDialog';
 import { StarterDialog } from './StarterDialog';
-import { StarterPanel } from './StarterPanel';
 import type { StarterRow } from './starterRow';
 
 const APPARATUS = ['reck', 'boden'];
@@ -19,7 +18,6 @@ const DIVISION = {
   category: 'K5',
   number: 1,
   state: 'PENDING',
-  starterCount: 0,
   apparatus: APPARATUS,
 } as const;
 const OPTIONS: ContestOptions = {
@@ -85,69 +83,13 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe('StarterPanel', () => {
-  function renderPanel(starter: Partial<StarterRow>, options = OPTIONS, pending = false) {
-    const onAssign = vi.fn();
-    renderPage(
-      <StarterPanel
-        starter={{ ...ANNA, ...starter }}
-        options={options}
-        pending={pending}
-        onAssign={onAssign}
-        onEdit={() => {}}
-        onClose={() => {}}
-      />,
-    );
-    return onAssign;
-  }
-
-  it('assigns with one click, and again only when something changes', async () => {
-    const onAssign = renderPanel({});
-    await userEvent.click(screen.getByRole('button', { name: /Abteilung 1/ }));
-    expect(onAssign).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'Reck' }));
-    expect(onAssign.mock.calls).toEqual([
-      [{ entryIds: ['entry-anna'], divisionId: 'f1', startApparatus: 'reck' }],
-    ]);
-  });
-
-  it('waits for the assignment before', async () => {
-    const onAssign = renderPanel({}, OPTIONS, true);
-    await userEvent.click(screen.getByRole('button', { name: 'Reck' }));
-    expect(onAssign).not.toHaveBeenCalled();
-  });
-
-  it('offers the apparatus after the division', async () => {
-    const onAssign = renderPanel({ divisionId: null, divisionNumber: null, startApparatus: null });
-    expect(screen.queryByRole('button', { name: 'Reck' })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /Abteilung 1/ }));
-    expect(onAssign).toHaveBeenCalledWith({ entryIds: ['entry-anna'], divisionId: 'f1' });
-  });
-
-  it('changes nothing about a division that runs', async () => {
-    const running = { ...OPTIONS.divisions[0], state: 'RUNNING' as const };
-    const other = { ...OPTIONS.divisions[0], id: 'f2', number: 2 };
-    const onAssign = renderPanel({}, { ...OPTIONS, divisions: [running, other] });
-    for (const name of [/Abteilung 2/, 'Reck']) {
-      await userEvent.click(screen.getByRole('button', { name }));
-    }
-    expect(onAssign).not.toHaveBeenCalled();
-    expect(screen.getByText(/läuft oder ist beendet/)).toBeInTheDocument();
-  });
-
-  it('needs a category', () => {
-    renderPanel({ category: null, divisionId: null });
-    expect(screen.queryByRole('group')).not.toBeInTheDocument();
-  });
-});
-
-function renderStarterDialog(starter?: StarterRow, result?: unknown) {
+function renderStarterDialog(starter?: StarterRow, result?: unknown, options = OPTIONS) {
   const onClose = vi.fn();
   const page = renderPage(
     <StarterDialog
       competitionId="c"
       starter={starter}
-      options={OPTIONS}
+      options={options}
       clubs={CLUBS}
       startingIds={new Set(['athlete-anna'])}
       onClose={onClose}
@@ -376,6 +318,19 @@ describe('StarterDialog', () => {
     });
     expect(fields()).not.toHaveProperty('updateAthlete');
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('links to the grades of the person once the division has started', () => {
+    renderStarterDialog(ANNA);
+    expect(screen.queryByRole('link', { name: /Noten/ })).not.toBeInTheDocument();
+    cleanup();
+
+    const divisions = [{ ...OPTIONS.divisions[0], state: 'ENDED' as const }];
+    renderStarterDialog(ANNA, undefined, { ...OPTIONS, divisions });
+    expect(screen.getByRole('link', { name: /Noten/ })).toHaveAttribute(
+      'href',
+      '/competitions/c/contests/contest/divisions/f1/grading#entry-anna',
+    );
   });
 
   it('offers only divisions and apparatus that fit', async () => {
