@@ -11,11 +11,6 @@ export default {
   noDivision: 'Keine Abteilung',
   withoutDivision: 'Ohne Abteilung: {{count}}',
   withoutApparatus: 'Ohne Startgerät: {{count}}',
-  panel: {
-    locked:
-      'Die Abteilung läuft oder ist beendet. Mit Bearbeiten lässt sich die Einteilung trotzdem ändern.',
-    noCategory: 'Ohne Kategorie kann die Person nicht eingeteilt werden.',
-  },
   noCategory: 'Keine Kategorie',
   noApparatus: 'Kein Startgerät',
   choose: 'Bitte wählen',
@@ -70,6 +65,7 @@ export default {
     linked: 'Bestehende Person ausgewählt: {{name}}',
     suggestions: 'Vorschläge',
     alreadyStarts: 'nimmt bereits teil',
+    grades: 'Noten bearbeiten',
     updateAthlete: 'Auch die Stammdaten der Person ändern',
     updateAthleteHint:
       'Ohne Haken gelten Name, Jahrgang und Geschlecht nur in diesem Wettkampf. Andere Wettkämpfe ändern sich nie.',

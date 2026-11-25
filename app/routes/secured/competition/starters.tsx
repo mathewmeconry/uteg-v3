@@ -10,8 +10,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { data, Link, useFetcher, useLocation, useNavigate, useSearchParams } from 'react-router';
-import { toast } from 'sonner';
+import { data, Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import type { Route } from './+types/starters';
 import { DocumentLanguageToggle } from '~/components/DocumentLanguageToggle';
@@ -19,7 +18,7 @@ import { EmptyState } from '~/components/EmptyState';
 import { PageHeader } from '~/components/PageHeader';
 import { SelectionBar } from '~/components/SelectionBar';
 import { AssignDialog } from '~/components/starters/AssignDialog';
-import { keepPage, useActionError } from '~/components/starters/keepPage';
+import { keepPage } from '~/components/starters/keepPage';
 import { NativeSelect } from '~/components/starters/NativeSelect';
 import { postIds } from '~/components/starters/postIds';
 import { RemoveDialog } from '~/components/starters/RemoveDialog';
@@ -34,7 +33,6 @@ import {
   type Sort,
 } from '~/components/starters/starterList';
 import { fullName, toStarterRow, type StarterRow } from '~/components/starters/starterRow';
-import { StarterPanel } from '~/components/starters/StarterPanel';
 import { StartersTable } from '~/components/starters/StartersTable';
 import { StartersToolbar } from '~/components/starters/StartersToolbar';
 import { starterUpdates } from '~/components/starters/starterUpdates';
@@ -63,7 +61,6 @@ import {
   listStarters,
   updateStarter,
   withdrawStarters,
-  type Assignment,
 } from '~/lib/starters.server';
 import type { ServerT } from '~/locales';
 import { requireEditorOrCheckIn } from '~/middlewares/competition.server';
@@ -147,8 +144,6 @@ export async function action({ request, context }: Route.ActionArgs) {
         const assignments = parseAssignments(formData.get('assignments'));
         if (!assignments) return data({ error: t('errors.invalid') }, 400);
         const changed = await assignEntries(id, assignments);
-        // The panel shows it.
-        if (formData.has('quiet')) return { ok: true as const, changed };
         const count = assignments.reduce((sum, { entryIds }) => sum + entryIds.length, 0);
         return success(t('starters:assigned', { count }), changed);
       }
@@ -352,27 +347,6 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
     });
   }, []);
   const edit = useCallback((starter: StarterRow) => setDialog({ type: 'edit', starter }), []);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const opened = canEdit && starters.find(({ id }) => id === openId);
-  // Here, so that a failure is told when another person is open already.
-  const assigner = useFetcher<typeof clientAction>();
-  const assignError = useActionError(assigner.data);
-  useEffect(() => {
-    if (assignError) toast.error(assignError);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per answer, also when it is the same
-  }, [assigner.data]);
-  function assign(assignment: Assignment) {
-    const assignments = JSON.stringify([assignment]);
-    void assigner.submit({ intent: 'assign', assignments, quiet: '1' }, { method: 'post' });
-  }
-  const open = useCallback(
-    (starter: StarterRow) => {
-      // Where there is no room for the panel, or nothing to assign.
-      if (isCheckIn || window.matchMedia('(width < 80rem)').matches) edit(starter);
-      else setOpenId(starter.id);
-    },
-    [edit, isCheckIn],
-  );
   const remove = useCallback(
     (starter: StarterRow) => setDialog({ type: 'remove', starters: [starter] }),
     [],
@@ -496,42 +470,22 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
               columns={columns}
               onColumns={setColumns}
             />
-            <div className="flex gap-4">
-              <div className="min-w-0 flex-1">
-                {rows.length === 0 ? (
-                  <EmptyState title={t('noMatchTitle')} text={t('noMatchText')} />
-                ) : (
-                  <StartersTable
-                    rows={rows}
-                    columns={columns}
-                    sort={sort}
-                    onSort={sortBy}
-                    canEdit={canEditPerson}
-                    selected={selected}
-                    openId={openId}
-                    onOpen={open}
-                    onToggle={toggle}
-                    onToggleAll={toggleAll}
-                    onEdit={edit}
-                    onRemove={remove}
-                  />
-                )}
-              </div>
-              {opened && (
-                <StarterPanel
-                  key={opened.id}
-                  starter={opened}
-                  options={contest}
-                  pending={assigner.state !== 'idle'}
-                  onAssign={assign}
-                  onEdit={() => edit(opened)}
-                  onClose={() => {
-                    setOpenId(null);
-                    listRef.current?.focus({ preventScroll: true });
-                  }}
-                />
-              )}
-            </div>
+            {rows.length === 0 ? (
+              <EmptyState title={t('noMatchTitle')} text={t('noMatchText')} />
+            ) : (
+              <StartersTable
+                rows={rows}
+                columns={columns}
+                sort={sort}
+                onSort={sortBy}
+                canEdit={canEditPerson}
+                selected={selected}
+                onToggle={toggle}
+                onToggleAll={toggleAll}
+                onEdit={edit}
+                onRemove={remove}
+              />
+            )}
           </>
         )}
       </section>

@@ -1,3 +1,4 @@
+import { ClipboardPenIcon } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFetcher } from 'react-router';
@@ -135,6 +136,13 @@ export function StarterDialog({
     const value = field === 'sex' ? t(`common:sex.${starter.athlete.sex}`) : starter.athlete[field];
     return <span className="font-medium text-foreground">{t('differsValue', { value })}</span>;
   }
+
+  const division = options.divisions.find(({ id }) => id === starter?.divisionId);
+  // Without a start apparatus nobody is in the grid.
+  const gradesUrl =
+    !personOnly && starter?.startApparatus && division && division.state !== 'PENDING'
+      ? `/competitions/${competitionId}/contests/${options.id}/divisions/${division.id}/grading#${starter.entryId}`
+      : null;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -277,6 +285,15 @@ export function StarterDialog({
           </div>
 
           <DialogFooter className="flex-row flex-wrap justify-end border-t p-4 sm:px-6">
+            {gradesUrl && (
+              // In a new tab, what was typed here stays.
+              <Button asChild variant="outline" className="mr-auto">
+                <a href={gradesUrl} target="_blank" rel="noreferrer">
+                  <ClipboardPenIcon aria-hidden />
+                  {t('form.grades')}
+                </a>
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"

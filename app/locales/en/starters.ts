@@ -14,10 +14,6 @@ export default {
   noDivision: 'No division',
   withoutDivision: 'Without division: {{count}}',
   withoutApparatus: 'Without start apparatus: {{count}}',
-  panel: {
-    locked: 'The division is running or has ended. The assignment can still be changed with Edit.',
-    noCategory: 'Without a category the person cannot be assigned.',
-  },
   noCategory: 'No category',
   noApparatus: 'No start apparatus',
   choose: 'Please choose',
@@ -71,6 +67,7 @@ export default {
     linked: 'Existing person selected: {{name}}',
     suggestions: 'Suggestions',
     alreadyStarts: 'already takes part',
+    grades: 'Edit grades',
     updateAthlete: 'Also change the person’s master data',
     updateAthleteHint:
       'Without this, name, birth year and sex only apply to this competition. Other competitions never change.',

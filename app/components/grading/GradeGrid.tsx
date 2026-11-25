@@ -192,8 +192,16 @@ function StarterRow({
   );
 
   return (
-    <tr ref={row} className="border-b last:border-b-0">
-      <th scope="row" className="sticky left-0 z-[1] bg-card px-3 py-2 text-left font-normal">
+    // Other pages link to it.
+    <tr
+      ref={row}
+      id={starter.entryId}
+      className="group/starter scroll-my-24 border-b last:border-b-0"
+    >
+      <th
+        scope="row"
+        className="sticky left-0 z-[1] bg-card px-3 py-2 text-left font-normal group-target/starter:bg-accent group-target/starter:shadow-[inset_3px_0_0_var(--primary)]"
+      >
         <span className={cn('block font-semibold', starter.withdrawn && 'line-through')}>
           {name}
         </span>

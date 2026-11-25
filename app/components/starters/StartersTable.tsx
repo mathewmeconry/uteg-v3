@@ -31,10 +31,7 @@ type RowProps = {
   columns: Column[];
   canEdit: boolean;
   isSelected: boolean;
-  /** Shown in the panel. */
-  isOpen: boolean;
   onToggle: (id: string) => void;
-  onOpen: (row: StarterRow) => void;
   onEdit: (row: StarterRow) => void;
   onRemove: (row: StarterRow) => void;
 };
@@ -46,7 +43,6 @@ export function StartersTable({
   sort,
   onSort,
   selected,
-  openId,
   onToggleAll,
   ...rowProps
 }: {
@@ -54,9 +50,8 @@ export function StartersTable({
   sort: Sort;
   onSort: (column: Column) => void;
   selected: ReadonlySet<string>;
-  openId: string | null;
   onToggleAll: () => void;
-} & Omit<RowProps, 'row' | 'isSelected' | 'isOpen'>) {
+} & Omit<RowProps, 'row' | 'isSelected'>) {
   const { t } = useTranslation(['starters', 'common']);
   const [limit, setLimit] = useState(CHUNK);
   const shown = rows.slice(0, limit);
@@ -68,7 +63,6 @@ export function StartersTable({
     row,
     columns,
     isSelected: selected.has(row.id),
-    isOpen: row.id === openId,
   });
 
   return (
@@ -137,9 +131,7 @@ const StarterTableRow = memo(function StarterTableRow({
   columns,
   canEdit,
   isSelected,
-  isOpen,
   onToggle,
-  onOpen,
   onEdit,
   onRemove,
 }: RowProps) {
@@ -148,14 +140,11 @@ const StarterTableRow = memo(function StarterTableRow({
   return (
     <TableRow
       data-state={isSelected ? 'selected' : undefined}
-      className={cn(
-        canEdit && 'cursor-pointer data-[state=selected]:bg-accent',
-        isOpen && 'xl:shadow-[inset_3px_0_0_var(--primary)]',
-      )}
-      // A shortcut for the mouse, the pencil can do the same and more.
+      className={cn(canEdit && 'cursor-pointer data-[state=selected]:bg-accent')}
+      // A shortcut for the mouse, the pencil does the same.
       onClick={({ target }) => {
         if (!canEdit || (target as Element).closest('a, button, input, label')) return;
-        if (!window.getSelection()?.toString()) onOpen(row);
+        if (!window.getSelection()?.toString()) onEdit(row);
       }}
     >
       {canEdit && (
