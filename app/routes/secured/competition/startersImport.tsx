@@ -331,7 +331,7 @@ function Wizard({
                 <ul className="list-disc pl-5">
                   {result.failures.map(({ index, message }) => (
                     <li key={index}>
-                      {t('import.row', { row: index + 1 })}, {fullName(rows[index])}: {message}
+                      {fullName(rows[index])}: {message}
                     </li>
                   ))}
                 </ul>
