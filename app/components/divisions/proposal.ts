@@ -134,8 +134,26 @@ export function chooseLineup(
   return (own ?? smallest).apparatus;
 }
 
+/** Empty divisions are not created, so they get no number. */
+function numberDivisions(divisions: readonly ProposedDivision[]) {
+  const next = new Map<string, number>();
+  return divisions.map((division) => {
+    const category = `${division.category} ${division.sex}`;
+    // The numbers of a category go up.
+    const number = next.get(category) ?? division.number;
+    const isEmpty = isEmptyDivision(division);
+    next.set(category, isEmpty ? number : number + 1);
+    return { ...division, key: getKey(division), number, isEmpty };
+  });
+}
+
+function isEmptyDivision({ lineups }: ProposedDivision) {
+  return lineups.every(({ members }) => members.length === 0);
+}
+
 /** What to point out about each division. */
-export function describeDivisions(divisions: readonly ProposedDivision[]) {
+export function describeDivisions(proposed: readonly ProposedDivision[]) {
+  const divisions = numberDivisions(proposed);
   const clashes = findClashes(
     divisions.map(({ ground, slot, lineups }) => ({
       ground,
@@ -150,7 +168,6 @@ export function describeDivisions(divisions: readonly ProposedDivision[]) {
   );
   return divisions.map((division, index) => ({
     ...division,
-    key: getKey(division),
     clashes: clashes[index].map((club) => clubNames.get(club) ?? ''),
     split: findSplitClubs(
       division,
@@ -159,25 +176,29 @@ export function describeDivisions(divisions: readonly ProposedDivision[]) {
     /** Merged small divisions. */
     together: divisions.filter(
       (other) =>
-        other !== division && other.ground === division.ground && other.slot === division.slot,
+        other !== division &&
+        !other.isEmpty &&
+        !division.isEmpty &&
+        other.ground === division.ground &&
+        other.slot === division.slot,
     ),
   }));
 }
 
 export type DescribedDivision = ReturnType<typeof describeDivisions>[number];
 
-/** For the action. */
-export function toGroups(divisions: readonly ProposedDivision[]) {
-  return divisions.map(({ category, sex, ground, lineups }) => ({
-    category,
-    sex,
-    ground,
-    divisions: [
-      Object.fromEntries(
+/** For the action: the ids of the entries by apparatus, without empty divisions. */
+export function toFormData(divisions: readonly ProposedDivision[]) {
+  return divisions
+    .filter((division) => !isEmptyDivision(division))
+    .map(({ category, sex, ground, lineups }) => ({
+      category,
+      sex,
+      ground,
+      lineups: Object.fromEntries(
         lineups.map(({ apparatus, members }) => [apparatus, members.map(({ id }) => id)]),
       ),
-    ],
-  }));
+    }));
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

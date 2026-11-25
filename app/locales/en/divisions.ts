@@ -80,7 +80,11 @@ export default {
       'Drag clubs to another lineup or division of their category, or select them to move them.',
     automatic: 'Automatic',
     drop: 'Drop here, automatic lineup',
-    movesLost: 'The proposal was calculated again. Clubs you moved are back in their old place.',
+    moved: '{{name}} is now in {{place}}.',
+    outdated:
+      'Starters or divisions changed in the meantime. Your moves stay until you reset them. Then the proposal is calculated again.',
+    emptyDivision: 'Empty division',
+    notCreated: 'Will not be created',
     resetMoves: 'Reset moves',
     tooLarge: 'over {{max}}',
     noApparatus: 'Choose at least one start apparatus.',

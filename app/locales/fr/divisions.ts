@@ -80,7 +80,11 @@ export default {
       'Glisse les sociétés dans un autre groupe ou une autre division de leur catégorie ou choisis-les pour les déplacer.',
     automatic: 'Automatiquement',
     drop: 'Dépose ici, groupe automatique',
-    movesLost: 'La proposition a été recalculée. Les déplacements ont été annulés.',
+    moved: '{{name}} est maintenant dans {{place}}.',
+    outdated:
+      'Des gymnastes ou des divisions ont changé entre-temps. Tes déplacements restent jusqu’à ce que tu les annules. La proposition est alors recalculée.',
+    emptyDivision: 'Division vide',
+    notCreated: 'Ne sera pas créée',
     resetMoves: 'Annuler les déplacements',
     tooLarge: 'plus de {{max}}',
     noApparatus: 'Choisis au moins un engin de départ.',

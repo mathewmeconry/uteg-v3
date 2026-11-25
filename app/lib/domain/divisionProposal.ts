@@ -122,8 +122,13 @@ function findBetterSplit(
   let best = getScore(blocks, places);
   let better: { blocks: Block[]; places: number[] } | null = null;
   if (best === 0) return null;
-  for (const [index, { size }] of blocks.entries()) {
-    if (size < 4) continue;
+  const tried = new Set<string>();
+  for (const [index, { clubId, size }] of blocks.entries()) {
+    // Whole clubs of the same size give the same.
+    const isWhole = blocks.filter((block) => block.clubId === clubId).length === 1;
+    const key = `${size} ${isWhole ? '' : clubId}`;
+    if (size < 4 || tried.has(key)) continue;
+    tried.add(key);
     const newBlocks = splitBlock(blocks, index);
     const newPlaces = distribute(newBlocks, lineupCounts, maxSize);
     const score = getScore(newBlocks, newPlaces);
@@ -145,72 +150,86 @@ function distribute(
   lineupCounts: readonly number[],
   maxSize: number,
 ): number[] {
-  // By lineup.
-  const divisionOf = lineupCounts.flatMap((lineups, division) =>
-    Array.from({ length: lineups }, () => division),
+  const divisionOf: number[] = [];
+  const lineupsOf = lineupCounts.map((lineups, division) =>
+    Array.from({ length: lineups }, () => divisionOf.push(division) - 1),
   );
   const count = divisionOf.length;
+  const average = blocks.reduce((sum, { size }) => sum + size, 0) / count;
   const places: number[] = [];
   const sizes = Array.from({ length: count }, () => 0);
-  for (const { size } of blocks) {
-    const place = sizes.indexOf(Math.min(...sizes));
-    places.push(place);
-    sizes[place] += size;
-  }
+  const blockCounts = Array.from({ length: count }, () => 0);
+  const blocksOfClub = Map.groupBy(blocks.keys(), (index) => blocks[index].clubId);
 
-  let best = getCost();
+  for (const index of blocks.keys()) put(index, sizes.indexOf(Math.min(...sizes)));
+
   let improved: boolean;
   do {
     improved = false;
     for (let a = 0; a < blocks.length; a++) {
-      for (let place = 0; place < count; place++) improve(() => (places[a] = place), a);
+      for (let place = 0; place < count; place++) {
+        if (places[a] !== place) improve([a], [place]);
+      }
       for (let b = a + 1; b < blocks.length; b++) {
-        if (places[a] === places[b]) continue;
-        improve(() => ([places[a], places[b]] = [places[b], places[a]]), a, b);
+        if (places[a] !== places[b]) improve([a, b], [places[b], places[a]]);
       }
     }
   } while (improved);
   return places;
 
-  function improve(change: () => void, a: number, b = a) {
-    const before = [places[a], places[b]];
-    change();
-    const cost = getCost();
-    if (cost < best) {
-      best = cost;
-      improved = true;
-    } else {
-      [places[a], places[b]] = before;
-    }
+  /** Only looks at what the change affects. */
+  function improve(indexes: number[], to: number[]) {
+    const from = indexes.map((index) => places[index]);
+    const divisions = new Set([...from, ...to].map((place) => divisionOf[place]));
+    const getCost = () => {
+      let cost = 0;
+      for (const division of divisions) cost += getDivisionCost(division);
+      for (const index of indexes) cost += getClubCost(blocks[index].clubId);
+      return cost;
+    };
+    const before = getCost();
+    move(indexes, to);
+    // Not because of rounding.
+    if (getCost() < before - 1e-6) improved = true;
+    else move(indexes, from);
   }
 
-  function getCost() {
-    const total = sumSizes(blocks, places, count);
-    const average = blocks.reduce((sum, { size }) => sum + size, 0) / count;
-    const blockCounts = Array.from({ length: count }, () => 0);
-    const divisionsOfClubs = new Map<string, number>();
-    let cost = 0;
-    for (const [index, { clubId }] of blocks.entries()) {
-      blockCounts[places[index]]++;
-      const division = divisionOf[places[index]];
-      const first = divisionsOfClubs.get(clubId);
-      if (first === undefined) divisionsOfClubs.set(clubId, division);
-      else if (first !== division) cost += CLUB_IN_OTHER_DIVISION;
+  function move(indexes: readonly number[], to: readonly number[]) {
+    for (const index of indexes) {
+      sizes[places[index]] -= blocks[index].size;
+      blockCounts[places[index]]--;
     }
-    const divisionSizes = lineupCounts.map(() => 0);
-    for (const [place, size] of total.entries()) {
-      divisionSizes[divisionOf[place]] += size;
-      cost += ABOVE_MAX * Math.max(0, size - maxSize);
+    for (const [position, index] of indexes.entries()) put(index, to[position]);
+  }
+
+  function put(index: number, place: number) {
+    places[index] = place;
+    sizes[place] += blocks[index].size;
+    blockCounts[place]++;
+  }
+
+  function getSize(division: number) {
+    let size = 0;
+    for (const place of lineupsOf[division]) size += sizes[place];
+    return size;
+  }
+
+  function getDivisionCost(division: number) {
+    const lineups = lineupCounts[division];
+    const size = getSize(division);
+    let cost = (size - average * lineups) ** 2 / lineups;
+    for (const place of lineupsOf[division]) {
+      cost += UNEVEN_LINEUP * (sizes[place] - size / lineups) ** 2;
+      cost += ABOVE_MAX * Math.max(0, sizes[place] - maxSize);
       cost += THIRD_CLUB * Math.max(0, blockCounts[place] - 2);
     }
-    for (const [place, size] of total.entries()) {
-      const division = divisionOf[place];
-      cost += UNEVEN_LINEUP * (size - divisionSizes[division] / lineupCounts[division]) ** 2;
-    }
-    for (const [division, lineups] of lineupCounts.entries()) {
-      cost += (divisionSizes[division] - average * lineups) ** 2 / lineups;
-    }
     return cost;
+  }
+
+  function getClubCost(clubId: string) {
+    const own = blocksOfClub.get(clubId) ?? [];
+    const others = own.filter((index) => divisionOf[places[index]] !== divisionOf[places[own[0]]]);
+    return CLUB_IN_OTHER_DIVISION * others.length;
   }
 }
 

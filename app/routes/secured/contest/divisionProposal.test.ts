@@ -21,11 +21,19 @@ async function setup(role: 'VIEWER' | 'EDITOR' = 'EDITOR') {
     const entry = await prisma.entry.findFirstOrThrow({ where: { id: { notIn: entries } } });
     entries.push(entry.id);
   }
-  const postGroups = (groups: unknown) =>
-    callAction(action, context, { groups: JSON.stringify(groups) });
-  const post = (divisions: unknown, fields: object = {}) =>
-    postGroups([{ category: 'K5', sex: 'FEMALE', ground: 2, divisions, ...fields }]);
-  return { competition, context, entries, post, postGroups };
+  const postAll = (divisions: object[]) =>
+    callAction(action, context, { divisions: JSON.stringify(divisions) });
+  const post = (lineups: object[], fields: object = {}) =>
+    postAll(
+      lineups.map((lineups) => ({
+        category: 'K5',
+        sex: 'FEMALE',
+        ground: 2,
+        lineups,
+        ...fields,
+      })),
+    );
+  return { competition, context, entries, post, postAll };
 }
 
 async function expectNothingCreated() {
@@ -91,17 +99,17 @@ describe('action', () => {
   });
 
   it('creates several categories, or none when one of them is outdated', async () => {
-    const { competition, entries, postGroups } = await setup();
+    const { competition, entries, postAll } = await setup();
     await createStarter(competition.id, { category: 'K6' });
     const k6 = await prisma.entry.findFirstOrThrow({ where: { category: 'K6' } });
-    const groups = (id: string) => [
-      { category: 'K5', sex: 'FEMALE', ground: 1, divisions: [{ boden: entries }] },
-      { category: 'K6', sex: 'FEMALE', ground: 2, divisions: [{ reck: [id] }] },
+    const divisions = (id: string) => [
+      { category: 'K5', sex: 'FEMALE', ground: 1, lineups: { boden: entries } },
+      { category: 'K6', sex: 'FEMALE', ground: 2, lineups: { reck: [id] } },
     ];
-    expect((await postGroups(groups('unknown'))).status).toBe(400);
+    expect((await postAll(divisions('unknown'))).status).toBe(400);
     await expectNothingCreated();
 
-    await postGroups(groups(k6.id));
+    await postAll(divisions(k6.id));
     expect(await prisma.division.findMany({ orderBy: { ground: 'asc' } })).toMatchObject([
       { category: 'K5', ground: 1, number: 1 },
       { category: 'K6', ground: 2, number: 1 },
@@ -135,7 +143,7 @@ describe('action', () => {
   });
 
   it('rejects starters of another competition, duplicates and wrong values', async () => {
-    const { context, entries, post, postGroups } = await setup();
+    const { context, entries, post } = await setup();
     const other = await createCompetition();
     await createStarter(other.id);
     const foreign = await prisma.entry.findFirstOrThrow({ where: { contestId: other.contest.id } });
@@ -144,10 +152,11 @@ describe('action', () => {
       await post([{ boden: [entries[0], entries[0]] }]),
       await post([{ barren: entries }]),
       await post([]),
+      await post([{ boden: entries }, { boden: entries }]),
+      await post([{ boden: entries }, { boden: [], reck: [] }]),
       await post([{ boden: entries }], { ground: 3 }),
       await post([{ boden: entries }], { sex: 'MALE' }),
-      await postGroups([]),
-      await callAction(action, context, { groups: '{' }),
+      await callAction(action, context, { divisions: '{' }),
     ];
     expect(results.map(({ status }) => status)).toEqual(results.map(() => 400));
     await expectNothingCreated();

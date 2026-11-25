@@ -78,7 +78,11 @@ export default {
       'Ziehe Vereine in eine andere Riege oder Abteilung ihrer Kategorie oder wähle sie aus, um sie zu verschieben.',
     automatic: 'Automatisch',
     drop: 'Hier ablegen, Riege automatisch',
-    movesLost: 'Der Vorschlag wurde neu berechnet. Verschobene Vereine sind wieder am alten Platz.',
+    moved: '{{name}} ist jetzt in {{place}}.',
+    outdated:
+      'Teilnehmende oder Abteilungen haben sich inzwischen geändert. Deine Verschiebungen bleiben, bis du sie zurücksetzt. Dann wird neu berechnet.',
+    emptyDivision: 'Leere Abteilung',
+    notCreated: 'Wird nicht erstellt',
     resetMoves: 'Verschiebungen zurücksetzen',
     tooLarge: 'über {{max}}',
     noApparatus: 'Wähle mindestens ein Startgerät.',

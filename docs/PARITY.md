@@ -36,6 +36,7 @@ Paths in brackets point into `uteg-v2/frontend/src` unless prefixed `BE:` (`uteg
 
 - [ ] P-30 List, live: number, category, sex, ground, state with round, starter count; filter, **running order** per ground instead of sorting
 - [ ] P-31 Create (auto number per category and sex, one lineup per apparatus), **edit ground**, delete (renumbers)
+- [ ] P-35 **Propose divisions and lineups** for one or all categories: clubs together, even lineups, balanced grounds, small divisions merged, clubs movable before saving (not in v2)
 - [ ] P-32 Start, stop, single and bulk with confirmation; start resets progress
 - [ ] P-33 Lineups: unassigned + one list per apparatus, bulk assign; **ordering and drag and drop** (no order in v2)
 - [ ] P-34 Judging sheets for selected divisions or all running on a ground

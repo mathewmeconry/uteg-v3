@@ -76,15 +76,15 @@ export function listWithoutDivision(contestId: string) {
 export async function createDivisionsWithLineups(
   competitionId: string,
   contestId: string,
-  groups: readonly (NewDivision & { divisions: Record<string, string[]>[] })[],
+  divisions: readonly (NewDivision & { lineups: Record<string, string[]> })[],
 ) {
   await prisma.$transaction(
     async (tx) => {
       // Starters do not change meanwhile.
       await lockCompetition(tx, competitionId);
-      for (const { divisions, ...input } of groups) {
+      for (const { lineups, ...input } of divisions) {
         const { category, sex } = input;
-        const entryIds = divisions.flatMap((lineups) => Object.values(lineups).flat());
+        const entryIds = Object.values(lineups).flat();
         const count = await tx.entry.count({
           where: {
             ...ACTIVE,
@@ -97,9 +97,7 @@ export async function createDivisionsWithLineups(
         });
         if (count !== entryIds.length) throw new DomainError('PROPOSAL_OUTDATED');
 
-        for (const lineups of divisions) {
-          await insertWithLineups(tx, competitionId, contestId, input, lineups);
-        }
+        await insertWithLineups(tx, competitionId, contestId, input, lineups);
       }
     },
     { timeout: 60_000 },

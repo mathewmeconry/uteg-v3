@@ -16,13 +16,13 @@ import {
   MAX_DIVISIONS,
   parseNumber,
   SIZE,
-  toGroups,
+  toFormData,
   toLineups,
   usedApparatus,
   type ProposedDivision,
 } from '~/components/divisions/proposal';
 import { ProposalBoard } from '~/components/divisions/ProposalBoard';
-import { useClubMoves } from '~/components/divisions/useClubMoves';
+import { useClubMoves, useMovedProposals } from '~/components/divisions/useClubMoves';
 import { EmptyState } from '~/components/EmptyState';
 import { FormActions } from '~/components/FormActions';
 import { FormField } from '~/components/FormField';
@@ -91,23 +91,22 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 /** As they were shown. */
-const groupsSchema = z
+const divisionsSchema = z
   .array(
     z.object({
       category: z.string(),
       sex: z.enum(['FEMALE', 'MALE']),
       ground: z.number().int(),
-      divisions: z
-        .array(z.record(z.string(), z.array(z.string().min(1))))
-        .min(1)
-        .max(MAX_DIVISIONS),
+      lineups: z
+        .record(z.string(), z.array(z.string().min(1)))
+        .refine((lineups) => Object.values(lineups).flat().length > 0),
     }),
   )
   .min(1)
   .max(200);
 
 const schema = z.object({
-  groups: z
+  divisions: z
     .string()
     .transform((text, ctx): unknown => {
       try {
@@ -117,7 +116,7 @@ const schema = z.object({
         return z.NEVER;
       }
     })
-    .pipe(groupsSchema),
+    .pipe(divisionsSchema),
 });
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -128,11 +127,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (!values) return data({ error: t('common:errors.invalid') }, 400);
 
   try {
-    await createDivisionsWithLineups(id, contest.id, values.groups);
+    await createDivisionsWithLineups(id, contest.id, values.divisions);
   } catch (error) {
     return actionError(error, t);
   }
-  const count = values.groups.flatMap(({ divisions }) => divisions).length;
+  const count = values.divisions.length;
   enqueueToast(context, { type: 'success', message: t('divisions:proposal.done', { count }) });
   return redirect(`/competitions/${id}/contests/${contest.id}/divisions`);
 }
@@ -147,12 +146,14 @@ export default function DivisionProposal({ loaderData, params }: Route.Component
   const [scope, setScope] = useState<'one' | 'all'>('one');
   const [size, setSize] = useState(DEFAULT_SIZE);
   const [maxSize, setMaxSize] = useState(DEFAULT_MAX_SIZE);
+  const moved = useMovedProposals();
   const sexes = useSexes().filter((sex) => entries.some((entry) => entry.sex === sex));
   const divisionsUrl = `/competitions/${competition.id}/contests/${params.contestId}/divisions`;
 
   const props = {
     ...loaderData,
     sexes,
+    moved,
     size: { text: size, onChange: setSize },
     maxSize: { text: maxSize, onChange: setMaxSize },
   };
@@ -192,11 +193,12 @@ type SizeInput = { text: string; onChange: (text: string) => void };
 
 type ProposalProps = Route.ComponentProps['loaderData'] & {
   sexes: readonly Sex[];
+  moved: ReturnType<typeof useMovedProposals>;
   size: SizeInput;
   maxSize: SizeInput;
 };
 
-function AllCategories({ size, maxSize, ...data }: ProposalProps) {
+function AllCategories({ moved, size, maxSize, ...data }: ProposalProps) {
   const { t } = useTranslation(['divisions', 'common']);
   const { competition } = useCompetition();
   const sizes = useSizes(size, maxSize);
@@ -222,6 +224,8 @@ function AllCategories({ size, maxSize, ...data }: ProposalProps) {
   return (
     <ProposalForm
       proposal={proposal}
+      settings={JSON.stringify(['all', sizes.size, sizes.maxSize, keepTogether, mergeSmall])}
+      moved={moved}
       grounds={Array.from({ length: competition.grounds }, (_, index) => index + 1)}
       maxSize={sizes.maxSize}
       problem={t('proposal.invalid')}
@@ -256,6 +260,7 @@ function CategoryProposal({
   apparatus: allApparatus,
   numbers,
   sexes,
+  moved,
   size,
   maxSize,
 }: ProposalProps) {
@@ -316,6 +321,15 @@ function CategoryProposal({
   return (
     <ProposalForm
       proposal={proposal}
+      settings={JSON.stringify([
+        category,
+        sex,
+        sizes.size,
+        sizes.maxSize,
+        chosenCount,
+        chosenApparatus,
+      ])}
+      moved={moved}
       ground={ground}
       grounds={[ground]}
       maxSize={sizes.maxSize}
@@ -408,6 +422,8 @@ function CategoryProposal({
 /** The settings, the preview and the button that saves what is shown. */
 function ProposalForm({
   proposal,
+  settings,
+  moved,
   ground,
   grounds,
   maxSize,
@@ -415,6 +431,9 @@ function ProposalForm({
   fields,
 }: {
   proposal: ProposedDivision[] | null;
+  /** What was chosen for the proposal. */
+  settings: string;
+  moved: ReturnType<typeof useMovedProposals>;
   /** Instead of those of the proposal. */
   ground?: number;
   grounds: number[];
@@ -425,16 +444,17 @@ function ProposalForm({
 }) {
   const { t } = useTranslation('divisions');
   const { Form, pending } = useActionFetcher();
-  const moves = useClubMoves(proposal);
+  const moves = useClubMoves(proposal, settings, moved);
   const divisions =
     moves.divisions?.map((division) => (ground ? { ...division, ground } : division)) ?? null;
+  const created = toFormData(divisions ?? []);
 
   return (
     <Form method="post" className="contents">
-      <input type="hidden" name="groups" value={JSON.stringify(toGroups(divisions ?? []))} />
+      <input type="hidden" name="divisions" value={JSON.stringify(created)} />
       <div className="grid gap-5">{fields}</div>
       <div className="grid min-w-0 gap-5 lg:col-start-2 lg:row-span-2 lg:row-start-1">
-        {moves.isLost && <Problem text={t('proposal.movesLost')} />}
+        {moves.isOutdated && !pending && <Problem text={t('proposal.outdated')} />}
         {divisions ? (
           <ProposalBoard
             divisions={describeDivisions(divisions)}
@@ -447,7 +467,7 @@ function ProposalForm({
         )}
         <FormActions>
           <SubmitButton pending={pending} disabled={!divisions}>
-            {t('proposal.submit', { count: divisions?.length ?? 1 })}
+            {t('proposal.submit', { count: created.length || 1 })}
           </SubmitButton>
           {moves.isMoved && (
             <Button type="button" variant="outline" disabled={pending} onClick={moves.reset}>

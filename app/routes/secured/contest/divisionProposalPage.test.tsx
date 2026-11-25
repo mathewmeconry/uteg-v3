@@ -84,24 +84,27 @@ async function renderPage(...clubSizes: number[]) {
   await screen.findByRole('heading', { level: 1 });
 }
 
+type SavedDivision = { category: string; lineups: Record<string, string[]> };
+
 function change(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 
 it('follows the lineup size and saves what it shows', async () => {
-  await renderPage(11, 11, 11, 11);
+  await renderPage(5, 5, 5, 5, 5, 5, 5, 5);
   expect(screen.getAllByRole('region')).toHaveLength(1);
-  expect(screen.getByText('TV 0 (11)')).toBeInTheDocument();
+  expect(screen.getByText('TV 0 (5)')).toBeInTheDocument();
 
   change('Riegengrösse', '6');
   expect(screen.getByLabelText('Anzahl Abteilungen')).toHaveValue(2);
   await userEvent.click(screen.getByRole('button', { name: '2 Abteilungen erstellen' }));
   await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
-  const groups = JSON.parse(action.mock.calls[0][0].groups);
-  expect(groups[0]).toMatchObject({ category: 'K5', sex: 'FEMALE', ground: 1 });
-  const saved: Record<string, string[]>[] = groups.flatMap((group: any) => group.divisions);
-  expect(saved).toHaveLength(2);
-  expect(saved.flatMap((lineups) => Object.values(lineups).flat())).toHaveLength(44);
+  const saved: SavedDivision[] = JSON.parse(action.mock.calls[0][0].divisions);
+  expect(saved).toMatchObject([
+    { category: 'K5', sex: 'FEMALE', ground: 1 },
+    { category: 'K5', sex: 'FEMALE', ground: 1 },
+  ]);
+  expect(saved.flatMap(({ lineups }) => Object.values(lineups).flat())).toHaveLength(40);
 });
 
 it('fills only as many apparatus as a small category needs', async () => {
@@ -111,27 +114,41 @@ it('fills only as many apparatus as a small category needs', async () => {
     .map((box) => box.getAttribute('aria-checked') === 'true');
   expect(checked).toEqual([true, true, false, false]);
   await userEvent.click(screen.getByRole('checkbox', { name: 'Sprung' }));
-  expect(screen.getAllByRole('listitem').map(({ textContent }) => textContent)).toContain(
-    'Sprung0Noch niemand',
-  );
+  expect(screen.getByRole('checkbox', { name: 'Sprung' })).toBeChecked();
+  // The clubs are split, so that the lineup is not empty.
+  expect(screen.getByText(/^Aufgeteilt: .*Sprung/)).toBeInTheDocument();
 });
 
-it('moves clubs with the menu until the proposal changes', async () => {
+it('does not create empty divisions', async () => {
+  await renderPage(11, 11);
+  change('Anzahl Abteilungen', '2');
+  expect(screen.getByText('K5 Weiblich, Leere Abteilung')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Abteilung erstellen' }));
+  await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+  expect(JSON.parse(action.mock.calls[0][0].divisions)).toHaveLength(1);
+});
+
+it('moves clubs with the menu and keeps them there', async () => {
   await renderPage(11, 11, 11, 11);
   await userEvent.click(screen.getByRole('button', { name: 'TV 0 (11) verschieben' }));
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Boden (11)' }));
   expect(screen.getByText('über 12')).toBeInTheDocument();
   expect(screen.getByText('Noch niemand')).toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'TV 0 (11) verschieben' })).toHaveFocus(),
+  );
+
+  // Other settings have their own proposal.
+  await userEvent.click(screen.getByRole('radio', { name: 'Alle Kategorien' }));
+  expect(screen.queryByText('über 12')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('radio', { name: 'Eine Kategorie' }));
+  expect(screen.getByText('über 12')).toBeInTheDocument();
 
   await userEvent.click(screen.getByRole('button', { name: 'Abteilung erstellen' }));
   await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
-  const [{ divisions }] = JSON.parse(action.mock.calls[0][0].groups);
-  expect(divisions[0].boden).toHaveLength(22);
-  expect(divisions[0].reck).toEqual([]);
-
-  change('Anzahl Abteilungen', '2');
-  expect(screen.getByText(/Der Vorschlag wurde neu berechnet/)).toBeInTheDocument();
-  expect(screen.queryByText('über 12')).not.toBeInTheDocument();
+  const [{ lineups }]: SavedDivision[] = JSON.parse(action.mock.calls[0][0].divisions);
+  expect(lineups.boden).toHaveLength(22);
+  expect(lineups.reck).toEqual([]);
 });
 
 it('puts the clubs back', async () => {
@@ -159,14 +176,12 @@ it('proposes all categories by ground and continues the numbers', async () => {
   );
   await userEvent.click(screen.getByRole('button', { name: '2 Abteilungen erstellen' }));
   await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
-  const groups: { divisions: object[] }[] = JSON.parse(action.mock.calls[0][0].groups);
-  expect(groups).toMatchObject([
+  const saved: SavedDivision[] = JSON.parse(action.mock.calls[0][0].divisions);
+  expect(saved).toMatchObject([
     { category: 'K5', sex: 'FEMALE', ground: 1 },
     { category: 'K5', sex: 'FEMALE', ground: 1 },
   ]);
-  const ids = groups.flatMap(({ divisions }) =>
-    divisions.flatMap((lineups) => Object.values(lineups).flat()),
-  );
+  const ids = saved.flatMap(({ lineups }) => Object.values(lineups).flat());
   expect(new Set(ids).size).toBe(60);
   change('Höchstens', '5');
   expect(screen.getByRole('button', { name: 'Abteilung erstellen' })).toBeDisabled();

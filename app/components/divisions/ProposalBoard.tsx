@@ -13,7 +13,7 @@ import {
   type UniqueIdentifier,
 } from '@dnd-kit/core';
 import { ArrowDownToLineIcon, ChevronDownIcon, GripVerticalIcon } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import {
@@ -23,6 +23,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
+import { categoryName } from '~/lib/categoryName';
 import { cn } from '~/lib/utils';
 import {
   chooseLineup,
@@ -39,6 +40,8 @@ type Apparatus = keyof (typeof import('~/locales/de/common'))['default']['appara
 type Club = ReturnType<typeof groupClubs>[number];
 
 type Dragged = { club: Club; from: LineupRef; division: DescribedDivision };
+
+type OnMenuMove = (move: ClubMove, name: string) => void;
 
 /** A lineup, or a division that chooses it. */
 type DropTarget = { division: DescribedDivision; apparatus?: string };
@@ -69,21 +72,47 @@ export function ProposalBoard({
 }) {
   const { t } = useTranslation(['divisions', 'common']);
   const dndId = useId();
+  const divisionTitle = useDivisionTitle();
   const [dragged, setDragged] = useState<Dragged | null>(null);
+  const [announcement, setAnnouncement] = useState('');
+  const [focusId, setFocusId] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   function onDragEnd({ active, over }: DragEndEvent) {
     setDragged(null);
     const target = over?.data.current as DropTarget | undefined;
-    const { club, from } = active.data.current as Dragged;
-    if (!target) return;
+    const { club, from } = active.data.current as Partial<Dragged>;
+    // A live update may have removed it.
+    if (!target || !club || !from) return;
     const { division, apparatus = chooseLineup(division, club, maxSize) } = target;
     const to: LineupRef = { division: division.key, apparatus };
     if (!isSameLineup(from, to)) onMove({ clubId: club.clubId, from, to });
   }
 
-  const announce = (active: Active, key: 'start' | 'end') =>
-    t(`order.${key}`, { name: (active.data.current as Dragged).club.clubName });
+  function announce(active: Active, key: 'start' | 'end') {
+    const { club } = active.data.current as Partial<Dragged>;
+    return club && t(`order.${key}`, { name: club.clubName });
+  }
+
+  /** The club is in another place afterwards, with a new button. */
+  function moveWithMenu(move: ClubMove, name: string) {
+    onMove(move);
+    const target = divisions.find(({ key }) => key === move.to.division);
+    const apparatus = t(`common:apparatus.${move.to.apparatus as Apparatus}`);
+    const place = target && `${divisionTitle(target)}, ${apparatus}`;
+    setAnnouncement(t('proposal.moved', { name, place }));
+    setFocusId(getChipId(move.clubId, move.to));
+  }
+
+  useEffect(() => {
+    if (!focusId) return;
+    // Not before the menu has closed.
+    const timeout = setTimeout(() => {
+      document.getElementById(focusId)?.focus();
+      setFocusId(null);
+    });
+    return () => clearTimeout(timeout);
+  }, [focusId]);
 
   return (
     <DndContext
@@ -111,7 +140,7 @@ export function ProposalBoard({
             <h2 className="mb-2 flex items-baseline justify-between gap-3 text-lg font-semibold">
               {t('common:ground', { number: ground })}
               <span className="text-sm font-normal text-muted-foreground">
-                {t('count', { count: own.length })}
+                {t('count', { count: own.filter(({ isEmpty }) => !isEmpty).length })}
               </span>
             </h2>
             <ol className="divide-y overflow-hidden rounded-xl border bg-card">
@@ -122,7 +151,7 @@ export function ProposalBoard({
                   category={divisions.filter((other) => isSameCategory(other, division))}
                   maxSize={maxSize}
                   dragged={dragged}
-                  onMove={onMove}
+                  onMove={moveWithMenu}
                 />
               ))}
               {own.length === 0 && (
@@ -132,6 +161,9 @@ export function ProposalBoard({
           </section>
         );
       })}
+      <p aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
       <DragOverlay dropAnimation={null}>
         {dragged && (
           <div className="w-max max-w-72 truncate rounded-lg border bg-popover px-3 py-2 text-sm font-semibold shadow-lg">
@@ -155,10 +187,11 @@ function DivisionItem({
   category: DescribedDivision[];
   maxSize: number;
   dragged: Dragged | null;
-  onMove: (move: ClubMove) => void;
+  onMove: OnMenuMove;
 }) {
   const { t } = useTranslation(['divisions', 'common']);
   const divisionName = useDivisionName();
+  const divisionTitle = useDivisionTitle();
   const { lineups, number, together, split, clashes } = division;
   const count = lineups.reduce((sum, { members }) => sum + members.length, 0);
   const isTarget = dragged !== null && isSameCategory(dragged.division, division);
@@ -191,7 +224,7 @@ function DivisionItem({
           isOver && 'bg-primary text-primary-foreground',
         )}
       >
-        <span className="font-semibold">{divisionName(division)}</span>
+        <span className="font-semibold">{divisionTitle(division)}</span>
         {canDrop ? (
           <span className="flex items-center gap-1.5 text-sm font-semibold">
             <ArrowDownToLineIcon aria-hidden className="size-4" />
@@ -199,7 +232,7 @@ function DivisionItem({
           </span>
         ) : (
           <span className="text-sm text-muted-foreground">
-            {t('common:starterCount', { count })}
+            {division.isEmpty ? t('proposal.notCreated') : t('common:starterCount', { count })}
           </span>
         )}
       </div>
@@ -249,7 +282,7 @@ function Lineup({
   maxSize: number;
   /** Something that may go here is being dragged. */
   isTarget: boolean;
-  onMove: (move: ClubMove) => void;
+  onMove: OnMenuMove;
 }) {
   const { t } = useTranslation(['divisions', 'common']);
   const ref: LineupRef = { division: division.key, apparatus };
@@ -310,7 +343,7 @@ function ClubChip({
 }: Dragged & {
   category: DescribedDivision[];
   maxSize: number;
-  onMove: (move: ClubMove) => void;
+  onMove: OnMenuMove;
 }) {
   const { t } = useTranslation(['divisions', 'common']);
   const data: Dragged = { club, from, division };
@@ -319,6 +352,9 @@ function ClubChip({
     data,
   });
   const label = `${club.clubName} (${club.count})`;
+  const divisionNumber = ({ isEmpty, number }: DescribedDivision) =>
+    isEmpty ? t('proposal.emptyDivision') : t('number', { number });
+  const moveTo = (to: LineupRef) => onMove({ clubId: club.clubId, from, to }, club.clubName);
 
   return (
     <li
@@ -336,6 +372,7 @@ function ClubChip({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
+            id={getChipId(club.clubId, from)}
             type="button"
             variant="ghost"
             size="sm"
@@ -351,18 +388,16 @@ function ClubChip({
             <div
               key={target.key}
               role="group"
-              aria-label={t('number', { number: target.number })}
+              aria-label={divisionNumber(target)}
               className="not-first:mt-1 not-first:border-t not-first:pt-1"
             >
-              <DropdownMenuLabel className="font-bold">
-                {t('number', { number: target.number })}
-              </DropdownMenuLabel>
+              <DropdownMenuLabel className="font-bold">{divisionNumber(target)}</DropdownMenuLabel>
               {target.key !== from.division && (
                 <DropdownMenuItem
                   className="pl-5"
                   onSelect={() => {
                     const apparatus = chooseLineup(target, club, maxSize);
-                    onMove({ clubId: club.clubId, from, to: { division: target.key, apparatus } });
+                    moveTo({ division: target.key, apparatus });
                   }}
                 >
                   {t('proposal.automatic')}
@@ -375,7 +410,7 @@ function ClubChip({
                     key={apparatus}
                     className="pl-5"
                     disabled={isSameLineup(from, to)}
-                    onSelect={() => onMove({ clubId: club.clubId, from, to })}
+                    onSelect={() => moveTo(to)}
                   >
                     {t(`common:apparatus.${apparatus as Apparatus}`)} ({members.length})
                   </DropdownMenuItem>
@@ -390,6 +425,20 @@ function ClubChip({
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Empty divisions are not created and have no number. */
+function useDivisionTitle() {
+  const { t } = useTranslation(['divisions', 'common']);
+  const divisionName = useDivisionName();
+  return (division: DescribedDivision) =>
+    division.isEmpty
+      ? `${categoryName(division.category, t)} ${t(`common:sex.${division.sex}`)}, ${t('proposal.emptyDivision')}`
+      : divisionName(division);
+}
+
+function getChipId(clubId: string, { division, apparatus }: LineupRef) {
+  return `${clubId} ${division} ${apparatus}`.replaceAll(' ', '-');
+}
 
 function isSameLineup(a: LineupRef, b: LineupRef) {
   return a.division === b.division && a.apparatus === b.apparatus;

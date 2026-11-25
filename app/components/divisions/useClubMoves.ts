@@ -1,23 +1,40 @@
 import { useMemo, useState } from 'react';
 import { applyMoves, type ClubMove, type ProposedDivision } from './proposal';
 
-/** The proposal with the clubs that were moved. A new proposal starts without moves. */
-export function useClubMoves(proposal: ProposedDivision[] | null) {
-  const [state, setState] = useState<{ proposal: typeof proposal; moves: ClubMove[] }>({
-    proposal,
-    moves: [],
-  });
-  const isCurrent = state.proposal === proposal;
-  const moves = isCurrent ? state.moves : NONE;
-  return {
-    divisions: useMemo(() => proposal && applyMoves(proposal, moves), [proposal, moves]),
-    isMoved: moves.length > 0,
-    /** There were moves in the proposal before. */
-    isLost: !isCurrent && state.moves.length > 0,
-    move: (move: ClubMove) => setState({ proposal, moves: [...moves, move] }),
-    reset: () => setState({ proposal, moves: [] }),
-  };
+type Moved = { proposal: ProposedDivision[]; moves: ClubMove[] };
+
+/** The moves by the settings they were made with, so that they are there again with the same ones. */
+export function useMovedProposals() {
+  return useState<Partial<Record<string, Moved>>>({});
 }
 
-// The same every time, for useMemo.
-const NONE: ClubMove[] = [];
+/**
+ * The proposal with the clubs that were moved. With moves it stays as it was, also when the starters
+ * change meanwhile.
+ */
+export function useClubMoves(
+  proposal: ProposedDivision[] | null,
+  settings: string,
+  [allMoved, setAllMoved]: ReturnType<typeof useMovedProposals>,
+) {
+  const moved = proposal ? allMoved[settings] : undefined;
+  const current = moved?.proposal ?? proposal;
+  const moves = moved?.moves;
+  return {
+    divisions: useMemo(() => current && applyMoves(current, moves ?? []), [current, moves]),
+    isMoved: moved !== undefined,
+    /** There is a newer proposal. */
+    isOutdated: useMemo(
+      () => moved !== undefined && JSON.stringify(moved.proposal) !== JSON.stringify(proposal),
+      [moved, proposal],
+    ),
+    move(move: ClubMove) {
+      if (!current) return;
+      setAllMoved({
+        ...allMoved,
+        [settings]: { proposal: current, moves: [...(moves ?? []), move] },
+      });
+    },
+    reset: () => setAllMoved({ ...allMoved, [settings]: undefined }),
+  };
+}
