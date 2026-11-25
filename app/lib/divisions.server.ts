@@ -42,36 +42,69 @@ export async function listDivisions(competitionId: string, filter: DivisionFilte
   }));
 }
 
-export async function createDivision(
-  competitionId: string,
-  contestId: string,
-  { category, sex, ground }: { category: string; sex: Sex; ground: number },
-) {
-  const division = await prisma.$transaction(async (tx) => {
-    const competition = await lockCompetition(tx, competitionId);
-    assertGround(ground, competition.grounds);
-    if (!competition.sexes.includes(sex)) throw new DomainError('SEX_NOT_ALLOWED');
-    const { module } = await getContest(competitionId, contestId, tx);
-    if (!module.categories(sex).includes(category)) throw new DomainError('INVALID_CATEGORY');
-
-    const last = await tx.division.aggregate({
-      where: { contestId, category, sex },
-      _max: { number: true },
-    });
-    return tx.division.create({
-      data: {
-        contestId,
-        category,
-        sex,
-        ground,
-        position: await nextPosition(tx, competitionId, ground),
-        number: (last._max.number ?? 0) + 1,
-        apparatus: { create: module.apparatus(sex).map((apparatus) => ({ apparatus })) },
-      },
-    });
-  });
+export async function createDivision(competitionId: string, contestId: string, input: NewDivision) {
+  const division = await prisma.$transaction((tx) =>
+    insertDivision(tx, competitionId, contestId, input),
+  );
   publish(competitionId, 'divisions');
   return division;
+}
+
+/** Who takes part in the contest, but is in no division yet. Clubs and names in order. */
+export function listWithoutDivision(contestId: string) {
+  return prisma.entry.findMany({
+    where: { contestId, divisionId: null, category: { not: null }, ...ACTIVE },
+    select: {
+      id: true,
+      category: true,
+      starter: { select: { sex: true, club: { select: { id: true, name: true } } } },
+    },
+    orderBy: [
+      { starter: { club: { name: 'asc' } } },
+      { starter: { clubId: 'asc' } },
+      { starter: { lastname: 'asc' } },
+      { starter: { firstname: 'asc' } },
+      { id: 'asc' },
+    ],
+  });
+}
+
+/**
+ * Creates divisions with their lineups, the ids of the entries by apparatus, in running order. Only with entries that
+ * are in no division yet. All or none.
+ */
+export async function createDivisionsWithLineups(
+  competitionId: string,
+  contestId: string,
+  groups: readonly (NewDivision & { divisions: Record<string, string[]>[] })[],
+) {
+  await prisma.$transaction(
+    async (tx) => {
+      // Starters do not change meanwhile.
+      await lockCompetition(tx, competitionId);
+      for (const { divisions, ...input } of groups) {
+        const { category, sex } = input;
+        const entryIds = divisions.flatMap((lineups) => Object.values(lineups).flat());
+        const count = await tx.entry.count({
+          where: {
+            ...ACTIVE,
+            id: { in: entryIds },
+            contestId,
+            category,
+            divisionId: null,
+            starter: { sex, deletedAt: null },
+          },
+        });
+        if (count !== entryIds.length) throw new DomainError('PROPOSAL_OUTDATED');
+
+        for (const lineups of divisions) {
+          await insertWithLineups(tx, competitionId, contestId, input, lineups);
+        }
+      }
+    },
+    { timeout: 60_000 },
+  );
+  publish(competitionId, 'divisions');
 }
 
 /** On another ground it is due last. */
@@ -191,6 +224,58 @@ export async function stopDivisions(competitionId: string, ids: string[]) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+type NewDivision = { category: string; sex: Sex; ground: number };
+
+const ACTIVE = { withdrawnAt: null, starter: { deletedAt: null } } satisfies Prisma.EntryWhereInput;
+
+async function insertDivision(
+  tx: Prisma.TransactionClient,
+  competitionId: string,
+  contestId: string,
+  { category, sex, ground }: NewDivision,
+) {
+  const competition = await lockCompetition(tx, competitionId);
+  assertGround(ground, competition.grounds);
+  if (!competition.sexes.includes(sex)) throw new DomainError('SEX_NOT_ALLOWED');
+  const { module } = await getContest(competitionId, contestId, tx);
+  if (!module.categories(sex).includes(category)) throw new DomainError('INVALID_CATEGORY');
+
+  const last = await tx.division.aggregate({
+    where: { contestId, category, sex },
+    _max: { number: true },
+  });
+  return tx.division.create({
+    data: {
+      contestId,
+      category,
+      sex,
+      ground,
+      position: await nextPosition(tx, competitionId, ground),
+      number: (last._max.number ?? 0) + 1,
+      apparatus: { create: module.apparatus(sex).map((apparatus) => ({ apparatus })) },
+    },
+    include: { apparatus: true },
+  });
+}
+
+async function insertWithLineups(
+  tx: Prisma.TransactionClient,
+  competitionId: string,
+  contestId: string,
+  input: NewDivision,
+  lineups: Record<string, string[]>,
+) {
+  const division = await insertDivision(tx, competitionId, contestId, input);
+  const apparatus = division.apparatus.map(({ apparatus }) => apparatus);
+  for (const [startApparatus, ids] of Object.entries(lineups)) {
+    if (!apparatus.includes(startApparatus)) throw new DomainError('INVALID_APPARATUS');
+    for (const [position, id] of ids.entries()) {
+      const data = { divisionId: division.id, startApparatus, position };
+      await tx.entry.update({ where: { id }, data });
+    }
+  }
+}
 
 function assertGround(ground: number, grounds: number) {
   if (!Number.isInteger(ground) || ground < 1 || ground > grounds) {

@@ -6,6 +6,7 @@ import {
   PlusIcon,
   SquareIcon,
   TrashIcon,
+  WandSparklesIcon,
   XIcon,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -276,11 +277,19 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
     return `${pdfUrl}?${new URLSearchParams(ids.map((id) => ['division', id]))}`;
   }
 
-  const createButton = canEdit && (
-    <Button onClick={() => openDialog('create')}>
-      <PlusIcon aria-hidden />
-      {t('create.title')}
-    </Button>
+  const createButtons = canEdit && (
+    <>
+      <Button asChild variant="outline">
+        <Link to="proposal">
+          <WandSparklesIcon aria-hidden />
+          {t('proposal.title')}
+        </Link>
+      </Button>
+      <Button onClick={() => openDialog('create')}>
+        <PlusIcon aria-hidden />
+        {t('create.title')}
+      </Button>
+    </>
   );
 
   return (
@@ -328,7 +337,7 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
               </DropdownMenuContent>
             </DropdownMenu>
             {/* Below in the empty state. */}
-            {divisions.length > 0 && createButton}
+            {divisions.length > 0 && createButtons}
           </>
         }
       />
@@ -339,7 +348,7 @@ export default function Divisions({ loaderData }: Route.ComponentProps) {
             icon={LayersIcon}
             title={t('empty')}
             text={t('emptyText')}
-            action={createButton}
+            action={createButtons}
           />
         ) : (
           <>

@@ -200,6 +200,7 @@ export default {
     INVALID_INPUT: 'Invalid input.',
     LAST_OWNER: 'The competition needs at least one owner.',
     NOT_FOUND: 'Not found.',
+    PROPOSAL_OUTDATED: 'The starters changed in the meantime. Check the new proposal.',
     RESTART_NOT_CONFIRMED: 'The restart must be confirmed.',
     ROUND_NOT_CURRENT: 'This round is no longer current.',
     STARTER_REMOVED:
