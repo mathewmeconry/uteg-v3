@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import ExcelJS from 'exceljs';
 import { describe, expect, it, vi } from 'vitest';
+import * as XLSX from 'xlsx';
 import { MAX_FILE_MB, readStarterFile } from './importFile';
 
 const HEADER = [
@@ -17,6 +18,12 @@ async function file(sheets: Record<string, unknown[][]>) {
   const workbook = new ExcelJS.Workbook();
   for (const [name, rows] of Object.entries(sheets)) workbook.addWorksheet(name).addRows(rows);
   return new File([(await workbook.xlsx.writeBuffer()) as BlobPart], 'liste.xlsx');
+}
+
+function sheetJsFile(rows: unknown[][], bookType: 'xls' | 'ods') {
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows, { UTC: true }), 'A');
+  return new File([XLSX.write(workbook, { bookType, type: 'array' })], `liste.${bookType}`);
 }
 
 describe('readStarterFile', () => {
@@ -87,17 +94,46 @@ describe('readStarterFile', () => {
     });
   });
 
-  it('rejects other and broken files', async () => {
-    for (const content of ['', 'Vorname;Nachname', 'PK\u0003\u0004broken']) {
-      expect(await readStarterFile(new File([content], 'a.xlsx'))).toEqual({ error: 'UNREADABLE' });
+  it.each(['xls', 'ods'] as const)('reads %s files', async (bookType) => {
+    const birthday = new Date(Date.UTC(2010, 0, 1));
+    const result = await readStarterFile(
+      sheetJsFile([HEADER, [null, 'Lea', 'Frei', birthday, 'w', 'K5', 1]], bookType),
+    );
+    expect(result).toMatchObject({ starters: [{ firstname: 'Lea', birthYear: 2010 }] });
+  });
+
+  it('reads CSV files in UTF-8 and Windows-1252, with any separator', async () => {
+    const text = 'Vorname;Nachname;Jahrgang;Geschlecht\r\nJörg;Müller;01.01.2010;m\r\n';
+    const latin1 = Uint8Array.from(text, (char) => char.charCodeAt(0));
+    const files = [
+      new File([text], 'a.csv'),
+      new File([`\ufeff${text.replaceAll(';', ',')}`], 'b.csv'),
+      new File([latin1], 'c.csv'),
+    ];
+    for (const csv of files) {
+      expect(await readStarterFile(csv)).toEqual({
+        starters: [
+          expect.objectContaining({ firstname: 'Jörg', lastname: 'Müller', birthYear: 2010 }),
+        ],
+        skippedSheets: [],
+      });
+    }
+  });
+
+  it('rejects broken files', async () => {
+    expect(await readStarterFile(new File(['PK\u0003\u0004broken'], 'a.xlsx'))).toEqual({
+      error: 'UNREADABLE',
+    });
+    for (const content of ['', 'Vorname;Nachname']) {
+      expect(await readStarterFile(new File([content], 'a.csv'))).toEqual({ error: 'NO_STARTERS' });
     }
   });
 
   it('tells when the reader could not be loaded', async () => {
-    vi.doMock('exceljs', () => Promise.reject(new TypeError('Failed to fetch')));
+    vi.doMock('xlsx', () => Promise.reject(new TypeError('Failed to fetch')));
     const valid = await file({ A: [HEADER] });
     expect(await readStarterFile(valid)).toEqual({ error: 'NOT_LOADED' });
-    vi.doUnmock('exceljs');
+    vi.doUnmock('xlsx');
     expect(await readStarterFile(valid)).toEqual({ starters: [], skippedSheets: [] });
   });
 

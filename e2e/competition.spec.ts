@@ -98,7 +98,7 @@ test('a competition from the first login to the ranking', async ({ page, browser
     await page.getByLabel('Ort').fill('Bern');
     await page.getByRole('button', { name: 'Verein erfassen', exact: true }).click();
     await expect(page.getByRole('combobox')).toContainText('TV Bern');
-    await page.getByLabel('Excel-Dateien').setInputFiles({
+    await page.getByLabel('Tabellen').setInputFiles({
       name: 'Teilnehmende.xlsx',
       mimeType: XLSX,
       buffer: await createImportFile(),

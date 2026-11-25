@@ -107,9 +107,10 @@ export default {
     stepReview: 'Prüfen',
     stepResult: 'Ergebnis',
     clubHint: 'Alle Personen aus den Dateien starten für diesen Verein.',
-    files: 'Excel-Dateien',
+    files: 'Tabellen',
     drop: 'Dateien hierher ziehen oder auswählen',
-    limits: 'XLSX, höchstens {{size}} MB pro Datei und {{rows}} Personen insgesamt',
+    limits:
+      'XLSX, XLS, ODS oder CSV, höchstens {{size}} MB pro Datei und {{rows}} Personen insgesamt',
     columnsHint:
       'Alle Tabellenblätter mit den Spalten Vorname, Nachname und Jahrgang werden gelesen. STV-ID, Geschlecht, Kategorie und Abteilung sind freiwillig.',
     template: 'Vorlage herunterladen',
@@ -117,10 +118,10 @@ export default {
     removeFile: '{{name}} entfernen',
     tooManyRows: 'Das sind {{count}} Personen. Importiere höchstens {{max}} auf einmal.',
     fileErrors: {
-      UNREADABLE: 'Die Datei konnte nicht gelesen werden. Speichere sie als XLSX.',
+      UNREADABLE: 'Die Datei konnte nicht gelesen werden. Speichere sie als XLSX, ODS oder CSV.',
       NO_STARTERS: 'Kein Tabellenblatt mit den nötigen Spalten gefunden.',
       NOT_LOADED:
-        'Keine Verbindung zum Server, das Lesen von Excel-Dateien konnte nicht geladen werden. Wähle die Datei nochmals, sobald die Verbindung steht.',
+        'Keine Verbindung zum Server, das Lesen von Tabellen konnte nicht geladen werden. Wähle die Datei nochmals, sobald die Verbindung steht.',
       TOO_LARGE: 'Die Datei ist zu gross.',
     },
     toReview: 'Prüfen',
