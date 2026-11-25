@@ -6,22 +6,23 @@ import { z } from 'zod';
 import type { Route } from './+types/divisionProposal';
 import { ConnectionBadge } from '~/components/ConnectionBadge';
 import { GroundField } from '~/components/divisions/DivisionDialogs';
-import { FullProposalPreview, useFullProposal } from '~/components/divisions/FullProposalPreview';
+import { createFullProposal } from '~/components/divisions/fullProposal';
 import {
   DEFAULT_MAX_SIZE,
   DEFAULT_SIZE,
+  describeDivisions,
   equalCounts,
-  findSplitClubs,
   groupEntries,
   MAX_DIVISIONS,
   parseNumber,
   SIZE,
-  toEntryIds,
+  toGroups,
+  toLineups,
   usedApparatus,
-  type ProposalEntry,
-  type ProposalGroup,
+  type ProposedDivision,
 } from '~/components/divisions/proposal';
-import { SplitClubs } from '~/components/divisions/SplitClubs';
+import { ProposalBoard } from '~/components/divisions/ProposalBoard';
+import { useClubMoves } from '~/components/divisions/useClubMoves';
 import { EmptyState } from '~/components/EmptyState';
 import { FormActions } from '~/components/FormActions';
 import { FormField } from '~/components/FormField';
@@ -29,6 +30,7 @@ import { PageHeader } from '~/components/PageHeader';
 import { RadioChips } from '~/components/RadioChips';
 import { SubmitButton } from '~/components/SubmitButton';
 import { Alert, AlertDescription } from '~/components/ui/alert';
+import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import { Switch } from '~/components/ui/switch';
 import { competitionContext, contestContext } from '~/context';
@@ -160,14 +162,15 @@ export default function DivisionProposal({ loaderData, params }: Route.Component
       <title>{`${t('proposal.title')} · UTEG`}</title>
       <PageHeader
         title={t('proposal.title')}
-        description={t('proposal.text')}
+        description={`${t('proposal.text')} ${t('proposal.moveHint')}`}
         breadcrumbs={[{ to: divisionsUrl, label: t('title') }]}
         status={<ConnectionBadge status={status} />}
       />
       {sexes.length === 0 ? (
         <EmptyState icon={UsersIcon} title={t('proposal.empty')} text={t('proposal.emptyText')} />
       ) : (
-        <div className="grid gap-5">
+        // Settings on the left, the preview next to all of them, see ProposalForm.
+        <div className="grid items-start gap-x-8 gap-y-5 lg:grid-cols-[20rem_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
           <RadioChips
             legend={t('proposal.scope')}
             name="scope"
@@ -199,16 +202,29 @@ function AllCategories({ size, maxSize, ...data }: ProposalProps) {
   const sizes = useSizes(size, maxSize);
   const [keepTogether, setKeepTogether] = useState(true);
   const [mergeSmall, setMergeSmall] = useState(false);
-  const proposal = useFullProposal(data, {
-    size: sizes.size,
-    maxSize: sizes.maxSize,
-    keepTogether,
-    mergeSmall,
-  });
+  const { entries, sexes, due, numbers } = data;
+  const dataKey = JSON.stringify([entries, sexes, due, numbers]);
+  const proposal = useMemo(
+    () =>
+      sizes.size !== null && sizes.maxSize !== null
+        ? createFullProposal(data, {
+            size: sizes.size,
+            maxSize: sizes.maxSize,
+            keepTogether,
+            mergeSmall,
+          })
+        : null,
+    // Other live updates do not change who is distributed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dataKey, sizes.size, sizes.maxSize, keepTogether, mergeSmall],
+  );
 
   return (
     <ProposalForm
-      groups={proposal?.map(({ group }) => group) ?? null}
+      proposal={proposal}
+      grounds={Array.from({ length: competition.grounds }, (_, index) => index + 1)}
+      maxSize={sizes.maxSize}
+      problem={t('proposal.invalid')}
       fields={
         <>
           <SizeFields size={size} maxSize={maxSize} errors={sizes.errors} />
@@ -230,13 +246,7 @@ function AllCategories({ size, maxSize, ...data }: ProposalProps) {
           )}
         </>
       }
-    >
-      {proposal ? (
-        <FullProposalPreview proposal={proposal} grounds={competition.grounds} />
-      ) : (
-        <Problem text={t('proposal.invalid')} />
-      )}
-    </ProposalForm>
+    />
   );
 }
 
@@ -274,27 +284,29 @@ function CategoryProposal({
     chosenCount ?? String(countDivisions(members.length, Math.max(1, lineupCount), usableSize));
   const countNumber = parseNumber(count, { min: 1, max: MAX_DIVISIONS });
 
+  const apparatusKey = apparatus.join();
   const memberKey = members.map(({ id, clubId }) => `${id} ${clubId}`).join();
-  const divisions = useMemo(
-    () =>
-      sizes.maxSize !== null && countNumber !== null && lineupCount > 0
-        ? proposeLineups(members, {
-            lineupCounts: equalCounts(countNumber, lineupCount),
-            maxSize: sizes.maxSize,
-          })
-        : null,
+  const isValid = sizes.size !== null && sizes.maxSize !== null && countNumber !== null;
+  const firstNumber = (numbers[`${category} ${sex}`] ?? 0) + 1;
+  const proposal = useMemo(() => {
+    if (!isValid || sizes.maxSize === null || countNumber === null) return null;
+    const divisions = proposeLineups(members, {
+      lineupCounts: equalCounts(countNumber, lineupCount),
+      maxSize: sizes.maxSize,
+    });
+    return (
+      divisions?.map((lineups, index): ProposedDivision => ({
+        category,
+        sex,
+        number: firstNumber + index,
+        ground: 1,
+        slot: index,
+        lineups: toLineups(lineups, apparatus),
+      })) ?? null
+    );
     // Other live updates do not change who is distributed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [memberKey, countNumber, lineupCount, sizes.maxSize],
-  );
-  const isValid = sizes.size !== null && sizes.maxSize !== null && countNumber !== null;
-  const shown = isValid ? divisions : null;
-  const firstNumber = (numbers[`${category} ${sex}`] ?? 0) + 1;
-  const splitClubs =
-    shown &&
-    findSplitClubs(
-      shown.map((lineups, index) => ({ number: firstNumber + index, apparatus, lineups })),
-    );
+  }, [memberKey, isValid, countNumber, apparatusKey, sizes.maxSize, firstNumber]);
 
   function reset() {
     setCount(null);
@@ -303,15 +315,16 @@ function CategoryProposal({
 
   return (
     <ProposalForm
-      groups={
-        shown && [
-          {
-            category,
-            sex,
-            ground,
-            divisions: shown.map((lineups) => toEntryIds(lineups, apparatus)),
-          },
-        ]
+      proposal={proposal}
+      ground={ground}
+      grounds={[ground]}
+      maxSize={sizes.maxSize}
+      problem={
+        lineupCount === 0
+          ? t('proposal.noApparatus')
+          : isValid
+            ? t('proposal.doesNotFit', { count: members.length })
+            : t('proposal.invalid')
       }
       fields={
         <>
@@ -388,78 +401,59 @@ function CategoryProposal({
           </fieldset>
         </>
       }
-    >
-      {shown ? (
-        shown.map((lineups, index) => (
-          <section key={index} aria-label={t('proposal.division', { number: firstNumber + index })}>
-            <h2 className="mb-2 flex items-baseline justify-between gap-3 text-lg font-semibold">
-              {t('proposal.division', { number: firstNumber + index })}
-              <span className="text-sm font-normal text-muted-foreground">
-                {t('common:starterCount', { count: lineups.flat().length })}
-              </span>
-            </h2>
-            <ul className="divide-y rounded-xl border bg-card">
-              {lineups.map((lineup, index) => (
-                <li key={apparatus[index]} className="flex items-baseline gap-3 px-4 py-2.5">
-                  <span className="figure w-6 shrink-0 text-right">{lineup.length}</span>
-                  <span className="min-w-0">
-                    <span className="block font-semibold">
-                      {t(`common:apparatus.${apparatus[index]}`)}
-                    </span>
-                    <span className="block text-sm text-muted-foreground">
-                      {clubsOf(lineup) || t('lineups.emptyLineup')}
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-2">
-              <SplitClubs
-                clubs={splitClubs?.get(firstNumber + index) ?? []}
-                number={firstNumber + index}
-              />
-            </div>
-          </section>
-        ))
-      ) : (
-        <Problem
-          text={
-            lineupCount === 0
-              ? t('proposal.noApparatus')
-              : isValid
-                ? t('proposal.doesNotFit', { count: members.length })
-                : t('proposal.invalid')
-          }
-        />
-      )}
-    </ProposalForm>
+    />
   );
 }
 
 /** The settings, the preview and the button that saves what is shown. */
 function ProposalForm({
-  groups,
+  proposal,
+  ground,
+  grounds,
+  maxSize,
+  problem,
   fields,
-  children,
 }: {
-  groups: ProposalGroup[] | null;
+  proposal: ProposedDivision[] | null;
+  /** Instead of those of the proposal. */
+  ground?: number;
+  grounds: number[];
+  maxSize: number | null;
+  /** Why there is no proposal. */
+  problem: string;
   fields: React.ReactNode;
-  children: React.ReactNode;
 }) {
   const { t } = useTranslation('divisions');
   const { Form, pending } = useActionFetcher();
-  const count = groups?.flatMap(({ divisions }) => divisions).length ?? 1;
+  const moves = useClubMoves(proposal);
+  const divisions =
+    moves.divisions?.map((division) => (ground ? { ...division, ground } : division)) ?? null;
 
   return (
-    <Form method="post" className="grid items-start gap-8 lg:grid-cols-[20rem_minmax(0,1fr)]">
-      <input type="hidden" name="groups" value={JSON.stringify(groups ?? [])} />
+    <Form method="post" className="contents">
+      <input type="hidden" name="groups" value={JSON.stringify(toGroups(divisions ?? []))} />
       <div className="grid gap-5">{fields}</div>
-      <div className="grid min-w-0 gap-5">
-        {children}
+      <div className="grid min-w-0 gap-5 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        {moves.isLost && <Problem text={t('proposal.movesLost')} />}
+        {divisions ? (
+          <ProposalBoard
+            divisions={describeDivisions(divisions)}
+            grounds={grounds}
+            maxSize={maxSize ?? Infinity}
+            onMove={moves.move}
+          />
+        ) : (
+          <Problem text={problem} />
+        )}
         <FormActions>
-          <SubmitButton pending={pending} disabled={!groups}>
-            {t('proposal.submit', { count })}
+          <SubmitButton pending={pending} disabled={!divisions}>
+            {t('proposal.submit', { count: divisions?.length ?? 1 })}
           </SubmitButton>
+          {moves.isMoved && (
+            <Button type="button" variant="outline" disabled={pending} onClick={moves.reset}>
+              {t('proposal.resetMoves')}
+            </Button>
+          )}
         </FormActions>
       </div>
     </Form>
@@ -525,10 +519,4 @@ function useSizes(sizeInput: SizeInput, maxInput: SizeInput) {
         max === null ? t('proposal.range', SIZE) : isBelow ? t('proposal.maxBelowSize') : undefined,
     },
   };
-}
-
-function clubsOf(lineup: readonly ProposalEntry[]) {
-  return [...Map.groupBy(lineup, ({ clubId }) => clubId).values()]
-    .map((members) => `${members[0].clubName} (${members.length})`)
-    .join(', ');
 }

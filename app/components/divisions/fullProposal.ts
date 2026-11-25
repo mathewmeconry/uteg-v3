@@ -3,12 +3,11 @@ import { planGrounds } from '~/lib/domain/groundPlan';
 import type { Sex } from '~/modules/types';
 import {
   equalCounts,
-  findSplitClubs,
   groupEntries,
-  toEntryIds,
+  toLineups,
   usedApparatus,
   type ProposalEntry,
-  type ProposalGroup,
+  type ProposedDivision,
 } from './proposal';
 
 export type FullProposalData = {
@@ -29,71 +28,35 @@ export type FullProposalOptions = {
   mergeSmall: boolean;
 };
 
-type Part = {
-  category: string;
-  sex: Sex;
-  apparatus: readonly string[];
-  lineups: ProposalEntry[][];
-};
-
 /** Divisions that run at the same time on the same ground. */
-type Unit = Part[];
+type Unit = Pick<ProposedDivision, 'category' | 'sex' | 'lineups'>[];
 
 /** The divisions of all categories, in running order. */
 export function createFullProposal(
   { entries, categories, apparatus, sexes, due, numbers }: FullProposalData,
   options: FullProposalOptions,
-) {
+): ProposedDivision[] {
   const groups = sexes.flatMap((sex) =>
     proposeUnits(groupEntries(entries, categories, sex), sex, apparatus[sex], options),
   );
   const plan = planGrounds(
     groups.map((units) =>
       units.map((unit) =>
-        unit.flatMap(({ lineups }) => lineups.flat().map(({ clubId }) => clubId)),
+        unit
+          .flatMap(({ lineups }) => lineups)
+          .flatMap(({ members }) => members.map(({ clubId }) => clubId)),
       ),
     ),
     due,
     options.keepTogether,
   );
 
-  const clubNames = new Map(entries.map(({ clubId, clubName }) => [clubId, clubName]));
   const lastNumbers = { ...numbers };
-  const numbered = plan.map(({ group, division, ...place }) => {
-    const parts = groups[group][division].map((part) => {
+  return plan.flatMap(({ group, division, ground, slot }) =>
+    groups[group][division].map((part) => {
       const key = `${part.category} ${part.sex}`;
       lastNumbers[key] = (lastNumbers[key] ?? 0) + 1;
-      return { ...part, key, number: lastNumbers[key] };
-    });
-    return { ...place, parts };
-  });
-  const byCategory = Map.groupBy(
-    numbered.flatMap(({ parts }) => parts),
-    ({ key }) => key,
-  );
-  const splitClubs = new Map(
-    [...byCategory].map(([key, divisions]) => [key, findSplitClubs(divisions)]),
-  );
-
-  return numbered.flatMap(({ ground, clashes, parts }) =>
-    parts.map(({ category, sex, apparatus, lineups, key, number }) => {
-      const clubs = new Set(lineups.flat().map(({ clubId }) => clubId));
-      const group: ProposalGroup = {
-        category,
-        sex,
-        ground: ground + 1,
-        divisions: [toEntryIds(lineups, apparatus)],
-      };
-      return {
-        group,
-        number,
-        lineups: lineups.map(({ length }, index) => ({ apparatus: apparatus[index], length })),
-        clashes: clashes.filter((club) => clubs.has(club)).map((club) => clubNames.get(club) ?? ''),
-        split: splitClubs.get(key)?.get(number) ?? [],
-        together: parts
-          .filter((other) => other.category !== category)
-          .map(({ category, sex, number }) => ({ category, sex, number })),
-      };
+      return { ...part, number: lastNumbers[key], ground: ground + 1, slot };
     }),
   );
 }
@@ -136,7 +99,9 @@ function proposeUnits(
 
   return groups.flatMap(({ category }, group) => {
     const own = restOf.has(group) ? divisions[group].slice(0, -1) : divisions[group];
-    const units: Unit[] = own.map((lineups) => [{ category, sex, apparatus, lineups }]);
+    const units: Unit[] = own.map((members) => [
+      { category, sex, lineups: toLineups(members, apparatus) },
+    ]);
     const merged = merges.filter((rests) => rests.at(-1)?.group === group);
     return [units, ...merged.map((rests) => [mergeRests(rests)])];
   });
@@ -147,7 +112,7 @@ function proposeUnits(
       const used = apparatus.slice(next, next + lineups);
       next += lineups;
       const { category } = groups[group];
-      return { category, sex, apparatus: used, lineups: divisions[group].at(-1) ?? [] };
+      return { category, sex, lineups: toLineups(divisions[group].at(-1) ?? [], used) };
     });
   }
 }

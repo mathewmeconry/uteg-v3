@@ -1,3 +1,4 @@
+import { findClashes } from '~/lib/domain/groundPlan';
 import type { Sex } from '~/modules/types';
 
 export type ProposalEntry = {
@@ -8,13 +9,22 @@ export type ProposalEntry = {
   clubName: string;
 };
 
-export type ProposalGroup = {
+export type ProposedDivision = {
   category: string;
   sex: Sex;
+  number: number;
+  /** 1-based. */
   ground: number;
-  /** The ids of the entries by apparatus. */
-  divisions: Record<string, string[]>[];
+  /** Divisions with the same one are due at the same time. */
+  slot: number;
+  lineups: { apparatus: string; members: ProposalEntry[] }[];
 };
+
+/** A lineup of a proposed division, see getKey. */
+export type LineupRef = { division: string; apparatus: string };
+
+/** A club, or the part of it in one lineup, that goes to another lineup of the category. */
+export type ClubMove = { clubId: string; from: LineupRef; to: LineupRef };
 
 export const MAX_DIVISIONS = 30;
 export const SIZE = { min: 3, max: 30 };
@@ -50,43 +60,143 @@ export function equalCounts(divisionCount: number, lineupCount: number) {
   return Array.from({ length: divisionCount }, () => lineupCount);
 }
 
-export type SplitClub = {
-  clubName: string;
-  lineups: { number: number; apparatus: string; length: number }[];
-};
-
-/** By the number of each division of a category: the clubs in it that are in several lineups. */
-export function findSplitClubs(
-  divisions: readonly {
-    number: number;
-    apparatus: readonly string[];
-    lineups: readonly (readonly ProposalEntry[])[];
-  }[],
-) {
-  const clubs = new Map<string, SplitClub>();
-  for (const { number, apparatus, lineups } of divisions) {
-    for (const [index, lineup] of lineups.entries()) {
-      for (const [clubId, members] of Map.groupBy(lineup, ({ clubId }) => clubId)) {
-        const club = clubs.get(clubId) ?? { clubName: members[0].clubName, lineups: [] };
-        clubs.set(clubId, club);
-        club.lineups.push({ number, apparatus: apparatus[index], length: members.length });
-      }
-    }
-  }
-  const split = [...clubs.values()].filter(({ lineups }) => lineups.length > 1);
-  return new Map(
-    divisions.map(({ number }) => [
-      number,
-      split.filter(({ lineups }) => lineups.some((lineup) => lineup.number === number)),
-    ]),
-  );
+export function toLineups(members: ProposalEntry[][], apparatus: readonly string[]) {
+  return members.map((members, index) => ({ apparatus: apparatus[index], members }));
 }
 
-export function toEntryIds(
-  lineups: readonly (readonly ProposalEntry[])[],
-  apparatus: readonly string[],
+type DivisionName = Pick<ProposedDivision, 'category' | 'sex' | 'number'>;
+
+export function getKey({ category, sex, number }: DivisionName) {
+  return `${category} ${sex} ${number}`;
+}
+
+export function isSameCategory(a: DivisionName, b: DivisionName) {
+  return a.category === b.category && a.sex === b.sex;
+}
+
+/** The parts of the clubs in a lineup. */
+export function groupClubs(members: readonly ProposalEntry[]) {
+  return [...Map.groupBy(members, ({ clubId }) => clubId)].map(([clubId, members]) => ({
+    clubId,
+    clubName: members[0].clubName,
+    count: members.length,
+  }));
+}
+
+export function applyMoves(divisions: readonly ProposedDivision[], moves: readonly ClubMove[]) {
+  return moves.reduce((current, { clubId, from, to }) => {
+    const isAt = (ref: LineupRef, key: string, apparatus: string) =>
+      ref.division === key && ref.apparatus === apparatus;
+    const moved = current
+      .filter((division) => getKey(division) === from.division)
+      .flatMap(({ lineups }) => lineups)
+      .filter(({ apparatus }) => apparatus === from.apparatus)
+      .flatMap(({ members }) => members)
+      .filter((member) => member.clubId === clubId);
+    return current.map((division) => {
+      const key = getKey(division);
+      return {
+        ...division,
+        lineups: division.lineups.map(({ apparatus, members }) => {
+          if (isAt(from, key, apparatus)) {
+            members = members.filter((member) => member.clubId !== clubId);
+          }
+          if (isAt(to, key, apparatus)) {
+            // After those of the club that are already there.
+            const all = Map.groupBy([...members, ...moved], (member) => member.clubId);
+            members = [...all.values()].flat();
+          }
+          return { apparatus, members };
+        }),
+      };
+    });
+  }, divisions);
+}
+
+/**
+ * The apparatus of the lineup for a club that comes into the division: where the club already is, if
+ * it fits, or the smallest one.
+ */
+export function chooseLineup(
+  { lineups }: ProposedDivision,
+  { clubId, count }: { clubId: string; count: number },
+  maxSize: number,
 ) {
-  return Object.fromEntries(
-    lineups.map((lineup, index) => [apparatus[index], lineup.map(({ id }) => id)]),
+  const own = lineups.find(
+    ({ members }) =>
+      members.length + count <= maxSize && members.some((member) => member.clubId === clubId),
   );
+  const [smallest] = lineups.toSorted(
+    (a, b) =>
+      a.members.length - b.members.length ||
+      groupClubs(a.members).length - groupClubs(b.members).length,
+  );
+  return (own ?? smallest).apparatus;
+}
+
+/** What to point out about each division. */
+export function describeDivisions(divisions: readonly ProposedDivision[]) {
+  const clashes = findClashes(
+    divisions.map(({ ground, slot, lineups }) => ({
+      ground,
+      slot,
+      clubs: new Set(lineups.flatMap(({ members }) => members).map(({ clubId }) => clubId)),
+    })),
+  );
+  const clubNames = new Map(
+    divisions
+      .flatMap(({ lineups }) => lineups.flatMap(({ members }) => members))
+      .map(({ clubId, clubName }) => [clubId, clubName]),
+  );
+  return divisions.map((division, index) => ({
+    ...division,
+    key: getKey(division),
+    clashes: clashes[index].map((club) => clubNames.get(club) ?? ''),
+    split: findSplitClubs(
+      division,
+      divisions.filter((other) => isSameCategory(other, division)),
+    ),
+    /** Merged small divisions. */
+    together: divisions.filter(
+      (other) =>
+        other !== division && other.ground === division.ground && other.slot === division.slot,
+    ),
+  }));
+}
+
+export type DescribedDivision = ReturnType<typeof describeDivisions>[number];
+
+/** For the action. */
+export function toGroups(divisions: readonly ProposedDivision[]) {
+  return divisions.map(({ category, sex, ground, lineups }) => ({
+    category,
+    sex,
+    ground,
+    divisions: [
+      Object.fromEntries(
+        lineups.map(({ apparatus, members }) => [apparatus, members.map(({ id }) => id)]),
+      ),
+    ],
+  }));
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** The clubs of the division that are in several lineups of the category. */
+function findSplitClubs(division: ProposedDivision, category: readonly ProposedDivision[]) {
+  const members = division.lineups.flatMap((lineup) => lineup.members);
+  return groupClubs(members)
+    .map(({ clubId, clubName }) => ({
+      clubName,
+      lineups: category.flatMap(({ number, lineups }) =>
+        lineups
+          .map(({ apparatus, members }) => ({
+            number,
+            apparatus,
+            count: members.filter((member) => member.clubId === clubId).length,
+          }))
+          .filter(({ count }) => count > 0),
+      ),
+    }))
+    .filter(({ lineups }) => lineups.length > 1);
 }

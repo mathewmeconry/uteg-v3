@@ -75,7 +75,14 @@ export default {
     count: 'Number of divisions',
     countHint: 'Adapts when you change the lineup size.',
     apparatus: 'Start apparatus',
-    division: 'New division {{number}}',
+    move: 'Move {{name}}',
+    moveHint:
+      'Drag clubs to another lineup or division of their category, or select them to move them.',
+    automatic: 'Automatic',
+    drop: 'Drop here, automatic lineup',
+    movesLost: 'The proposal was calculated again. Clubs you moved are back in their old place.',
+    resetMoves: 'Reset moves',
+    tooLarge: 'over {{max}}',
     noApparatus: 'Choose at least one start apparatus.',
     doesNotFit:
       'There is no room for the {{count}} starters. Increase the number of divisions, start apparatus or the maximum size.',

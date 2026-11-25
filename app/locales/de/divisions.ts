@@ -73,7 +73,14 @@ export default {
     count: 'Anzahl Abteilungen',
     countHint: 'Passt sich an, wenn du die Riegengrösse änderst.',
     apparatus: 'Startgeräte',
-    division: 'Neue Abteilung {{number}}',
+    move: '{{name}} verschieben',
+    moveHint:
+      'Ziehe Vereine in eine andere Riege oder Abteilung ihrer Kategorie oder wähle sie aus, um sie zu verschieben.',
+    automatic: 'Automatisch',
+    drop: 'Hier ablegen, Riege automatisch',
+    movesLost: 'Der Vorschlag wurde neu berechnet. Verschobene Vereine sind wieder am alten Platz.',
+    resetMoves: 'Verschiebungen zurücksetzen',
+    tooLarge: 'über {{max}}',
     noApparatus: 'Wähle mindestens ein Startgerät.',
     doesNotFit:
       'Die {{count}} Teilnehmenden haben so keinen Platz. Erhöhe die Anzahl Abteilungen, Startgeräte oder die Höchstgrösse.',

@@ -1,4 +1,14 @@
-import { planGrounds } from './groundPlan';
+import { findClashes, planGrounds } from './groundPlan';
+
+function planClashes(groups: string[][][], occupied: number[], keepTogether = true) {
+  const plan = planGrounds(groups, occupied, keepTogether);
+  return findClashes(
+    plan.map(({ group, division, ...place }) => ({
+      ...place,
+      clubs: new Set(groups[group][division]),
+    })),
+  );
+}
 
 /** A category with divisions that have no clubs. */
 function empty(count: number) {
@@ -44,7 +54,7 @@ describe('planGrounds', () => {
   it('orders the divisions so that clubs are not on two grounds at once', () => {
     const group = [['a'], ['b'], ['c']];
     const plan = planGrounds([group, group], [0, 0], true);
-    expect(plan.map(({ clashes }) => clashes)).toEqual(empty(6));
+    expect(planClashes([group, group], [0, 0])).toEqual(empty(6));
     expect(plan.map(({ group, division }) => `${group}${division}`).sort()).toEqual([
       '00',
       '01',
@@ -54,20 +64,16 @@ describe('planGrounds', () => {
       '12',
     ]);
 
-    const spread = planGrounds([[['a'], ['a'], ['b'], ['b']]], [0, 0], false);
-    expect(spread.map(({ clashes }) => clashes)).toEqual(empty(4));
+    expect(planClashes([[['a'], ['a'], ['b'], ['b']]], [0, 0], false)).toEqual(empty(4));
   });
 
   it('says which clubs are on two grounds when it cannot be avoided', () => {
-    const plan = planGrounds([[['a', 'b']], [['b', 'c']]], [0, 0], true);
-    expect(plan.map(({ clashes }) => clashes)).toEqual([['b'], ['b']]);
+    expect(planClashes([[['a', 'b']], [['b', 'c']]], [0, 0])).toEqual([['b'], ['b']]);
   });
 
   it('has no clashes on one ground or at different times', () => {
-    const one = planGrounds([[['a']], [['a']]], [0], true);
-    expect(one.map(({ clashes }) => clashes)).toEqual([[], []]);
+    expect(planClashes([[['a']], [['a']]], [0])).toEqual([[], []]);
     // The other ground has divisions that are already due.
-    const later = planGrounds([[['a'], ['b']], [['a']]], [1, 2], true);
-    expect(later.map(({ clashes }) => clashes)).toEqual([[], [], []]);
+    expect(planClashes([[['a'], ['b']], [['a']]], [1, 2])).toEqual([[], [], []]);
   });
 });

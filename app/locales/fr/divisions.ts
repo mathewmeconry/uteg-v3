@@ -75,7 +75,14 @@ export default {
     count: 'Nombre de divisions',
     countHint: 'S’adapte quand tu changes la taille des groupes.',
     apparatus: 'Engins de départ',
-    division: 'Nouvelle division {{number}}',
+    move: 'Déplacer {{name}}',
+    moveHint:
+      'Glisse les sociétés dans un autre groupe ou une autre division de leur catégorie ou choisis-les pour les déplacer.',
+    automatic: 'Automatiquement',
+    drop: 'Dépose ici, groupe automatique',
+    movesLost: 'La proposition a été recalculée. Les déplacements ont été annulés.',
+    resetMoves: 'Annuler les déplacements',
+    tooLarge: 'plus de {{max}}',
     noApparatus: 'Choisis au moins un engin de départ.',
     doesNotFit:
       'Il n’y a pas assez de place pour les {{count}} gymnastes. Augmente le nombre de divisions, d’engins de départ ou la taille maximale.',

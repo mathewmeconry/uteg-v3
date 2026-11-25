@@ -98,8 +98,8 @@ it('follows the lineup size and saves what it shows', async () => {
   await userEvent.click(screen.getByRole('button', { name: '2 Abteilungen erstellen' }));
   await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
   const groups = JSON.parse(action.mock.calls[0][0].groups);
-  expect(groups).toMatchObject([{ category: 'K5', sex: 'FEMALE', ground: 1 }]);
-  const saved: Record<string, string[]>[] = groups[0].divisions;
+  expect(groups[0]).toMatchObject({ category: 'K5', sex: 'FEMALE', ground: 1 });
+  const saved: Record<string, string[]>[] = groups.flatMap((group: any) => group.divisions);
   expect(saved).toHaveLength(2);
   expect(saved.flatMap((lineups) => Object.values(lineups).flat())).toHaveLength(44);
 });
@@ -112,8 +112,34 @@ it('fills only as many apparatus as a small category needs', async () => {
   expect(checked).toEqual([true, true, false, false]);
   await userEvent.click(screen.getByRole('checkbox', { name: 'Sprung' }));
   expect(screen.getAllByRole('listitem').map(({ textContent }) => textContent)).toContain(
-    '0SprungNoch niemand',
+    'Sprung0Noch niemand',
   );
+});
+
+it('moves clubs with the menu until the proposal changes', async () => {
+  await renderPage(11, 11, 11, 11);
+  await userEvent.click(screen.getByRole('button', { name: 'TV 0 (11) verschieben' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Boden (11)' }));
+  expect(screen.getByText('über 12')).toBeInTheDocument();
+  expect(screen.getByText('Noch niemand')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Abteilung erstellen' }));
+  await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+  const [{ divisions }] = JSON.parse(action.mock.calls[0][0].groups);
+  expect(divisions[0].boden).toHaveLength(22);
+  expect(divisions[0].reck).toEqual([]);
+
+  change('Anzahl Abteilungen', '2');
+  expect(screen.getByText(/Der Vorschlag wurde neu berechnet/)).toBeInTheDocument();
+  expect(screen.queryByText('über 12')).not.toBeInTheDocument();
+});
+
+it('puts the clubs back', async () => {
+  await renderPage(11, 11, 11, 11);
+  await userEvent.click(screen.getByRole('button', { name: 'TV 0 (11) verschieben' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Boden (11)' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Verschiebungen zurücksetzen' }));
+  expect(screen.queryByText('über 12')).not.toBeInTheDocument();
 });
 
 it('says when the starters do not fit', async () => {

@@ -12,9 +12,15 @@ export type PlannedDivision = Place & {
   /** Indexes of the category and its division. */
   group: number;
   division: number;
-  /** Clubs that are on another ground at the same time. */
-  clashes: string[];
 };
+
+/** The clubs of each division that are on another ground at the same time. */
+export function findClashes(divisions: readonly (Place & { clubs: ReadonlySet<string> })[]) {
+  return divisions.map(({ ground, slot, clubs }) => {
+    const others = divisions.filter((other) => other.slot === slot && other.ground !== ground);
+    return [...clubs].filter((club) => others.some((other) => other.clubs.has(club)));
+  });
+}
 
 /**
  * The running order of the divisions, with about equally many per ground and few clubs on two
@@ -36,14 +42,14 @@ export function planGrounds(
   );
   const clubsAt = (group: number, position: number) => groups[group][orders[group][position]];
 
-  function getClashes(group: number, position: number) {
+  function countClashes(group: number, position: number) {
     const { ground, slot } = places[group][position];
     const others = new Set(
       (bySlot.get(slot) ?? [])
         .filter((other) => other.ground !== ground)
         .flatMap((other) => clubsAt(other.group, other.position)),
     );
-    return [...new Set(clubsAt(group, position))].filter((club) => others.has(club));
+    return [...new Set(clubsAt(group, position))].filter((club) => others.has(club)).length;
   }
 
   let improved: boolean;
@@ -54,7 +60,7 @@ export function planGrounds(
         for (let b = a + 1; b < order.length; b++) {
           // Nothing changes between places at the same time.
           if (places[group][a].slot === places[group][b].slot) continue;
-          const count = () => getClashes(group, a).length + getClashes(group, b).length;
+          const count = () => countClashes(group, a) + countClashes(group, b);
           const before = count();
           [order[a], order[b]] = [order[b], order[a]];
           if (count() < before) improved = true;
@@ -70,7 +76,6 @@ export function planGrounds(
         ...places[group][position],
         group,
         division,
-        clashes: getClashes(group, position),
       })),
     )
     .sort((a, b) => a.slot - b.slot || a.ground - b.ground);
