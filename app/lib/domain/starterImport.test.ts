@@ -111,7 +111,6 @@ describe('parseSheet', () => {
     ['Jg. 2010', 2010],
     [40252, null],
     ['123', null],
-    [{ formula: 'A1', result: new Date('2009-05-05T00:00:00Z') }, 2009],
   ])('reads the birth year %s', (input, birthYear) => {
     expect(parseRow('', 'A', 'B', input, 'm')?.birthYear).toBe(birthYear);
   });
@@ -161,18 +160,6 @@ describe('parseSheet', () => {
     ['x', undefined],
   ])('reads the division "%s"', (input, divisionNumber) => {
     expect(parseRow('', 'A', 'B', 2010, 'w', 'K1', input)?.divisionNumber).toBe(divisionNumber);
-  });
-
-  it('reads formula, rich text and link cells', () => {
-    expect(
-      parseRow(
-        { text: '77', hyperlink: 'x' },
-        { richText: [{ text: 'An' }, { text: 'na' }] },
-        { formula: 'A1', result: 'Muster' },
-        { formula: 'A2', result: 2010 },
-        'w',
-      ),
-    ).toMatchObject({ stvId: '77', firstname: 'Anna', lastname: 'Muster', birthYear: 2010 });
   });
 });
 

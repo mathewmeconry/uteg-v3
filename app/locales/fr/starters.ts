@@ -110,9 +110,10 @@ export default {
     stepReview: 'Vérifier',
     stepResult: 'Résultat',
     clubHint: 'Toutes les personnes des fichiers concourent pour cette société.',
-    files: 'Fichiers Excel',
+    files: 'Tableaux',
     drop: 'Glisser les fichiers ici ou les choisir',
-    limits: 'XLSX, au maximum {{size}} Mo par fichier et {{rows}} personnes au total',
+    limits:
+      'XLSX, XLS, ODS ou CSV, au maximum {{size}} Mo par fichier et {{rows}} personnes au total',
     columnsHint:
       'Toutes les feuilles avec les colonnes Prénom, Nom et Année de naissance sont lues. ID FSG, Sexe, Catégorie et Division sont facultatifs.',
     template: 'Télécharger le modèle',
@@ -120,10 +121,10 @@ export default {
     removeFile: 'Retirer {{name}}',
     tooManyRows: 'Il y a {{count}} personnes. Importes-en au maximum {{max}} à la fois.',
     fileErrors: {
-      UNREADABLE: 'Le fichier n’a pas pu être lu. Enregistre-le au format XLSX.',
+      UNREADABLE: 'Le fichier n’a pas pu être lu. Enregistre-le au format XLSX, ODS ou CSV.',
       NO_STARTERS: 'Aucune feuille avec les colonnes nécessaires n’a été trouvée.',
       NOT_LOADED:
-        'Pas de connexion au serveur, la lecture des fichiers Excel n’a pas pu être chargée. Choisis de nouveau le fichier dès le retour de la connexion.',
+        'Pas de connexion au serveur, la lecture des tableaux n’a pas pu être chargée. Choisis de nouveau le fichier dès le retour de la connexion.',
       TOO_LARGE: 'Le fichier est trop volumineux.',
     },
     toReview: 'Vérifier',

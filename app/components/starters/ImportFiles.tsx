@@ -11,7 +11,13 @@ import { Button } from '~/components/ui/button';
 import { useSexes } from '~/hooks/useSexes';
 import type { ImportedStarter } from '~/lib/domain/starterImport';
 import { cn } from '~/lib/utils';
-import { MAX_FILE_MB, MAX_IMPORT_ROWS, readStarterFile, type FileError } from './importFile';
+import {
+  IMPORT_ACCEPT,
+  MAX_FILE_MB,
+  MAX_IMPORT_ROWS,
+  readStarterFile,
+  type FileError,
+} from './importFile';
 
 export type ImportFile = {
   id: string;
@@ -84,7 +90,7 @@ export function ImportFiles({
         <input
           type="file"
           multiple
-          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          accept={IMPORT_ACCEPT}
           aria-label={t('import.files')}
           className="sr-only"
           onChange={(event) => {

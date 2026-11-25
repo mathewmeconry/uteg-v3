@@ -108,9 +108,9 @@ export default {
     stepReview: 'Review',
     stepResult: 'Result',
     clubHint: 'Everyone in the files starts for this club.',
-    files: 'Excel files',
+    files: 'Spreadsheets',
     drop: 'Drop files here or choose them',
-    limits: 'XLSX, at most {{size}} MB per file and {{rows}} people in total',
+    limits: 'XLSX, XLS, ODS or CSV, at most {{size}} MB per file and {{rows}} people in total',
     columnsHint:
       'All sheets with the columns first name, last name and birth year are read. STV ID, sex, category and division are optional.',
     template: 'Download template',
@@ -118,10 +118,10 @@ export default {
     removeFile: 'Remove {{name}}',
     tooManyRows: 'These are {{count}} people. Import at most {{max}} at once.',
     fileErrors: {
-      UNREADABLE: 'The file could not be read. Save it as XLSX.',
+      UNREADABLE: 'The file could not be read. Save it as XLSX, ODS or CSV.',
       NO_STARTERS: 'No sheet with the required columns found.',
       NOT_LOADED:
-        'No connection to the server, the reader for Excel files could not be loaded. Choose the file again once the connection is back.',
+        'No connection to the server, the reader for spreadsheets could not be loaded. Choose the file again once the connection is back.',
       TOO_LARGE: 'The file is too large.',
     },
     toReview: 'Review',

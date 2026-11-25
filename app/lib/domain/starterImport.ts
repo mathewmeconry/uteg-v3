@@ -1,14 +1,7 @@
 import type { Sex } from '~/modules/types';
 
-type RichCell = {
-  result?: unknown;
-  text?: unknown;
-  richText?: { text: string }[];
-  [key: string]: unknown;
-};
-
-/** A cell as read by exceljs: plain values, or objects for formulas, rich text and links. */
-export type SheetCell = string | number | boolean | Date | null | undefined | RichCell;
+/** A cell as read by SheetJS. Formulas give their last calculated value. */
+export type SheetCell = string | number | boolean | Date | null | undefined;
 
 export type ImportedStarter = {
   stvId: string | null;
@@ -98,15 +91,6 @@ function cellText(cell: unknown): string {
   if (cell === null || cell === undefined) return '';
   // The only date we expect is a birth date in the birth year column.
   if (cell instanceof Date) return String(cell.getUTCFullYear());
-  if (typeof cell === 'object') {
-    const { richText, result, text } = cell as RichCell;
-    if (richText)
-      return richText
-        .map((part) => part.text)
-        .join('')
-        .trim();
-    return cellText(result ?? text);
-  }
   return String(cell).trim();
 }
 

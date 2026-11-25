@@ -14,7 +14,7 @@ status in `docs/PARITY.md`.
 - React Router 8 (framework mode, SSR), Vite 8, React 19, TypeScript
 - Prisma 7 with PostgreSQL, better-auth (email and password, email-otp plugin for codes), mails with Resend and MJML
 - Tailwind 4, shadcn (new-york, in `app/components/ui`), lucide, sonner
-- i18next (de, fr, en), zod 4, pino, @react-pdf/renderer, exceljs, dnd-kit
+- i18next (de, fr, en), zod 4, pino, @react-pdf/renderer, exceljs (exports), SheetJS from its CDN (import), dnd-kit
 - vitest + Testing Library, Playwright
 - pnpm only, Node >= 24. One process: live updates and rate limits are in memory.
 

@@ -89,7 +89,7 @@ async function renderReview(...results: unknown[]) {
   ]);
   workbook.addWorksheet('Notizen').addRow(['Hallo']);
   const bytes = (await workbook.xlsx.writeBuffer()) as BlobPart;
-  await user.upload(screen.getByLabelText('Excel-Dateien'), new File([bytes], 'liste.xlsx'));
+  await user.upload(screen.getByLabelText('Tabellen'), new File([bytes], 'liste.xlsx'));
   expect(await screen.findByText('Übersprungene Tabellenblätter: Notizen')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Prüfen' }));
   const submit = screen.getByRole('button', { name: '2 Personen importieren' });
