@@ -44,6 +44,7 @@ export default {
     account: 'Account',
     home: 'Competitions',
     profile: 'Profile',
+    admin: 'Administration',
     logout: 'Log out',
     dashboard: 'Overview',
     starters: 'Starters',
@@ -204,6 +205,8 @@ export default {
     STARTER_REMOVED:
       'This person was removed from the competition. Add them again instead of changing the STV ID.',
     STV_ID_CONFLICT: 'This STV ID already belongs to another person.',
+    USER_IS_LAST_OWNER:
+      'This account is the only owner of a competition. Make someone else an owner there first or delete the competition.',
     USER_NOT_FOUND: 'There is no account with this email address.',
   },
 } satisfies Translation<typeof de>;

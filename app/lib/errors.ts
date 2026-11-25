@@ -34,6 +34,7 @@ export type DomainErrorCode =
   | 'ROUND_NOT_CURRENT'
   | 'STARTER_REMOVED'
   | 'STV_ID_CONFLICT'
+  | 'USER_IS_LAST_OWNER'
   | 'USER_NOT_FOUND';
 
 export type MissingGrade = {

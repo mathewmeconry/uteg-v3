@@ -21,6 +21,10 @@ export default [
       route('home', 'routes/secured/home/index.tsx'),
       route('profile', 'routes/secured/home/profile.tsx'),
       route('competitions/new', 'routes/secured/home/newCompetition.tsx'),
+      route('admin', 'routes/secured/admin/layout.tsx', [
+        index('routes/secured/admin/users.tsx'),
+        route('competitions', 'routes/secured/admin/competitions.tsx'),
+      ]),
     ]),
     route('competitions/:competitionId', 'routes/secured/competition/layout.tsx', [
       // The only page for the check-in.

@@ -44,6 +44,7 @@ export default {
     account: 'Compte',
     home: 'Concours',
     profile: 'Profil',
+    admin: 'Administration',
     logout: 'Se déconnecter',
     dashboard: 'Aperçu',
     starters: 'Gymnastes',
@@ -204,6 +205,8 @@ export default {
     STARTER_REMOVED:
       'Cette personne a été retirée du concours. Ajoute-la de nouveau au lieu de modifier l’ID FSG.',
     STV_ID_CONFLICT: 'Cet ID FSG appartient déjà à une autre personne.',
+    USER_IS_LAST_OWNER:
+      'Ce compte est l’unique propriétaire d’un concours. Désigne d’abord une autre personne comme propriétaire ou supprime le concours.',
     USER_NOT_FOUND: 'Il n’existe pas de compte avec cette adresse e-mail.',
   },
 } satisfies Translation<typeof de>;

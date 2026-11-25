@@ -4,6 +4,16 @@ export function dateLocale(language: string) {
   return language === 'fr' ? 'fr-CH' : 'de-CH';
 }
 
+/** The day of a point in time, always in Swiss time, e.g. 09.05.2026. */
+export function formatDate(date: Date, language: string) {
+  return new Intl.DateTimeFormat(dateLocale(language), {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Europe/Zurich',
+  }).format(date);
+}
+
 /** Point in time, always in Swiss time, e.g. 09.05.2026, 14:03. */
 export function formatDateTime(date: Date, language: string) {
   return new Intl.DateTimeFormat(dateLocale(language), {
