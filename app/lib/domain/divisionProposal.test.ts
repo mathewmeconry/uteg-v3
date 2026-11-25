@@ -32,9 +32,22 @@ describe('proposeLineups', () => {
     }
   });
 
-  it('has equally large divisions', () => {
+  it('has equally large lineups in a division, so that nobody waits', () => {
     const divisions = propose([8, 8, 8, 8, 4, 4, 4, 4], 2, 4);
-    expect(divisions?.map((lineups) => lineups.flat().length)).toEqual([24, 24]);
+    expect(sizesOf(divisions)).toEqual([
+      [8, 8, 8, 8],
+      [4, 4, 4, 4],
+    ]);
+  });
+
+  it('splits a club when lineups would be too different otherwise', () => {
+    const [lineups] = sizesOf(propose([12, 4, 4], 1, 2))!;
+    expect(Math.max(...lineups) - Math.min(...lineups)).toBeLessThanOrEqual(2);
+    expect(sizesOf(propose([8, 3, 3, 3], 1, 2))).toEqual([[8, 9]]);
+  });
+
+  it('does not leave anybody alone to have even lineups', () => {
+    expect(sizesOf(propose([3], 1, 2))).toEqual([[3, 0]]);
   });
 
   it('assigns everybody once and never exceeds the maximum', () => {

@@ -66,6 +66,7 @@ export default {
     keepTogether: 'Every category stays on one ground',
     allHint:
       'The order avoids clubs competing on several grounds at once, if all divisions take about the same time.',
+    split: 'Split: {{clubs}}',
     clashes: 'At the same time on another ground: {{clubs}}',
     size: 'Lineup size',
     maxSize: 'Maximum',

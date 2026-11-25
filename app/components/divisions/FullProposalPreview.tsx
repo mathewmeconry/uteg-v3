@@ -5,6 +5,7 @@ import {
   type FullProposalData,
   type FullProposalOptions,
 } from './fullProposal';
+import { SplitClubs } from './SplitClubs';
 import { useDivisionName } from './useDivisionName';
 
 type Apparatus = keyof (typeof import('~/locales/de/common'))['default']['apparatus'];
@@ -62,27 +63,30 @@ export function FullProposalPreview({
           </span>
         </h2>
         <ol className="divide-y rounded-xl border bg-card">
-          {divisions.map(({ group: { category, sex }, number, lineups, clashes, together }) => {
-            const name = divisionName({ category, sex, number });
-            return (
-              <li key={name} className="px-4 py-2.5">
-                <span className="flex flex-wrap items-baseline justify-between gap-x-3">
-                  <span className="font-semibold">{name}</span>
-                  <span className="figure">{lineups.map(lineupText).join(' · ')}</span>
-                </span>
-                {together.length > 0 && (
-                  <span className="block text-sm">
-                    {t('proposal.together', { divisions: together.map(divisionName).join('; ') })}
+          {divisions.map(
+            ({ group: { category, sex }, number, lineups, clashes, split, together }) => {
+              const name = divisionName({ category, sex, number });
+              return (
+                <li key={name} className="px-4 py-2.5">
+                  <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                    <span className="font-semibold">{name}</span>
+                    <span className="figure">{lineups.map(lineupText).join(' · ')}</span>
                   </span>
-                )}
-                {clashes.length > 0 && (
-                  <span className="block text-sm text-muted-foreground">
-                    {t('proposal.clashes', { clubs: clashes.join(', ') })}
-                  </span>
-                )}
-              </li>
-            );
-          })}
+                  {together.length > 0 && (
+                    <span className="block text-sm">
+                      {t('proposal.together', { divisions: together.map(divisionName).join('; ') })}
+                    </span>
+                  )}
+                  <SplitClubs clubs={split} number={number} />
+                  {clashes.length > 0 && (
+                    <span className="block text-sm text-muted-foreground">
+                      {t('proposal.clashes', { clubs: clashes.join(', ') })}
+                    </span>
+                  )}
+                </li>
+              );
+            },
+          )}
           {divisions.length === 0 && (
             <li className="px-4 py-2.5 text-muted-foreground">{t('order.emptyGround')}</li>
           )}

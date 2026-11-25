@@ -66,6 +66,7 @@ export default {
     keepTogether: 'Chaque catégorie reste sur une place',
     allHint:
       'L’ordre évite qu’une société concoure en même temps sur plusieurs places, si toutes les divisions durent à peu près aussi longtemps.',
+    split: 'Sociétés partagées: {{clubs}}',
     clashes: 'En même temps sur une autre place: {{clubs}}',
     size: 'Taille des groupes',
     maxSize: 'Maximum',

@@ -50,6 +50,38 @@ export function equalCounts(divisionCount: number, lineupCount: number) {
   return Array.from({ length: divisionCount }, () => lineupCount);
 }
 
+export type SplitClub = {
+  clubName: string;
+  lineups: { number: number; apparatus: string; length: number }[];
+};
+
+/** By the number of each division of a category: the clubs in it that are in several lineups. */
+export function findSplitClubs(
+  divisions: readonly {
+    number: number;
+    apparatus: readonly string[];
+    lineups: readonly (readonly ProposalEntry[])[];
+  }[],
+) {
+  const clubs = new Map<string, SplitClub>();
+  for (const { number, apparatus, lineups } of divisions) {
+    for (const [index, lineup] of lineups.entries()) {
+      for (const [clubId, members] of Map.groupBy(lineup, ({ clubId }) => clubId)) {
+        const club = clubs.get(clubId) ?? { clubName: members[0].clubName, lineups: [] };
+        clubs.set(clubId, club);
+        club.lineups.push({ number, apparatus: apparatus[index], length: members.length });
+      }
+    }
+  }
+  const split = [...clubs.values()].filter(({ lineups }) => lineups.length > 1);
+  return new Map(
+    divisions.map(({ number }) => [
+      number,
+      split.filter(({ lineups }) => lineups.some((lineup) => lineup.number === number)),
+    ]),
+  );
+}
+
 export function toEntryIds(
   lineups: readonly (readonly ProposalEntry[])[],
   apparatus: readonly string[],

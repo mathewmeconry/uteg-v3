@@ -64,6 +64,7 @@ export default {
     keepTogether: 'Jede Kategorie bleibt auf einem Platz',
     allHint:
       'Die Reihenfolge vermeidet, dass ein Verein gleichzeitig auf mehreren Plätzen turnt, wenn alle Abteilungen etwa gleich lange dauern.',
+    split: 'Aufgeteilt: {{clubs}}',
     clashes: 'Gleichzeitig auf einem anderen Platz: {{clubs}}',
     size: 'Riegengrösse',
     maxSize: 'Höchstens',

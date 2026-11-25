@@ -11,6 +11,7 @@ import {
   DEFAULT_MAX_SIZE,
   DEFAULT_SIZE,
   equalCounts,
+  findSplitClubs,
   groupEntries,
   MAX_DIVISIONS,
   parseNumber,
@@ -20,6 +21,7 @@ import {
   type ProposalEntry,
   type ProposalGroup,
 } from '~/components/divisions/proposal';
+import { SplitClubs } from '~/components/divisions/SplitClubs';
 import { EmptyState } from '~/components/EmptyState';
 import { FormActions } from '~/components/FormActions';
 import { FormField } from '~/components/FormField';
@@ -242,6 +244,7 @@ function CategoryProposal({
   entries,
   categories,
   apparatus: allApparatus,
+  numbers,
   sexes,
   size,
   maxSize,
@@ -286,6 +289,12 @@ function CategoryProposal({
   );
   const isValid = sizes.size !== null && sizes.maxSize !== null && countNumber !== null;
   const shown = isValid ? divisions : null;
+  const firstNumber = (numbers[`${category} ${sex}`] ?? 0) + 1;
+  const splitClubs =
+    shown &&
+    findSplitClubs(
+      shown.map((lineups, index) => ({ number: firstNumber + index, apparatus, lineups })),
+    );
 
   function reset() {
     setCount(null);
@@ -382,9 +391,9 @@ function CategoryProposal({
     >
       {shown ? (
         shown.map((lineups, index) => (
-          <section key={index} aria-label={t('proposal.division', { number: index + 1 })}>
+          <section key={index} aria-label={t('proposal.division', { number: firstNumber + index })}>
             <h2 className="mb-2 flex items-baseline justify-between gap-3 text-lg font-semibold">
-              {t('proposal.division', { number: index + 1 })}
+              {t('proposal.division', { number: firstNumber + index })}
               <span className="text-sm font-normal text-muted-foreground">
                 {t('common:starterCount', { count: lineups.flat().length })}
               </span>
@@ -404,6 +413,12 @@ function CategoryProposal({
                 </li>
               ))}
             </ul>
+            <div className="mt-2">
+              <SplitClubs
+                clubs={splitClubs?.get(firstNumber + index) ?? []}
+                number={firstNumber + index}
+              />
+            </div>
           </section>
         ))
       ) : (

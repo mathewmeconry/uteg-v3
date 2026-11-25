@@ -146,6 +146,13 @@ it('proposes all categories by ground and continues the numbers', async () => {
   expect(screen.getByRole('button', { name: 'Abteilung erstellen' })).toBeDisabled();
 });
 
+it('says which clubs are split', async () => {
+  await renderPage(13);
+  expect(screen.getByText('Aufgeteilt: TV 0 (Reck 7, Boden 6)')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('radio', { name: 'Alle Kategorien' }));
+  expect(screen.getByText('Aufgeteilt: TV 0 (Reck 7, Boden 6)')).toBeInTheDocument();
+});
+
 it('says when everybody has a division', async () => {
   await renderPage();
   expect(screen.getByText('Alle haben eine Abteilung')).toBeInTheDocument();

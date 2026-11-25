@@ -3,6 +3,7 @@ import { planGrounds } from '~/lib/domain/groundPlan';
 import type { Sex } from '~/modules/types';
 import {
   equalCounts,
+  findSplitClubs,
   groupEntries,
   toEntryIds,
   usedApparatus,
@@ -58,13 +59,24 @@ export function createFullProposal(
 
   const clubNames = new Map(entries.map(({ clubId, clubName }) => [clubId, clubName]));
   const lastNumbers = { ...numbers };
-  return plan.flatMap(({ group: index, division, ground, clashes }) => {
-    const parts = groups[index][division].map((part) => {
+  const numbered = plan.map(({ group, division, ...place }) => {
+    const parts = groups[group][division].map((part) => {
       const key = `${part.category} ${part.sex}`;
       lastNumbers[key] = (lastNumbers[key] ?? 0) + 1;
-      return { ...part, number: lastNumbers[key] };
+      return { ...part, key, number: lastNumbers[key] };
     });
-    return parts.map(({ category, sex, apparatus, lineups, number }) => {
+    return { ...place, parts };
+  });
+  const byCategory = Map.groupBy(
+    numbered.flatMap(({ parts }) => parts),
+    ({ key }) => key,
+  );
+  const splitClubs = new Map(
+    [...byCategory].map(([key, divisions]) => [key, findSplitClubs(divisions)]),
+  );
+
+  return numbered.flatMap(({ ground, clashes, parts }) =>
+    parts.map(({ category, sex, apparatus, lineups, key, number }) => {
       const clubs = new Set(lineups.flat().map(({ clubId }) => clubId));
       const group: ProposalGroup = {
         category,
@@ -77,12 +89,13 @@ export function createFullProposal(
         number,
         lineups: lineups.map(({ length }, index) => ({ apparatus: apparatus[index], length })),
         clashes: clashes.filter((club) => clubs.has(club)).map((club) => clubNames.get(club) ?? ''),
+        split: splitClubs.get(key)?.get(number) ?? [],
         together: parts
           .filter((other) => other.category !== category)
           .map(({ category, sex, number }) => ({ category, sex, number })),
       };
-    });
-  });
+    }),
+  );
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
