@@ -83,6 +83,19 @@ export function Layout({ children }: { children: ReactNode }) {
         <meta name="theme-color" content="#22272e" />
         <Meta />
         <Links />
+        {/* Addresses are sent without "?" and "#": they hold reset tokens and the keys of judges and
+            displays. */}
+        {import.meta.env.PROD && (
+          <script
+            async
+            src="https://analytics.blockbite.ch/script.js"
+            data-website-id="7775815a-6602-4d53-8dcd-8c13d37a2ef3"
+            data-domains="uteg.ch"
+            data-exclude-search="true"
+            data-exclude-hash="true"
+            data-errors="true"
+          />
+        )}
       </head>
       <body>
         <a

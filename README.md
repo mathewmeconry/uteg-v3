@@ -78,3 +78,6 @@ The app rejects bodies over 1 MB, or 20 MB where files are uploaded, and bodies 
 
 The links of judges and displays contain their key after `#`, which browsers never send. So it is
 in no access log, neither of the app nor of the proxy.
+
+Page views and errors in the browser are sent to Umami at analytics.blockbite.ch, only from uteg.ch
+and without query and hash of the address.
