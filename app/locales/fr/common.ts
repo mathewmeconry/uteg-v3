@@ -199,6 +199,7 @@ export default {
     INVALID_INPUT: 'Saisie non valable.',
     LAST_OWNER: 'Le concours a besoin d’au moins un·e propriétaire.',
     NOT_FOUND: 'Introuvable.',
+    PROPOSAL_OUTDATED: 'Les gymnastes ont changé entre-temps. Vérifie la nouvelle proposition.',
     RESTART_NOT_CONFIRMED: 'Le redémarrage doit être confirmé.',
     ROUND_NOT_CURRENT: 'Cette rotation n’est plus la rotation actuelle.',
     STARTER_REMOVED:

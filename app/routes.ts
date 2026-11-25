@@ -39,6 +39,7 @@ export default [
         route('members', 'routes/secured/competition/members.tsx'),
         route('contests/:contestId', 'routes/secured/contest/layout.tsx', [
           route('divisions', 'routes/secured/contest/divisions.tsx'),
+          route('divisions/proposal', 'routes/secured/contest/divisionProposal.tsx'),
           route('divisions/:divisionId', 'routes/secured/contest/division.tsx', [
             index('routes/secured/contest/divisionIndex.ts'),
             route('lineups', 'routes/secured/contest/lineups.tsx'),

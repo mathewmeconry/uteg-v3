@@ -30,6 +30,7 @@ export type DomainErrorCode =
   | 'INVALID_INPUT'
   | 'LAST_OWNER'
   | 'NOT_FOUND'
+  | 'PROPOSAL_OUTDATED'
   | 'RESTART_NOT_CONFIRMED'
   | 'ROUND_NOT_CURRENT'
   | 'STARTER_REMOVED'

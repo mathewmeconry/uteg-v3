@@ -457,12 +457,24 @@ export function CreateDialog({
   );
 }
 
-function GroundField({ grounds, defaultValue }: { grounds: number; defaultValue: number }) {
+export function GroundField({
+  grounds,
+  defaultValue,
+  onChange,
+}: {
+  grounds: number;
+  defaultValue: number;
+  onChange?: (ground: number) => void;
+}) {
   const { t } = useTranslation();
   return (
     <FormField label={t('fields.ground')}>
       {(props) => (
-        <Select name="ground" defaultValue={String(defaultValue)}>
+        <Select
+          name="ground"
+          defaultValue={String(defaultValue)}
+          onValueChange={(value) => onChange?.(Number(value))}
+        >
           <SelectTrigger {...props} className="w-full">
             <SelectValue />
           </SelectTrigger>

@@ -198,6 +198,8 @@ export default {
     INVALID_INPUT: 'Ungültige Eingabe.',
     LAST_OWNER: 'Der Wettkampf braucht mindestens einen Inhaber.',
     NOT_FOUND: 'Nicht gefunden.',
+    PROPOSAL_OUTDATED:
+      'Die Teilnehmenden haben sich inzwischen geändert. Prüfe den neuen Vorschlag.',
     RESTART_NOT_CONFIRMED: 'Der Neustart muss bestätigt werden.',
     ROUND_NOT_CURRENT: 'Dieser Durchgang ist nicht mehr aktuell.',
     STARTER_REMOVED:
