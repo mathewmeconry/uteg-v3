@@ -17,9 +17,10 @@ import {
   type ReviewRow,
 } from './importReview';
 import { NativeSelect } from './NativeSelect';
+import { fullName } from './starterRow';
 
 const GRID =
-  '@5xl:grid-cols-[2.5rem_6.5rem_minmax(0,1fr)_2.75rem_minmax(0,1fr)_5rem_9rem_6rem_5rem_2.75rem]';
+  '@5xl:grid-cols-[6.5rem_minmax(0,1fr)_2.75rem_minmax(0,1fr)_5rem_9rem_6rem_5rem_2.75rem]';
 
 /** Edits the rows before the import. One line per row, or cards when there is no room. */
 export function ImportReview({
@@ -35,23 +36,25 @@ export function ImportReview({
   const sexes = useSexes();
   const listRef = useRef<HTMLDivElement>(null);
   const isSexMissing = rows.some(({ sex }) => !sex);
-  const removedIndex = useRef<number>(null);
+  const removedKey = useRef<number>(null);
 
   const remove = useCallback(
-    (key: number, index: number) => {
-      removedIndex.current = index;
+    (key: number) => {
+      removedKey.current = key;
       dispatch({ type: 'remove', key });
     },
     [dispatch],
   );
 
   useEffect(() => {
-    if (removedIndex.current === null) return;
+    const removed = removedKey.current;
+    if (removed === null) return;
     // The button that was pressed is gone, the one of the next row takes its place.
     const buttons = [...(listRef.current?.querySelectorAll<HTMLElement>('[data-remove]') ?? [])];
-    const next = buttons[removedIndex.current] ?? buttons.at(-1) ?? listRef.current;
+    // Without a next row the index is -1, the last button.
+    const next = buttons.at(rows.findIndex(({ key }) => key > removed)) ?? listRef.current;
     next?.focus();
-    removedIndex.current = null;
+    removedKey.current = null;
   }, [rows]);
 
   return (
@@ -84,12 +87,12 @@ export function ImportReview({
                 ))}
               </NativeSelect>
             )}
+            <p className="ml-auto font-semibold">{t('import.total', { count: rows.length })}</p>
           </div>
           <div
             aria-hidden
             className={`hidden items-end gap-2 px-2 text-xs font-semibold text-muted-foreground @5xl:grid ${GRID}`}
           >
-            <span />
             <span>{t('common:fields.stvId')}</span>
             <span>{t('common:fields.firstname')}</span>
             <span />
@@ -100,11 +103,10 @@ export function ImportReview({
             <span>{t('division')}</span>
           </div>
           <ul className="grid gap-3 @5xl:gap-0 @5xl:divide-y @5xl:overflow-hidden @5xl:rounded-xl @5xl:border @5xl:bg-card">
-            {rows.map((row, index) => (
+            {rows.map((row) => (
               <Row
                 key={row.key}
                 row={row}
-                index={index}
                 options={options}
                 dispatch={dispatch}
                 onRemove={remove}
@@ -119,19 +121,18 @@ export function ImportReview({
 
 const Row = memo(function Row({
   row,
-  index,
   options,
   dispatch,
   onRemove,
 }: {
   row: ReviewRow;
-  index: number;
   options: ContestOptions;
   dispatch: Dispatch<ReviewAction>;
-  onRemove: (key: number, index: number) => void;
+  onRemove: (key: number) => void;
 }) {
   const { t } = useTranslation(['starters', 'common']);
-  const number = index + 1;
+  // Only tells the labels apart. A position would render all rows below a removed one again.
+  const number = row.key + 1;
   const invalid = invalidFields(row, options);
   const isUnknown = isDivisionUnknown(row, options);
   const categories = row.sex ? options.categories[row.sex] : [];
@@ -161,11 +162,8 @@ const Row = memo(function Row({
           'border-destructive/40 bg-[color-mix(in_oklab,var(--destructive)_6%,var(--card))] @5xl:bg-[color-mix(in_oklab,var(--destructive)_6%,var(--card))]',
       )}
     >
-      <span className="col-span-full flex min-h-8 items-center font-semibold text-muted-foreground @5xl:col-span-1 @5xl:min-h-10 @5xl:justify-end @5xl:text-sm @5xl:font-normal">
-        <span className="@5xl:hidden">{t('import.row', { row: number })}</span>
-        <span aria-hidden className="hidden @5xl:inline">
-          {number}
-        </span>
+      <span className="col-span-full flex min-h-8 items-center pr-22 font-semibold text-muted-foreground @5xl:hidden">
+        <span className="truncate">{fullName(row)}</span>
       </span>
       <Cell label={t('common:fields.stvId')}>
         <Input {...control('stvId', t('common:fields.stvId'))} maxLength={50} />
@@ -236,7 +234,7 @@ const Row = memo(function Row({
         data-remove
         className="absolute top-1.5 right-1.5 @5xl:static"
         aria-label={t('import.removeRow', { row: number })}
-        onClick={() => onRemove(row.key, index)}
+        onClick={() => onRemove(row.key)}
       >
         <Trash2Icon aria-hidden />
       </Button>

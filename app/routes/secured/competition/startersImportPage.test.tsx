@@ -167,7 +167,7 @@ it('imports corrected rows that lead to another question', async () => {
   await user.click(screen.getByRole('button', { name: 'Importieren' }));
   await user.click(await screen.findByRole('button', { name: 'Fehlgeschlagene korrigieren' }));
   expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-  expect(screen.getByLabelText('Vorname, Zeile 1')).toHaveValue('Bea');
+  expect(screen.getByLabelText('Vorname, Zeile 2')).toHaveValue('Bea');
 
   await user.click(screen.getByRole('button', { name: '1 Person importieren' }));
   const dialog = within(await screen.findByRole('alertdialog'));

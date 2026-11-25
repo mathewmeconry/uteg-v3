@@ -552,10 +552,11 @@ describe('ImportReview', () => {
     expect(screen.getByLabelText('Vorname, Zeile 1')).toBeInvalid();
 
     await user.click(screen.getByRole('button', { name: 'Zeile 1 entfernen' }));
-    expect(screen.getByLabelText('Vorname, Zeile 1')).toHaveValue('Lea');
-    expect(screen.queryByLabelText('Vorname, Zeile 2')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Vorname, Zeile 2')).toHaveValue('Lea');
+    expect(screen.queryByLabelText('Vorname, Zeile 1')).not.toBeInTheDocument();
+    expect(screen.getByText('1 Person wird importiert')).toBeInTheDocument();
     // The focus moves to the row that took its place, and to the empty list at the end.
-    const remove = screen.getByRole('button', { name: 'Zeile 1 entfernen' });
+    const remove = screen.getByRole('button', { name: 'Zeile 2 entfernen' });
     expect(remove).toHaveFocus();
     await user.click(remove);
     expect(screen.getByText('Keine Zeilen mehr übrig.')).toBeInTheDocument();
