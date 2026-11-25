@@ -97,5 +97,5 @@ export async function action({ request, context }: Route.ActionArgs) {
 - When an idea is dropped, remove it completely (code, UI text, docs).
 - Edit files with the edit tools, not with sed or scripts. `app/components/ui` may be updated with
   the shadcn CLI.
-- Before finishing, run: `pnpm format:check`, `pnpm typecheck`, `pnpm lint`, `pnpm test:ci`,
-  `pnpm knip`.
+- Before finishing, run: `pnpm format:check`, `pnpm typecheck`, `pnpm lint`, `pnpm knip`.
+- Don't run tests locally, CI runs them on the pull request.

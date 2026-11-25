@@ -24,19 +24,29 @@ const person = (id: string, name: string, patch: object = {}) => ({
   clubName: 'TV Chur',
   category: 'K5',
   division: null,
-  apparatus: null,
   ...patch,
 });
 const INDEX: SearchIndex = {
   starters: [
-    person('a', 'Zoé Ammann', { division: DIVISION, apparatus: 'boden' }),
+    person('a', 'Zoé Ammann', { division: DIVISION }),
     person('b', 'Bea Ammann'),
     person('c', 'Cleo Frei'),
   ],
+  clubs: [{ id: 'chur', name: 'TV Chur', location: 'Chur' }],
   divisions: [DIVISION, { ...DIVISION, id: 'd2', number: 2, state: 'PENDING' }],
 };
 
-function setup(canEdit = true) {
+const RANKING = {
+  to: '/competitions/c/contests/k/ranking',
+  label: 'Rangliste',
+  icon: LayersIcon,
+};
+
+function setup(canEdit = true, contests = [{ id: 'k', name: 'EGT' }]) {
+  const pages = [
+    { to: '/pages', label: 'Tablets', icon: LayersIcon },
+    ...(contests.length > 1 ? [RANKING] : []),
+  ];
   function Place() {
     const { pathname, search } = useLocation();
     return <p data-testid="place">{pathname + search}</p>;
@@ -45,11 +55,11 @@ function setup(canEdit = true) {
     {
       id: 'routes/secured/competition/layout',
       path: '/',
-      loader: () => ({ competition: { id: 'c' }, contests: [{ id: 'k', name: 'EGT' }], canEdit }),
+      loader: () => ({ competition: { id: 'c' }, contests, canEdit }),
       HydrateFallback: () => null,
       Component: () => (
         <I18nextProvider i18n={createI18n('de')}>
-          <CompetitionSearch pages={[{ to: '/pages', label: 'Tablets', icon: LayersIcon }]} />
+          <CompetitionSearch pages={pages} />
           <Outlet />
         </I18nextProvider>
       ),
@@ -86,8 +96,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function open(canEdit?: boolean) {
-  const user = setup(canEdit);
+async function open(...options: Parameters<typeof setup>) {
+  const user = setup(...options);
   await screen.findByTestId('place');
   await user.keyboard('{Control>}k{/Control}');
   // Without a search what runs, and the pages.
@@ -95,13 +105,30 @@ async function open(canEdit?: boolean) {
   return user;
 }
 
-it('finds people without their accents and says where they are', async () => {
+it('finds people without their accents', async () => {
   const user = await open();
   expect(options()).toHaveLength(2);
   await user.keyboard('zoe amm');
-  expect(options()).toEqual(['Zoé AmmannTV Chur, K5 Weiblich, Abteilung 1Jetzt: Boden']);
+  expect(options()).toEqual(['Zoé AmmannTV Chur, K5 Weiblich, Abteilung 1']);
   await user.keyboard('{Enter}');
-  expect(place()).toBe('/competitions/c/contests/k/divisions/d1/grading');
+  expect(place()).toBe('/competitions/c/starters?edit=a');
+});
+
+it('finds people only by their name', async () => {
+  const user = await open();
+  await user.keyboard('k5');
+  expect(options()).toEqual([
+    'K5 Weiblich, Abteilung 1Wettkampfplatz 1, Läuft',
+    'K5 Weiblich, Abteilung 2Wettkampfplatz 1, Geplant',
+  ]);
+});
+
+it('opens the starters of a club', async () => {
+  const user = await open();
+  await user.keyboard('tv chur');
+  expect(options()).toEqual(['TV ChurChur']);
+  await user.keyboard('{Enter}');
+  expect(place()).toBe('/competitions/c/starters?club=chur');
 });
 
 it('opens the first result with Enter, also after going through others', async () => {
@@ -116,7 +143,19 @@ it('opens the first result with Enter, also after going through others', async (
 it('does not send viewers to a form', async () => {
   const user = await open(false);
   await user.keyboard('bea{Enter}');
-  expect(place()).toMatch(/^\/competitions\/c\/starters\??$/);
+  expect(place()).toBe('/competitions/c/starters?starter=b');
+});
+
+it('says which contest a page belongs to, when there are several', async () => {
+  const user = await open(true, [
+    { id: 'k', name: 'EGT' },
+    { id: 'k2', name: 'Final' },
+  ]);
+  await user.keyboard('rangliste');
+  expect(options()).toEqual(['Rangliste, EGT']);
+  await user.clear(screen.getByRole('combobox'));
+  await user.keyboard('tabl');
+  expect(options()).toEqual(['Tablets']);
 });
 
 it('keeps the page when it cannot load, and gives the focus back', async () => {

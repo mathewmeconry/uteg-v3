@@ -13,7 +13,7 @@ import { loader } from './search';
 
 beforeEach(truncateTables);
 
-it('finds people and divisions for viewers, and where they are now', async () => {
+it('finds people, clubs and divisions for viewers', async () => {
   const { id, contest } = await createCompetition();
   const viewer = await createUser();
   await addMember(id, viewer.id, 'VIEWER');
@@ -27,26 +27,27 @@ it('finds people and divisions for viewers, and where they are now', async () =>
   await createStarter(id, { lastname: 'B', divisionId: planned.id, startApparatus: 'reck' });
   await createStarter(id, { lastname: 'C' });
   await createStarter((await createCompetition()).id, { lastname: 'D' });
-  const load = async () =>
-    (await callRoute(loader, { layout: 'api', userId: viewer.id, competitionId: id })).data;
 
-  const { starters, divisions } = await load();
+  const { data } = await callRoute(loader, {
+    layout: 'api',
+    userId: viewer.id,
+    competitionId: id,
+  });
+  const { starters, clubs, divisions } = data;
   expect(starters).toMatchObject([
-    { division: { id: running.id, state: 'RUNNING' }, apparatus: 'reck' },
-    { division: { id: planned.id }, apparatus: null },
-    { division: null, apparatus: null },
+    { division: { id: running.id, state: 'RUNNING' } },
+    { division: { id: planned.id } },
+    { division: null },
   ]);
+  const ownClubs = await prisma.club.findMany({
+    where: { starters: { some: { competitionId: id } } },
+    orderBy: [{ name: 'asc' }, { location: 'asc' }],
+  });
+  expect(clubs).toEqual(ownClubs);
   expect(divisions.map((division: { id: string }) => division.id)).toEqual([
     running.id,
     planned.id,
   ]);
-
-  // Everybody has moved on by one.
-  await prisma.divisionApparatus.updateMany({
-    where: { divisionId: running.id },
-    data: { completedRounds: 1 },
-  });
-  expect((await load()).starters[0].apparatus).toBe('boden');
 });
 
 it('is hidden from strangers', async () => {
