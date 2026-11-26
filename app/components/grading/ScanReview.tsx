@@ -1,5 +1,5 @@
 import { CheckIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fullName } from '~/components/judging/types';
 import { Badge } from '~/components/ui/badge';
@@ -30,8 +30,18 @@ type RowState = { fields: GradeFields; status: Status; error: string | null };
 export function ScanReview({ result: { sheet, readings, images, scanned } }: { result: Scanned }) {
   const { t } = useTranslation(['judging', 'common']);
   const { competition } = useCompetition();
-  const urls = useMemo(() => images.map((image) => image && URL.createObjectURL(image)), [images]);
-  useEffect(() => () => urls.forEach((url) => url && URL.revokeObjectURL(url)), [urls]);
+  // Not revoked: a few KB a row, freed when the page is left. Revoking on unmount broke them when
+  // React mounts twice in development.
+  const [urls] = useState(() => images.map((image) => image && URL.createObjectURL(image)));
+  const [isSaving, setIsSaving] = useState(false);
+  // A rescan of the sheet replaces this card: what is still to save then stays undone.
+  const isMounted = useRef(true);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const [rows, setRows] = useState<RowState[]>(() =>
     sheet.rows.map(({ inputRule, grade }, index) => {
@@ -53,15 +63,18 @@ export function ScanReview({ result: { sheet, readings, images, scanned } }: { r
       };
     }),
   );
-  const isBusy = rows.some(({ status }) => status === 'saving');
-
   function update(index: number, patch: Partial<RowState>) {
     setRows((current) => current.with(index, { ...current[index], ...patch }));
   }
 
-  /** Saves every open row with a grade, like typed on the grading page. */
+  /**
+   * Saves every open row with a grade, like typed on the grading page. The rows cannot change
+   * meanwhile, so what is saved is what is shown.
+   */
   async function acceptAll() {
+    setIsSaving(true);
     for (const [index, row] of sheet.rows.entries()) {
+      if (!isMounted.current) return;
       const { fields, status } = rows[index];
       const { grade } = evaluateFields(fields, row.inputRule);
       if (status !== 'open' || row.withdrawn || !grade) continue;
@@ -86,6 +99,7 @@ export function ScanReview({ result: { sheet, readings, images, scanned } }: { r
             },
       );
     }
+    setIsSaving(false);
   }
 
   async function discard(index: number) {
@@ -93,9 +107,16 @@ export function ScanReview({ result: { sheet, readings, images, scanned } }: { r
     update(index, { status: 'discarded', error: null });
     if (!id) return;
     const body = new URLSearchParams({ intent: 'discard', id });
-    await fetch(`/api/competitions/${competition.id}/scans`, { method: 'POST', body }).catch(() =>
-      update(index, { status: 'open', error: t('scan.offline') }),
-    );
+    const response = await fetch(`/api/competitions/${competition.id}/scans`, {
+      method: 'POST',
+      body,
+    }).catch(() => null);
+    const answer = (await response?.json().catch(() => null)) as { error?: string } | null;
+    if (response?.ok && answer && !answer.error) return;
+    update(index, {
+      status: 'open',
+      error: answer?.error ?? t(response ? 'scan.refused' : 'scan.offline'),
+    });
   }
 
   const open = rows.filter(
@@ -160,14 +181,14 @@ export function ScanReview({ result: { sheet, readings, images, scanned } }: { r
                     rule={row.inputRule}
                     name={name}
                     compact
-                    disabled={status === 'saving'}
+                    disabled={isSaving}
                     onChange={(changed) => update(index, { fields: changed, error: null })}
                     onSubmit={() => {}}
                   />
                   <Button
                     size="icon"
                     variant="ghost"
-                    disabled={status === 'saving'}
+                    disabled={isSaving}
                     aria-label={t('grading.discardScanFor', { name })}
                     onClick={() => void discard(index)}
                   >
@@ -175,13 +196,17 @@ export function ScanReview({ result: { sheet, readings, images, scanned } }: { r
                   </Button>
                 </div>
               )}
-              {error && <p className="w-full text-sm text-destructive sm:col-span-3">{error}</p>}
+              {error && (
+                <p role="alert" className="w-full text-sm text-destructive sm:col-span-3">
+                  {error}
+                </p>
+              )}
             </li>
           );
         })}
       </ol>
       {open > 0 && (
-        <Button disabled={isBusy} onClick={() => void acceptAll()}>
+        <Button disabled={isSaving} onClick={() => void acceptAll()}>
           <CheckIcon aria-hidden />
           {t('scan.acceptAll', { count: open })}
         </Button>

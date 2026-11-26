@@ -2,6 +2,7 @@ import { CameraIcon, XIcon } from 'lucide-react';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
+import { Dialog, DialogContent, DialogTitle } from '~/components/ui/dialog';
 import type { Point } from '~/lib/judgingSheet';
 import { locatePage } from '~/lib/scan/scanPhoto.client';
 import { cn } from '~/lib/utils';
@@ -44,6 +45,8 @@ export function PageScanner({
 }) {
   const { t } = useTranslation('judging');
   const video = useRef<HTMLVideoElement>(null);
+  // Opened without a trigger of the dialog, so it does not know where the focus goes back to.
+  const [opener] = useState(() => document.activeElement as HTMLElement | null);
   const [status, setStatus] = useState<Status>('starting');
   const [corners, setCorners] = useState<Point[] | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -66,6 +69,7 @@ export function PageScanner({
     let previous: Point[] | null = null;
     let taken: Point[] | null = null;
     let steady = 0;
+    const context = new OffscreenCanvas(1, 1).getContext('2d', { willReadFrequently: true })!;
 
     async function look() {
       const element = video.current;
@@ -76,10 +80,8 @@ export function PageScanner({
         return;
       }
       const scale = Math.min(1, FRAME_SIDE / Math.max(width, height));
-      const context = new OffscreenCanvas(
-        Math.round(width * scale),
-        Math.round(height * scale),
-      ).getContext('2d', { willReadFrequently: true })!;
+      context.canvas.width = Math.round(width * scale);
+      context.canvas.height = Math.round(height * scale);
       context.drawImage(element, 0, 0, context.canvas.width, context.canvas.height);
       const found = await locatePage(
         context.getImageData(0, 0, context.canvas.width, context.canvas.height),
@@ -113,7 +115,11 @@ export function PageScanner({
       })
       .then(async (started) => {
         stream = started;
-        if (stopped || !video.current) return;
+        // Closed while the camera started, e.g. during the question for access.
+        if (stopped || !video.current) {
+          for (const track of started.getTracks()) track.stop();
+          return;
+        }
         video.current.srcObject = started;
         await video.current.play();
         setStatus('searching');
@@ -129,59 +135,73 @@ export function PageScanner({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black text-white">
-      <div className="relative min-h-0 flex-1">
-        <video ref={video} muted playsInline className="size-full object-contain" />
-        {corners && (
-          <svg
-            aria-hidden
-            viewBox={`0 0 ${size.width} ${size.height}`}
-            preserveAspectRatio="xMidYMid meet"
-            className="pointer-events-none absolute inset-0 size-full"
-          >
-            <polygon
-              points={corners.map(({ x, y }) => `${x},${y}`).join(' ')}
-              vectorEffect="non-scaling-stroke"
-              className={cn(
-                'fill-none stroke-4',
-                status === 'taken' ? 'stroke-success' : 'stroke-warning',
-              )}
-            />
-          </svg>
-        )}
-        {/* On the picture, where the eyes are while scanning. */}
-        <div
-          role="status"
-          className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-4 pt-[max(1rem,env(safe-area-inset-top))] text-center"
-        >
-          <p className="rounded-full bg-black/70 px-4 py-2 text-base font-semibold">
-            {t(`scanner.${status}`)}
-          </p>
-          {notice && (
-            <p className={cn('rounded-full px-4 py-2 text-base font-semibold', TONES[notice.tone])}>
-              {notice.text}
-            </p>
+    // A dialog: Escape closes it, focus stays in it and goes back afterwards.
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        aria-describedby={undefined}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          opener?.focus();
+        }}
+        className="inset-0 top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 bg-black p-0 text-white sm:max-w-none"
+      >
+        <DialogTitle className="sr-only">{t('scan.title')}</DialogTitle>
+        <div className="relative min-h-0 flex-1">
+          <video ref={video} muted playsInline className="size-full object-contain" />
+          {corners && (
+            <svg
+              aria-hidden
+              viewBox={`0 0 ${size.width} ${size.height}`}
+              preserveAspectRatio="xMidYMid meet"
+              className="pointer-events-none absolute inset-0 size-full"
+            >
+              <polygon
+                points={corners.map(({ x, y }) => `${x},${y}`).join(' ')}
+                vectorEffect="non-scaling-stroke"
+                className={cn(
+                  'fill-none stroke-4',
+                  status === 'taken' ? 'stroke-success' : 'stroke-warning',
+                )}
+              />
+            </svg>
           )}
+          {/* On the picture, where the eyes are while scanning. */}
+          <div
+            role="status"
+            className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-4 pt-[max(1rem,env(safe-area-inset-top))] text-center"
+          >
+            <p className="rounded-full bg-black/70 px-4 py-2 text-base font-semibold">
+              {t(`scanner.${status}`)}
+            </p>
+            {notice && (
+              <p
+                className={cn('rounded-full px-4 py-2 text-base font-semibold', TONES[notice.tone])}
+              >
+                {notice.text}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-3 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <p className="min-w-0 flex-1 text-sm text-white/70">
-          {count > 0 && t('scanner.count', { count })}
-        </p>
-        <Button
-          size="icon"
-          variant="secondary"
-          disabled={status === 'starting' || status === 'noCamera'}
-          aria-label={t('scanner.take')}
-          className="size-14 rounded-full"
-          onClick={() => void take()}
-        >
-          <CameraIcon aria-hidden className="size-6" />
-        </Button>
-        <Button size="icon" variant="ghost" aria-label={t('scanner.close')} onClick={onClose}>
-          <XIcon aria-hidden />
-        </Button>
-      </div>
-    </div>
+        <div className="flex items-center gap-3 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <p className="min-w-0 flex-1 text-sm text-white/70">
+            {count > 0 && t('scanner.count', { count })}
+          </p>
+          <Button
+            size="icon"
+            variant="secondary"
+            disabled={status === 'starting' || status === 'noCamera'}
+            aria-label={t('scanner.take')}
+            className="size-14 rounded-full"
+            onClick={() => void take()}
+          >
+            <CameraIcon aria-hidden className="size-6" />
+          </Button>
+          <Button size="icon" variant="ghost" aria-label={t('scanner.close')} onClick={onClose}>
+            <XIcon aria-hidden />
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -63,6 +63,11 @@ describe('decodeGrade', () => {
     expect(decode([9, 5], 2)!.confidence).toBeLessThan(0.001);
   });
 
+  it('takes 10.0 without its point for 10, not for 1.00', () => {
+    expect(decode([1, 0, 0], null)?.value).toBe(10000);
+    expect(decode([1, 0, 0, 0], null, 3)?.value).toBe(10000);
+  });
+
   it('offers the next likely reading', () => {
     const grade = decodeGrade([probabilities(9), probabilities(3, 8), probabilities(5)], 1, 2);
     expect(grade?.value).toBe(9350);
@@ -81,6 +86,18 @@ describe('segment', () => {
     );
     expect(digits.map((digit) => digit[0].minX)).toEqual([20, 64, 100]);
     expect(point?.minX).toBe(52);
+  });
+
+  it('takes no speck after the digits for the point', () => {
+    const { digits, point } = segment(cell([...ring(20), ...ring(64), [100, 64, 5, 5]]));
+    expect(digits).toHaveLength(2);
+    expect(point).toBeNull();
+  });
+
+  it('removes a table line that is not quite straight', () => {
+    // 2 pixels thick, 3 lower at its right end, through both digits.
+    const line: Box[] = [0, 50, 100, 150].map((x, step) => [x, 55 + step, 50, 2]);
+    expect(segment(cell([...ring(20), ...ring(64), ...line])).digits).toHaveLength(2);
   });
 
   it('cuts digits written into each other', () => {

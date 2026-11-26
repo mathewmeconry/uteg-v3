@@ -12,25 +12,27 @@ export const CROP_SCALE = 4;
 export const BELOW_LINE = 8;
 
 /**
- * A photographed page of the judging sheets, or null when its corner squares are not found: its QR
- * code straightened, and its grade cells by row as in `gradeCells`. Cells without ink are not
- * `inked`.
+ * A photographed page of the judging sheets, or null when its corner squares are not found: where
+ * its corners are, its QR code straightened, and its grade cells by row as in `gradeCells`. Cells
+ * without ink are not `inked`. The camera only needs the corners, so the rest is cut out on demand.
  */
 export function findPage(image: Gray) {
   const toPhoto = locatePage(inkMask(image), image.width);
   if (!toPhoto) return null;
-  const qr = qrCodeRect();
-  const quiet = 8;
   return {
     /** Of the corner squares on the photo, clockwise from the top left of the page. */
     corners: cornerCentres().map((point) => project(toPhoto, point)),
-    // With white around it, which QR readers look for.
-    qrCode: crop(image, toPhoto, {
-      x: qr.x - quiet,
-      y: qr.y - quiet,
-      width: qr.width + 2 * quiet,
-      height: qr.height + 2 * quiet,
-    }),
+    qrCode() {
+      const qr = qrCodeRect();
+      // With white around it, which QR readers look for.
+      const quiet = 8;
+      return crop(image, toPhoto, {
+        x: qr.x - quiet,
+        y: qr.y - quiet,
+        width: qr.width + 2 * quiet,
+        height: qr.height + 2 * quiet,
+      });
+    },
     cells({ attempts, rowCount }: { attempts: number; rowCount: number }): ScannedCell[][] {
       return gradeCells(attempts, rowCount).map((row) =>
         row.map((rect) => {

@@ -196,6 +196,8 @@ export default {
     noCode: 'Der QR-Code ist nicht lesbar. Fotografiere das Blatt näher oder schärfer.',
     failed: 'Das Foto liess sich nicht lesen.',
     offline: 'Der Server hat nicht geantwortet. Prüfe die Verbindung und versuche es nochmals.',
+    refused:
+      'Der Server hat das Foto nicht angenommen. Lade die Seite neu und versuche es nochmals.',
     otherSheet: 'Dieses Notenblatt gehört nicht zu diesem Wettkampf.',
     dismiss: '{{name}} ausblenden',
     acceptAll_one: '{{count}} Note übernehmen',

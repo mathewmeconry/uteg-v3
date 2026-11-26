@@ -274,6 +274,8 @@ export async function confirmRound(
           where: { id: division.id },
           data: { state: 'ENDED', endedAt: new Date() },
         });
+        // Only the grading page of running divisions shows scans, nobody could check them.
+        await tx.scannedGrade.deleteMany({ where: { entry: { divisionId: division.id } } });
       }
     }
   });

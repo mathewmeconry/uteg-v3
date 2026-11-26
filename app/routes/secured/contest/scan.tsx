@@ -32,10 +32,17 @@ export default function Scan({ params: { contestId } }: Route.ComponentProps) {
   const [notice, setNotice] = useState<ScannerNotice | null>(null);
   /** The QR codes of the sheets read on this page. */
   const read = useRef(new Set<string>());
+  /** Photos, also from the scanner, are read one after the other, in the order they are taken. */
+  const queue = useRef(Promise.resolve());
+  const taken = useRef(0);
   const gradingUrl = `/competitions/${competition.id}/contests/${contestId}/grading`;
 
-  async function scan(files: File[]) {
-    // One after the other, as each takes the processor for a moment.
+  function scan(files: File[]) {
+    // A failed photo shows on its card, the next ones are still read.
+    queue.current = queue.current.then(() => readAll(files)).catch(() => {});
+  }
+
+  async function readAll(files: File[]) {
     for (const file of files) {
       const key = nextKey++;
       setPhotos((current) => [{ key, name: file.name, result: null }, ...current]);
@@ -79,7 +86,8 @@ export default function Scan({ params: { contestId } }: Route.ComponentProps) {
           {t('scanner.open')}
         </Button>
         <Button asChild variant="outline">
-          <label>
+          {/* The input inside has the focus, the label shows it. */}
+          <label className="has-[:focus-visible]:border-ring has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50">
             <ImagesIcon aria-hidden />
             {t('scan.choose')}
             <input
@@ -91,7 +99,7 @@ export default function Scan({ params: { contestId } }: Route.ComponentProps) {
                 const files = [...(event.target.files ?? [])];
                 // The same photos may be chosen again.
                 event.target.value = '';
-                void scan(files);
+                scan(files);
               }}
             />
           </label>
@@ -101,8 +109,8 @@ export default function Scan({ params: { contestId } }: Route.ComponentProps) {
         <PageScanner
           notice={notice}
           onPhoto={(photo) => {
-            const name = t('scanner.photo', { number: photos.length + 1 });
-            void scan([new File([photo], `${name}.jpg`, { type: photo.type })]);
+            const name = t('scanner.photo', { number: ++taken.current });
+            scan([new File([photo], `${name}.jpg`, { type: photo.type })]);
           }}
           onClose={() => {
             setIsScanning(false);
@@ -110,7 +118,7 @@ export default function Scan({ params: { contestId } }: Route.ComponentProps) {
           }}
         />
       )}
-      <ul className="mt-6 grid gap-4">
+      <ul aria-live="polite" className="mt-6 grid gap-4">
         {photos.map((photo) => (
           <li key={photo.key} className="flex items-start gap-2 rounded-xl border bg-card p-4">
             <div className="min-w-0 flex-1">

@@ -197,6 +197,7 @@ export default {
     noCode: 'The QR code cannot be read. Take the photo closer or sharper.',
     failed: 'The photo could not be read.',
     offline: 'The server did not answer. Check the connection and try again.',
+    refused: 'The server did not accept the photo. Reload the page and try again.',
     otherSheet: 'This judging sheet does not belong to this competition.',
     dismiss: 'Hide {{name}}',
     acceptAll_one: 'Accept {{count}} grade',

@@ -5,8 +5,9 @@ type SheetPage = { apparatus: string; round: number; divisionIds: string[]; offs
 /**
  * What the QR code on a page of the judging sheets holds, so a scan finds the rows written on it.
  * The divisions give the list again, the offset its first row on the page, and the hash tells
- * whether these rows changed after printing. Upper case with `/` and `.` only, the characters QR
- * codes store densest, as ULIDs already are: with many divisions the code stays readable.
+ * whether these rows or the columns of attempts changed after printing. Upper case with `/` and
+ * `.` only, the characters QR codes store densest, as ULIDs already are: with many divisions the
+ * code stays readable.
  */
 export function sheetCode({
   apparatus,
@@ -14,8 +15,10 @@ export function sheetCode({
   divisionIds,
   offset,
   entryIds,
-}: SheetPage & { entryIds: string[] }) {
-  return ['UTEG1', apparatus, round, offset, rowsHash(entryIds), divisionIds.toSorted().join('.')]
+  attempts,
+}: SheetPage & { entryIds: string[]; attempts: number }) {
+  const hash = pageHash(entryIds, attempts);
+  return ['UTEG1', apparatus, round, offset, hash, divisionIds.toSorted().join('.')]
     .join('/')
     .toUpperCase();
 }
@@ -36,6 +39,11 @@ export function parseSheetCode(code: string): (SheetPage & { hash: string }) | n
   };
 }
 
-export function rowsHash(entryIds: string[]) {
-  return createHash('sha256').update(entryIds.join(',')).digest('hex').slice(0, 8).toUpperCase();
+/** Of what has to be as printed: the rows, and how many columns of attempts the cells are in. */
+export function pageHash(entryIds: string[], attempts: number) {
+  return createHash('sha256')
+    .update(`${attempts}:${entryIds.join(',')}`)
+    .digest('hex')
+    .slice(0, 8)
+    .toUpperCase();
 }

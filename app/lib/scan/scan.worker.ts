@@ -30,7 +30,7 @@ type ScannedSheet = {
 };
 
 export type ScanResult =
-  | { kind: 'noPage' | 'noCode' | 'offline' }
+  | { kind: 'noPage' | 'noCode' | 'offline' | 'refused' }
   | { kind: 'error'; message: string }
   | {
       kind: 'done';
@@ -55,8 +55,15 @@ scope.onmessage = async ({
 >) => {
   const { id } = data;
   if ('frame' in data) {
-    // Where a sheet is in a frame of the camera, quick enough for several a second.
-    scope.postMessage({ id, corners: findPage(toGray(data.frame))?.corners ?? null });
+    // Where a sheet is in a frame of the camera, quick enough for several a second. Always an
+    // answer, the scanner waits for it before the next frame.
+    let corners = null;
+    try {
+      corners = findPage(toGray(data.frame))?.corners ?? null;
+    } catch {
+      // As without a sheet.
+    }
+    scope.postMessage({ id, corners });
     return;
   }
   try {
@@ -71,7 +78,7 @@ async function scanPhoto(competitionId: string, photo: Blob): Promise<ScanResult
   const image = await loadPhoto(photo);
   const page = findPage(image);
   if (!page) return { kind: 'noPage' };
-  const code = readQrCode(page.qrCode);
+  const code = readQrCode(page.qrCode());
   if (!code) return { kind: 'noCode' };
 
   const url = `/api/competitions/${competitionId}/scans`;
@@ -105,18 +112,23 @@ async function scanPhoto(competitionId: string, photo: Blob): Promise<ScanResult
   return { kind: 'done', code, sheet, readings, images, scanned: saved.scanned };
 }
 
-/** The answer of the server, its message when it refused, or offline without an answer. */
+/**
+ * The answer of the server, or its message when it refused. Without a connection offline, and
+ * refused without a message, e.g. a proxy's error page or no rights any more.
+ */
 async function send<Answer extends object>(
   url: string,
   init?: RequestInit,
-): Promise<Answer | { kind: 'error'; message: string } | { kind: 'offline' }> {
+): Promise<Answer | { kind: 'error'; message: string } | { kind: 'offline' | 'refused' }> {
+  let response;
   try {
-    const answer = (await (await fetch(url, init)).json()) as Answer | { error: string } | null;
-    if (answer && 'error' in answer) return { kind: 'error', message: answer.error };
-    return answer ?? { kind: 'offline' };
+    response = await fetch(url, init);
   } catch {
     return { kind: 'offline' };
   }
+  const answer = (await response.json().catch(() => null)) as Answer | { error: string } | null;
+  if (answer && 'error' in answer) return { kind: 'error', message: answer.error };
+  return response.ok && answer ? answer : { kind: 'refused' };
 }
 
 /** A photo as a grey image, turned the way the camera was held (browsers do that by default). */

@@ -14,8 +14,10 @@ const ALL_DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 /** How much taking two neighbouring pieces as one digit counts against a reading. */
 const MERGED = 0.5;
-/** Pixels from the edge of a cell where table lines are: 1.5pt at the 4 pixels per point of readSheet. */
+/** Pixels from the edge of a cell where table lines are: 1.5pt at the 4 pixels per point of findPage. */
 const EDGE = 6;
+/** Pixels a line may wander off straight over the width of a cell. */
+const LINE_BAND = 2;
 
 /** The grade written in a cell, or null when nothing readable is in it. */
 export function readGrade(model: DigitModel, cell: Gray, precision: number): ReadGrade | null {
@@ -82,7 +84,6 @@ export function segment(cell: Gray): { ink: Uint8Array; digits: Blob[][]; point:
     maxX - minX + 1 < 0.6 * tallest &&
     (minY + maxY) / 2 > top + 0.55 * (bottom - top);
   const isMark = (blob: Blob) => !isPoint(blob) && blob.maxY - blob.minY + 1 < 0.3 * tallest;
-  const points = found.filter(isPoint);
 
   // Strokes of one digit overlap horizontally, like the two of a 4.
   const groups: Blob[][] = [];
@@ -103,10 +104,21 @@ export function segment(cell: Gray): { ink: Uint8Array; digits: Blob[][]; point:
     const nearest = groups.toSorted((a, b) => distance(a) - distance(b))[0];
     if (nearest && distance(nearest) < 0.5 * tallest) nearest.push(mark);
   }
+  const digits = groups.flatMap((group) => splitTouching(group, ink, cell.width, bottom - top + 1));
+  // Between digits, the largest: a speck before or after them is no point.
+  const first = digits.at(0);
+  const last = digits.at(-1);
+  const points = found.filter(
+    (blob) =>
+      isPoint(blob) &&
+      first !== undefined &&
+      last !== undefined &&
+      centreX([blob]) > centreX(first) &&
+      centreX([blob]) < centreX(last),
+  );
   return {
     ink,
-    digits: groups.flatMap((group) => splitTouching(group, ink, cell.width, bottom - top + 1)),
-    // The largest, others are specks.
+    digits,
     point: points.toSorted((a, b) => b.pixels.length - a.pixels.length)[0] ?? null,
   };
 }
@@ -136,21 +148,21 @@ function splitTouching(group: Blob[], ink: ArrayLike<number>, width: number, hei
   for (const index of pixels) {
     parts[cuts.filter((cut) => index % width >= cut).length].push(index);
   }
-  return parts
-    .filter((part) => part.length > 0)
-    .map((part) => {
-      const xs = part.map((index) => index % width);
-      const ys = part.map((index) => Math.floor(index / width));
-      return [
-        {
-          minX: Math.min(...xs),
-          maxX: Math.max(...xs),
-          minY: Math.min(...ys),
-          maxY: Math.max(...ys),
-          pixels: part,
-        },
-      ];
-    });
+  return parts.filter((part) => part.length > 0).map((part) => [blobOf(part, width)]);
+}
+
+/** Its bounds with loops: spread into Math.min, many pixels exceed Safari's limit of arguments. */
+function blobOf(pixels: number[], width: number): Blob {
+  const blob: Blob = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, pixels };
+  for (const index of pixels) {
+    const x = index % width;
+    const y = (index - x) / width;
+    blob.minX = Math.min(blob.minX, x);
+    blob.maxX = Math.max(blob.maxX, x);
+    blob.minY = Math.min(blob.minY, y);
+    blob.maxY = Math.max(blob.maxY, y);
+  }
+  return blob;
 }
 
 /**
@@ -189,7 +201,8 @@ export function decodeGrade(
   const values = [
     ...new Set(
       readings
-        .toSorted((a, b) => b.score - a.score)
+        // A "10.0" without its point scores as "1.00", which is far less likely as a grade.
+        .toSorted((a, b) => b.score - a.score || b.whole - a.whole)
         .map(({ digits, whole }) => {
           const decimals = digits.slice(whole).join('').padEnd(3, '0');
           return Number(digits.slice(0, whole).join('')) * 1000 + Number(decimals);
@@ -206,14 +219,22 @@ export function decodeGrade(
  */
 function removeLines(ink: Uint8Array, width: number, height: number) {
   const at = (x: number, y: number) => ink[y * width + x];
+  // Ink within a few pixels counts, as a line on a photo is never exactly straight.
+  const near = (x: number, y: number, horizontal: boolean) => {
+    for (let offset = -LINE_BAND; offset <= LINE_BAND; offset++) {
+      const [nx, ny] = horizontal ? [x, y + offset] : [x + offset, y];
+      if (nx >= 0 && ny >= 0 && nx < width && ny < height && at(nx, ny)) return true;
+    }
+    return false;
+  };
   const rows = Array.from({ length: height }, (_, y) => {
     let count = 0;
-    for (let x = 0; x < width; x++) count += at(x, y);
+    for (let x = 0; x < width; x++) if (near(x, y, true)) count++;
     return count > 0.6 * width;
   });
   const columns = Array.from({ length: width }, (_, x) => {
     let count = 0;
-    for (let y = 0; y < height; y++) count += at(x, y);
+    for (let y = 0; y < height; y++) if (near(x, y, false)) count++;
     return count > 0.6 * height;
   });
   const cleared = new Uint8Array(ink.length);

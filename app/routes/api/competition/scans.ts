@@ -4,18 +4,28 @@ import type { Route } from './+types/scans';
 import { actionError } from '~/lib/domainErrors.server';
 import { DomainError } from '~/lib/errors';
 import { readForm } from '~/lib/forms.server';
-import { discardScannedGrade, getScannedSheet, saveScannedGrades } from '~/lib/scans.server';
+import { SHEET } from '~/lib/judgingSheet';
+import {
+  discardScannedGrade,
+  getScannedSheet,
+  MAX_IMAGE_BYTES,
+  saveScannedGrades,
+} from '~/lib/scans.server';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 
-const rowsSchema = z.array(
-  z.object({
-    row: z.number().int().min(0),
-    value: z.number().int().optional(),
-    attempts: z.array(z.number().int()).optional(),
-    confidence: z.number(),
-  }),
-);
+// At most a page, each row once: every row reads an image.
+const rowsSchema = z
+  .array(
+    z.object({
+      row: z.number().int().min(0),
+      value: z.number().int().optional(),
+      attempts: z.array(z.number().int()).max(4).optional(),
+      confidence: z.number(),
+    }),
+  )
+  .max(SHEET.rowsPerPage)
+  .refine((rows) => new Set(rows.map(({ row }) => row)).size === rows.length);
 
 /** `?code=`: the rows of a scanned page of the judging sheets, to read their cells. */
 export async function loader({ request, context }: Route.LoaderArgs) {
@@ -74,7 +84,10 @@ export async function action({ request, context }: Route.ActionArgs) {
     const rows = await Promise.all(
       parsed.data.map(async (row) => {
         const image = formData.get(`image-${row.row}`);
-        if (!(image instanceof File)) throw new DomainError('INVALID_INPUT');
+        // Before reading it.
+        if (!(image instanceof File) || image.size > MAX_IMAGE_BYTES) {
+          throw new DomainError('INVALID_INPUT');
+        }
         return { ...row, image: new Uint8Array(await image.arrayBuffer()) };
       }),
     );

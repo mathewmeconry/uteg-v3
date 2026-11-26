@@ -3,7 +3,7 @@
  *
  *   pnpm train:digits <folder with the four MNIST .gz files> [options]
  *
- *   --cells <folder>  cells cut out by readSheet as <name>.pgm, with labels.csv of "name,grade"
+ *   --cells <folder>  cells cut out by findPage as <name>.pgm, with labels.csv of "name,grade"
  *                     lines. Their digits are learnt as well, many times as often as MNIST's.
  *                     Can be given several times.
  *   --from <file>     a model to go on training, instead of starting anew

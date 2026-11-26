@@ -75,6 +75,7 @@ export function JudgingSheetsDocument({
               divisionIds: here.map(({ id }) => id),
               offset,
               entryIds: rows.map(({ entryId }) => entryId),
+              attempts,
             }),
           };
         });

@@ -217,6 +217,8 @@ export async function stopDivisions(competitionId: string, ids: string[]) {
     const states = await lockAndGetStates(tx, competitionId, ids);
     if (states.some((state) => state !== 'RUNNING')) throw new DomainError('DIVISION_NOT_RUNNING');
     await tx.division.updateMany({ where: { id: { in: ids } }, data: { state: 'PENDING' } });
+    // Only the grading page of running divisions shows scans, nobody could check them.
+    await tx.scannedGrade.deleteMany({ where: { entry: { divisionId: { in: ids } } } });
   });
   publish(competitionId, 'divisions');
 }

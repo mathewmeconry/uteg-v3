@@ -36,7 +36,7 @@ function isWritten(point: Point) {
   });
 }
 
-function isInk(point: Point) {
+function isInk(point: Point, withQrCode: boolean) {
   const half = SHEET.cornerSize / 2;
   const corner = cornerCentres().some(
     ({ x, y }) => Math.abs(point.x - x) <= half && Math.abs(point.y - y) <= half,
@@ -44,6 +44,7 @@ function isInk(point: Point) {
   const qr = qrCodeRect();
   // Modules of 4pt, not touching each other.
   const module =
+    withQrCode &&
     inside(point, qr) &&
     (Math.floor((point.x - qr.x) / 4) + Math.floor((point.y - qr.y) / 4)) % 2 === 0;
   // The line under the table header.
@@ -53,14 +54,14 @@ function isInk(point: Point) {
 }
 
 /** A photo of the page, whose corners land on `corners`, on a grey table. */
-function photo(width: number, height: number, corners: Point[]): Gray {
+function photo(width: number, height: number, corners: Point[], withQrCode = true): Gray {
   const toPage = homography(corners, PAGE);
   const data = new Uint8Array(width * height);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const point = project(toPage, { x: x + 0.5, y: y + 0.5 });
       const onPage = inside(point, { x: 0, y: 0, width: SHEET.width, height: SHEET.height });
-      data[y * width + x] = !onPage ? 110 : isInk(point) ? 20 : 235;
+      data[y * width + x] = !onPage ? 110 : isInk(point, withQrCode) ? 20 : 235;
     }
   }
   return { width, height, data };
@@ -130,15 +131,25 @@ describe('findPage', () => {
     expect(findPage(blank)).toBeNull();
   });
 
+  it('takes no four squares without a QR code for a page', () => {
+    const corners = [
+      { x: 90, y: 70 },
+      { x: 820, y: 20 },
+      { x: 880, y: 1230 },
+      { x: 30, y: 1180 },
+    ];
+    expect(findPage(photo(900, 1250, corners, false))).toBeNull();
+  });
+
   it('straightens the QR code', () => {
-    const { qrCode } = findPage(
+    const qrCode = findPage(
       photo(1250, 900, [
         { x: 1210, y: 40 },
         { x: 1215, y: 860 },
         { x: 40, y: 855 },
         { x: 35, y: 45 },
       ]),
-    )!;
+    )!.qrCode();
     // Its first module, 4pt at 4 pixels per point, after 8pt of white.
     const at = (x: number, y: number) => qrCode.data[y * qrCode.width + x];
     expect(at(10, 10)).toBeGreaterThan(200);

@@ -40,8 +40,9 @@ function start() {
     waiting.get(id)?.resolve(answer);
     waiting.delete(id);
   };
-  // It could not be loaded, e.g. offline: the next photo starts it again.
+  // It could not be loaded, e.g. offline: the next photo starts a new one.
   started.onerror = () => {
+    started.terminate();
     for (const { reject } of waiting.values()) reject();
     waiting.clear();
     worker = undefined;

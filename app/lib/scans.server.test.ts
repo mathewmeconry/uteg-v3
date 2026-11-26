@@ -5,12 +5,14 @@ import {
   errorCode,
   truncateTables,
 } from '~/tests/helpers';
+import { stopDivisions } from './divisions.server';
 import { getGradingState, saveGrades } from './judging.server';
 import { prisma } from './prisma.server';
 import {
   discardScannedGrade,
   getScanImage,
   getScannedSheet,
+  MAX_IMAGE_BYTES,
   saveScannedGrades,
 } from './scans.server';
 import { sheetCode } from './sheetCode.server';
@@ -19,7 +21,8 @@ beforeEach(truncateTables);
 
 const IMAGE = new Uint8Array([137, 80, 78, 71]);
 
-async function setup(apparatus = 'reck') {
+/** K5 has two attempts on vault, one elsewhere. */
+async function setup(apparatus = 'reck', attempts = apparatus === 'sprung' ? 2 : 1) {
   const { id, contest } = await createCompetition();
   const division = await createDivision(contest.id, { state: 'RUNNING' });
   const starters = [];
@@ -34,6 +37,7 @@ async function setup(apparatus = 'reck') {
     divisionIds: [division.id],
     offset: 0,
     entryIds: starters.map(({ entry }) => entry.id),
+    attempts,
   });
   return { id, contest, division, starters, code };
 }
@@ -60,6 +64,12 @@ describe('getScannedSheet', () => {
     expect(await errorCode(getScannedSheet(id, 'https://example.com'))).toBe('NOT_FOUND');
     // Anna moved to the end of the lineup.
     await prisma.entry.update({ where: { id: starters[0].entry.id }, data: { position: 999 } });
+    expect(await errorCode(getScannedSheet(id, code))).toBe('SHEET_CHANGED');
+  });
+
+  it('refuses sheets printed with other columns of attempts', async () => {
+    // As if the rule changed from 1 to 2 attempts after printing.
+    const { id, code } = await setup('sprung', 1);
     expect(await errorCode(getScannedSheet(id, code))).toBe('SHEET_CHANGED');
   });
 
@@ -143,6 +153,37 @@ describe('saveScannedGrades', () => {
       saveScannedGrades(id, code, [{ row, value, confidence: 1, image: IMAGE }]);
     expect(await errorCode(scan(0, 12000))).toBe('INVALID_GRADE');
     expect(await errorCode(scan(5, 9000))).toBe('INVALID_INPUT');
+  });
+
+  it('refuses repeated rows, large images and impossible confidences', async () => {
+    const { id, code } = await setup();
+    const row = { row: 0, value: 9000, confidence: 1, image: IMAGE };
+    expect(await errorCode(saveScannedGrades(id, code, [row, row]))).toBe('INVALID_INPUT');
+    const large = new Uint8Array(MAX_IMAGE_BYTES + 1);
+    expect(await errorCode(saveScannedGrades(id, code, [{ ...row, image: large }]))).toBe(
+      'INVALID_INPUT',
+    );
+    expect(await errorCode(saveScannedGrades(id, code, [{ ...row, confidence: 2 }]))).toBe(
+      'INVALID_INPUT',
+    );
+  });
+
+  it('is removed when its division stops, as nobody could check it', async () => {
+    const { id, division, code } = await setup();
+    await saveScannedGrades(id, code, [{ row: 0, value: 9000, confidence: 1, image: IMAGE }]);
+    await stopDivisions(id, [division.id]);
+    expect(await prisma.scannedGrade.count()).toBe(0);
+  });
+
+  it('is removed when a judge saves the grade', async () => {
+    const { id, division, starters, code } = await setup();
+    await saveScannedGrades(id, code, [{ row: 0, value: 9000, confidence: 1, image: IMAGE }]);
+    await saveGrades(
+      id,
+      [{ entryId: starters[0].entry.id, apparatus: 'reck', value: 9100, version: null }],
+      { kind: 'judge', ground: division.ground, apparatus: 'reck' },
+    );
+    expect((await scannedOf(id, division.id))[0]).toBeNull();
   });
 });
 
