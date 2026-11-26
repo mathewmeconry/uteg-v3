@@ -1,4 +1,5 @@
-import { Image, Text, View, type ViewProps } from '@react-pdf/renderer';
+import { Image, Path, Rect, Svg, Text, View, type ViewProps } from '@react-pdf/renderer';
+import QRCode from 'qrcode';
 import { isValidElement, useRef, type ReactNode } from 'react';
 
 type Style = Extract<NonNullable<ViewProps['style']>, { length?: never }> | Record<string, unknown>;
@@ -15,6 +16,27 @@ export function LogoImage({ logo, height }: { logo: Logo; height: number }) {
       src={{ data: Buffer.from(logo.data), format: logo.mimeType === 'image/png' ? 'png' : 'jpg' }}
       style={{ height, maxWidth: height * 4, objectFit: 'contain' }}
     />
+  );
+}
+
+const QUIET_ZONE = 4;
+
+export function QrCode({ value, size }: { value: string; size: number }) {
+  const { modules } = QRCode.create(value, { errorCorrectionLevel: 'M' });
+  const total = modules.size + 2 * QUIET_ZONE;
+  let path = '';
+  for (let row = 0; row < modules.size; row++) {
+    for (let column = 0; column < modules.size; column++) {
+      if (modules.get(row, column)) {
+        path += `M${column + QUIET_ZONE} ${row + QUIET_ZONE}h1v1h-1z`;
+      }
+    }
+  }
+  return (
+    <Svg viewBox={`0 0 ${total} ${total}`} style={{ width: size, height: size }}>
+      <Rect x={0} y={0} width={total} height={total} fill="#ffffff" />
+      <Path d={path} fill="#000000" />
+    </Svg>
   );
 }
 
