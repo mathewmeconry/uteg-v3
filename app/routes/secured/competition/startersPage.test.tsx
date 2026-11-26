@@ -258,7 +258,7 @@ it('stays after a plain link', async () => {
 
 it.each([
   ['an unknown starter', { entries: ['/?edit=nope'] }],
-  ['viewers', { entries: ['/?edit=003'], canEdit: false }],
+  ['viewers', { entries: ['/?edit=003'], role: 'VIEWER' as const }],
 ])('ignores the link for %s', async (_, options) => {
   await renderPage(options);
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
