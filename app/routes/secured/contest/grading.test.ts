@@ -80,6 +80,26 @@ describe('roles', () => {
     await expect(post(action, context, confirm)).rejects.toMatchObject(forbidden);
     expect(await prisma.grade.findFirst()).toMatchObject({ value: 9000 });
   });
+
+  it('lets the grade entry enter, delete and confirm', async () => {
+    const { entry, division, context, save } = await setup('GRADE_ENTRY');
+    expect(await save()).toMatchObject({ ok: true });
+    const confirm = [
+      ['intent', 'confirm'],
+      ['ground', '1'],
+      ['apparatus', 'reck'],
+      ['round', '0'],
+      ['divisionIds', division.id],
+    ];
+    expect(await post(action, context, confirm)).toBeNull();
+    await post(divisionAction, context, [
+      ['intent', 'delete'],
+      ['entryId', entry.id],
+      ['apparatus', 'reck'],
+      ['version', '2'],
+    ]);
+    expect(await prisma.grade.count()).toBe(0);
+  });
 });
 
 describe('editing', () => {

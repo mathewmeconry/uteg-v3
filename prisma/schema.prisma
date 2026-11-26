@@ -77,13 +77,15 @@ model Verification {
 
 // ── Competition ──────────────────────────────────────────────────────────────
 
-/// From the most to the least rights, the app relies on the order.
+/// The order of the member lists. What each role may do is in app/lib/roles.ts.
 enum Role {
   OWNER
   EDITOR
   VIEWER
   // Edits and removes starters, sees nothing else.
   CHECK_IN
+  // Sees the divisions and enters grades.
+  GRADE_ENTRY
 }
 
 model Competition {

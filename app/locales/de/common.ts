@@ -122,6 +122,7 @@ export default {
     EDITOR: 'Bearbeiter',
     VIEWER: 'Betrachter',
     CHECK_IN: 'Anmeldung',
+    GRADE_ENTRY: 'Noteneingabe',
   },
   // Each in its own language, so everyone finds theirs.
   language: {

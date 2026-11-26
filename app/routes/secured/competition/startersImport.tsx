@@ -32,11 +32,11 @@ import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { withoutNul } from '~/lib/domain/starter';
 import { findClubConflicts, importStarters, type ImportRow } from '~/lib/starters.server';
 import { cn } from '~/lib/utils';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const { id, contests } = requireRole(context, 'EDITOR');
+  const { id, contests } = requirePermission(context, 'edit');
   const contestId = new URL(request.url).searchParams.get('contest') ?? contests[0]?.id;
   if (!contests.some((contest) => contest.id === contestId)) throw data(null, 404);
   const [contest, clubs] = await Promise.all([getContestOptions(id, contestId), listClubs()]);
@@ -68,7 +68,7 @@ const importSchema = z.object({
 });
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requirePermission(context, 'edit');
   const t = getT(context);
   const body: unknown = await request.json().catch(() => null);
   const { data: values } = importSchema.safeParse(body);

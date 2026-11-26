@@ -24,12 +24,12 @@ import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { DomainError } from '~/lib/errors';
 import { parseForm } from '~/lib/forms.server';
 import { safeClientAction } from '~/lib/safeClientAction';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requirePermission(context, 'edit');
   const t = getT(context);
   const formData = await request.formData();
 
@@ -70,7 +70,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
 
     case 'delete': {
-      const { name } = requireRole(context, 'OWNER');
+      const { name } = requirePermission(context, 'manage');
       if (String(formData.get('confirmName')).trim() !== name) {
         return data({ errors: { confirmName: t('settings:delete.nameMismatch') } }, 400);
       }
@@ -88,7 +88,8 @@ export const clientAction = safeClientAction;
 
 export default function Settings({ actionData }: Route.ComponentProps) {
   const { t } = useTranslation(['settings', 'competition', 'common']);
-  const { competition, canEdit, isOwner } = useCompetition();
+  const { competition, can } = useCompetition();
+  const canEdit = can('edit');
   const errors = useActionErrors(actionData);
   const [sexes, setSexes] = useState<Sexes>(
     competition.sexes.length > 1 ? 'BOTH' : competition.sexes[0],
@@ -159,7 +160,7 @@ export default function Settings({ actionData }: Route.ComponentProps) {
           </div>
         </Section>
 
-        {isOwner && (
+        {can('manage') && (
           <Section tone="danger" title={t('delete.title')} description={t('delete.text')}>
             <DeleteCompetitionDialog name={competition.name} />
           </Section>

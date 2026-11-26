@@ -572,6 +572,8 @@ describe('starters', () => {
     expect(response.status).toBe(404);
     const stranger = await callRoute(starters.loader, { competitionId: id });
     expect(stranger.status).toBe(404);
+    const gradeEntry = await callRoute(starters.loader, { competitionId: id, role: 'GRADE_ENTRY' });
+    expect(gradeEntry.status).toBe(403);
   });
 
   it('repeats the header of a club on the next page', async () => {

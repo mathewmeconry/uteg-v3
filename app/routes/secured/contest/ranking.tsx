@@ -28,7 +28,7 @@ import { formatDateTime } from '~/lib/format';
 import { getRanking, listCategoryStates, listRankingGroups } from '~/lib/ranking.server';
 import { listRankingTemplates } from '~/lib/rankingTemplates.server';
 import { cn } from '~/lib/utils';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 import { egtModule, type EgtConfig } from '~/modules/egt/module';
@@ -80,7 +80,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const competition = requireRole(context, 'EDITOR');
+  const competition = requirePermission(context, 'edit');
   const contest = context.get(contestContext);
   const t = getT(context);
   const invalid = t('ranking:honourInvalid');
@@ -169,7 +169,8 @@ export default function Ranking({ loaderData }: Route.ComponentProps) {
   const { contestId, sex, category, categories, provisional, groups, states } = loaderData;
   const { ranking, quota, templates } = loaderData;
   const { t, i18n } = useTranslation(['ranking', 'common']);
-  const { competition, canEdit } = useCompetition();
+  const { competition, can } = useCompetition();
+  const canEdit = can('edit');
   const sexes = useSexes();
   const status = useLiveUpdates(`/api/events/${competition.id}`);
   const [searchParams, setSearchParams] = useSearchParams();
