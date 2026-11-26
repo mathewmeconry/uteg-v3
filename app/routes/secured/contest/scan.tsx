@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Route } from './+types/scan';
-import { PageScanner } from '~/components/grading/PageScanner';
+import { PageScanner, type ScannerNotice } from '~/components/grading/PageScanner';
 import { ScanReview } from '~/components/grading/ScanReview';
 import { PageHeader } from '~/components/PageHeader';
 import { Button } from '~/components/ui/button';
@@ -29,7 +29,7 @@ export default function Scan({ params: { contestId } }: Route.ComponentProps) {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   /** What came of the last photo, for the scanner. */
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<ScannerNotice | null>(null);
   /** The QR codes of the sheets read on this page. */
   const read = useRef(new Set<string>());
   const gradingUrl = `/competitions/${competition.id}/contests/${contestId}/grading`;
@@ -56,11 +56,13 @@ export default function Scan({ params: { contestId } }: Route.ComponentProps) {
     }
   }
 
-  function describe(result: ScanResult, isAgain: boolean) {
-    if (result.kind === 'error') return result.message;
-    if (result.kind !== 'done') return t(`scan.${result.kind}`);
+  function describe(result: ScanResult, isAgain: boolean): ScannerNotice {
+    if (result.kind === 'error') return { text: result.message, tone: 'error' };
+    if (result.kind !== 'done') return { text: t(`scan.${result.kind}`), tone: 'error' };
     const sheet = `${apparatusName(result.sheet.apparatus)} · ${t('common:round', { number: result.sheet.round + 1 })}`;
-    return t(isAgain ? 'scanner.again' : 'scanner.read', { sheet });
+    return isAgain
+      ? { text: t('scanner.again', { sheet }), tone: 'warning' }
+      : { text: t('scanner.read', { sheet }), tone: 'success' };
   }
 
   return (

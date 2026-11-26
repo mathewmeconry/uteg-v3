@@ -19,6 +19,15 @@ const NEW_SHARE = 0.1;
 
 type Status = 'starting' | 'searching' | 'hold' | 'taken' | 'noCamera';
 
+/** Read, scanned before, or not read. */
+export type ScannerNotice = { text: string; tone: 'success' | 'warning' | 'error' };
+
+const TONES = {
+  success: 'bg-success text-success-foreground',
+  warning: 'bg-warning text-warning-foreground',
+  error: 'bg-destructive text-destructive-foreground',
+};
+
 /**
  * The camera, full screen. Takes a photo by itself when a sheet is in view and held still, then
  * waits for the next one: taken away and put down, or another one on top.
@@ -29,7 +38,7 @@ export function PageScanner({
   onClose,
 }: {
   /** What came of the last photo taken. */
-  notice: string | null;
+  notice: ScannerNotice | null;
   onPhoto: (photo: Blob) => void;
   onClose: () => void;
 }) {
@@ -140,14 +149,24 @@ export function PageScanner({
             />
           </svg>
         )}
+        {/* On the picture, where the eyes are while scanning. */}
+        <div
+          role="status"
+          className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-4 pt-[max(1rem,env(safe-area-inset-top))] text-center"
+        >
+          <p className="rounded-full bg-black/70 px-4 py-2 text-base font-semibold">
+            {t(`scanner.${status}`)}
+          </p>
+          {notice && (
+            <p className={cn('rounded-full px-4 py-2 text-base font-semibold', TONES[notice.tone])}>
+              {notice.text}
+            </p>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-3 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <p role="status" className="min-w-0 flex-1 text-sm">
-          {t(`scanner.${status}`)}
-          {notice && <span className="block font-semibold">{notice}</span>}
-          {count > 0 && (
-            <span className="block text-white/70">{t('scanner.count', { count })}</span>
-          )}
+        <p className="min-w-0 flex-1 text-sm text-white/70">
+          {count > 0 && t('scanner.count', { count })}
         </p>
         <Button
           size="icon"
