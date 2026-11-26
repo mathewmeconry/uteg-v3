@@ -40,15 +40,13 @@ export default [
       ]),
       route('contests/:contestId', 'routes/secured/contest/layout.tsx', [
         // The pages for the grade entry.
-        layout('routes/secured/contest/gradeEntryLayout.tsx', [
-          route('divisions', 'routes/secured/contest/divisions.tsx'),
-          route('divisions/:divisionId', 'routes/secured/contest/division.tsx', [
-            index('routes/secured/contest/divisionIndex.ts'),
-            route('lineups', 'routes/secured/contest/lineups.tsx'),
-            route('grading', 'routes/secured/contest/divisionGrading.tsx'),
-          ]),
-          route('grading', 'routes/secured/contest/grading.tsx'),
+        route('divisions', 'routes/secured/contest/divisions.tsx'),
+        route('divisions/:divisionId', 'routes/secured/contest/division.tsx', [
+          index('routes/secured/contest/divisionIndex.ts'),
+          route('lineups', 'routes/secured/contest/lineups.tsx'),
+          route('grading', 'routes/secured/contest/divisionGrading.tsx'),
         ]),
+        route('grading', 'routes/secured/contest/grading.tsx'),
         layout('routes/secured/competition/viewerLayout.tsx', { id: 'contestViewerLayout' }, [
           route('divisions/proposal', 'routes/secured/contest/divisionProposal.tsx'),
           route('ranking', 'routes/secured/contest/ranking.tsx'),

@@ -75,7 +75,7 @@ const ALL_CLUBS = 'all';
 export default function Lineups({ loaderData }: Route.ComponentProps) {
   const { division, lineups, unassigned } = loaderData;
   const { t } = useTranslation(['divisions', 'common']);
-  const { competition, canEdit } = useCompetition();
+  const { competition, canEdit, isGradeEntry } = useCompetition();
   const name = useDivisionName()(division);
   const [club, setClub] = useState(ALL_CLUBS);
   const { columns, move } = useLineupMoves(
@@ -111,9 +111,13 @@ export default function Lineups({ loaderData }: Route.ComponentProps) {
           title={t('lineups.noStarters')}
           text={t('lineups.noStartersText')}
           action={
-            <Button asChild>
-              <Link to={`/competitions/${competition.id}/starters`}>{t('lineups.toStarters')}</Link>
-            </Button>
+            !isGradeEntry && (
+              <Button asChild>
+                <Link to={`/competitions/${competition.id}/starters`}>
+                  {t('lineups.toStarters')}
+                </Link>
+              </Button>
+            )
           }
         />
       ) : (

@@ -11,6 +11,7 @@ import type { ClubGroup, StarterRow } from '~/pdf/StartersDocument';
 
 /** All starters, or those with `?id=…&id=…`. */
 export function loader({ request, context }: Route.LoaderArgs) {
+  requireRole(context, Role.CHECK_IN);
   return startersPdf(request, context);
 }
 

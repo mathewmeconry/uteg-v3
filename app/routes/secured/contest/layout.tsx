@@ -1,9 +1,10 @@
 import { Outlet } from 'react-router';
 import type { Route } from './+types/layout';
 import { contestContext } from '~/context';
-import { contestMiddleware } from '~/middlewares/competition.server';
+import { contestMiddleware, gradeEntryPageMiddleware } from '~/middlewares/competition.server';
 
-export const middleware: Route.MiddlewareFunction[] = [contestMiddleware];
+// The pages for the grade entry, the others are in a viewerLayout.
+export const middleware: Route.MiddlewareFunction[] = [gradeEntryPageMiddleware, contestMiddleware];
 
 // Client navigations only run middleware on the server when a matched route has a loader.
 export function loader({ context }: Route.LoaderArgs) {

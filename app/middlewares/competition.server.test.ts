@@ -169,7 +169,9 @@ describe('role middlewares', () => {
     ]);
     const contest = children!.find(({ file }) => file === 'routes/secured/contest/layout.tsx')!;
     expect(contest.children!.map(({ file }) => file)).toEqual([
-      'routes/secured/contest/gradeEntryLayout.tsx',
+      'routes/secured/contest/divisions.tsx',
+      'routes/secured/contest/division.tsx',
+      'routes/secured/contest/grading.tsx',
       'routes/secured/competition/viewerLayout.tsx',
     ]);
   });
