@@ -184,6 +184,8 @@ export default {
     take: 'Take photo',
     close: 'Close scanner',
     photo: 'Scan {{number}}',
+    read: 'Read: {{sheet}}',
+    again: 'Scanned before, replaced: {{sheet}}',
   },
   scan: {
     title: 'Scan judging sheets',

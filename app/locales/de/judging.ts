@@ -183,6 +183,8 @@ export default {
     take: 'Foto aufnehmen',
     close: 'Scanner schliessen',
     photo: 'Aufnahme {{number}}',
+    read: 'Gelesen: {{sheet}}',
+    again: 'Schon gescannt, ersetzt: {{sheet}}',
   },
   scan: {
     title: 'Notenblätter scannen',

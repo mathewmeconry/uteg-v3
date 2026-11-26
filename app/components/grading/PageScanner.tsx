@@ -24,9 +24,12 @@ type Status = 'starting' | 'searching' | 'hold' | 'taken' | 'noCamera';
  * waits for the next one: taken away and put down, or another one on top.
  */
 export function PageScanner({
+  notice,
   onPhoto,
   onClose,
 }: {
+  /** What came of the last photo taken. */
+  notice: string | null;
   onPhoto: (photo: Blob) => void;
   onClose: () => void;
 }) {
@@ -141,6 +144,7 @@ export function PageScanner({
       <div className="flex items-center gap-3 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <p role="status" className="min-w-0 flex-1 text-sm">
           {t(`scanner.${status}`)}
+          {notice && <span className="block font-semibold">{notice}</span>}
           {count > 0 && (
             <span className="block text-white/70">{t('scanner.count', { count })}</span>
           )}

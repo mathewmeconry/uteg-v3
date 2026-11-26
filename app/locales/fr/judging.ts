@@ -186,6 +186,8 @@ export default {
     take: 'Prendre une photo',
     close: 'Fermer le scanner',
     photo: 'Photo {{number}}',
+    read: 'Lue: {{sheet}}',
+    again: 'Déjà scannée, remplacée: {{sheet}}',
   },
   scan: {
     title: 'Scanner les feuilles de notes',

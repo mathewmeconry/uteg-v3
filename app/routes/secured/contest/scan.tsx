@@ -1,5 +1,5 @@
 import { CircleAlertIcon, ImagesIcon, LoaderCircleIcon, ScanLineIcon, XIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Route } from './+types/scan';
@@ -25,11 +25,16 @@ let nextKey = 0;
 export default function Scan({ params: { contestId } }: Route.ComponentProps) {
   const { t } = useTranslation(['judging', 'common']);
   const { competition } = useCompetition();
+  const apparatusName = useApparatusName();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [isScanning, setIsScanning] = useState(false);
+  /** What came of the last photo, for the scanner. */
+  const [notice, setNotice] = useState<string | null>(null);
+  /** The QR codes of the sheets read on this page. */
+  const read = useRef(new Set<string>());
   const gradingUrl = `/competitions/${competition.id}/contests/${contestId}/grading`;
 
-  async function read(files: File[]) {
+  async function scan(files: File[]) {
     // One after the other, as each takes the processor for a moment.
     for (const file of files) {
       const key = nextKey++;
@@ -38,10 +43,24 @@ export default function Scan({ params: { contestId } }: Route.ComponentProps) {
         kind: 'error',
         message: t('scan.failed'),
       }));
+      // A sheet scanned again replaces its earlier card, e.g. with a sharper photo.
+      const code = result.kind === 'done' ? result.code : null;
+      const isAgain = code !== null && read.current.has(code);
+      if (code) read.current.add(code);
       setPhotos((current) =>
-        current.map((photo) => (photo.key === key ? { ...photo, result } : photo)),
+        current
+          .filter((photo) => photo.result?.kind !== 'done' || photo.result.code !== code)
+          .map((photo) => (photo.key === key ? { ...photo, result } : photo)),
       );
+      setNotice(describe(result, isAgain));
     }
+  }
+
+  function describe(result: ScanResult, isAgain: boolean) {
+    if (result.kind === 'error') return result.message;
+    if (result.kind !== 'done') return t(`scan.${result.kind}`);
+    const sheet = `${apparatusName(result.sheet.apparatus)} · ${t('common:round', { number: result.sheet.round + 1 })}`;
+    return t(isAgain ? 'scanner.again' : 'scanner.read', { sheet });
   }
 
   return (
@@ -70,7 +89,7 @@ export default function Scan({ params: { contestId } }: Route.ComponentProps) {
                 const files = [...(event.target.files ?? [])];
                 // The same photos may be chosen again.
                 event.target.value = '';
-                void read(files);
+                void scan(files);
               }}
             />
           </label>
@@ -78,11 +97,15 @@ export default function Scan({ params: { contestId } }: Route.ComponentProps) {
       </div>
       {isScanning && (
         <PageScanner
+          notice={notice}
           onPhoto={(photo) => {
             const name = t('scanner.photo', { number: photos.length + 1 });
-            void read([new File([photo], `${name}.jpg`, { type: photo.type })]);
+            void scan([new File([photo], `${name}.jpg`, { type: photo.type })]);
           }}
-          onClose={() => setIsScanning(false)}
+          onClose={() => {
+            setIsScanning(false);
+            setNotice(null);
+          }}
         />
       )}
       <ul className="mt-6 grid gap-4">

@@ -34,6 +34,8 @@ export type ScanResult =
   | { kind: 'error'; message: string }
   | {
       kind: 'done';
+      /** Of the page's QR code: the same for every photo of it. */
+      code: string;
       sheet: ScannedSheet;
       readings: (ReadRow | null)[];
       /** Of the rows with something written, also when it could not be read. */
@@ -100,7 +102,7 @@ async function scanPhoto(competitionId: string, photo: Blob): Promise<ScanResult
     body,
   });
   if (!('scanned' in saved)) return saved;
-  return { kind: 'done', sheet, readings, images, scanned: saved.scanned };
+  return { kind: 'done', code, sheet, readings, images, scanned: saved.scanned };
 }
 
 /** The answer of the server, its message when it refused, or offline without an answer. */
