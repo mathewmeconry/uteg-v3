@@ -10,7 +10,7 @@ import { useApparatusName } from '~/hooks/useApparatusName';
 import { useCompetition } from '~/hooks/useCompetition';
 import { categoryName } from '~/lib/categoryName';
 import { formatEntered } from '~/lib/domain/gradeInput';
-import { SURE } from '~/lib/scan/rows';
+import { SURE } from '~/lib/scan/confidence';
 import { scanPhoto, type ScanResult } from '~/lib/scan/scanPhoto.client';
 import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';

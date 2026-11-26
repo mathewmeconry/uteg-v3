@@ -6,7 +6,7 @@ import { Button } from '~/components/ui/button';
 import { useActionFetcher } from '~/hooks/useActionFetcher';
 import { useCompetition } from '~/hooks/useCompetition';
 import { formatEntered, isSameGrade, type StoredGrade } from '~/lib/domain/gradeInput';
-import { SURE } from '~/lib/scan/rows';
+import { SURE } from '~/lib/scan/confidence';
 
 /**
  * A grade read from a photo of a judging sheet, next to the handwriting it was read from. Accepting

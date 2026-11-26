@@ -7,9 +7,6 @@ import type { Gray, ScannedCell } from './sheet';
 
 /** Attempts are written with two decimals, see PLAN.md. */
 const ATTEMPT_PRECISION = 2;
-/** Readings at least this likely are nearly always right. Others are pointed out for checking. */
-export const SURE = 0.9;
-
 export type ReadRow = { value?: number; attempts?: number[]; confidence: number };
 
 /** The text of a straightened QR code, or null. */
