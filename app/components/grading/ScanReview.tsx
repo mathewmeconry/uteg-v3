@@ -1,4 +1,4 @@
-import { CheckIcon, XIcon } from 'lucide-react';
+import { CheckIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fullName } from '~/components/judging/types';
@@ -12,6 +12,7 @@ import {
   toFields,
   type GradeFields,
 } from '~/lib/domain/gradeInput';
+import { aggregate } from '~/lib/domain/grade';
 import { sendGradeRequest } from '~/lib/gradeRequests';
 import { SURE } from '~/lib/scan/confidence';
 import type { ScanResult } from '~/lib/scan/scanPhoto.client';
@@ -35,7 +36,14 @@ export function ScanReview({ result: { sheet, readings, images, scanned } }: { r
   const [rows, setRows] = useState<RowState[]>(() =>
     sheet.rows.map(({ inputRule, grade }, index) => {
       const reading = readings[index];
-      const read = reading && { value: reading.value ?? 0, attempts: reading.attempts ?? [] };
+      const read =
+        reading &&
+        (reading.attempts
+          ? {
+              value: aggregate(reading.attempts, inputRule.aggregation) ?? 0,
+              attempts: reading.attempts,
+            }
+          : { value: reading.value ?? 0, attempts: [] });
       // Read like it is saved already: nothing to accept.
       const isSaved = read !== null && isSameGrade(read, grade);
       return {
@@ -97,34 +105,43 @@ export function ScanReview({ result: { sheet, readings, images, scanned } }: { r
 
   return (
     <>
-      <ol className="my-3 divide-y">
+      <ol className="-mx-2 my-3 divide-y sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto]">
         {sheet.rows.map((row, index) => {
           const { fields, status, error } = rows[index];
           const name = fullName(row);
           const reading = readings[index];
           const isUnsure = status === 'open' && reading !== null && reading.confidence < SURE;
           return (
+            // Name, handwriting and fields in the list's columns, so they line up from row to row.
             <li
               key={row.entryId}
               className={cn(
-                'flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2',
+                'flex flex-wrap items-center gap-x-4 gap-y-1.5 px-2 py-2 sm:col-span-3 sm:grid sm:grid-cols-subgrid',
                 isUnsure && 'bg-warning/15',
               )}
             >
               <span className={cn('min-w-0 flex-1 basis-32', row.withdrawn && 'line-through')}>
                 <span className="block font-medium">{name}</span>
+                {isUnsure && (
+                  <span className="flex items-center gap-1 text-xs font-medium text-warning-foreground dark:text-warning">
+                    <TriangleAlertIcon aria-hidden className="size-3.5" />
+                    {t('grading.scannedUnsure')}
+                  </span>
+                )}
                 {row.grade && status === 'open' && (
                   <span className="block text-xs text-muted-foreground">
                     {t('grading.scannedSaved', { grade: formatEntered(row.grade.value) })}
                   </span>
                 )}
               </span>
-              {urls[index] && (
+              {urls[index] ? (
                 <img
                   src={urls[index]}
                   alt={t('grading.scannedImage', { name })}
                   className="h-10 max-w-full rounded-sm bg-white"
                 />
+              ) : (
+                <span />
               )}
               {row.withdrawn ? (
                 <Badge variant="outline">{t('withdrawn')}</Badge>
@@ -137,11 +154,6 @@ export function ScanReview({ result: { sheet, readings, images, scanned } }: { r
                 <Badge variant="outline">{t('scan.discarded')}</Badge>
               ) : (
                 <div className="flex items-center gap-1">
-                  {isUnsure && (
-                    <Badge variant="outline" className="border-warning">
-                      {t('grading.scannedUnsure')}
-                    </Badge>
-                  )}
                   <GradeInputs
                     fields={fields}
                     evaluated={evaluateFields(fields, row.inputRule)}
@@ -163,7 +175,7 @@ export function ScanReview({ result: { sheet, readings, images, scanned } }: { r
                   </Button>
                 </div>
               )}
-              {error && <p className="w-full text-sm text-destructive">{error}</p>}
+              {error && <p className="w-full text-sm text-destructive sm:col-span-3">{error}</p>}
             </li>
           );
         })}
