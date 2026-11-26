@@ -8,6 +8,10 @@ import { pageHash, parseSheetCode } from './sheetCode.server';
 
 /** The largest image of a row's handwriting. The scan page sends far smaller ones. */
 export const MAX_IMAGE_BYTES = 200_000;
+/** The largest ink of a cell: one bit per pixel, deflated. */
+export const MAX_CELL_BYTES = 20_000;
+/** Pixels of a cut out cell at most, on each side. */
+const MAX_CELL_SIDE = 1000;
 
 export type ScannedRow = {
   /** Of the rows on the page, from 0. */
@@ -18,7 +22,12 @@ export type ScannedRow = {
   attempts?: number[];
   confidence: number;
   image: Uint8Array<ArrayBuffer>;
+  /** The ink of each cell by column, empty without. Kept when the competition keeps handwriting. */
+  cells?: Uint8Array<ArrayBuffer>[];
 };
+
+/** Of all cells of a page. */
+export type CellSize = { width: number; height: number };
 
 /**
  * The rows of a page of the judging sheets, from the code of its QR code. SHEET_CHANGED when the
@@ -45,6 +54,10 @@ export async function getScannedSheet(competitionId: string, code: string) {
   if (rows.length === 0 || pageHash(entryIds, attempts) !== page.hash) {
     throw new DomainError('SHEET_CHANGED');
   }
+  const { keepHandwriting } = await prisma.competition.findUniqueOrThrow({
+    where: { id: competitionId },
+    select: { keepHandwriting: true },
+  });
   return {
     apparatus: page.apparatus,
     round: page.round,
@@ -52,6 +65,7 @@ export async function getScannedSheet(competitionId: string, code: string) {
     divisions,
     attempts,
     rows,
+    keepHandwriting,
   };
 }
 
@@ -63,19 +77,35 @@ export async function saveScannedGrades(
   competitionId: string,
   code: string,
   scanned: readonly ScannedRow[],
+  cellSize?: CellSize,
 ) {
-  const { apparatus, rows } = await getScannedSheet(competitionId, code);
-  if (new Set(scanned.map(({ row }) => row)).size !== scanned.length) {
+  const sheet = await getScannedSheet(competitionId, code);
+  const { apparatus, rows } = sheet;
+  const columns = sheet.attempts > 1 ? sheet.attempts + 1 : 1;
+  const isSize = (side: number) => Number.isInteger(side) && side > 0 && side <= MAX_CELL_SIDE;
+  if (
+    new Set(scanned.map(({ row }) => row)).size !== scanned.length ||
+    (cellSize && !(isSize(cellSize.width) && isSize(cellSize.height)))
+  ) {
     throw new DomainError('INVALID_INPUT');
   }
-  const kept = scanned.flatMap(({ row, value, attempts, confidence, image }) => {
+  // Only with a known size, and only when the competition wants them.
+  const keepsCells = sheet.keepHandwriting && cellSize !== undefined;
+  const kept = scanned.flatMap(({ row, value, attempts, confidence, image, cells = [] }) => {
     const slot = rows[row];
-    if (!slot || image.byteLength > MAX_IMAGE_BYTES || !(confidence >= 0 && confidence <= 1)) {
-      throw new DomainError('INVALID_INPUT');
-    }
+    const isValid =
+      slot !== undefined &&
+      image.byteLength <= MAX_IMAGE_BYTES &&
+      confidence >= 0 &&
+      confidence <= 1 &&
+      // All of the row's, so the last is the final grade's.
+      (cells.length === 0 || cells.length === columns) &&
+      cells.every((cell) => cell.byteLength <= MAX_CELL_BYTES);
+    if (!isValid) throw new DomainError('INVALID_INPUT');
     if (slot.withdrawn) return [];
     const grade = computeGrade({ value, attempts }, slot.inputRule);
-    return { row, entryId: slot.entryId, grade, data: { ...grade, confidence, image } };
+    const ink = keepsCells ? { cells, cellWidth: cellSize.width, cellHeight: cellSize.height } : {};
+    return { row, entryId: slot.entryId, grade, data: { ...grade, confidence, image, ...ink } };
   });
   const created = await prisma.$transaction(async (tx) => {
     const ids = kept.map(({ entryId }) => entryId);

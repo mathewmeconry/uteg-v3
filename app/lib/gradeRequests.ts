@@ -12,6 +12,8 @@ export type GradeRequest =
       grade: StoredGrade;
       /** Of the saved grade the input is based on. The server refuses it when there is a newer one. */
       version: number | null;
+      /** The scanned grade checked against its handwriting, which then keeps it. */
+      scanId?: string;
     }
   | { intent: 'confirm'; round: number; divisionIds: string[] };
 

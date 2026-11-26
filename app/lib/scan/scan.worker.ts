@@ -8,7 +8,7 @@ import type { InputRule, Sex } from '~/modules/types';
 import stored from './digitModel.json';
 import { loadModel } from './digits';
 import { readQrCode, readRow, type ReadRow } from './rows';
-import { findPage, type Gray } from './sheet';
+import { findPage, inkMask, type Gray } from './sheet';
 
 /** Larger photos take longer to read and are not more exact. */
 const MAX_SIDE = 2400;
@@ -18,6 +18,8 @@ type ScannedSheet = {
   round: number;
   attempts: number;
   divisions: { contestId: string; ground: number; category: string; sex: Sex; number: number }[];
+  /** Whether the cells' ink is sent, see HandwritingSample. */
+  keepHandwriting: boolean;
   rows: {
     entryId: string;
     firstname: string;
@@ -101,9 +103,23 @@ async function scanPhoto(competitionId: string, photo: Blob): Promise<ScanResult
 
   const body = new FormData();
   body.set('code', code);
-  const read = readings.flatMap((reading, row) => (reading ? [{ row, ...reading }] : []));
+  const read = readings.flatMap((reading, row) =>
+    reading
+      ? [{ row, ...reading, ...(sheet.keepHandwriting && { columns: cells[row].length }) }]
+      : [],
+  );
   body.set('rows', JSON.stringify(read));
   for (const { row } of read) body.set(`image-${row}`, images[row]!, `${row}.png`);
+  if (sheet.keepHandwriting) {
+    // To train the recognition with, once an editor confirms what is written.
+    body.set('cellWidth', String(cells[0][0].image.width));
+    body.set('cellHeight', String(cells[0][0].image.height));
+    for (const { row } of read) {
+      for (const [column, cell] of cells[row].entries()) {
+        if (cell.inked) body.set(`cell-${row}-${column}`, await packInk(cell.image), 'ink');
+      }
+    }
+  }
   const saved = await send<{ scanned: { row: number; id: string }[] }>(url, {
     method: 'POST',
     body,
@@ -150,6 +166,20 @@ function toGray({ width, height, data }: ImageData): Gray {
     gray[index] = (data[pixel] * 299 + data[pixel + 1] * 587 + data[pixel + 2] * 114) / 1000;
   }
   return { width, height, data: gray };
+}
+
+/**
+ * The ink of a cell as the recognition sees it, one bit per pixel by rows and deflated: a few KB,
+ * where the photo of a cell takes about 20.
+ */
+async function packInk(cell: Gray) {
+  const mask = inkMask(cell, Math.round(cell.height / 2));
+  const bits = new Uint8Array(Math.ceil(mask.length / 8));
+  for (let index = 0; index < mask.length; index++) {
+    if (mask[index]) bits[index >> 3] |= 0x80 >> (index & 7);
+  }
+  const deflated = new Blob([bits]).stream().pipeThrough(new CompressionStream('deflate'));
+  return new Response(deflated).blob();
 }
 
 /** The cells of a row side by side, at half their size, for whoever checks the reading. */

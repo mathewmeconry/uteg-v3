@@ -14,6 +14,7 @@ import {
 } from './domain/rotation';
 import { DomainError, type MissingGrade } from './errors';
 import { publish } from './events.server';
+import { keepHandwriting } from './handwriting.server';
 import { lockContestConfigs, lockDivisions } from './locks.server';
 import { prisma } from './prisma.server';
 
@@ -29,6 +30,8 @@ export type GradeInput = {
    * is not overwritten, also by a request that arrives late.
    */
   version?: number | null;
+  /** The scanned grade an editor checked against its handwriting, see keepHandwriting. */
+  scanId?: string;
 };
 
 /** Judges may only grade what their tablet shows, editors also before and after the division. */
@@ -186,6 +189,12 @@ export async function saveGrades(
         }),
       );
     }
+    // Checked against the handwriting by an editor: it now has a known value. A grade typed
+    // elsewhere may be a correction that is not what was written.
+    const checked = grades.flatMap((input) =>
+      input.scanId ? { ...result.get(input)!, scanId: input.scanId } : [],
+    );
+    if (scope.kind === 'editor') await keepHandwriting(tx, competitionId, checked);
     // A saved grade was checked, its scan is done.
     await tx.scannedGrade.deleteMany({
       where: { OR: grades.map(({ entryId, apparatus }) => ({ entryId, apparatus })) },

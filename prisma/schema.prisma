@@ -89,22 +89,25 @@ enum Role {
 }
 
 model Competition {
-  id        String   @id @default(ulid())
-  name      String
-  location  String
-  startDate DateTime @db.Date
-  endDate   DateTime @db.Date
-  grounds   Int      @default(1)
+  id              String   @id @default(ulid())
+  name            String
+  location        String
+  startDate       DateTime @db.Date
+  endDate         DateTime @db.Date
+  grounds         Int      @default(1)
   // Who takes part. At least one.
-  sexes     Sex[]    @default([FEMALE, MALE])
-  logoId    String?  @unique
-  logo      Asset?   @relation("CompetitionLogo", fields: [logoId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  sexes           Sex[]    @default([FEMALE, MALE])
+  logoId          String?  @unique
+  logo            Asset?   @relation("CompetitionLogo", fields: [logoId], references: [id], onDelete: SetNull)
+  // Whether checked scanned grades leave their handwriting, to train the recognition with.
+  keepHandwriting Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   members             Member[]
+  handwritingSamples  HandwritingSample[]
   invitations         Invitation[]
-  contests           Contest[]
+  contests            Contest[]
   starters            Starter[]
   accessLinks         AccessLink[]
   assets              Asset[]
@@ -378,12 +381,37 @@ model ScannedGrade {
   attempts   Int[]
   // How likely the reading is right, from 0 to 1.
   confidence Float
-  // The handwritten cells of the row, PNG.
+  // The handwritten cells of the row, to check the reading.
   image      Bytes
+  // Each cell of the row as the ink found in it, by column of the sheet, empty when nothing is
+  // written. Only when the competition keeps handwriting. See HandwritingSample.
+  cells      Bytes[]  @default([])
+  cellWidth  Int      @default(0)
+  cellHeight Int      @default(0)
   createdAt  DateTime @default(now())
 
   @@unique([entryId, apparatus])
   @@map("scanned_grade")
+}
+
+/// A cell of a judging sheet with what an editor confirmed is written in it, to train the
+/// recognition with. Not linked to whom the grade belongs.
+model HandwritingSample {
+  id            String      @id @default(ulid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  // One bit per pixel, 1 for ink, by rows, deflated.
+  ink           Bytes
+  width         Int
+  height        Int
+  // Thousandths. Written with 3 decimals when the third is not 0, otherwise with 2.
+  value         Int
+  // What the recognition read, null when nothing.
+  read          Int?
+  createdAt     DateTime    @default(now())
+
+  @@index([competitionId])
+  @@map("handwriting_sample")
 }
 
 // ── Access without an account ────────────────────────────────────────────────

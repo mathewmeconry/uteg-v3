@@ -21,6 +21,11 @@ export default {
     saved: 'Le logo a été enregistré.',
     removed: 'Le logo a été retiré.',
   },
+  handwriting: {
+    title: 'Écritures',
+    text: 'Quand des notes scannées sont vérifiées et enregistrées lors du scan, l’écriture de leurs cases est gardée avec la note vérifiée, sans nom. La reconnaissance apprend ainsi l’écriture des juges. Les écritures sont supprimées avec le concours, ou dès que tu ne les gardes plus ici.',
+    keep: 'Garder les écritures pour améliorer la reconnaissance',
+  },
   delete: {
     title: 'Supprimer le concours',
     text: 'Supprime l’ensemble des gymnastes, divisions, notes et accès de ce concours. Cette action est irréversible.',
