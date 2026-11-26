@@ -222,11 +222,11 @@ function RankingPage({
 }
 
 function PageHead({
-  options: { showLogo, logoPosition, accentColor },
+  options: { showLogo, logoPosition, logoHeight, accentColor },
   logo,
   children,
 }: Pick<PageProps, 'options' | 'logo'> & { children: React.ReactNode }) {
-  const image = showLogo && logo && <LogoImage logo={logo} />;
+  const image = showLogo && logo && <LogoImage logo={logo} height={logoHeight} />;
   const center = Boolean(image) && logoPosition === 'center';
   return (
     <View

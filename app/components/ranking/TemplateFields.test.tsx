@@ -46,6 +46,7 @@ describe('TemplateFields', () => {
       'Zeilenhöhe (pt)',
       'Logo anzeigen',
       'Position des Logos',
+      'Höhe des Logos (pt)',
       'Wettkampfdatum anzeigen',
       'Seitenzahlen anzeigen',
       'Jede Kategorie auf einer neuen Seite',

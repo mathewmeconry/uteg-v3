@@ -9,11 +9,11 @@ export const MUTED = '#52525b';
 
 export type Logo = { mimeType: string; data: Uint8Array };
 
-export function LogoImage({ logo, height = 36 }: { logo: Logo; height?: number }) {
+export function LogoImage({ logo, height }: { logo: Logo; height: number }) {
   return (
     <Image
       src={{ data: Buffer.from(logo.data), format: logo.mimeType === 'image/png' ? 'png' : 'jpg' }}
-      style={{ height, maxWidth: 140, objectFit: 'contain' }}
+      style={{ height, maxWidth: height * 4, objectFit: 'contain' }}
     />
   );
 }

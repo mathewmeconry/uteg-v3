@@ -45,6 +45,8 @@ export default {
     showLogo: 'Logo anzeigen',
     logoPosition: 'Position des Logos',
     logoPositions: { left: 'Links', center: 'Mitte', right: 'Rechts' },
+    logoHeight: 'Höhe des Logos (pt)',
+    logoHeightHint: 'Breite Logos werden höchstens viermal so breit.',
     fontSize: 'Schriftgrösse (pt)',
     fontSizeHint: 'Wird verkleinert, wenn die Spalten sonst keinen Platz haben.',
     rowHeight: 'Zeilenhöhe (pt)',
