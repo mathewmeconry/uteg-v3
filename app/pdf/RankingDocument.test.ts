@@ -198,6 +198,11 @@ describe('ranking PDF', () => {
     expect((await render({ showLogo: false }, { logo: PNG }))[0].images).toBe(0);
   });
 
+  it('sizes the logo', async () => {
+    const x = async (logoHeight: number) => (await render({ logoHeight }, { logo: PNG }))[0].imageX;
+    expect(await x(80)).toBeLessThan((await x(36))! - 40);
+  });
+
   it('survives a logo that cannot be decoded', async () => {
     const logo = { mimeType: 'image/png', data: PNG.data.slice(0, 20) };
     expect((await render({}, { logo }))[0].text).toContain('Anna Müller');

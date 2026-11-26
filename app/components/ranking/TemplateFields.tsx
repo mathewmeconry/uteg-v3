@@ -57,7 +57,12 @@ export function TemplateFields({
     );
   }
 
-  function number(key: 'fontSize' | 'rowHeight', min: number, max: number, hint?: string) {
+  function number(
+    key: 'fontSize' | 'rowHeight' | 'logoHeight',
+    min: number,
+    max: number,
+    hint?: string,
+  ) {
     const value = options[key];
     return (
       <FormField
@@ -148,17 +153,21 @@ export function TemplateFields({
           {number('rowHeight', 10, 40)}
         </Columns>
         {check('showLogo')}
-        {options.showLogo && (
-          <SelectField
-            label={t('form.logoPosition')}
-            value={options.logoPosition}
-            items={[
-              ['left', t('form.logoPositions.left')],
-              ['center', t('form.logoPositions.center')],
-              ['right', t('form.logoPositions.right')],
-            ]}
-            onChange={(value) => set('logoPosition', value)}
-          />
+        {/* An invalid height stays visible, otherwise saving is blocked without a reason. */}
+        {(options.showLogo || errorOf('logoHeight')) && (
+          <Columns>
+            <SelectField
+              label={t('form.logoPosition')}
+              value={options.logoPosition}
+              items={[
+                ['left', t('form.logoPositions.left')],
+                ['center', t('form.logoPositions.center')],
+                ['right', t('form.logoPositions.right')],
+              ]}
+              onChange={(value) => set('logoPosition', value)}
+            />
+            {number('logoHeight', 16, 80, t('form.logoHeightHint'))}
+          </Columns>
         )}
         {check('showDate')}
         {check('showPageNumbers')}

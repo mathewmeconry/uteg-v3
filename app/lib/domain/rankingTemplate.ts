@@ -15,6 +15,8 @@ export const rankingTemplateSchema = z.object({
     .default(''),
   showLogo: z.boolean().default(true),
   logoPosition: z.enum(['left', 'center', 'right']).default('right'),
+  /** In pt. Wide logos are at most four times as wide. */
+  logoHeight: z.number().min(16).max(80).default(36),
   accentColor: z
     .string()
     .regex(/^#[0-9a-f]{6}$/i)
