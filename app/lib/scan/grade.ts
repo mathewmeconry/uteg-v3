@@ -1,5 +1,5 @@
 import { classify, GLYPH_SIZE, type DigitModel } from './digits';
-import type { Gray } from './sheet';
+import { inkMask, type Gray } from './sheet';
 
 /** In thousandths, with the next likely values. Confidence is the probability of the reading. */
 export type ReadGrade = { value: number; confidence: number; alternatives: number[] };
@@ -14,19 +14,32 @@ const ALL_DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 /** How much taking two neighbouring pieces as one digit counts against a reading. */
 const MERGED = 0.5;
+/** Pixels from the edge of a cell where table lines are: 1.5pt at the 4 pixels per point of readSheet. */
+const EDGE = 6;
 
 /** The grade written in a cell, or null when nothing readable is in it. */
 export function readGrade(model: DigitModel, cell: Gray, precision: number): ReadGrade | null {
   const { ink, digits, point } = segment(cell);
+  const pointX = point && centreX([point]);
+  const classified = new Map<Blob[], Float32Array>();
+  const probabilities = (group: Blob[]) => {
+    if (!classified.has(group)) {
+      classified.set(group, classify(model, toGlyph(ink, cell.width, group)));
+    }
+    return classified.get(group)!;
+  };
   const read = (groups: Blob[][]) =>
     decodeGrade(
-      groups.map((group) => classify(model, toGlyph(ink, cell.width, group))),
-      point === null ? null : groups.filter((group) => centreX(group) < centreX([point])).length,
+      groups.map(probabilities),
+      pointX === null ? null : groups.filter((group) => centreX(group) < pointX).length,
       precision,
     );
-  // Strokes of one digit can lie apart, like the bar of a 5. If they read better as one, they are.
+  // Strokes of one digit can lie apart, like the bar of a 5. If they read better as one, they are,
+  // but never across the point.
   const merged = digits.slice(1).map((_, index) => {
-    const reading = read(digits.toSpliced(index, 2, [...digits[index], ...digits[index + 1]]));
+    const [left, right] = [digits[index], digits[index + 1]];
+    if (pointX !== null && centreX(left) < pointX && pointX < centreX(right)) return null;
+    const reading = read(digits.toSpliced(index, 2, [...left, ...right]));
     return reading && { ...reading, confidence: reading.confidence * MERGED };
   });
   const readings = [read(digits), ...merged].filter((reading) => reading !== null);
@@ -40,18 +53,27 @@ export function readGrade(model: DigitModel, cell: Gray, precision: number): Rea
  * The digits of a cell from left to right, each as the blobs it is made of, and the decimal point
  * if there is one: a small blob in the lower half of the digits.
  */
-export function segment(cell: Gray): { ink: Float32Array; digits: Blob[][]; point: Blob | null } {
-  const ink = inkOf(cell);
+export function segment(cell: Gray): { ink: Uint8Array; digits: Blob[][]; point: Blob | null } {
+  // Relative to the paper nearby, so a shadow over part of the cell is no ink.
+  const ink = inkMask(cell, Math.round(cell.height / 2));
+  // The table's lines are at the edge. Photos are never cut exactly, so they may be a bit further
+  // in, and then they are long and thin.
+  for (let y = 0; y < cell.height; y++) {
+    for (let x = 0; x < cell.width; x++) {
+      if (x < EDGE || y < EDGE || x >= cell.width - EDGE || y >= cell.height - EDGE) {
+        ink[y * cell.width + x] = 0;
+      }
+    }
+  }
   const found = findBlobs(ink, cell.width).filter((blob) => {
     const width = blob.maxX - blob.minX + 1;
     const height = blob.maxY - blob.minY + 1;
-    // Lines of the table that the cell caught at its edge.
-    const atEdge =
-      blob.minX === 0 ||
-      blob.minY === 0 ||
-      blob.maxX === cell.width - 1 ||
-      blob.maxY === cell.height - 1;
-    return blob.pixels.length >= 3 && !(atEdge && (width > 6 * height || height > 6 * width));
+    const nearEdge =
+      blob.minX <= 2 * EDGE ||
+      blob.minY <= 2 * EDGE ||
+      blob.maxX >= cell.width - 1 - 2 * EDGE ||
+      blob.maxY >= cell.height - 1 - 2 * EDGE;
+    return blob.pixels.length >= 3 && !(nearEdge && (width > 6 * height || height > 6 * width));
   });
   if (found.length === 0) return { ink, digits: [], point: null };
 
@@ -63,11 +85,14 @@ export function segment(cell: Gray): { ink: Float32Array; digits: Blob[][]; poin
     maxY - minY + 1 < 0.4 * tallest &&
     maxX - minX + 1 < 0.6 * tallest &&
     (minY + maxY) / 2 > top + 0.55 * (bottom - top);
+  const isMark = (blob: Blob) => !isPoint(blob) && blob.maxY - blob.minY + 1 < 0.3 * tallest;
   const points = found.filter(isPoint);
 
   // Strokes of one digit overlap horizontally, like the two of a 4.
   const groups: Blob[][] = [];
-  for (const blob of found.filter((blob) => !isPoint(blob)).toSorted((a, b) => a.minX - b.minX)) {
+  for (const blob of found
+    .filter((blob) => !isPoint(blob) && !isMark(blob))
+    .toSorted((a, b) => a.minX - b.minX)) {
     const last = groups.at(-1);
     const right = last ? Math.max(...last.map(({ maxX }) => maxX)) : -Infinity;
     const left = last ? Math.min(...last.map(({ minX }) => minX)) : Infinity;
@@ -76,10 +101,17 @@ export function segment(cell: Gray): { ink: Float32Array; digits: Blob[][]; poin
     if (last && overlap >= 0.5 * narrower) last.push(blob);
     else groups.push([blob]);
   }
+  // Short strokes high up, like the bar of a 5, belong to the digit next to them. Others are specks.
+  for (const mark of found.filter(isMark)) {
+    const distance = (group: Blob[]) => Math.abs(centreX(group) - centreX([mark]));
+    const nearest = groups.toSorted((a, b) => distance(a) - distance(b))[0];
+    if (nearest && distance(nearest) < 0.5 * tallest) nearest.push(mark);
+  }
   return {
     ink,
     digits: groups.flatMap((group) => splitTouching(group, ink, cell.width, bottom - top + 1)),
-    point: points[0] ?? null,
+    // The largest, others are specks.
+    point: points.toSorted((a, b) => b.pixels.length - a.pixels.length)[0] ?? null,
   };
 }
 
@@ -87,7 +119,7 @@ export function segment(cell: Gray): { ink: Float32Array; digits: Blob[][]; poin
  * Digits written into each other are one blob, wider than a digit. It is cut where the least ink
  * is, near where equally wide digits would end.
  */
-function splitTouching(group: Blob[], ink: Float32Array, width: number, height: number) {
+function splitTouching(group: Blob[], ink: ArrayLike<number>, width: number, height: number) {
   const minX = Math.min(...group.map((blob) => blob.minX));
   const maxX = Math.max(...group.map((blob) => blob.maxX));
   const groupWidth = maxX - minX + 1;
@@ -172,18 +204,8 @@ export function decodeGrade(
   return { value: values[0], confidence, alternatives: values.slice(1, 3) };
 }
 
-/** How much darker than the paper each pixel is, from 0 to 1. Faint pixels are 0. */
-function inkOf({ data }: Gray) {
-  const sorted = data.toSorted();
-  const paper = Math.max(1, sorted[Math.floor(sorted.length * 0.9)]);
-  return Float32Array.from(data, (value) => {
-    const darkness = (paper - value) / paper;
-    return darkness < 0.3 ? 0 : Math.min(1, darkness / 0.6);
-  });
-}
-
 /** 8-connected blobs of ink. */
-function findBlobs(ink: Float32Array, width: number) {
+function findBlobs(ink: ArrayLike<number>, width: number) {
   const height = ink.length / width;
   const seen = new Uint8Array(ink.length);
   const blobs: Blob[] = [];
@@ -226,7 +248,7 @@ function centreX(group: Blob[]) {
 }
 
 /** All ink of an image as one glyph, for training. */
-export function glyphOf(ink: Float32Array, width: number) {
+export function glyphOf(ink: ArrayLike<number>, width: number) {
   const blob: Blob = { minX: width, maxX: -1, minY: Infinity, maxY: -1, pixels: [] };
   for (let index = 0; index < ink.length; index++) {
     if (ink[index] === 0) continue;
@@ -246,7 +268,7 @@ export function glyphOf(ink: Float32Array, width: number) {
  * The blobs as an MNIST glyph: scaled so the longer side is 20 pixels and placed with its centre
  * of mass in the middle of 28×28.
  */
-function toGlyph(ink: Float32Array, width: number, group: Blob[]) {
+function toGlyph(ink: ArrayLike<number>, width: number, group: Blob[]) {
   const minX = Math.min(...group.map((blob) => blob.minX));
   const maxX = Math.max(...group.map((blob) => blob.maxX));
   const minY = Math.min(...group.map((blob) => blob.minY));

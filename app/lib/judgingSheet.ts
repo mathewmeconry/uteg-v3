@@ -19,7 +19,7 @@ export const SHEET = {
   cornerInset: 20,
   cornerSize: 14,
   /** Below the final grade, where the aggregation is printed. */
-  hintHeight: 9,
+  hintHeight: 12,
   /** Of the line left of each grade column. */
   border: 0.5,
 };

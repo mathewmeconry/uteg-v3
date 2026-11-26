@@ -30,8 +30,8 @@ function inside({ x, y }: Point, rect: Rect) {
 function isWritten(point: Point) {
   return WRITTEN.some((cell) => {
     const centre = { x: cell.x + cell.width / 2, y: cell.y + cell.height / 2 };
-    const outer = { x: centre.x - 8, y: centre.y - 10, width: 16, height: 20 };
-    const inner = { x: outer.x + 2, y: outer.y + 2, width: 12, height: 16 };
+    const outer = { x: centre.x - 6, y: centre.y - 7, width: 12, height: 14 };
+    const inner = { x: outer.x + 1.5, y: outer.y + 1.5, width: 9, height: 11 };
     return inside(point, outer) && !inside(point, inner);
   });
 }
@@ -120,7 +120,7 @@ describe('readSheet', () => {
       cell.data[Math.round(y) * cell.width + Math.round(x)] < 128;
     // The ring's left edge is dark in its middle, its centre light.
     const scale = cell.width / cells[2][1].width;
-    expect(dark(cell.width / 2 - 7 * scale, cell.height / 2)).toBe(true);
+    expect(dark(cell.width / 2 - 5.25 * scale, cell.height / 2)).toBe(true);
     expect(dark(cell.width / 2, cell.height / 2)).toBe(false);
   });
 

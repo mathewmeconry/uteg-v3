@@ -17,16 +17,25 @@ export function readSheet(
   image: Gray,
   { attempts, rowCount }: { attempts: number; rowCount: number },
 ): ScannedCell[][] | null {
-  const mask = inkMask(image);
-  const toPhoto = locatePage(mask, image.width);
+  const toPhoto = locatePage(inkMask(image), image.width);
   if (!toPhoto) return null;
   return gradeCells(attempts, rowCount).map((row) =>
-    row.map((rect) => ({
-      image: crop(image, toPhoto, rect),
-      // Without the lines around it.
-      inked: inkShare(mask, image.width, toPhoto, shrink(rect, 3)) > 0.01,
-    })),
+    row.map((rect) => {
+      const cell = crop(image, toPhoto, rect);
+      return { image: cell, inked: hasWriting(cell) };
+    }),
   );
+}
+
+/** Whether a few strokes are in a cut out cell, away from the lines around it. */
+function hasWriting(cell: Gray) {
+  const mask = inkMask(cell, Math.round(cell.height / 2));
+  const margin = 3 * CROP_SCALE;
+  let ink = 0;
+  for (let y = margin; y < cell.height - margin; y++) {
+    for (let x = margin; x < cell.width - margin; x++) ink += mask[y * cell.width + x];
+  }
+  return ink > 0.002 * (cell.width - 2 * margin) * (cell.height - 2 * margin);
 }
 
 /**
@@ -53,15 +62,22 @@ function locatePage(mask: Uint8Array, width: number): Homography | null {
     ),
   );
   const ink = turns.map((turn) => inkShare(mask, width, turn, qrCodeRect()));
-  return turns[ink.indexOf(Math.max(...ink))];
+  const [best, second] = ink.toSorted((a, b) => b - a);
+  // About half of a QR code is ink. Without one, the squares were something else.
+  if (best < 0.3 || best < 1.5 * second) return null;
+  return turns[ink.indexOf(best)];
 }
 
 /**
- * 1 for ink. A pixel is ink when it is clearly darker than its surroundings, so shadows on the
- * photo do not matter (Bradley's threshold).
+ * 1 for ink. A pixel is ink when it is clearly darker than its surroundings within `half` pixels,
+ * so shadows do not matter (Bradley's threshold). The default is larger than the corner squares,
+ * which would otherwise be their own surroundings. Photos up to 16 megapixels.
  */
-function inkMask({ width, height, data }: Gray) {
-  const sums = new Float64Array((width + 1) * (height + 1));
+export function inkMask(
+  { width, height, data }: Gray,
+  half = Math.max(8, Math.round(Math.max(width, height) / 16)),
+) {
+  const sums = new Uint32Array((width + 1) * (height + 1));
   for (let y = 0; y < height; y++) {
     let row = 0;
     for (let x = 0; x < width; x++) {
@@ -69,8 +85,6 @@ function inkMask({ width, height, data }: Gray) {
       sums[(y + 1) * (width + 1) + x + 1] = sums[y * (width + 1) + x + 1] + row;
     }
   }
-  // Larger than the corner squares, which would otherwise be their own surroundings.
-  const half = Math.max(8, Math.round(Math.max(width, height) / 16));
   const mask = new Uint8Array(width * height);
   for (let y = 0; y < height; y++) {
     const top = Math.max(0, y - half);
@@ -121,16 +135,22 @@ function findSquares(mask: Uint8Array, width: number) {
       maxX = Math.max(maxX, x);
       minY = Math.min(minY, y);
       maxY = Math.max(maxY, y);
-      for (const next of [
-        x > 0 ? index - 1 : -1,
-        x < width - 1 ? index + 1 : -1,
-        index - width,
-        index + width,
-      ]) {
-        if (next >= 0 && next < mask.length && mask[next] && !seen[next]) {
-          seen[next] = 1;
-          stack[top++] = next;
-        }
+      // Without an array per pixel, there are millions.
+      if (x > 0 && mask[index - 1] && !seen[index - 1]) {
+        seen[index - 1] = 1;
+        stack[top++] = index - 1;
+      }
+      if (x < width - 1 && mask[index + 1] && !seen[index + 1]) {
+        seen[index + 1] = 1;
+        stack[top++] = index + 1;
+      }
+      if (index >= width && mask[index - width] && !seen[index - width]) {
+        seen[index - width] = 1;
+        stack[top++] = index - width;
+      }
+      if (index + width < mask.length && mask[index + width] && !seen[index + width]) {
+        seen[index + width] = 1;
+        stack[top++] = index + width;
       }
     }
     const boxWidth = maxX - minX + 1;
@@ -155,11 +175,14 @@ function findSquares(mask: Uint8Array, width: number) {
 
 /** Whether nearly all of a square around a point is ink. Holds for squares turned any way. */
 function isSolid(mask: Uint8Array, width: number, { x, y }: Point, half: number) {
+  const height = mask.length / width;
   let ink = 0;
   let total = 0;
   for (let dy = -half; dy <= half; dy++) {
     for (let dx = -half; dx <= half; dx++) {
-      ink += mask[Math.round(y + dy) * width + Math.round(x + dx)] ?? 0;
+      const px = Math.round(x + dx);
+      const py = Math.round(y + dy);
+      if (px >= 0 && py >= 0 && px < width && py < height) ink += mask[py * width + px];
       total++;
     }
   }
@@ -209,8 +232,4 @@ function crop(image: Gray, toPhoto: Homography, area: Rect): Gray {
     }
   }
   return { width, height, data };
-}
-
-function shrink({ x, y, width, height }: Rect, by: number): Rect {
-  return { x: x + by, y: y + by, width: width - 2 * by, height: height - 2 * by };
 }
