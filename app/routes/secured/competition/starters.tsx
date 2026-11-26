@@ -45,7 +45,6 @@ import {
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { competitionContext } from '~/context';
-import { Role } from '~/generated/prisma/enums';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { listClubs } from '~/lib/clubs.server';
@@ -54,6 +53,7 @@ import { domainErrorMessage } from '~/lib/domainErrors.server';
 import { withoutNul } from '~/lib/domain/starter';
 import { DomainError } from '~/lib/errors';
 import { parseForm, rejectNul, type FieldErrors } from '~/lib/forms.server';
+import { can } from '~/lib/roles';
 import {
   assignEntries,
   createStarter,
@@ -63,11 +63,11 @@ import {
   withdrawStarters,
 } from '~/lib/starters.server';
 import type { ServerT } from '~/locales';
-import { checkInPageMiddleware, requireRoleOr } from '~/middlewares/competition.server';
+import { pageMiddleware, requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 
-export const middleware: Route.MiddlewareFunction[] = [checkInPageMiddleware];
+export const middleware: Route.MiddlewareFunction[] = [pageMiddleware('view', 'checkIn')];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { id, contests } = context.get(competitionContext);
@@ -83,11 +83,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id, role } = requireRoleOr(context, Role.EDITOR, Role.CHECK_IN);
-  const isCheckIn = role === Role.CHECK_IN;
+  const { id, role } = requirePermission(context, 'checkIn');
+  // Without it, only the person: the check-in does not assign.
+  const canEdit = can(role, 'edit');
   const t = getT(context);
   const formData = await request.formData();
-  if (isCheckIn && !['create', 'update', 'remove'].includes(String(formData.get('intent')))) {
+  if (!canEdit && !['create', 'update', 'remove'].includes(String(formData.get('intent')))) {
     throw data(null, 403);
   }
   rejectNul(formData);
@@ -107,8 +108,8 @@ export async function action({ request, context }: Route.ActionArgs) {
         const entry = {
           contestId,
           category: category || undefined,
-          divisionId: (!isCheckIn && divisionId) || undefined,
-          startApparatus: (!isCheckIn && startApparatus) || undefined,
+          divisionId: (canEdit && divisionId) || undefined,
+          startApparatus: (canEdit && startApparatus) || undefined,
         };
         const { starterId, outcome } = await createStarter(id, {
           ...person,
@@ -130,15 +131,15 @@ export async function action({ request, context }: Route.ActionArgs) {
           contestId,
           category: category || null,
           // The check-in keeps them as far as they fit the category.
-          divisionId: isCheckIn ? undefined : divisionId || null,
-          startApparatus: isCheckIn ? undefined : startApparatus || null,
+          divisionId: canEdit ? divisionId || null : undefined,
+          startApparatus: canEdit ? startApparatus || null : undefined,
         };
         await updateStarter(id, starterId, {
           ...person,
           // Another sex would lose the division, which the check-in cannot assign again.
-          sex: isCheckIn ? undefined : person.sex,
+          sex: canEdit ? person.sex : undefined,
           entries: isInContest || category ? [entry] : [],
-          updateAthlete: !isCheckIn && formData.get('updateAthlete') === 'on',
+          updateAthlete: canEdit && formData.get('updateAthlete') === 'on',
         });
         return success(t('starters:updated', { name: fullName(person) }), [starterId]);
       }
@@ -252,8 +253,9 @@ function filterClub(id: string | null): Filters {
 export default function Starters({ loaderData }: Route.ComponentProps) {
   const { starters, contest, clubs } = loaderData;
   const { t } = useTranslation(['starters', 'common']);
-  const { competition, contests, canEdit, isCheckIn } = useCompetition();
-  const canEditPerson = canEdit || isCheckIn;
+  const { competition, contests, can } = useCompetition();
+  const canEdit = can('edit');
+  const canEditPerson = can('checkIn');
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -538,7 +540,7 @@ export default function Starters({ loaderData }: Route.ComponentProps) {
           options={contest}
           clubs={clubs}
           startingIds={startingIds}
-          personOnly={isCheckIn}
+          personOnly={!canEdit}
           onClose={closeDialog}
         />
       )}

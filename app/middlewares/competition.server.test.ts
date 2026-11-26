@@ -7,14 +7,11 @@ import type { Role } from '~/generated/prisma/client';
 import { addMember, createCompetition, createUser, truncateTables } from '~/tests/helpers';
 import { authMiddleware } from './auth.server';
 import {
-  checkInPageMiddleware,
+  apiMiddleware,
   competitionMiddleware,
   contestMiddleware,
-  gradeEntryApiMiddleware,
-  gradeEntryPageMiddleware,
-  requireRole,
-  viewerApiMiddleware,
-  viewerPageMiddleware,
+  pageMiddleware,
+  requirePermission,
 } from './competition.server';
 
 beforeEach(truncateTables);
@@ -110,7 +107,7 @@ describe('competitionMiddleware', () => {
   });
 });
 
-describe('role middlewares', () => {
+describe('page and API middlewares', () => {
   it.each([
     ['CHECK_IN', 302, 403],
     ['GRADE_ENTRY', 302, 403],
@@ -118,29 +115,25 @@ describe('role middlewares', () => {
   ] as const)('answer a %s with %i on pages and %i in the API', async (role, page, api) => {
     const { competition, context } = await setup(role);
     await run(competitionMiddleware, context, { competitionId: competition.id });
-    expect((await run(viewerPageMiddleware, context)).status).toBe(page);
-    expect((await run(viewerApiMiddleware, context)).status).toBe(api);
+    expect((await run(pageMiddleware('view'), context)).status).toBe(page);
+    expect((await run(apiMiddleware('view'), context)).status).toBe(api);
   });
 
-  it.each([
-    ['CHECK_IN', 200, 302, 403],
-    ['GRADE_ENTRY', 302, 200, 200],
-    ['VIEWER', 200, 200, 200],
-  ] as const)(
-    'answer a %s with %i on the starters, %i on the grading pages and %i in their API',
-    async (role, starters, grading, api) => {
-      const { competition, context } = await setup(role);
-      await run(competitionMiddleware, context, { competitionId: competition.id });
-      expect((await run(checkInPageMiddleware, context)).status).toBe(starters);
-      expect((await run(gradeEntryPageMiddleware, context)).status).toBe(grading);
-      expect((await run(gradeEntryApiMiddleware, context)).status).toBe(api);
-    },
-  );
+  it('let in whoever has one of the permissions', async () => {
+    const { competition, context } = await setup('CHECK_IN');
+    await run(competitionMiddleware, context, { competitionId: competition.id });
+    expect((await run(pageMiddleware('view', 'checkIn'), context)).status).toBe(200);
+    const { error } = await run(pageMiddleware('view'), context);
+    expect((error as Response).headers.get('Location')).toBe(
+      `/competitions/${competition.id}/starters`,
+    );
+  });
 
   it('send the grade entry to the divisions', async () => {
     const { competition, context } = await setup('GRADE_ENTRY');
     await run(competitionMiddleware, context, { competitionId: competition.id });
-    const { error } = await run(viewerPageMiddleware, context);
+    expect((await run(pageMiddleware('view', 'grade'), context)).status).toBe(200);
+    const { error } = await run(pageMiddleware('view', 'checkIn'), context);
     expect((error as Response).headers.get('Location')).toBe(
       `/competitions/${competition.id}/contests/${competition.contest.id}/divisions`,
     );
@@ -195,20 +188,26 @@ describe('contestMiddleware', () => {
   });
 });
 
-describe('requireRole', () => {
+describe('requirePermission', () => {
   it.each([
-    ['OWNER', 'OWNER', true],
-    ['OWNER', 'VIEWER', true],
-    ['EDITOR', 'EDITOR', true],
-    ['EDITOR', 'OWNER', false],
-    ['VIEWER', 'VIEWER', true],
-    ['VIEWER', 'EDITOR', false],
-  ] as const)('%s acting as %s: %s', async (role, minRole, allowed) => {
+    ['OWNER', 'manage', true],
+    ['OWNER', 'view', true],
+    ['EDITOR', 'edit', true],
+    ['EDITOR', 'manage', false],
+    ['VIEWER', 'view', true],
+    ['VIEWER', 'edit', false],
+    ['VIEWER', 'checkIn', false],
+    ['CHECK_IN', 'checkIn', true],
+    ['CHECK_IN', 'view', false],
+    ['GRADE_ENTRY', 'grade', true],
+    ['GRADE_ENTRY', 'edit', false],
+    ['GRADE_ENTRY', 'checkIn', false],
+  ] as const)('%s asking to %s: %s', async (role, permission, allowed) => {
     const { competition, context } = await setup(role);
     await run(competitionMiddleware, context, { competitionId: competition.id });
     let status = 200;
     try {
-      expect(requireRole(context, minRole).id).toBe(competition.id);
+      expect(requirePermission(context, permission).id).toBe(competition.id);
     } catch (error) {
       status = statusOf(error) ?? 0;
     }

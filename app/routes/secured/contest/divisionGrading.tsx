@@ -9,7 +9,6 @@ import { GradeGrid } from '~/components/grading/GradeGrid';
 import { isUntouched, type GradeDrafts } from '~/components/grading/useGradeDrafts';
 import { Button } from '~/components/ui/button';
 import { competitionContext, contestContext } from '~/context';
-import { Role } from '~/generated/prisma/enums';
 import { useApparatusName } from '~/hooks/useApparatusName';
 import { useCompetition } from '~/hooks/useCompetition';
 import { readForm } from '~/lib/forms.server';
@@ -18,7 +17,7 @@ import { getGradingState, getJudgingState } from '~/lib/judging.server';
 import { safeClientAction } from '~/lib/safeClientAction';
 import { categoryName } from '~/lib/categoryName';
 import { cn } from '~/lib/utils';
-import { requireRoleOr } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 
 export async function loader({ context, params: { divisionId } }: Route.LoaderArgs) {
   const { id } = context.get(competitionContext);
@@ -64,7 +63,7 @@ async function getCurrentRounds(
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRoleOr(context, Role.EDITOR, Role.GRADE_ENTRY);
+  const { id } = requirePermission(context, 'grade');
   const formData = await readForm(request);
   switch (formData.get('intent')) {
     case 'delete':
@@ -80,7 +79,7 @@ export const clientAction = safeClientAction;
 
 export default function DivisionGrading({ loaderData }: Route.ComponentProps) {
   const { t } = useTranslation(['judging', 'divisions', 'common']);
-  const { canGrade } = useCompetition();
+  const canEdit = useCompetition().can('grade');
   const apparatusName = useApparatusName();
   const divisionName = useDivisionName();
   const { division, apparatus, rounds } = loaderData;
@@ -162,15 +161,15 @@ export default function DivisionGrading({ loaderData }: Route.ComponentProps) {
                 <Legend stage="later" />
               </>
             )}
-            {canGrade && <span className="pointer-coarse:hidden">{t('grading.keys')}</span>}
+            {canEdit && <span className="pointer-coarse:hidden">{t('grading.keys')}</span>}
           </div>
           <GradeGrid
             apparatus={apparatus}
             progress={division.progress}
             isRunning={isRunning}
             drafts={drafts}
-            canEdit={canGrade}
-            confirm={canGrade && isRunning ? renderConfirm : undefined}
+            canEdit={canEdit}
+            confirm={canEdit && isRunning ? renderConfirm : undefined}
           />
         </div>
       )}

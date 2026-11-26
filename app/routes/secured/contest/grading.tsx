@@ -19,7 +19,6 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { competitionContext, contestContext } from '~/context';
-import { Role } from '~/generated/prisma/enums';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { categoryName } from '~/lib/categoryName';
@@ -27,7 +26,7 @@ import { readForm } from '~/lib/forms.server';
 import { runConfirmRound, runDeleteGrade } from '~/lib/gradingActions.server';
 import { getJudgingState, listRunningDivisions } from '~/lib/judging.server';
 import { safeClientAction } from '~/lib/safeClientAction';
-import { requireRoleOr } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { id, grounds } = context.get(competitionContext);
@@ -62,7 +61,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRoleOr(context, Role.EDITOR, Role.GRADE_ENTRY);
+  const { id } = requirePermission(context, 'grade');
   const formData = await readForm(request);
   switch (formData.get('intent')) {
     case 'delete':
@@ -78,7 +77,8 @@ export const clientAction = safeClientAction;
 
 export default function Grading({ loaderData, params: { contestId } }: Route.ComponentProps) {
   const { t } = useTranslation(['judging', 'divisions', 'common']);
-  const { competition, canGrade } = useCompetition();
+  const { competition, can } = useCompetition();
+  const canEdit = can('grade');
   const [, setSearchParams] = useSearchParams();
   const status = useLiveUpdates(`/api/events/${competition.id}`);
   const { ground, running, divisions, apparatus, loadedAt } = loaderData;
@@ -198,9 +198,9 @@ export default function Grading({ loaderData, params: { contestId } }: Route.Com
             ground={ground}
             apparatus={apparatus}
             drafts={drafts}
-            canEdit={canGrade}
+            canEdit={canEdit}
           />
-          {canGrade && (
+          {canEdit && (
             <p className="text-sm text-muted-foreground pointer-coarse:hidden">
               {t('grading.keys')}
             </p>

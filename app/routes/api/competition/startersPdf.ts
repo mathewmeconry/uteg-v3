@@ -1,9 +1,8 @@
 import { data } from 'react-router';
 import type { Route } from './+types/startersPdf';
 import { competitionContext, type Context } from '~/context';
-import { Role } from '~/generated/prisma/enums';
 import { listStarters } from '~/lib/starters.server';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getDocumentI18n } from '~/middlewares/i18n.server';
 import { readParams } from '~/pdf/request.server';
 import { pdfResponse } from '~/pdf/response.server';
@@ -11,13 +10,13 @@ import type { ClubGroup, StarterRow } from '~/pdf/StartersDocument';
 
 /** All starters, or those with `?id=…&id=…`. */
 export function loader({ request, context }: Route.LoaderArgs) {
-  requireRole(context, Role.CHECK_IN);
+  requirePermission(context, 'view', 'checkIn');
   return startersPdf(request, context);
 }
 
 /** The same as a form, for many ids. */
 export function action({ request, context }: Route.ActionArgs) {
-  requireRole(context, Role.CHECK_IN);
+  requirePermission(context, 'view', 'checkIn');
   return startersPdf(request, context);
 }
 
