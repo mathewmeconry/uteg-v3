@@ -14,6 +14,7 @@ import {
 } from './domain/rotation';
 import { DomainError, type MissingGrade } from './errors';
 import { publish } from './events.server';
+import { keepHandwriting } from './handwriting.server';
 import { lockContestConfigs, lockDivisions } from './locks.server';
 import { prisma } from './prisma.server';
 
@@ -184,6 +185,14 @@ export async function saveGrades(
           create: { entryId, apparatus, ...data },
           update: { ...data, version: { increment: 1 } },
         }),
+      );
+    }
+    // An editor checked the paper: its handwriting now has a known value. Judges don't see it.
+    if (scope.kind === 'editor') {
+      await keepHandwriting(
+        tx,
+        competitionId,
+        grades.map((input) => result.get(input)!),
       );
     }
     // A saved grade was checked, its scan is done.

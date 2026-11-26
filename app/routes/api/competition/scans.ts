@@ -8,6 +8,7 @@ import { SHEET } from '~/lib/judgingSheet';
 import {
   discardScannedGrade,
   getScannedSheet,
+  MAX_CELL_BYTES,
   MAX_IMAGE_BYTES,
   saveScannedGrades,
 } from '~/lib/scans.server';
@@ -22,10 +23,17 @@ const rowsSchema = z
       value: z.number().int().optional(),
       attempts: z.array(z.number().int()).max(4).optional(),
       confidence: z.number(),
+      /** Of the sheet, when the ink of the cells is sent as `cell-<row>-<column>`. */
+      columns: z.number().int().min(1).max(5).optional(),
     }),
   )
   .max(SHEET.rowsPerPage)
   .refine((rows) => new Set(rows.map(({ row }) => row)).size === rows.length);
+
+const cellSizeSchema = z.object({
+  width: z.coerce.number().int(),
+  height: z.coerce.number().int(),
+});
 
 /** `?code=`: the rows of a scanned page of the judging sheets, to read their cells. */
 export async function loader({ request, context }: Route.LoaderArgs) {
@@ -45,6 +53,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
           sex,
           number,
         })),
+        keepHandwriting: sheet.keepHandwriting,
         rows: sheet.rows.map(
           ({ entryId, firstname, lastname, withdrawn, inputRule, precision, grade }) => ({
             entryId,
@@ -68,7 +77,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 /**
- * Keeps the grades read from a page: `code`, `rows` as JSON, and `image-<row>` for each. Or with
+ * Keeps the grades read from a page: `code`, `rows` as JSON, and `image-<row>` for each. With
+ * `cellWidth` and `cellHeight`, also the ink of the cells as `cell-<row>-<column>`. Or with
  * `intent=discard`, drops the scanned grade `id`.
  */
 export async function action({ request, context }: Route.ActionArgs) {
@@ -82,16 +92,28 @@ export async function action({ request, context }: Route.ActionArgs) {
     const parsed = rowsSchema.safeParse(parseJson(formData.get('rows')));
     if (!parsed.success) throw new DomainError('INVALID_INPUT');
     const rows = await Promise.all(
-      parsed.data.map(async (row) => {
-        const image = formData.get(`image-${row.row}`);
-        // Before reading it.
-        if (!(image instanceof File) || image.size > MAX_IMAGE_BYTES) {
-          throw new DomainError('INVALID_INPUT');
+      parsed.data.map(async ({ columns = 0, ...row }) => {
+        const image = await readFile(formData.get(`image-${row.row}`), MAX_IMAGE_BYTES);
+        if (!image) throw new DomainError('INVALID_INPUT');
+        const cells = [];
+        for (let column = 0; column < columns; column++) {
+          const sent = formData.get(`cell-${row.row}-${column}`);
+          // Without one nothing is written there.
+          const cell = sent === null ? new Uint8Array() : await readFile(sent, MAX_CELL_BYTES);
+          if (!cell) throw new DomainError('INVALID_INPUT');
+          cells.push(cell);
         }
-        return { ...row, image: new Uint8Array(await image.arrayBuffer()) };
+        return { ...row, image, cells };
       }),
     );
-    return { scanned: await saveScannedGrades(id, String(formData.get('code')), rows) };
+    const size = cellSizeSchema.safeParse({
+      width: formData.get('cellWidth'),
+      height: formData.get('cellHeight'),
+    });
+    const code = String(formData.get('code'));
+    return {
+      scanned: await saveScannedGrades(id, code, rows, size.success ? size.data : undefined),
+    };
   } catch (error) {
     return failure(error, context);
   }
@@ -104,6 +126,12 @@ function failure(error: unknown, context: Route.LoaderArgs['context']) {
     return data({ error: t('judging:scan.otherSheet') }, 404);
   }
   return actionError(error, t);
+}
+
+/** Its bytes, or null when it is no file or too large. The size is checked before reading. */
+async function readFile(value: FormDataEntryValue | null, maxBytes: number) {
+  if (!(value instanceof File) || value.size > maxBytes) return null;
+  return new Uint8Array(await value.arrayBuffer());
 }
 
 function parseJson(value: FormDataEntryValue | null) {

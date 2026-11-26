@@ -23,6 +23,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       grounds: competition.grounds,
       sexes: competition.sexes,
       logoId: competition.logoId,
+      keepHandwriting: competition.keepHandwriting,
     },
     // To switch to another one.
     competitions: competitions.map(({ id, name, startDate, endDate }) => ({

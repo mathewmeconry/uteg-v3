@@ -24,7 +24,8 @@
     "prisma:migrate": "prisma migrate deploy",
     "seed": "node --import tsx prisma/seed.ts",
     "migrate:v2": "node --import tsx prisma/migrate-v2.ts",
-    "train:digits": "node --import tsx scripts/train-digits.ts"
+    "train:digits": "node --import tsx scripts/train-digits.ts",
+    "export:handwriting": "node --import tsx scripts/export-handwriting.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

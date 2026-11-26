@@ -15,12 +15,15 @@ import { PageHeader } from '~/components/PageHeader';
 import { Section, Sections } from '~/components/Section';
 import { SubmitButton } from '~/components/SubmitButton';
 import { Button } from '~/components/ui/button';
+import { Label } from '~/components/ui/label';
+import { Switch } from '~/components/ui/switch';
 import { useActionErrors } from '~/hooks/useActionFetcher';
 import { useCompetition } from '~/hooks/useCompetition';
 import { removeLogo, setLogo } from '~/lib/assets.server';
 import { competitionSchema, readLogo } from '~/lib/competitionForm.server';
 import { deleteCompetition, updateCompetition } from '~/lib/competitions.server';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
+import { setKeepHandwriting } from '~/lib/handwriting.server';
 import { DomainError } from '~/lib/errors';
 import { parseForm } from '~/lib/forms.server';
 import { safeClientAction } from '~/lib/safeClientAction';
@@ -60,6 +63,12 @@ export async function action({ request, context }: Route.ActionArgs) {
         return data({ errors: { logo: domainErrorMessage(error, t) } }, 400);
       }
       enqueueToast(context, { type: 'success', message: t('settings:logo.saved') });
+      return redirect('.');
+    }
+
+    case 'handwriting': {
+      await setKeepHandwriting(id, formData.get('keepHandwriting') === 'on');
+      enqueueToast(context, { type: 'success', message: t('settings:saved') });
       return redirect('.');
     }
 
@@ -157,6 +166,31 @@ export default function Settings({ actionData }: Route.ComponentProps) {
               </Form>
             )}
           </div>
+        </Section>
+
+        <Section title={t('handwriting.title')} description={t('handwriting.text')}>
+          <Form method="post">
+            <fieldset disabled={!canEdit} className="grid gap-4">
+              <Label htmlFor="keep-handwriting" className="min-h-11 leading-normal font-normal">
+                <Switch
+                  id="keep-handwriting"
+                  name="keepHandwriting"
+                  defaultChecked={competition.keepHandwriting}
+                />
+                {t('handwriting.keep')}
+              </Label>
+              {canEdit && (
+                <SubmitButton
+                  name="intent"
+                  value="handwriting"
+                  variant="outline"
+                  className="justify-self-start"
+                >
+                  {t('common:actions.save')}
+                </SubmitButton>
+              )}
+            </fieldset>
+          </Form>
         </Section>
 
         {isOwner && (

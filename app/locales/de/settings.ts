@@ -18,6 +18,11 @@ export default {
     saved: 'Das Logo wurde gespeichert.',
     removed: 'Das Logo wurde entfernt.',
   },
+  handwriting: {
+    title: 'Handschriften',
+    text: 'Werden gescannte Noten geprüft und gespeichert, bleibt die Handschrift ihrer Felder mit der geprüften Note, ohne Namen. Damit lernt die Erkennung die Handschriften der Wertungsrichter. Sie wird mit dem Wettkampf gelöscht.',
+    keep: 'Handschriften zur Verbesserung der Erkennung behalten',
+  },
   delete: {
     title: 'Wettkampf löschen',
     text: 'Löscht alle Teilnehmenden, Abteilungen, Noten und Zugänge dieses Wettkampfs. Das kann nicht rückgängig gemacht werden.',

@@ -29,6 +29,7 @@ const RESULT: Extract<ScanResult, { kind: 'done' }> = {
     round: 0,
     attempts: 1,
     divisions: [{ contestId: 'c', ground: 1, category: 'K5', sex: 'FEMALE', number: 1 }],
+    keepHandwriting: true,
     rows: [
       row('anna', 'Anna', null),
       row('bea', 'Bea', { value: 9000, version: 3 }),
