@@ -2,6 +2,7 @@ import { Document, Page, Text, View } from '@react-pdf/renderer';
 import type { Sex } from '~/generated/prisma/client';
 import type { GradingState } from '~/lib/judging.server';
 import { categoryName } from '~/lib/categoryName';
+import { gradeColumnWidth, SHEET } from '~/lib/judgingSheet';
 import type { ServerT } from '~/locales';
 import {
   Cell,
@@ -22,17 +23,10 @@ type Slot = GradingState['apparatus'][number]['rounds'][number]['slots'][number]
 const PAGE = {
   fontFamily: FONT,
   fontSize: 9,
-  paddingTop: 32,
-  paddingHorizontal: 40,
-  paddingBottom: 40,
+  paddingTop: SHEET.paddingTop,
+  paddingHorizontal: SHEET.paddingX,
+  paddingBottom: SHEET.paddingBottom,
 };
-const ROW_HEIGHT = 32;
-/**
- * Pages are cut here and not by react-pdf, so the QR code knows the rows of its page. Fits with
- * the longest header.
- */
-const ROWS_PER_PAGE = 18;
-const QR_SIZE = 80;
 const NUMBER: Column = { width: 24 };
 const NAME: Column = { flex: 3 };
 const CLUB: Column = { flex: 2 };
@@ -62,10 +56,10 @@ export function JudgingSheetsDocument({
         );
         // The same columns on every page of a list.
         const attempts = Math.max(1, ...slots.map(({ inputRule }) => inputRule.attempts));
-        const pageCount = Math.max(1, Math.ceil(slots.length / ROWS_PER_PAGE));
+        const pageCount = Math.max(1, Math.ceil(slots.length / SHEET.rowsPerPage));
         return Array.from({ length: pageCount }, (_, page) => {
-          const offset = page * ROWS_PER_PAGE;
-          const rows = slots.slice(offset, offset + ROWS_PER_PAGE);
+          const offset = page * SHEET.rowsPerPage;
+          const rows = slots.slice(offset, offset + SHEET.rowsPerPage);
           return {
             ground,
             divisions: here,
@@ -94,7 +88,14 @@ export function JudgingSheetsDocument({
     >
       {pages.map(({ ground, divisions, apparatus, round, attempts, offset, rows, code }) => (
         <Page key={`${ground}-${apparatus}-${round}-${offset}`} size="A4" style={PAGE}>
-          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              gap: 12,
+              height: SHEET.headerHeight,
+              marginBottom: SHEET.headerGap,
+            }}
+          >
             <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
                 <Text
@@ -120,7 +121,7 @@ export function JudgingSheetsDocument({
                   .join('  ·  ')}
               </Text>
             </View>
-            {rows.length > 0 && <QrCode value={code} size={QR_SIZE} />}
+            {rows.length > 0 && <QrCode value={code} size={SHEET.qrSize} />}
           </View>
           {rows.length === 0 ? (
             <Text style={{ marginTop: 24, fontSize: 14, textAlign: 'center' }}>
@@ -156,19 +157,18 @@ function Sheet({
   t: ServerT;
 }) {
   const numbers = attempts > 1 ? Array.from({ length: attempts }, (_, index) => index + 1) : [];
-  // Wide, as grades are read from photos, but names stay readable with 4 attempts.
-  const gradeColumn: Column = { width: [150, 92, 76, 64][attempts - 1] ?? 64 };
+  const gradeColumn: Column = { width: gradeColumnWidth(attempts) };
   const box = {
     alignSelf: 'stretch',
     justifyContent: 'center',
-    borderLeftWidth: 0.5,
+    borderLeftWidth: SHEET.border,
     borderLeftColor: MUTED,
   } as const;
 
   return (
     <Table
       header={
-        <HeaderRow>
+        <HeaderRow style={{ height: SHEET.tableHeaderHeight }}>
           <Cell column={NUMBER}>{t('pdf:sheets.number')}</Cell>
           <Cell column={NAME}>{t('fields.name')}</Cell>
           <Cell column={CLUB}>{t('fields.club')}</Cell>
@@ -186,8 +186,7 @@ function Sheet({
       rows={rows.map((slot, index) => {
         const struck = { textDecoration: slot.withdrawn ? 'line-through' : 'none' } as const;
         return (
-          // Rows of the same height are where a scan expects them.
-          <Row key={slot.entryId} style={{ height: ROW_HEIGHT }}>
+          <Row key={slot.entryId} style={{ height: SHEET.rowHeight }}>
             <Cell column={NUMBER} style={struck}>
               {offset + index + 1}
             </Cell>
@@ -223,21 +222,18 @@ function Sheet({
   );
 }
 
-/** Where a scan finds the corners of the page. */
+/** Where a scan finds the corners of the page. Within what printers print. */
 function CornerMarks() {
-  const size = 14;
-  // Within what printers print.
-  const inset = 20;
   return (['top', 'bottom'] as const).flatMap((vertical) =>
     (['left', 'right'] as const).map((horizontal) => (
       <View
         key={`${vertical}-${horizontal}`}
         style={{
           position: 'absolute',
-          [vertical]: inset,
-          [horizontal]: inset,
-          width: size,
-          height: size,
+          [vertical]: SHEET.cornerInset,
+          [horizontal]: SHEET.cornerInset,
+          width: SHEET.cornerSize,
+          height: SHEET.cornerSize,
           backgroundColor: '#000000',
         }}
       />
