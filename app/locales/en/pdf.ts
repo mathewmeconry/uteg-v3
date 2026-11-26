@@ -49,7 +49,7 @@ export default {
     logoPosition: 'Logo position',
     logoPositions: { left: 'Left', center: 'Centre', right: 'Right' },
     logoHeight: 'Logo height (pt)',
-    logoHeightHint: 'Wide logos are at most four times as wide.',
+    logoHeightHint: 'Wide logos are at most four times as wide as they are high.',
     fontSize: 'Font size (pt)',
     fontSizeHint: 'Reduced when the columns would not fit otherwise.',
     rowHeight: 'Row height (pt)',

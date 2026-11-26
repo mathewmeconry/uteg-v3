@@ -153,7 +153,8 @@ export function TemplateFields({
           {number('rowHeight', 10, 40)}
         </Columns>
         {check('showLogo')}
-        {options.showLogo && (
+        {/* An invalid height stays visible, otherwise saving is blocked without a reason. */}
+        {(options.showLogo || errorOf('logoHeight')) && (
           <Columns>
             <SelectField
               label={t('form.logoPosition')}

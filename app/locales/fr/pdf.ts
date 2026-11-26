@@ -49,7 +49,7 @@ export default {
     logoPosition: 'Position du logo',
     logoPositions: { left: 'À gauche', center: 'Au centre', right: 'À droite' },
     logoHeight: 'Hauteur du logo (pt)',
-    logoHeightHint: 'Un logo large fait au plus quatre fois sa hauteur.',
+    logoHeightHint: 'Un logo large mesure au plus quatre fois sa hauteur en largeur.',
     fontSize: 'Taille de police (pt)',
     fontSizeHint: 'Est réduite si les colonnes n’ont pas assez de place.',
     rowHeight: 'Hauteur de ligne (pt)',
