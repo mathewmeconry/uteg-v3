@@ -1,9 +1,9 @@
 import { Outlet } from 'react-router';
 import type { Route } from './+types/viewerLayout';
-import { viewerPageMiddleware } from '~/middlewares/competition.server';
+import { pageMiddleware } from '~/middlewares/competition.server';
 
 /** Around every page the check-in may not see. */
-export const middleware: Route.MiddlewareFunction[] = [viewerPageMiddleware];
+export const middleware: Route.MiddlewareFunction[] = [pageMiddleware('view')];
 
 // Client navigations only run middleware on the server when a matched route has a loader.
 export function loader() {

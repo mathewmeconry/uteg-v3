@@ -69,7 +69,8 @@ export default function Dashboard({
   loaderData: { stats, grounds, latestGrades, planned: unordered, running },
 }: Route.ComponentProps) {
   const { t, i18n } = useTranslation(['competition', 'divisions', 'common']);
-  const { competition, contests, canEdit } = useCompetition();
+  const { competition, contests, can } = useCompetition();
+  const canEdit = can('edit');
   const status = useLiveUpdates(`/api/events/${competition.id}`);
   const { starters, clubs, grades, divisions } = stats;
   const phase = getPhase(stats);

@@ -11,7 +11,7 @@ import { parseJson } from '~/lib/competitionForm.server';
 import { getConfigVersion, updateContestConfig } from '~/lib/contests.server';
 import { domainErrorMessage } from '~/lib/domainErrors.server';
 import type { EgtConfig } from '~/modules/egt/module';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 
@@ -29,7 +29,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id: competitionId } = requireRole(context, 'EDITOR');
+  const { id: competitionId } = requirePermission(context, 'edit');
   const contest = context.get(contestContext);
   const t = getT(context);
   const formData = await request.formData();
@@ -47,7 +47,8 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 export default function ContestSettings({ loaderData, actionData }: Route.ComponentProps) {
   const { t } = useTranslation('settings');
-  const { competition, canEdit } = useCompetition();
+  const { competition, can } = useCompetition();
+  const canEdit = can('edit');
   const status = useLiveUpdates(`/api/events/${competition.id}`);
   const { contestId, name, module, config, version } = loaderData;
 

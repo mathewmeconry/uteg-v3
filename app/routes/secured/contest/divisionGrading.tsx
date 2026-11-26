@@ -17,7 +17,7 @@ import { getGradingState, getJudgingState } from '~/lib/judging.server';
 import { safeClientAction } from '~/lib/safeClientAction';
 import { categoryName } from '~/lib/categoryName';
 import { cn } from '~/lib/utils';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 
 export async function loader({ context, params: { divisionId } }: Route.LoaderArgs) {
   const { id } = context.get(competitionContext);
@@ -63,7 +63,7 @@ async function getCurrentRounds(
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requirePermission(context, 'edit');
   const formData = await readForm(request);
   switch (formData.get('intent')) {
     case 'delete':
@@ -79,7 +79,7 @@ export const clientAction = safeClientAction;
 
 export default function DivisionGrading({ loaderData }: Route.ComponentProps) {
   const { t } = useTranslation(['judging', 'divisions', 'common']);
-  const { canEdit } = useCompetition();
+  const canEdit = useCompetition().can('edit');
   const apparatusName = useApparatusName();
   const divisionName = useDivisionName();
   const { division, apparatus, rounds } = loaderData;

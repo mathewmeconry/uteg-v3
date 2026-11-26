@@ -55,7 +55,7 @@ function setup(canEdit = true, contests = [{ id: 'k', name: 'EGT' }]) {
     {
       id: 'routes/secured/competition/layout',
       path: '/',
-      loader: () => ({ competition: { id: 'c' }, contests, canEdit }),
+      loader: () => ({ competition: { id: 'c' }, contests, role: canEdit ? 'EDITOR' : 'VIEWER' }),
       HydrateFallback: () => null,
       Component: () => (
         <I18nextProvider i18n={createI18n('de')}>
