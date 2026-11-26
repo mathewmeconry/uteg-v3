@@ -11,7 +11,7 @@ import { getUser } from '~/lib/auth/auth.server';
 import { getStats, listCompetitions } from '~/lib/competitions.server';
 import { getPhase, getTiming } from '~/lib/domain/competitionPhase';
 import { formatDateRange } from '~/lib/format';
-import { hasRole } from '~/lib/roles';
+import { can } from '~/lib/roles';
 
 export async function loader({ context }: Route.LoaderArgs) {
   const now = new Date();
@@ -22,7 +22,7 @@ export async function loader({ context }: Route.LoaderArgs) {
         const timing = getTiming({ startDate, endDate }, now);
         // The past ones have nothing left to do.
         const phase = timing === 'past' ? null : getPhase(await getStats(id));
-        const canEdit = hasRole(role, 'EDITOR');
+        const canEdit = can(role, 'edit');
         return { id, name, location, startDate, endDate, logoId, timing, phase, canEdit };
       }),
     ),

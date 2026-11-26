@@ -2,14 +2,13 @@ import { data } from 'react-router';
 import type { Route } from './+types/startersXlsx';
 import { createStartersWorkbook } from '~/components/starters/startersWorkbook.server';
 import { toStarterRow } from '~/components/starters/starterRow';
-import { Role } from '~/generated/prisma/enums';
 import { listStarters } from '~/lib/starters.server';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getDocumentI18n } from '~/middlewares/i18n.server';
 
 /** The starters of the repeated field `id` in that order. A form, long lists don't fit an address. */
 export async function action({ request, context }: Route.ActionArgs) {
-  const competition = requireRole(context, Role.CHECK_IN);
+  const competition = requirePermission(context, 'view', 'checkIn');
   const { t } = getDocumentI18n(request, context);
   const formData = await request.formData();
   const contestId = formData.get('contest') ?? competition.contests[0]?.id;

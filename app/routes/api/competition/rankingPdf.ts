@@ -4,7 +4,7 @@ import { competitionContext } from '~/context';
 import { rankingTemplateSchema } from '~/lib/domain/rankingTemplate';
 import { getRankingTemplate } from '~/lib/rankingTemplates.server';
 import { groupByTemplate } from '~/lib/templateAssignments.server';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getDocumentI18n, getT } from '~/middlewares/i18n.server';
 import { loadRankingGroup, rankingPdfResponse } from '~/pdf/ranking.server';
 import { orNotFound, parseRankingGroup, readParams } from '~/pdf/request.server';
@@ -67,7 +67,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
  * `contest` or sample data.
  */
 export async function action({ request, context }: Route.ActionArgs) {
-  const competition = requireRole(context, 'EDITOR');
+  const competition = requirePermission(context, 'edit');
   const params = await readParams(request);
   const options = rankingTemplateSchema.safeParse(parseJson(params.get('options')));
   if (!options.success) throw data(null, 400);
