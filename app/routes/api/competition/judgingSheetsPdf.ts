@@ -14,7 +14,7 @@ export function loader({ request, context }: Route.LoaderArgs) {
 
 /** The same as a form, for many divisions. */
 export function action({ request, context }: Route.ActionArgs) {
-  requirePermission(context, 'view');
+  requirePermission(context, 'view', 'grade');
   return judgingSheetsPdf(request, context);
 }
 

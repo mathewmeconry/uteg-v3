@@ -61,7 +61,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requirePermission(context, 'edit');
+  const { id } = requirePermission(context, 'grade');
   const formData = await readForm(request);
   switch (formData.get('intent')) {
     case 'delete':
@@ -78,7 +78,7 @@ export const clientAction = safeClientAction;
 export default function Grading({ loaderData, params: { contestId } }: Route.ComponentProps) {
   const { t } = useTranslation(['judging', 'divisions', 'common']);
   const { competition, can } = useCompetition();
-  const canEdit = can('edit');
+  const canEdit = can('grade');
   const [, setSearchParams] = useSearchParams();
   const status = useLiveUpdates(`/api/events/${competition.id}`);
   const { ground, running, divisions, apparatus, loadedAt } = loaderData;

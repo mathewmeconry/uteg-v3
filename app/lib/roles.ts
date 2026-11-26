@@ -9,12 +9,14 @@ export const ROLES = Object.values(Role);
  * - edit: changes the competition, its starters, divisions and grades
  * - manage: manages the members and deletes the competition
  * - checkIn: adds starters, changes their personal data and removes them
+ * - grade: sees the divisions, enters grades and confirms rounds
  */
 const PERMISSIONS = {
-  OWNER: ['view', 'edit', 'manage', 'checkIn'],
-  EDITOR: ['view', 'edit', 'checkIn'],
+  OWNER: ['view', 'edit', 'manage', 'checkIn', 'grade'],
+  EDITOR: ['view', 'edit', 'checkIn', 'grade'],
   VIEWER: ['view'],
   CHECK_IN: ['checkIn'],
+  GRADE_ENTRY: ['grade'],
 } as const satisfies Record<Role, readonly string[]>;
 
 export type Permission = (typeof PERMISSIONS)[Role][number];

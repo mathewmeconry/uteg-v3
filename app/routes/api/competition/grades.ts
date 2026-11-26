@@ -4,7 +4,7 @@ import { handleGradeRequest } from '~/lib/gradeRequests.server';
 import { requirePermission } from '~/middlewares/competition.server';
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requirePermission(context, 'edit');
+  const { id } = requirePermission(context, 'grade');
 
   return handleGradeRequest(request, id, { kind: 'editor' }, async () => {
     // Needs a ground and an apparatus, see the grading page.

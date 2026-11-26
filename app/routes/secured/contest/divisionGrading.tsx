@@ -63,7 +63,7 @@ async function getCurrentRounds(
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requirePermission(context, 'edit');
+  const { id } = requirePermission(context, 'grade');
   const formData = await readForm(request);
   switch (formData.get('intent')) {
     case 'delete':
@@ -79,7 +79,7 @@ export const clientAction = safeClientAction;
 
 export default function DivisionGrading({ loaderData }: Route.ComponentProps) {
   const { t } = useTranslation(['judging', 'divisions', 'common']);
-  const canEdit = useCompetition().can('edit');
+  const canEdit = useCompetition().can('grade');
   const apparatusName = useApparatusName();
   const divisionName = useDivisionName();
   const { division, apparatus, rounds } = loaderData;

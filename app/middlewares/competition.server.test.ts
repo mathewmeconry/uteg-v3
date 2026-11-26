@@ -110,6 +110,7 @@ describe('competitionMiddleware', () => {
 describe('page and API middlewares', () => {
   it.each([
     ['CHECK_IN', 302, 403],
+    ['GRADE_ENTRY', 302, 403],
     ['VIEWER', 200, 200],
   ] as const)('answer a %s with %i on pages and %i in the API', async (role, page, api) => {
     const { competition, context } = await setup(role);
@@ -128,7 +129,17 @@ describe('page and API middlewares', () => {
     );
   });
 
-  it('are around everything but the starters', () => {
+  it('send the grade entry to the divisions', async () => {
+    const { competition, context } = await setup('GRADE_ENTRY');
+    await run(competitionMiddleware, context, { competitionId: competition.id });
+    expect((await run(pageMiddleware('view', 'grade'), context)).status).toBe(200);
+    const { error } = await run(pageMiddleware('view', 'checkIn'), context);
+    expect((error as Response).headers.get('Location')).toBe(
+      `/competitions/${competition.id}/contests/${competition.contest.id}/divisions`,
+    );
+  });
+
+  it('are around everything but the starters and the grading', () => {
     const all = (routes as RouteConfigEntry[]).flatMap((entry) => [
       entry,
       ...(entry.children ?? []),
@@ -140,11 +151,20 @@ describe('page and API middlewares', () => {
       'routes/api/competition/starters.ts',
       'routes/api/competition/startersXlsx.ts',
       'routes/api/competition/startersPdf.ts',
+      'routes/api/competition/gradeEntryLayout.ts',
       'routes/api/competition/viewerLayout.ts',
     ]);
     const { children } = all.find(({ file }) => file === 'routes/secured/competition/layout.tsx')!;
     expect(children!.map(({ file }) => file)).toEqual([
       'routes/secured/competition/starters.tsx',
+      'routes/secured/competition/viewerLayout.tsx',
+      'routes/secured/contest/layout.tsx',
+    ]);
+    const contest = children!.find(({ file }) => file === 'routes/secured/contest/layout.tsx')!;
+    expect(contest.children!.map(({ file }) => file)).toEqual([
+      'routes/secured/contest/divisions.tsx',
+      'routes/secured/contest/division.tsx',
+      'routes/secured/contest/grading.tsx',
       'routes/secured/competition/viewerLayout.tsx',
     ]);
   });
@@ -179,6 +199,9 @@ describe('requirePermission', () => {
     ['VIEWER', 'checkIn', false],
     ['CHECK_IN', 'checkIn', true],
     ['CHECK_IN', 'view', false],
+    ['GRADE_ENTRY', 'grade', true],
+    ['GRADE_ENTRY', 'edit', false],
+    ['GRADE_ENTRY', 'checkIn', false],
   ] as const)('%s asking to %s: %s', async (role, permission, allowed) => {
     const { competition, context } = await setup(role);
     await run(competitionMiddleware, context, { competitionId: competition.id });

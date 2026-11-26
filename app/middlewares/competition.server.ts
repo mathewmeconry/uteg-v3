@@ -23,14 +23,18 @@ export const competitionMiddleware: MiddlewareFunction<Response> = async (
 };
 
 /**
- * Lets the members with one of the permissions see the pages below. The others go to the starters,
- * the only page of the check-in.
+ * Lets the members with one of the permissions see the pages below. The others go to the pages they
+ * may see: the check-in to the starters, the grade entry to the divisions.
  */
 export function pageMiddleware(...permissions: Permission[]): MiddlewareFunction<Response> {
   return ({ context }, next) => {
-    const { id, role } = context.get(competitionContext);
+    const { id, role, contests } = context.get(competitionContext);
     if (!permissions.some((permission) => can(role, permission))) {
-      throw redirect(`/competitions/${id}/starters`);
+      throw redirect(
+        can(role, 'checkIn')
+          ? `/competitions/${id}/starters`
+          : `/competitions/${id}/contests/${contests[0].id}/divisions`,
+      );
     }
     return next();
   };

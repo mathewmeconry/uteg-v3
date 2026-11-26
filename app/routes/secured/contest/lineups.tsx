@@ -112,9 +112,13 @@ export default function Lineups({ loaderData }: Route.ComponentProps) {
           title={t('lineups.noStarters')}
           text={t('lineups.noStartersText')}
           action={
-            <Button asChild>
-              <Link to={`/competitions/${competition.id}/starters`}>{t('lineups.toStarters')}</Link>
-            </Button>
+            can('view') && (
+              <Button asChild>
+                <Link to={`/competitions/${competition.id}/starters`}>
+                  {t('lineups.toStarters')}
+                </Link>
+              </Button>
+            )
           }
         />
       ) : (

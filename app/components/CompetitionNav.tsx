@@ -56,7 +56,13 @@ function useNavItems(): { main: Item[]; setup: Item[]; isSetup: boolean } {
   const contest = contests.find(({ id }) => id === params.contestId) ?? contests[0];
   const contestBase = contest && `${base}/contests/${contest.id}`;
   const starters = item(`${base}/starters`, t('nav.starters'), UsersIcon);
-  if (!can('view')) return { main: [starters], setup: [], isSetup: false };
+  const divisions =
+    contestBase &&
+    item(`${contestBase}/divisions`, t('nav.divisions'), LayersIcon, `${contestBase}/grading`);
+  if (!can('view')) {
+    const main = can('checkIn') ? [starters] : divisions ? [divisions] : [];
+    return { main, setup: [], isSetup: false };
+  }
 
   function item(to: string, label: string, icon: LucideIcon, ...alsoActive: string[]): Item {
     const active = [to, ...alsoActive].some(
@@ -72,17 +78,7 @@ function useNavItems(): { main: Item[]; setup: Item[]; isSetup: boolean } {
       active: pathname === base || pathname === `${base}/`,
     },
     starters,
-    ...(contestBase
-      ? [
-          item(
-            `${contestBase}/divisions`,
-            t('nav.divisions'),
-            LayersIcon,
-            `${contestBase}/grading`,
-          ),
-          item(`${contestBase}/ranking`, t('nav.ranking'), TrophyIcon),
-        ]
-      : []),
+    ...(divisions ? [divisions, item(`${contestBase}/ranking`, t('nav.ranking'), TrophyIcon)] : []),
   ];
   const setup = [
     item(`${base}/settings`, t('nav.settings'), SettingsIcon),
