@@ -64,6 +64,8 @@ export default {
       VIEWER: 'Sieht alles, ändert nichts',
       CHECK_IN:
         'Sieht nur die Teilnehmenden, fügt sie hinzu, ändert Personalien und Kategorie und entfernt sie. Teilt nicht ein',
+      GRADE_ENTRY:
+        'Sieht nur die Abteilungen, gibt Noten ein und bestätigt Durchgänge. Ändert sonst nichts',
     },
   },
   honour: {

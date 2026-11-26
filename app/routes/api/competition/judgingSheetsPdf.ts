@@ -1,8 +1,9 @@
 import { data } from 'react-router';
 import type { Route } from './+types/judgingSheetsPdf';
 import { competitionContext, type Context } from '~/context';
+import { Role } from '~/generated/prisma/enums';
 import { getGradingState } from '~/lib/judging.server';
-import { requireRole } from '~/middlewares/competition.server';
+import { requireRoleOr } from '~/middlewares/competition.server';
 import { getDocumentI18n } from '~/middlewares/i18n.server';
 import { parseGround, readParams } from '~/pdf/request.server';
 import { pdfResponse } from '~/pdf/response.server';
@@ -14,7 +15,7 @@ export function loader({ request, context }: Route.LoaderArgs) {
 
 /** The same as a form, for many divisions. */
 export function action({ request, context }: Route.ActionArgs) {
-  requireRole(context, 'VIEWER');
+  requireRoleOr(context, Role.VIEWER, Role.GRADE_ENTRY);
   return judgingSheetsPdf(request, context);
 }
 

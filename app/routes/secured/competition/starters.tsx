@@ -63,9 +63,11 @@ import {
   withdrawStarters,
 } from '~/lib/starters.server';
 import type { ServerT } from '~/locales';
-import { requireEditorOrCheckIn } from '~/middlewares/competition.server';
+import { checkInPageMiddleware, requireRoleOr } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
+
+export const middleware: Route.MiddlewareFunction[] = [checkInPageMiddleware];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { id, contests } = context.get(competitionContext);
@@ -81,7 +83,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id, role } = requireEditorOrCheckIn(context);
+  const { id, role } = requireRoleOr(context, Role.EDITOR, Role.CHECK_IN);
   const isCheckIn = role === Role.CHECK_IN;
   const t = getT(context);
   const formData = await request.formData();

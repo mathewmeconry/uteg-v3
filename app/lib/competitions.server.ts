@@ -41,11 +41,7 @@ export async function listCompetitions(userId: string) {
 }
 
 /** The competition with the user's role. Strangers cannot tell whether it exists. */
-export async function getCompetitionForUser(
-  userId: string,
-  competitionId: string,
-  minRole: Role = Role.CHECK_IN,
-) {
+export async function getCompetitionForUser(userId: string, competitionId: string, minRole?: Role) {
   const ownsAll = await isAdmin(userId);
   const found = await prisma.competition.findUnique({
     where: { id: competitionId },
@@ -58,7 +54,7 @@ export async function getCompetitionForUser(
   const { members, ...competition } = found;
   const role = ownsAll ? Role.OWNER : members[0]?.role;
   if (!role) throw new DomainError('NOT_FOUND');
-  if (!hasRole(role, minRole)) throw new DomainError('FORBIDDEN');
+  if (minRole && !hasRole(role, minRole)) throw new DomainError('FORBIDDEN');
   return { ...competition, role };
 }
 

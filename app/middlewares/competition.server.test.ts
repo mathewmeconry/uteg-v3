@@ -7,8 +7,11 @@ import type { Role } from '~/generated/prisma/client';
 import { addMember, createCompetition, createUser, truncateTables } from '~/tests/helpers';
 import { authMiddleware } from './auth.server';
 import {
+  checkInPageMiddleware,
   competitionMiddleware,
   contestMiddleware,
+  gradeEntryApiMiddleware,
+  gradeEntryPageMiddleware,
   requireRole,
   viewerApiMiddleware,
   viewerPageMiddleware,
@@ -107,9 +110,10 @@ describe('competitionMiddleware', () => {
   });
 });
 
-describe('viewer middlewares', () => {
+describe('role middlewares', () => {
   it.each([
     ['CHECK_IN', 302, 403],
+    ['GRADE_ENTRY', 302, 403],
     ['VIEWER', 200, 200],
   ] as const)('answer a %s with %i on pages and %i in the API', async (role, page, api) => {
     const { competition, context } = await setup(role);
@@ -118,7 +122,31 @@ describe('viewer middlewares', () => {
     expect((await run(viewerApiMiddleware, context)).status).toBe(api);
   });
 
-  it('are around everything but the starters', () => {
+  it.each([
+    ['CHECK_IN', 200, 302, 403],
+    ['GRADE_ENTRY', 302, 200, 200],
+    ['VIEWER', 200, 200, 200],
+  ] as const)(
+    'answer a %s with %i on the starters, %i on the grading pages and %i in their API',
+    async (role, starters, grading, api) => {
+      const { competition, context } = await setup(role);
+      await run(competitionMiddleware, context, { competitionId: competition.id });
+      expect((await run(checkInPageMiddleware, context)).status).toBe(starters);
+      expect((await run(gradeEntryPageMiddleware, context)).status).toBe(grading);
+      expect((await run(gradeEntryApiMiddleware, context)).status).toBe(api);
+    },
+  );
+
+  it('send the grade entry to the divisions', async () => {
+    const { competition, context } = await setup('GRADE_ENTRY');
+    await run(competitionMiddleware, context, { competitionId: competition.id });
+    const { error } = await run(viewerPageMiddleware, context);
+    expect((error as Response).headers.get('Location')).toBe(
+      `/competitions/${competition.id}/contests/${competition.contest.id}/divisions`,
+    );
+  });
+
+  it('are around everything but the starters and the grading', () => {
     const all = (routes as RouteConfigEntry[]).flatMap((entry) => [
       entry,
       ...(entry.children ?? []),
@@ -130,11 +158,18 @@ describe('viewer middlewares', () => {
       'routes/api/competition/starters.ts',
       'routes/api/competition/startersXlsx.ts',
       'routes/api/competition/startersPdf.ts',
+      'routes/api/competition/gradeEntryLayout.ts',
       'routes/api/competition/viewerLayout.ts',
     ]);
     const { children } = all.find(({ file }) => file === 'routes/secured/competition/layout.tsx')!;
     expect(children!.map(({ file }) => file)).toEqual([
       'routes/secured/competition/starters.tsx',
+      'routes/secured/competition/viewerLayout.tsx',
+      'routes/secured/contest/layout.tsx',
+    ]);
+    const contest = children!.find(({ file }) => file === 'routes/secured/contest/layout.tsx')!;
+    expect(contest.children!.map(({ file }) => file)).toEqual([
+      'routes/secured/contest/gradeEntryLayout.tsx',
       'routes/secured/competition/viewerLayout.tsx',
     ]);
   });

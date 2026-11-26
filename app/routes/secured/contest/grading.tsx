@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { competitionContext, contestContext } from '~/context';
+import { Role } from '~/generated/prisma/enums';
 import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { categoryName } from '~/lib/categoryName';
@@ -26,7 +27,7 @@ import { readForm } from '~/lib/forms.server';
 import { runConfirmRound, runDeleteGrade } from '~/lib/gradingActions.server';
 import { getJudgingState, listRunningDivisions } from '~/lib/judging.server';
 import { safeClientAction } from '~/lib/safeClientAction';
-import { requireRole } from '~/middlewares/competition.server';
+import { requireRoleOr } from '~/middlewares/competition.server';
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { id, grounds } = context.get(competitionContext);
@@ -61,7 +62,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requireRoleOr(context, Role.EDITOR, Role.GRADE_ENTRY);
   const formData = await readForm(request);
   switch (formData.get('intent')) {
     case 'delete':
@@ -77,7 +78,7 @@ export const clientAction = safeClientAction;
 
 export default function Grading({ loaderData, params: { contestId } }: Route.ComponentProps) {
   const { t } = useTranslation(['judging', 'divisions', 'common']);
-  const { competition, canEdit } = useCompetition();
+  const { competition, canGrade } = useCompetition();
   const [, setSearchParams] = useSearchParams();
   const status = useLiveUpdates(`/api/events/${competition.id}`);
   const { ground, running, divisions, apparatus, loadedAt } = loaderData;
@@ -197,9 +198,9 @@ export default function Grading({ loaderData, params: { contestId } }: Route.Com
             ground={ground}
             apparatus={apparatus}
             drafts={drafts}
-            canEdit={canEdit}
+            canEdit={canGrade}
           />
-          {canEdit && (
+          {canGrade && (
             <p className="text-sm text-muted-foreground pointer-coarse:hidden">
               {t('grading.keys')}
             </p>

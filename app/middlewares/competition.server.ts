@@ -8,8 +8,8 @@ import { DomainError } from '~/lib/errors';
 import { hasRole } from '~/lib/roles';
 
 /**
- * Loads the competition of a member. Needs authMiddleware before it. The role may be CHECK_IN, see
- * the middlewares below.
+ * Loads the competition of a member. Needs authMiddleware before it. The role may be CHECK_IN or
+ * GRADE_ENTRY, see the middlewares below.
  */
 export const competitionMiddleware: MiddlewareFunction<Response> = async (
   { params, context },
@@ -23,16 +23,33 @@ export const competitionMiddleware: MiddlewareFunction<Response> = async (
   return next();
 };
 
-/** Sends the check-in to the starters, the only page it may see. */
-export const viewerPageMiddleware: MiddlewareFunction<Response> = ({ context }, next) => {
-  const { id, role } = context.get(competitionContext);
-  if (!hasRole(role, Role.VIEWER)) throw redirect(`/competitions/${id}/starters`);
+/** Lets viewers and the given role see the pages below, and sends the others to their pages. */
+function pageMiddleware(sideRole?: Role): MiddlewareFunction<Response> {
+  return ({ context }, next) => {
+    const { id, role, contests } = context.get(competitionContext);
+    if (!hasRole(role, Role.VIEWER) && role !== sideRole) {
+      throw redirect(
+        role === Role.GRADE_ENTRY
+          ? `/competitions/${id}/contests/${contests[0].id}/divisions`
+          : `/competitions/${id}/starters`,
+      );
+    }
+    return next();
+  };
+}
+
+export const viewerPageMiddleware = pageMiddleware();
+export const checkInPageMiddleware = pageMiddleware(Role.CHECK_IN);
+export const gradeEntryPageMiddleware = pageMiddleware(Role.GRADE_ENTRY);
+
+/** Denies the check-in and the grade entry. */
+export const viewerApiMiddleware: MiddlewareFunction<Response> = ({ context }, next) => {
+  requireRole(context, Role.VIEWER);
   return next();
 };
 
-/** Denies the check-in. */
-export const viewerApiMiddleware: MiddlewareFunction<Response> = ({ context }, next) => {
-  requireRole(context, Role.VIEWER);
+export const gradeEntryApiMiddleware: MiddlewareFunction<Response> = ({ context }, next) => {
+  requireRoleOr(context, Role.VIEWER, Role.GRADE_ENTRY);
   return next();
 };
 
@@ -54,10 +71,10 @@ export function requireRole(context: Context, minRole: Role) {
   return competition;
 }
 
-/** For what editors and the check-in may do, but viewers may not. */
-export function requireEditorOrCheckIn(context: Context) {
+/** For the members with at least `minRole`, and those with `sideRole`, which is beside the order. */
+export function requireRoleOr(context: Context, minRole: Role, sideRole: Role) {
   const competition = context.get(competitionContext);
-  return competition.role === Role.CHECK_IN ? competition : requireRole(context, Role.EDITOR);
+  return competition.role === sideRole ? competition : requireRole(context, minRole);
 }
 
 function requireParam(value: string | undefined): string {

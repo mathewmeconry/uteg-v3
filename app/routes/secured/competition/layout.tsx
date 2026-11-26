@@ -36,6 +36,8 @@ export async function loader({ context }: Route.LoaderArgs) {
     canEdit: hasRole(role, Role.EDITOR),
     isOwner: role === Role.OWNER,
     isCheckIn: role === Role.CHECK_IN,
+    isGradeEntry: role === Role.GRADE_ENTRY,
+    canGrade: hasRole(role, Role.EDITOR) || role === Role.GRADE_ENTRY,
   };
 }
 
