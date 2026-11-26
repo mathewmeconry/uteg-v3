@@ -98,7 +98,8 @@ export async function saveScannedGrades(
       image.byteLength <= MAX_IMAGE_BYTES &&
       confidence >= 0 &&
       confidence <= 1 &&
-      cells.length <= columns &&
+      // All of the row's, so the last is the final grade's.
+      (cells.length === 0 || cells.length === columns) &&
       cells.every((cell) => cell.byteLength <= MAX_CELL_BYTES);
     if (!isValid) throw new DomainError('INVALID_INPUT');
     if (slot.withdrawn) return [];

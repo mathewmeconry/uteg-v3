@@ -2,66 +2,82 @@ import { inflateSync } from 'node:zlib';
 import type { Prisma } from '~/generated/prisma/client';
 import { prisma } from './prisma.server';
 
+/** Turned off, what was kept is deleted, also what waits in scanned grades. */
 export async function setKeepHandwriting(competitionId: string, keep: boolean) {
-  await prisma.competition.update({
-    where: { id: competitionId },
-    data: { keepHandwriting: keep },
+  await prisma.$transaction(async (tx) => {
+    await tx.competition.update({
+      where: { id: competitionId },
+      data: { keepHandwriting: keep },
+    });
+    if (keep) return;
+    await tx.handwritingSample.deleteMany({ where: { competitionId } });
+    await tx.scannedGrade.updateMany({
+      where: { entry: { contest: { competitionId } } },
+      data: { cells: [], cellWidth: 0, cellHeight: 0 },
+    });
   });
 }
 
 /**
- * Turns the cells of scanned grades into samples, as an editor now saves these grades: what is
- * written in them is checked. Call before the scanned grades are removed. Each cell gets its
- * attempt, the last column of a sheet with attempts the final grade.
+ * Turns the cells of scanned grades into samples, as an editor saved them looking at their
+ * handwriting: what is written is known. Call before the scanned grades are removed. Each attempt
+ * gets its cell. A final grade computed from attempts is not what the judge wrote, so its cell
+ * is left out; a single grade gets the cell it was written in.
  */
 export async function keepHandwriting(
   tx: Prisma.TransactionClient,
   competitionId: string,
-  saved: readonly { entryId: string; apparatus: string; value: number; attempts: number[] }[],
+  checked: readonly { scanId: string; value: number; attempts: number[] }[],
 ) {
   const competition = await tx.competition.findUniqueOrThrow({
     where: { id: competitionId },
     select: { keepHandwriting: true },
   });
-  if (!competition.keepHandwriting || saved.length === 0) return;
+  if (!competition.keepHandwriting || checked.length === 0) return;
   const scans = await tx.scannedGrade.findMany({
-    where: {
-      OR: saved.map(({ entryId, apparatus }) => ({ entryId, apparatus })),
-      NOT: { cells: { isEmpty: true } },
-    },
+    where: { id: { in: checked.map(({ scanId }) => scanId) }, NOT: { cells: { isEmpty: true } } },
   });
   const samples = scans.flatMap((scan) => {
-    const grade = saved.find(
-      ({ entryId, apparatus }) => entryId === scan.entryId && apparatus === scan.apparatus,
-    )!;
-    const final = scan.cells.length - 1;
-    return scan.cells.flatMap((ink, column) => {
-      const isFinal = column === final;
-      // A grade without attempts on a sheet with them is only known for the final grade.
-      const value = isFinal ? grade.value : grade.attempts[column];
-      if (ink.length === 0 || value === undefined) return [];
-      const read = isFinal ? scan.value : scan.attempts[column];
-      return {
-        competitionId,
-        ink,
-        width: scan.cellWidth,
-        height: scan.cellHeight,
-        value,
-        read: read ?? null,
-      };
+    const grade = checked.find(({ scanId }) => scanId === scan.id)!;
+    const sample = (column: number, value: number, read: number | undefined) => ({
+      competitionId,
+      ink: scan.cells[column],
+      width: scan.cellWidth,
+      height: scan.cellHeight,
+      value,
+      read: read ?? null,
     });
+    if (grade.attempts.length > 0) {
+      return grade.attempts.flatMap((value, column) =>
+        scan.cells[column]?.length ? sample(column, value, scan.attempts[column]) : [],
+      );
+    }
+    // On sheets with attempts, a single grade may be in the first column instead of the last.
+    const final = scan.cells.length - 1;
+    const column = scan.cells[final].length > 0 ? final : scan.cells.findIndex((ink) => ink.length);
+    return column >= 0 ? sample(column, grade.value, scan.value) : [];
   });
   if (samples.length > 0) await tx.handwritingSample.createMany({ data: samples });
 }
 
-/** The samples as grey images, ink black, with what is written in them. */
+/**
+ * The samples as grey images, ink black, with what is written in them. Damaged ones are left out
+ * instead of stopping the export.
+ */
 export async function listHandwritingSamples(competitionId?: string) {
   const samples = await prisma.handwritingSample.findMany({
     where: { competitionId },
     orderBy: { id: 'asc' },
   });
-  return samples.map(({ id, ink, width, height, value, read }) => {
-    const bits = inflateSync(ink);
+  return samples.flatMap(({ id, ink, width, height, value, read }) => {
+    const length = Math.ceil((width * height) / 8);
+    let bits;
+    try {
+      bits = inflateSync(ink, { maxOutputLength: length });
+    } catch {
+      return [];
+    }
+    if (bits.length !== length) return [];
     const data = new Uint8Array(width * height);
     for (let index = 0; index < data.length; index++) {
       const isInk = (bits[index >> 3] >> (7 - (index & 7))) & 1;

@@ -30,9 +30,10 @@ const rowsSchema = z
   .max(SHEET.rowsPerPage)
   .refine((rows) => new Set(rows.map(({ row }) => row)).size === rows.length);
 
+// Only sent with the ink of the cells: coercing a missing field would make it 0.
 const cellSizeSchema = z.object({
-  width: z.coerce.number().int(),
-  height: z.coerce.number().int(),
+  width: z.string().transform(Number),
+  height: z.string().transform(Number),
 });
 
 /** `?code=`: the rows of a scanned page of the judging sheets, to read their cells. */

@@ -11,6 +11,7 @@ const schema = z.discriminatedUnion('intent', [
     apparatus: z.string(),
     grade: z.object({ value: z.number(), attempts: z.array(z.number()) }),
     version: z.number().int().nullable(),
+    scanId: z.string().regex(/^\w+$/).optional(),
   }),
   z.object({
     intent: z.literal('confirm'),
@@ -39,8 +40,8 @@ export async function handleGradeRequest(
       await confirm(body);
       return reply({ ok: true, savedAt: Date.now() });
     }
-    const { entryId, apparatus, grade, version } = body;
-    const input = { entryId, apparatus, ...grade, version };
+    const { entryId, apparatus, grade, version, scanId } = body;
+    const input = { entryId, apparatus, ...grade, version, scanId };
     const [saved] = await saveGrades(competitionId, [input], scope);
     return reply({ ok: true, savedAt: Date.now(), grade: saved });
   } catch (error) {

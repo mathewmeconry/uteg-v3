@@ -67,6 +67,8 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
 
     case 'handwriting': {
+      // About people's handwriting: the owner decides.
+      requireRole(context, 'OWNER');
       await setKeepHandwriting(id, formData.get('keepHandwriting') === 'on');
       enqueueToast(context, { type: 'success', message: t('settings:saved') });
       return redirect('.');
@@ -170,7 +172,7 @@ export default function Settings({ actionData }: Route.ComponentProps) {
 
         <Section title={t('handwriting.title')} description={t('handwriting.text')}>
           <Form method="post">
-            <fieldset disabled={!canEdit} className="grid gap-4">
+            <fieldset disabled={!isOwner} className="grid gap-4">
               <Label htmlFor="keep-handwriting" className="min-h-11 leading-normal font-normal">
                 <Switch
                   id="keep-handwriting"
@@ -179,7 +181,7 @@ export default function Settings({ actionData }: Route.ComponentProps) {
                 />
                 {t('handwriting.keep')}
               </Label>
-              {canEdit && (
+              {isOwner && (
                 <SubmitButton
                   name="intent"
                   value="handwriting"

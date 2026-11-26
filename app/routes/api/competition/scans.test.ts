@@ -92,13 +92,13 @@ describe('scans', () => {
 
   it('keeps the ink of the cells, but not too much of it', async () => {
     const { id, code } = await setup();
-    const send = (cell: Uint8Array<ArrayBuffer>) =>
+    const send = (cell: Uint8Array<ArrayBuffer>, columns = 1) =>
       callRoute(action, {
         competitionId: id,
         role: 'EDITOR',
         form: [
           ['code', code],
-          ['rows', JSON.stringify([{ row: 0, value: 9000, confidence: 1, columns: 1 }])],
+          ['rows', JSON.stringify([{ row: 0, value: 9000, confidence: 1, columns }])],
           ['image-0', new Blob([PNG])],
           ['cell-0-0', new Blob([cell])],
           ['cellWidth', '600'],
@@ -110,6 +110,8 @@ describe('scans', () => {
     expect(cells).toHaveLength(1);
     expect(cellWidth).toBe(600);
     expect((await send(new Uint8Array(MAX_CELL_BYTES + 1))).init?.status).toBe(400);
+    // More columns than the sheet has: the last would not be the final grade's.
+    expect((await send(new Uint8Array([1, 2, 3]), 2)).init?.status).toBe(400);
   });
 
   it('refuses missing or large images, repeated rows and more rows than a page', async () => {

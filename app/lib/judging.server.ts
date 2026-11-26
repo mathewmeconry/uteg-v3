@@ -30,6 +30,8 @@ export type GradeInput = {
    * is not overwritten, also by a request that arrives late.
    */
   version?: number | null;
+  /** The scanned grade an editor checked against its handwriting, see keepHandwriting. */
+  scanId?: string;
 };
 
 /** Judges may only grade what their tablet shows, editors also before and after the division. */
@@ -187,14 +189,12 @@ export async function saveGrades(
         }),
       );
     }
-    // An editor checked the paper: its handwriting now has a known value. Judges don't see it.
-    if (scope.kind === 'editor') {
-      await keepHandwriting(
-        tx,
-        competitionId,
-        grades.map((input) => result.get(input)!),
-      );
-    }
+    // Checked against the handwriting by an editor: it now has a known value. A grade typed
+    // elsewhere may be a correction that is not what was written.
+    const checked = grades.flatMap((input) =>
+      input.scanId ? { ...result.get(input)!, scanId: input.scanId } : [],
+    );
+    if (scope.kind === 'editor') await keepHandwriting(tx, competitionId, checked);
     // A saved grade was checked, its scan is done.
     await tx.scannedGrade.deleteMany({
       where: { OR: grades.map(({ entryId, apparatus }) => ({ entryId, apparatus })) },

@@ -30,11 +30,12 @@ async function setup(apparatus = 'reck') {
   return { id, division, entryId: entry.id, code };
 }
 
-it('keeps the cells of a checked grade with what is written in them', async () => {
+it('keeps the cells of a grade checked against its handwriting', async () => {
   const { id, entryId, code } = await setup();
   const row = { row: 0, value: 9300, confidence: 0.5, image: IMAGE, cells: [INK] };
-  await saveScannedGrades(id, code, [row], SIZE);
-  await saveGrades(id, [{ entryId, apparatus: 'reck', value: 9350, version: null }], EDITOR);
+  const [{ id: scanId }] = await saveScannedGrades(id, code, [row], SIZE);
+  const input = { entryId, apparatus: 'reck', value: 9350, version: null, scanId };
+  await saveGrades(id, [input], EDITOR);
 
   const [sample] = await listHandwritingSamples(id);
   expect(sample).toMatchObject({ written: '9.35', isRead: false });
@@ -46,18 +47,18 @@ it('keeps the cells of a checked grade with what is written in them', async () =
   expect(Object.keys(await prisma.handwritingSample.findFirstOrThrow())).not.toContain('entryId');
 });
 
-it('gives each attempt its value and the last column the final grade', async () => {
+it('gives each attempt its value, but not the computed final grade', async () => {
   const { id, entryId, code } = await setup('sprung');
+  // The judge's final grade may be other than the one computed from the attempts.
   const row = {
     row: 0,
     attempts: [9100, 9350],
     confidence: 1,
     image: IMAGE,
-    // Nothing written as the final grade.
-    cells: [INK, INK, new Uint8Array()],
+    cells: [INK, INK, INK],
   };
-  await saveScannedGrades(id, code, [row], SIZE);
-  await saveGrades(id, [{ entryId, apparatus: 'sprung', attempts: [9100, 9350] }], EDITOR);
+  const [{ id: scanId }] = await saveScannedGrades(id, code, [row], SIZE);
+  await saveGrades(id, [{ entryId, apparatus: 'sprung', attempts: [9100, 9350], scanId }], EDITOR);
   const samples = await listHandwritingSamples(id);
   expect(samples.map(({ written, isRead }) => [written, isRead]).toSorted()).toEqual([
     ['9.10', true],
@@ -65,17 +66,29 @@ it('gives each attempt its value and the last column the final grade', async () 
   ]);
 });
 
-it('keeps nothing when a judge saves the grade, or when the competition does not want it', async () => {
+it('keeps nothing from grades typed elsewhere or saved by a judge', async () => {
   const { id, division, entryId, code } = await setup();
   const row = { row: 0, value: 9300, confidence: 1, image: IMAGE, cells: [INK] };
   await saveScannedGrades(id, code, [row], SIZE);
+  // Maybe a correction, not what is written.
+  await saveGrades(id, [{ entryId, apparatus: 'reck', value: 9200, version: null }], EDITOR);
+  const [{ id: scanId }] = await saveScannedGrades(id, code, [row], SIZE);
   const judge: GradeScope = { kind: 'judge', ground: division.ground, apparatus: 'reck' };
-  await saveGrades(id, [{ entryId, apparatus: 'reck', value: 9300, version: null }], judge);
+  await saveGrades(id, [{ entryId, apparatus: 'reck', value: 9300, version: 1, scanId }], judge);
   expect(await prisma.handwritingSample.count()).toBe(0);
+});
+
+it('keeps nothing when the competition does not want it, and drops what it kept', async () => {
+  const { id, entryId, code } = await setup();
+  const row = { row: 0, value: 9300, confidence: 1, image: IMAGE, cells: [INK] };
+  const [first] = await saveScannedGrades(id, code, [row], SIZE);
+  await saveGrades(id, [{ entryId, apparatus: 'reck', value: 9300, scanId: first.id }], EDITOR);
+  expect(await prisma.handwritingSample.count()).toBe(1);
 
   await setKeepHandwriting(id, false);
-  await saveScannedGrades(id, code, [{ ...row, value: 9400 }], SIZE);
+  expect(await prisma.handwritingSample.count()).toBe(0);
+  const [second] = await saveScannedGrades(id, code, [{ ...row, value: 9400 }], SIZE);
   expect((await prisma.scannedGrade.findFirstOrThrow()).cells).toEqual([]);
-  await saveGrades(id, [{ entryId, apparatus: 'reck', value: 9400, version: 1 }], EDITOR);
+  await saveGrades(id, [{ entryId, apparatus: 'reck', value: 9400, scanId: second.id }], EDITOR);
   expect(await prisma.handwritingSample.count()).toBe(0);
 });

@@ -85,6 +85,8 @@ export function ScanReview({ result: { sheet, readings, images, scanned } }: { r
         apparatus: sheet.apparatus,
         grade,
         version: row.grade?.version ?? null,
+        // Checked next to its handwriting, which can then be kept.
+        scanId: scanned.find((scan) => scan.row === index)?.id,
       });
       update(
         index,

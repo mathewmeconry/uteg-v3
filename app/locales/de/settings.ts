@@ -20,7 +20,7 @@ export default {
   },
   handwriting: {
     title: 'Handschriften',
-    text: 'Werden gescannte Noten geprüft und gespeichert, bleibt die Handschrift ihrer Felder mit der geprüften Note, ohne Namen. Damit lernt die Erkennung die Handschriften der Wertungsrichter. Sie wird mit dem Wettkampf gelöscht.',
+    text: 'Werden gescannte Noten beim Scannen geprüft und gespeichert, bleibt die Handschrift ihrer Felder mit der geprüften Note, ohne Namen. Damit lernt die Erkennung die Handschriften der Wertungsrichter. Die Handschriften werden mit dem Wettkampf gelöscht, oder sobald du sie hier nicht mehr behältst.',
     keep: 'Handschriften zur Verbesserung der Erkennung behalten',
   },
   delete: {

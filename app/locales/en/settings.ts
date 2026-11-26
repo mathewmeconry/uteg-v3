@@ -23,7 +23,7 @@ export default {
   },
   handwriting: {
     title: 'Handwriting',
-    text: 'When scanned grades are checked and saved, the handwriting of their cells is kept with the checked grade, without names. The recognition learns the judges’ handwriting with it. It is deleted with the competition.',
+    text: 'When scanned grades are checked and saved while scanning, the handwriting of their cells is kept with the checked grade, without names. The recognition learns the judges’ handwriting with it. The handwriting is deleted with the competition, or as soon as you stop keeping it here.',
     keep: 'Keep handwriting to improve the recognition',
   },
   delete: {

@@ -23,7 +23,7 @@ export default {
   },
   handwriting: {
     title: 'Écritures',
-    text: 'Quand des notes scannées sont vérifiées et enregistrées, l’écriture de leurs cases est gardée avec la note vérifiée, sans nom. La reconnaissance apprend ainsi l’écriture des juges. Elle est supprimée avec le concours.',
+    text: 'Quand des notes scannées sont vérifiées et enregistrées lors du scan, l’écriture de leurs cases est gardée avec la note vérifiée, sans nom. La reconnaissance apprend ainsi l’écriture des juges. Les écritures sont supprimées avec le concours, ou dès que tu ne les gardes plus ici.',
     keep: 'Garder les écritures pour améliorer la reconnaissance',
   },
   delete: {
