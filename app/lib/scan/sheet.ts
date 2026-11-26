@@ -1,4 +1,11 @@
-import { cornerCentres, gradeCells, qrCodeRect, type Point, type Rect } from '~/lib/judgingSheet';
+import {
+  cornerCentres,
+  gradeCells,
+  qrCodeRect,
+  SHEET,
+  type Point,
+  type Rect,
+} from '~/lib/judgingSheet';
 import { homography, project, type Homography } from './homography';
 
 /** A grey image, 0 is black. */
@@ -58,13 +65,34 @@ function hasWriting(cell: Gray) {
   return ink > 0.002 * (cell.width - 2 * margin) * (bottom - margin);
 }
 
+type Square = Point & { size: number };
+
 /**
- * Maps points of the page to the photo. The corner squares are the largest filled squares, and
- * the QR code at the top right tells which way up the page is.
+ * Maps points of the page to the photo. The corner squares are four filled squares of about the
+ * same size, and the QR code at the top right tells which way up the page is. Others are solid too:
+ * a blurred QR code and its markers, or the corners of the next page in a pile or on a screen.
+ * Taking one of those for a corner leaves a corner inside the page, or makes the page smaller.
  */
 function locatePage(mask: Uint8Array, width: number): Homography | null {
-  const squares = findSquares(mask, width).slice(0, 4);
-  if (squares.length < 4 || squares[3].size < squares[0].size / 4) return null;
+  const squares = findSquares(mask, width).slice(0, 8);
+  let page: { toPhoto: Homography; area: number } | null = null;
+  for (let a = 0; a < squares.length; a++) {
+    for (let b = a + 1; b < squares.length; b++) {
+      for (let c = b + 1; c < squares.length; c++) {
+        for (let d = c + 1; d < squares.length; d++) {
+          const four = [squares[a], squares[b], squares[c], squares[d]];
+          const found = locateCorners(mask, width, four, squares);
+          if (found && (!page || found.area > page.area)) page = found;
+        }
+      }
+    }
+  }
+  return page?.toPhoto ?? null;
+}
+
+/** For four squares from the largest, the page they are the corners of and its area. */
+function locateCorners(mask: Uint8Array, width: number, squares: Square[], all: Square[]) {
+  if (squares[3].size < squares[0].size / 4) return null;
   const centre = {
     x: squares.reduce((sum, { x }) => sum + x, 0) / 4,
     y: squares.reduce((sum, { y }) => sum + y, 0) / 4,
@@ -74,6 +102,13 @@ function locatePage(mask: Uint8Array, width: number): Homography | null {
     (a, b) =>
       Math.atan2(a.y - centre.y, a.x - centre.x) - Math.atan2(b.y - centre.y, b.x - centre.x),
   );
+  // A page photographed at any angle stays convex.
+  const turning = found.map((point, index) => {
+    const next = found[(index + 1) % 4];
+    const after = found[(index + 2) % 4];
+    return (next.x - point.x) * (after.y - next.y) - (next.y - point.y) * (after.x - next.x);
+  });
+  if (!turning.every((turn) => turn > 0)) return null;
   const corners = cornerCentres();
   const turns = [0, 1, 2, 3].map((turn) =>
     homography(
@@ -86,7 +121,53 @@ function locatePage(mask: Uint8Array, width: number): Homography | null {
   // A QR code with its white border is about a third ink, the other corners have little. Without
   // one, the squares were something else.
   if (best < 0.15 || best < 2 * second) return null;
-  return turns[ink.indexOf(best)];
+  const turn = ink.indexOf(best);
+  const toPhoto = turns[turn];
+  // Each is as large as the corner square of the page there. Blur makes them larger.
+  const half = SHEET.cornerSize / 2;
+  const fits = corners.every(({ x, y }, index) => {
+    const square = [
+      { x: x - half, y: y - half },
+      { x: x + half, y: y - half },
+      { x: x + half, y: y + half },
+      { x: x - half, y: y + half },
+    ].map((point) => project(toPhoto, point));
+    const { size } = found[(index + turn) % 4];
+    return size > areaOf(square) / 2 && size < areaOf(square) * 2;
+  });
+  if (!fits) return null;
+  // The corners of a page under this one would be in its margins, where nothing else is printed.
+  // Writing and blurred words on the page can look like squares too.
+  const toPage = homography(
+    corners.map((_, index) => found[(index + turn) % 4]),
+    corners,
+  );
+  const page = { x: 0, y: 0, width: SHEET.width, height: SHEET.height };
+  const printed = {
+    x: SHEET.paddingX,
+    y: SHEET.paddingTop,
+    width: SHEET.width - 2 * SHEET.paddingX,
+    height: SHEET.height - SHEET.paddingTop - SHEET.paddingBottom,
+  };
+  const stray = all.some((square) => {
+    if (squares.includes(square) || square.size < squares[3].size / 2) return false;
+    const point = project(toPage, square);
+    return isInside(point, page) && !isInside(point, printed);
+  });
+  return stray ? null : { toPhoto, area: areaOf(found) };
+}
+
+function isInside({ x, y }: Point, rect: Rect) {
+  return x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height;
+}
+
+/** Of a polygon, with the shoelace formula. */
+function areaOf(points: Point[]) {
+  const twice = points.reduce((sum, { x, y }, index) => {
+    const next = points[(index + 1) % points.length];
+    return sum + x * next.y - next.x * y;
+  }, 0);
+  return Math.abs(twice) / 2;
 }
 
 /**
@@ -132,7 +213,7 @@ export function inkMask(
 function findSquares(mask: Uint8Array, width: number) {
   const seen = new Uint8Array(mask.length);
   const stack = new Int32Array(mask.length);
-  const squares: (Point & { size: number })[] = [];
+  const squares: Square[] = [];
   for (let start = 0; start < mask.length; start++) {
     if (!mask[start] || seen[start]) continue;
     seen[start] = 1;

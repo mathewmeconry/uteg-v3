@@ -36,17 +36,20 @@ function isWritten(point: Point) {
   });
 }
 
-function isInk(point: Point, withQrCode: boolean) {
+/** Modules of 4pt not touching each other, or one dark block as in a blurred frame of the camera. */
+type QrCode = 'modules' | 'blurred' | 'none';
+
+function isInk(point: Point, qrCode: QrCode) {
   const half = SHEET.cornerSize / 2;
   const corner = cornerCentres().some(
     ({ x, y }) => Math.abs(point.x - x) <= half && Math.abs(point.y - y) <= half,
   );
   const qr = qrCodeRect();
-  // Modules of 4pt, not touching each other.
   const module =
-    withQrCode &&
     inside(point, qr) &&
-    (Math.floor((point.x - qr.x) / 4) + Math.floor((point.y - qr.y) / 4)) % 2 === 0;
+    (qrCode === 'blurred' ||
+      (qrCode === 'modules' &&
+        (Math.floor((point.x - qr.x) / 4) + Math.floor((point.y - qr.y) / 4)) % 2 === 0));
   // The line under the table header.
   const line = point.x > SHEET.paddingX && point.x < SHEET.width - SHEET.paddingX;
   const header = line && Math.abs(point.y - (cells[0][0].y - 1)) < 0.75;
@@ -54,14 +57,14 @@ function isInk(point: Point, withQrCode: boolean) {
 }
 
 /** A photo of the page, whose corners land on `corners`, on a grey table. */
-function photo(width: number, height: number, corners: Point[], withQrCode = true): Gray {
+function photo(width: number, height: number, corners: Point[], qrCode: QrCode = 'modules'): Gray {
   const toPage = homography(corners, PAGE);
   const data = new Uint8Array(width * height);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const point = project(toPage, { x: x + 0.5, y: y + 0.5 });
       const onPage = inside(point, { x: 0, y: 0, width: SHEET.width, height: SHEET.height });
-      data[y * width + x] = !onPage ? 110 : isInk(point, withQrCode) ? 20 : 235;
+      data[y * width + x] = !onPage ? 110 : isInk(point, qrCode) ? 20 : 235;
     }
   }
   return { width, height, data };
@@ -138,7 +141,37 @@ describe('findPage', () => {
       { x: 880, y: 1230 },
       { x: 30, y: 1180 },
     ];
-    expect(findPage(photo(900, 1250, corners, false))).toBeNull();
+    expect(findPage(photo(900, 1250, corners, 'none'))).toBeNull();
+  });
+
+  it('finds the corners next to a QR code blurred into one large square', () => {
+    const corners = [
+      { x: 90, y: 70 },
+      { x: 820, y: 20 },
+      { x: 880, y: 1230 },
+      { x: 30, y: 1180 },
+    ];
+    expect(inked(photo(900, 1250, corners, 'blurred'))).toEqual(EXPECTED);
+  });
+
+  it('takes the corners of the page, not those of the next one below', () => {
+    const page = (top: number) => [
+      { x: 50, y: top },
+      { x: 650, y: top },
+      { x: 650, y: top + 850 },
+      { x: 50, y: top + 850 },
+    ];
+    // As in a viewer of PDFs: the whole page, then the top of the next.
+    const first = photo(700, 1100, page(30));
+    const next = photo(700, 1100, page(900));
+    const data = first.data.map((value, index) => (value === 110 ? next.data[index] : value));
+    const found = findPage({ ...first, data });
+    const toPhoto = homography(PAGE, page(30));
+    found!.corners.forEach((corner, index) => {
+      const expected = project(toPhoto, cornerCentres()[index]);
+      expect(corner.x).toBeCloseTo(expected.x, -1);
+      expect(corner.y).toBeCloseTo(expected.y, -1);
+    });
   });
 
   it('straightens the QR code', () => {
