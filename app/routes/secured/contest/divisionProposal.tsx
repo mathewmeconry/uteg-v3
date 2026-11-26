@@ -49,14 +49,14 @@ import { actionError } from '~/lib/domainErrors.server';
 import { parseForm } from '~/lib/forms.server';
 import { safeClientAction } from '~/lib/safeClientAction';
 import type { Sex } from '~/modules/types';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 
 type Apparatus = keyof (typeof import('~/locales/de/common'))['default']['apparatus'];
 
 export async function loader({ context }: Route.LoaderArgs) {
-  requireRole(context, 'EDITOR');
+  requirePermission(context, 'edit');
   const { id: competitionId, grounds } = context.get(competitionContext);
   const { id, module } = context.get(contestContext);
   const [entries, divisions] = await Promise.all([
@@ -120,7 +120,7 @@ const schema = z.object({
 });
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requirePermission(context, 'edit');
   const contest = context.get(contestContext);
   const t = getT(context);
   const { data: values } = parseForm(await request.formData(), schema);

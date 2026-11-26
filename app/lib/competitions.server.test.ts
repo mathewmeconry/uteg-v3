@@ -137,20 +137,6 @@ describe('getCompetitionForUser and listCompetitions', () => {
     await auth.api.signUpEmail({ body });
     expect(await prisma.user.findFirst()).toMatchObject({ isAdmin: false });
   });
-
-  it.each([
-    ['CHECK_IN', 'VIEWER', 'FORBIDDEN'],
-    ['VIEWER', 'VIEWER', null],
-    ['VIEWER', 'EDITOR', 'FORBIDDEN'],
-    ['EDITOR', 'EDITOR', null],
-    ['EDITOR', 'OWNER', 'FORBIDDEN'],
-    ['OWNER', 'OWNER', null],
-  ] as const)('a %s asking for %s gets %s', async (role, minRole, code) => {
-    const competition = await createTestCompetition();
-    const user = await createUser();
-    await addTestMember(competition.id, user.id, role);
-    expect(await errorCode(getCompetitionForUser(user.id, competition.id, minRole))).toBe(code);
-  });
 });
 
 describe('a competition of one sex', () => {

@@ -67,6 +67,8 @@ export default {
       VIEWER: 'Voit tout, ne modifie rien',
       CHECK_IN:
         'Voit uniquement les gymnastes, les ajoute, modifie leurs données personnelles et leur catégorie et les retire. Ne fait pas la répartition',
+      GRADE_ENTRY:
+        'Voit uniquement les divisions, saisit les notes et confirme les rotations. Ne modifie rien d’autre',
     },
   },
   honour: {

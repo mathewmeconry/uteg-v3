@@ -1,15 +1,14 @@
 import { data, redirect, type MiddlewareFunction } from 'react-router';
 import { competitionContext, contestContext, type Context } from '~/context';
-import { Role } from '~/generated/prisma/enums';
 import { getUser } from '~/lib/auth/auth.server';
 import { getCompetitionForUser } from '~/lib/competitions.server';
 import { getContest } from '~/lib/contests.server';
 import { DomainError } from '~/lib/errors';
-import { hasRole } from '~/lib/roles';
+import { can, type Permission } from '~/lib/roles';
 
 /**
- * Loads the competition of a member. Needs authMiddleware before it. The role may be CHECK_IN, see
- * the middlewares below.
+ * Loads the competition of any member. Needs authMiddleware before it. What the member may do is
+ * checked below it, see pageMiddleware and requirePermission.
  */
 export const competitionMiddleware: MiddlewareFunction<Response> = async (
   { params, context },
@@ -23,18 +22,31 @@ export const competitionMiddleware: MiddlewareFunction<Response> = async (
   return next();
 };
 
-/** Sends the check-in to the starters, the only page it may see. */
-export const viewerPageMiddleware: MiddlewareFunction<Response> = ({ context }, next) => {
-  const { id, role } = context.get(competitionContext);
-  if (!hasRole(role, Role.VIEWER)) throw redirect(`/competitions/${id}/starters`);
-  return next();
-};
+/**
+ * Lets the members with one of the permissions see the pages below. The others go to the pages they
+ * may see: the check-in to the starters, the grade entry to the divisions.
+ */
+export function pageMiddleware(...permissions: Permission[]): MiddlewareFunction<Response> {
+  return ({ context }, next) => {
+    const { id, role, contests } = context.get(competitionContext);
+    if (!permissions.some((permission) => can(role, permission))) {
+      throw redirect(
+        can(role, 'checkIn')
+          ? `/competitions/${id}/starters`
+          : `/competitions/${id}/contests/${contests[0].id}/divisions`,
+      );
+    }
+    return next();
+  };
+}
 
-/** Denies the check-in. */
-export const viewerApiMiddleware: MiddlewareFunction<Response> = ({ context }, next) => {
-  requireRole(context, Role.VIEWER);
-  return next();
-};
+/** Answers the members without one of the permissions with 403. */
+export function apiMiddleware(...permissions: Permission[]): MiddlewareFunction<Response> {
+  return ({ context }, next) => {
+    requirePermission(context, ...permissions);
+    return next();
+  };
+}
 
 /** Loads a contest of the competition. Needs competitionMiddleware before it. */
 export const contestMiddleware: MiddlewareFunction<Response> = async (
@@ -47,17 +59,16 @@ export const contestMiddleware: MiddlewareFunction<Response> = async (
   return next();
 };
 
-/** First line of every action, and of loaders that not every member may call. */
-export function requireRole(context: Context, minRole: Role) {
+/**
+ * First line of every action, and of loaders that not every member may call. Needs one of the
+ * permissions.
+ */
+export function requirePermission(context: Context, ...permissions: Permission[]) {
   const competition = context.get(competitionContext);
-  if (!hasRole(competition.role, minRole)) throw data(null, 403);
+  if (!permissions.some((permission) => can(competition.role, permission))) {
+    throw data(null, 403);
+  }
   return competition;
-}
-
-/** For what editors and the check-in may do, but viewers may not. */
-export function requireEditorOrCheckIn(context: Context) {
-  const competition = context.get(competitionContext);
-  return competition.role === Role.CHECK_IN ? competition : requireRole(context, Role.EDITOR);
 }
 
 function requireParam(value: string | undefined): string {

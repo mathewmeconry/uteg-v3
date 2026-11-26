@@ -4,6 +4,7 @@ import { I18nextProvider } from 'react-i18next';
 import { createRoutesStub, Link, Outlet, useLocation } from 'react-router';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { StarterRow } from '~/components/starters/starterRow';
+import type { Role } from '~/generated/prisma/enums';
 import { createI18n } from '~/lib/i18n';
 import Starters from './starters';
 
@@ -68,13 +69,11 @@ function Address() {
 }
 
 async function renderPage({
-  canEdit = true,
-  isCheckIn = false,
+  role = 'EDITOR',
   entries = ['/'],
   link = 'returnBack',
 }: {
-  canEdit?: boolean;
-  isCheckIn?: boolean;
+  role?: Role;
   entries?: string[];
   link?: 'returnBack' | 'plain';
 } = {}) {
@@ -86,8 +85,7 @@ async function renderPage({
       loader: () => ({
         competition: { id: 'c' },
         contests: [{ id: 'contest', name: 'EGT' }],
-        canEdit,
-        isCheckIn,
+        role,
       }),
       Component: () => (
         <I18nextProvider i18n={createI18n('de')}>
@@ -260,14 +258,14 @@ it('stays after a plain link', async () => {
 
 it.each([
   ['an unknown starter', { entries: ['/?edit=nope'] }],
-  ['viewers', { entries: ['/?edit=003'], canEdit: false }],
+  ['viewers', { entries: ['/?edit=003'], role: 'VIEWER' as const }],
 ])('ignores the link for %s', async (_, options) => {
   await renderPage(options);
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
 it('shows viewers the starter of a link', async () => {
-  const { rows } = await renderPage({ entries: ['/?starter=003'], canEdit: false });
+  const { rows } = await renderPage({ entries: ['/?starter=003'], role: 'VIEWER' });
   expect(screen.getByRole('searchbox')).toHaveValue('Anna003 Muster');
   expect(rows()).toHaveLength(1);
 });
@@ -278,7 +276,7 @@ it('filters by the club of a link', async () => {
 });
 
 it('lets the check-in do everything but import and assign', async () => {
-  const { user, table, rows } = await renderPage({ canEdit: false, isCheckIn: true });
+  const { user, table, rows } = await renderPage({ role: 'CHECK_IN' });
   expect(screen.getByRole('button', { name: 'Exportieren' })).toBeEnabled();
   expect(screen.queryByRole('link', { name: 'Importieren' })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Person hinzufügen' }));
@@ -301,7 +299,7 @@ it('lets the check-in do everything but import and assign', async () => {
 });
 
 it('lets viewers look and export only', async () => {
-  const { table } = await renderPage({ canEdit: false });
+  const { table } = await renderPage({ role: 'VIEWER' });
   expect(table.queryByRole('checkbox')).not.toBeInTheDocument();
   expect(table.queryByRole('button', { name: /bearbeiten|entfernen/ })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: 'Importieren' })).not.toBeInTheDocument();

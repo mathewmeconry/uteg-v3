@@ -125,6 +125,7 @@ export default {
     EDITOR: 'Editor',
     VIEWER: 'Viewer',
     CHECK_IN: 'Check-in',
+    GRADE_ENTRY: 'Grade entry',
   },
   language: {
     de: 'Deutsch',
