@@ -423,8 +423,14 @@ describe('judging sheets', () => {
     expect(page).toMatch(/1 Anna Frei.*abgemeldet.*2 Bea Frei/);
   });
 
-  it('cuts long lists into pages of 18 rows with a header, without overlaps', async () => {
-    const { id, division, add } = await setup();
+  it('cuts long lists into pages of 18 rows, also below the longest header', async () => {
+    const { id, contest, add } = await setup();
+    const name = 'Kantonaler Gerätecup der Turnvereine im Zürcher Oberland und Weinland '.repeat(2);
+    await prisma.competition.update({ where: { id }, data: { name } });
+    // Their names fill the most lines the header has.
+    for (let number = 2; number <= 14; number++) {
+      await createDivision(contest.id, { number, state: 'RUNNING' });
+    }
     const club = await createClub({ name: 'Turnverein Schönenwerd-Niedergösgen-Oberdorf' });
     for (let index = 0; index < 40; index++) {
       await add('Maximiliane-Alexandra', {
@@ -436,7 +442,7 @@ describe('judging sheets', () => {
     const response = await callRoute(sheets.loader, {
       competitionId: id,
       role: 'VIEWER',
-      search: `?division=${division.id}`,
+      search: '?ground=1',
     });
     const pages = (await readPdf(response)).filter(
       ({ text }) => /Sprung/.test(text) && /Durchgang 1/.test(text),

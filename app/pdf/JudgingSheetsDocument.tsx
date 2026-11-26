@@ -32,7 +32,7 @@ const ROW_HEIGHT = 32;
  * the longest header.
  */
 const ROWS_PER_PAGE = 18;
-const QR_SIZE = 72;
+const QR_SIZE = 80;
 const NUMBER: Column = { width: 24 };
 const NAME: Column = { flex: 3 };
 const CLUB: Column = { flex: 2 };
@@ -60,17 +60,18 @@ export function JudgingSheetsDocument({
         const here = divisions.filter(
           (division) => key in division.progress && round < division.rounds,
         );
-        const offsets =
-          slots.length === 0
-            ? [0]
-            : Array.from(slots.keys()).filter((i) => i % ROWS_PER_PAGE === 0);
-        return offsets.map((offset) => {
+        // The same columns on every page of a list.
+        const attempts = Math.max(1, ...slots.map(({ inputRule }) => inputRule.attempts));
+        const pageCount = Math.max(1, Math.ceil(slots.length / ROWS_PER_PAGE));
+        return Array.from({ length: pageCount }, (_, page) => {
+          const offset = page * ROWS_PER_PAGE;
           const rows = slots.slice(offset, offset + ROWS_PER_PAGE);
           return {
             ground,
             divisions: here,
             apparatus: key,
             round,
+            attempts,
             offset,
             rows,
             code: sheetCode({
@@ -91,12 +92,16 @@ export function JudgingSheetsDocument({
       creator="UTEG"
       language={language}
     >
-      {pages.map(({ ground, divisions, apparatus, round, offset, rows, code }) => (
+      {pages.map(({ ground, divisions, apparatus, round, attempts, offset, rows, code }) => (
         <Page key={`${ground}-${apparatus}-${round}-${offset}`} size="A4" style={PAGE}>
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
             <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
-                <Text style={{ ...clamp(2), flexShrink: 1, color: MUTED }}>{competitionName}</Text>
+                <Text
+                  style={{ ...clamp(2), flexGrow: 1, flexShrink: 1, flexBasis: 0, color: MUTED }}
+                >
+                  {competitionName}
+                </Text>
                 <Text style={{ flexShrink: 0, color: MUTED }}>
                   {t('ground', { number: ground })}
                 </Text>
@@ -123,7 +128,7 @@ export function JudgingSheetsDocument({
             </Text>
           ) : (
             <>
-              <Sheet rows={rows} offset={offset} t={t} />
+              <Sheet rows={rows} attempts={attempts} offset={offset} t={t} />
               <CornerMarks />
             </>
           )}
@@ -139,11 +144,20 @@ export function JudgingSheetsDocument({
   );
 }
 
-function Sheet({ rows, offset, t }: { rows: Slot[]; offset: number; t: ServerT }) {
-  const attempts = Math.max(...rows.map(({ inputRule }) => inputRule.attempts));
+function Sheet({
+  rows,
+  attempts,
+  offset,
+  t,
+}: {
+  rows: Slot[];
+  attempts: number;
+  offset: number;
+  t: ServerT;
+}) {
   const numbers = attempts > 1 ? Array.from({ length: attempts }, (_, index) => index + 1) : [];
-  // Wide, as grades are read from photos.
-  const gradeColumn: Column = { width: attempts > 2 ? 76 : attempts > 1 ? 92 : 150 };
+  // Wide, as grades are read from photos, but names stay readable with 4 attempts.
+  const gradeColumn: Column = { width: [150, 92, 76, 64][attempts - 1] ?? 64 };
   const box = {
     alignSelf: 'stretch',
     justifyContent: 'center',
@@ -212,7 +226,8 @@ function Sheet({ rows, offset, t }: { rows: Slot[]; offset: number; t: ServerT }
 /** Where a scan finds the corners of the page. */
 function CornerMarks() {
   const size = 14;
-  const inset = 12;
+  // Within what printers print.
+  const inset = 20;
   return (['top', 'bottom'] as const).flatMap((vertical) =>
     (['left', 'right'] as const).map((horizontal) => (
       <View

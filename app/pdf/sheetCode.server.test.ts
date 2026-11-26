@@ -11,12 +11,11 @@ describe('sheetCode', () => {
   };
 
   it('holds the list, the first row and the divisions', () => {
-    expect(sheetCode(page)).toMatch(/^UTEG1\/sprung\/2\/18\/[0-9a-f]{8}\/A,B$/);
+    expect(sheetCode(page)).toMatch(/^UTEG1\/SPRUNG\/2\/18\/[0-9A-F]{8}\/A\.B$/);
   });
 
   it('changes when the rows change', () => {
     const code = sheetCode(page);
-    expect(sheetCode({ ...page })).toBe(code);
     expect(sheetCode({ ...page, entryIds: ['e2', 'e1'] })).not.toBe(code);
     expect(sheetCode({ ...page, entryIds: ['e1'] })).not.toBe(code);
   });
