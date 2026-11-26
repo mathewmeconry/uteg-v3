@@ -184,6 +184,8 @@ export default {
     FORBIDDEN: 'Dafür fehlt dir die Berechtigung.',
     GRADES_MISSING: 'Es fehlen noch Noten.',
     GRADE_CHANGED: 'Die Note wurde inzwischen anderswo geändert.',
+    SHEET_CHANGED:
+      'Die Liste hat sich seit dem Drucken des Notenblatts geändert. Gib diese Noten von Hand ein.',
     GROUND_IN_USE: 'Der Wettkampfplatz wird noch verwendet.',
     SEX_IN_USE: 'Es gibt noch Teilnehmende oder Abteilungen des anderen Geschlechts.',
     SEX_NOT_ALLOWED: 'Dieses Geschlecht nimmt am Wettkampf nicht teil.',

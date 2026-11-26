@@ -19,6 +19,7 @@ export type DomainErrorCode =
   | 'GROUND_IN_USE'
   | 'SEX_IN_USE'
   | 'SEX_NOT_ALLOWED'
+  | 'SHEET_CHANGED'
   | 'IMAGE_TOO_LARGE'
   | 'INVALID_APPARATUS'
   | 'INVALID_CATEGORY'

@@ -185,6 +185,8 @@ export default {
     FORBIDDEN: 'Tu n’as pas l’autorisation nécessaire.',
     GRADES_MISSING: 'Il manque encore des notes.',
     GRADE_CHANGED: 'La note a été modifiée ailleurs entre-temps.',
+    SHEET_CHANGED:
+      'La liste a changé depuis l’impression de la feuille de notes. Saisis ces notes à la main.',
     GROUND_IN_USE: 'La place de concours est encore utilisée.',
     SEX_IN_USE: 'Il y a encore des gymnastes ou des divisions de l’autre sexe.',
     SEX_NOT_ALLOWED: 'Ce sexe ne participe pas au concours.',

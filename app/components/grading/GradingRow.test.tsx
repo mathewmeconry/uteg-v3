@@ -28,6 +28,7 @@ function createSlot(patch: Partial<TabletSlot> = {}): TabletSlot {
     precision: 2,
     decimals: 2,
     grade: null,
+    scanned: null,
     apparatus: 'reck',
     ...patch,
   };

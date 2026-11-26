@@ -186,6 +186,10 @@ export async function saveGrades(
         }),
       );
     }
+    // A saved grade was checked, its scan is done.
+    await tx.scannedGrade.deleteMany({
+      where: { OR: grades.map(({ entryId, apparatus }) => ({ entryId, apparatus })) },
+    });
     return grades.map((input) => result.get(input)!);
   });
   publish(competitionId, 'grades');
@@ -355,7 +359,11 @@ async function loadDivisions(
         include: {
           entries: {
             orderBy: [{ position: 'asc' }, { id: 'asc' }],
-            include: { grades: true, starter: { include: { club: true } } },
+            include: {
+              grades: true,
+              scannedGrades: { omit: { image: true } },
+              starter: { include: { club: true } },
+            },
           },
         },
       },
@@ -431,6 +439,7 @@ function getSlots(divisions: readonly LoadedDivision[], apparatus: string, round
     const division = byId.get(entry.divisionId!)!;
     const options = division.module.rankingOptions(division.category, division.sex);
     const grade = entry.grades.find((item) => item.apparatus === apparatus);
+    const scanned = entry.scannedGrades.find((item) => item.apparatus === apparatus);
     return {
       entryId: entry.id,
       starterId: starter.id,
@@ -454,6 +463,15 @@ function getSlots(divisions: readonly LoadedDivision[], apparatus: string, round
             value: grade.value,
             attempts: grade.attempts,
             updatedAt: grade.updatedAt,
+          }
+        : null,
+      /** Read from a photo of a judging sheet, until an editor saves the grade or discards it. */
+      scanned: scanned
+        ? {
+            id: scanned.id,
+            value: scanned.value,
+            attempts: scanned.attempts,
+            confidence: scanned.confidence,
           }
         : null,
     };
@@ -495,7 +513,11 @@ function getGradeableRule(
   return module.inputRule(apparatus, entry.category ?? entry.division?.category ?? '');
 }
 
-function computeGrade({ value, attempts = [] }: GradeInput, rule: InputRule) {
+/** The grade to store, or INVALID_GRADE. */
+export function computeGrade(
+  { value, attempts = [] }: Pick<GradeInput, 'value' | 'attempts'>,
+  rule: InputRule,
+) {
   if (attempts.length > 0) {
     const final = aggregate(attempts, rule.aggregation);
     const isValid = rule.attempts > 1 ? isAttempt : isGrade;

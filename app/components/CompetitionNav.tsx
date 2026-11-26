@@ -79,6 +79,7 @@ function useNavItems(): { main: Item[]; setup: Item[]; isSetup: boolean } {
             t('nav.divisions'),
             LayersIcon,
             `${contestBase}/grading`,
+            `${contestBase}/scan`,
           ),
           item(`${contestBase}/ranking`, t('nav.ranking'), TrophyIcon),
         ]

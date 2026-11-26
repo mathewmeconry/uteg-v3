@@ -8,7 +8,7 @@ import {
   type Rect,
 } from '~/lib/judgingSheet';
 import { homography, project } from './homography';
-import { readSheet, type Gray } from './sheet';
+import { findPage, type Gray } from './sheet';
 
 const PAGE: Point[] = [
   { x: 0, y: 0 },
@@ -67,9 +67,9 @@ function photo(width: number, height: number, corners: Point[]): Gray {
 }
 
 function inked(image: Gray) {
-  const result = readSheet(image, LAYOUT);
-  expect(result).not.toBeNull();
-  return result!.map((row) => row.map((cell) => cell.inked));
+  const page = findPage(image);
+  expect(page).not.toBeNull();
+  return page!.cells(LAYOUT).map((row) => row.map((cell) => cell.inked));
 }
 
 const EXPECTED = [
@@ -80,7 +80,7 @@ const EXPECTED = [
   [false, false, true],
 ];
 
-describe('readSheet', () => {
+describe('findPage', () => {
   it('finds the written cells of a page photographed at an angle', () => {
     const corners = [
       { x: 90, y: 70 },
@@ -115,7 +115,7 @@ describe('readSheet', () => {
       { x: 880, y: 1230 },
       { x: 30, y: 1180 },
     ];
-    const cell = readSheet(photo(900, 1250, corners), LAYOUT)![2][1].image;
+    const cell = findPage(photo(900, 1250, corners))!.cells(LAYOUT)[2][1].image;
     const dark = (x: number, y: number) =>
       cell.data[Math.round(y) * cell.width + Math.round(x)] < 128;
     // The ring's left edge is dark in its middle, its centre light. Below the cell, more is cut out.
@@ -127,6 +127,22 @@ describe('readSheet', () => {
 
   it('gives up without corner squares', () => {
     const blank = { width: 200, height: 300, data: new Uint8Array(200 * 300).fill(235) };
-    expect(readSheet(blank, LAYOUT)).toBeNull();
+    expect(findPage(blank)).toBeNull();
+  });
+
+  it('straightens the QR code', () => {
+    const { qrCode } = findPage(
+      photo(1250, 900, [
+        { x: 1210, y: 40 },
+        { x: 1215, y: 860 },
+        { x: 40, y: 855 },
+        { x: 35, y: 45 },
+      ]),
+    )!;
+    // Its first module, 4pt at 4 pixels per point, after 8pt of white.
+    const at = (x: number, y: number) => qrCode.data[y * qrCode.width + x];
+    expect(at(10, 10)).toBeGreaterThan(200);
+    expect(at(34, 34)).toBeLessThan(50);
+    expect(at(50, 34)).toBeGreaterThan(200);
   });
 });

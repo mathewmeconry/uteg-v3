@@ -16,7 +16,7 @@ import {
   Table,
   type Column,
 } from './components';
-import { sheetCode } from './sheetCode.server';
+import { sheetCode } from '~/lib/sheetCode.server';
 
 type Slot = GradingState['apparatus'][number]['rounds'][number]['slots'][number];
 

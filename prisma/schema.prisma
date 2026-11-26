@@ -292,7 +292,8 @@ model Entry {
   withdrawnAt    DateTime?
   createdAt      DateTime           @default(now())
 
-  grades Grade[]
+  grades        Grade[]
+  scannedGrades ScannedGrade[]
 
   @@unique([contestId, starterId])
   @@index([divisionId, startApparatus, position])
@@ -362,6 +363,25 @@ model Grade {
   @@unique([entryId, apparatus])
   @@index([updatedAt])
   @@map("grade")
+}
+
+/// A grade read from a photo of a judging sheet. An editor checks it: saving the grade removes it.
+model ScannedGrade {
+  id         String   @id @default(ulid())
+  entryId    String
+  entry      Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  apparatus  String
+  // Thousandths, as in Grade.
+  value      Int
+  attempts   Int[]
+  // How likely the reading is right, from 0 to 1.
+  confidence Float
+  // The handwritten cells of the row, PNG.
+  image      Bytes
+  createdAt  DateTime @default(now())
+
+  @@unique([entryId, apparatus])
+  @@map("scanned_grade")
 }
 
 // ── Access without an account ────────────────────────────────────────────────

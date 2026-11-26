@@ -46,6 +46,7 @@ export default [
             route('grading', 'routes/secured/contest/divisionGrading.tsx'),
           ]),
           route('grading', 'routes/secured/contest/grading.tsx'),
+          route('scan', 'routes/secured/contest/scan.tsx'),
           route('ranking', 'routes/secured/contest/ranking.tsx'),
           route('settings', 'routes/secured/contest/settings.tsx'),
         ]),
@@ -76,6 +77,8 @@ export default [
       route('pdf/starters', 'routes/api/competition/startersPdf.ts'),
       layout('routes/api/competition/viewerLayout.ts', [
         route('grades', 'routes/api/competition/grades.ts'),
+        route('scans', 'routes/api/competition/scans.ts'),
+        route('scans/:scanId', 'routes/api/competition/scanImage.ts'),
         route('search', 'routes/api/competition/search.ts'),
         route('pdf/ranking', 'routes/api/competition/rankingPdf.ts'),
         route('pdf/judging-sheets', 'routes/api/competition/judgingSheetsPdf.ts'),

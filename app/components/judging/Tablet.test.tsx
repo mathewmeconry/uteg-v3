@@ -26,6 +26,7 @@ function createSlot(entryId: string, patch: Partial<TabletSlot> = {}): TabletSlo
     precision: 2,
     decimals: 2,
     grade: null,
+    scanned: null,
     apparatus: 'reck',
     ...patch,
   };
