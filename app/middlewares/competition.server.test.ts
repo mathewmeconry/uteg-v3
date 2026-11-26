@@ -165,6 +165,7 @@ describe('page and API middlewares', () => {
       'routes/secured/contest/divisions.tsx',
       'routes/secured/contest/division.tsx',
       'routes/secured/contest/grading.tsx',
+      'routes/secured/contest/scan.tsx',
       'routes/secured/competition/viewerLayout.tsx',
     ]);
   });
