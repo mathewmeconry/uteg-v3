@@ -9,7 +9,10 @@ const model = loadModel(stored);
 
 type Box = [x: number, y: number, width: number, height: number];
 
-/** A cell with dark boxes, 100 high like a cut out one: the row's line is at 68. */
+/**
+ * A cell with dark boxes, smaller than a cut out one (160 high), but with the row's line as far
+ * from its bottom: at 68.
+ */
 function cell(boxes: Box[]): ScannedCell {
   const width = 200;
   const data = new Uint8Array(width * 100).fill(235);
