@@ -54,8 +54,8 @@ export async function getScannedSheet(competitionId: string, code: string) {
 }
 
 /**
- * Keeps what was read from a page until an editor checks it. Withdrawn starters are left out, and
- * grades that are saved like that already, e.g. from a tablet.
+ * Keeps what was read from a page until an editor checks it, and gives the ids by row. Withdrawn
+ * starters are left out, and grades that are saved like that already, e.g. from a tablet.
  */
 export async function saveScannedGrades(
   competitionId: string,
@@ -63,7 +63,7 @@ export async function saveScannedGrades(
   scanned: readonly ScannedRow[],
 ) {
   const { apparatus, rows } = await getScannedSheet(competitionId, code);
-  const changes = scanned.flatMap(({ row, value, attempts, confidence, image }) => {
+  const kept = scanned.flatMap(({ row, value, attempts, confidence, image }) => {
     const slot = rows[row];
     if (!slot || image.byteLength > MAX_IMAGE_BYTES || !(confidence >= 0 && confidence <= 1)) {
       throw new DomainError('INVALID_INPUT');
@@ -71,16 +71,23 @@ export async function saveScannedGrades(
     if (slot.withdrawn) return [];
     const grade = computeGrade({ value, attempts }, slot.inputRule);
     if (isSameGrade(slot.grade, grade)) return [];
-    const where = { entryId: slot.entryId, apparatus };
-    // Replaced, not updated: a new id, so its image is not taken from the cache.
-    return [
-      prisma.scannedGrade.deleteMany({ where }),
-      prisma.scannedGrade.create({ data: { ...where, ...grade, confidence, image } }),
-    ];
+    return {
+      row,
+      where: { entryId: slot.entryId, apparatus },
+      data: { ...grade, confidence, image },
+    };
   });
-  await prisma.$transaction(changes);
+  const created = await prisma.$transaction(async (tx) => {
+    const ids = [];
+    for (const { where, data } of kept) {
+      // Replaced, not updated: a new id, so its image is not taken from the cache.
+      await tx.scannedGrade.deleteMany({ where });
+      ids.push((await tx.scannedGrade.create({ data: { ...where, ...data } })).id);
+    }
+    return ids;
+  });
   publish(competitionId, 'grades');
-  return changes.length / 2;
+  return kept.map(({ row }, index) => ({ row, id: created[index] }));
 }
 
 export async function discardScannedGrade(competitionId: string, id: string) {

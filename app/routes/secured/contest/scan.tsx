@@ -3,16 +3,13 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Route } from './+types/scan';
+import { ScanReview } from '~/components/grading/ScanReview';
 import { PageHeader } from '~/components/PageHeader';
-import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { useApparatusName } from '~/hooks/useApparatusName';
 import { useCompetition } from '~/hooks/useCompetition';
 import { categoryName } from '~/lib/categoryName';
-import { formatEntered } from '~/lib/domain/gradeInput';
-import { SURE } from '~/lib/scan/confidence';
 import { scanPhoto, type ScanResult } from '~/lib/scan/scanPhoto.client';
-import { cn } from '~/lib/utils';
 import { requireRole } from '~/middlewares/competition.server';
 
 export function loader({ context }: Route.LoaderArgs) {
@@ -119,7 +116,7 @@ function PhotoResult({ photo: { name, result } }: { photo: Photo }) {
     );
   }
 
-  const { sheet, readings, count } = result;
+  const { sheet } = result;
   const [first] = sheet.divisions;
   return (
     <>
@@ -134,31 +131,9 @@ function PhotoResult({ photo: { name, result } }: { photo: Photo }) {
           )
           .join(', ')}
       </p>
-      <ol className="my-3 divide-y">
-        {sheet.rows.map((row, index) => {
-          const reading = readings[index];
-          return (
-            <li
-              key={index}
-              className={cn('flex items-center gap-2 py-1.5', row.withdrawn && 'line-through')}
-            >
-              <span className="min-w-0 flex-1 truncate">
-                {row.firstname} {row.lastname}
-              </span>
-              {reading && reading.confidence < SURE && (
-                <Badge variant="outline">{t('grading.scannedUnsure')}</Badge>
-              )}
-              <span className="tabular-nums">
-                {reading
-                  ? (reading.attempts ?? [reading.value!]).map(formatEntered).join(' / ')
-                  : !row.withdrawn && t('scan.unread')}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-      <p className="flex flex-wrap items-center justify-between gap-2">
-        {t('scan.sent', { count })}
+      <ScanReview result={result} />
+      <p className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+        {t('scan.later')}
         <Button asChild variant="outline">
           <Link
             to={`/competitions/${competition.id}/contests/${first.contestId}/grading?ground=${first.ground}`}

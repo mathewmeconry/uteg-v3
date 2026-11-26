@@ -2,6 +2,7 @@
  * Reads photos of judging sheets off the page's thread, which reading would stop for a moment per
  * photo. Answers `{ id, competitionId, photo }` with `{ id, result }`, or `{ id }` when it failed.
  */
+import type { SavedGrade } from '~/lib/gradeRequests';
 import type { InputRule, Sex } from '~/modules/types';
 import stored from './digitModel.json';
 import { loadModel } from './digits';
@@ -17,18 +18,28 @@ type ScannedSheet = {
   attempts: number;
   divisions: { contestId: string; ground: number; category: string; sex: Sex; number: number }[];
   rows: {
+    entryId: string;
     firstname: string;
     lastname: string;
     withdrawn: boolean;
     inputRule: InputRule;
     precision: number;
+    grade: SavedGrade | null;
   }[];
 };
 
 export type ScanResult =
   | { kind: 'noPage' | 'noCode' | 'offline' }
   | { kind: 'error'; message: string }
-  | { kind: 'done'; sheet: ScannedSheet; readings: (ReadRow | null)[]; count: number };
+  | {
+      kind: 'done';
+      sheet: ScannedSheet;
+      readings: (ReadRow | null)[];
+      /** Of the rows with something written, also when it could not be read. */
+      images: (Blob | null)[];
+      /** The scanned grades kept for checking, by row. */
+      scanned: { row: number; id: string }[];
+    };
 
 const model = loadModel(stored);
 // The worker's own scope. Its messages work like the other side's, typed with the DOM types.
@@ -62,16 +73,25 @@ async function scanPhoto(competitionId: string, photo: Blob): Promise<ScanResult
     row.withdrawn ? null : readRow(model, cells[index], row),
   );
 
+  const images = await Promise.all(
+    cells.map((row, index) =>
+      !sheet.rows[index].withdrawn && row.some(({ inked }) => inked)
+        ? rowImage(row.map(({ image }) => image))
+        : null,
+    ),
+  );
+
   const body = new FormData();
   body.set('code', code);
   const read = readings.flatMap((reading, row) => (reading ? [{ row, ...reading }] : []));
   body.set('rows', JSON.stringify(read));
-  for (const { row } of read) {
-    body.set(`image-${row}`, await rowImage(cells[row].map(({ image }) => image)), `${row}.png`);
-  }
-  const saved = await send<{ count: number }>(url, { method: 'POST', body });
-  if (!('count' in saved)) return saved;
-  return { kind: 'done', sheet, readings, count: saved.count };
+  for (const { row } of read) body.set(`image-${row}`, images[row]!, `${row}.png`);
+  const saved = await send<{ scanned: { row: number; id: string }[] }>(url, {
+    method: 'POST',
+    body,
+  });
+  if (!('scanned' in saved)) return saved;
+  return { kind: 'done', sheet, readings, images, scanned: saved.scanned };
 }
 
 /** The answer of the server, its message when it refused, or offline without an answer. */

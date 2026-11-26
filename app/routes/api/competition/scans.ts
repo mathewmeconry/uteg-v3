@@ -4,7 +4,7 @@ import type { Route } from './+types/scans';
 import { actionError } from '~/lib/domainErrors.server';
 import { DomainError } from '~/lib/errors';
 import { readForm } from '~/lib/forms.server';
-import { getScannedSheet, saveScannedGrades } from '~/lib/scans.server';
+import { discardScannedGrade, getScannedSheet, saveScannedGrades } from '~/lib/scans.server';
 import { requireRole } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 
@@ -35,13 +35,21 @@ export async function loader({ request, context }: Route.LoaderArgs) {
           sex,
           number,
         })),
-        rows: sheet.rows.map(({ firstname, lastname, withdrawn, inputRule, precision }) => ({
-          firstname,
-          lastname,
-          withdrawn,
-          inputRule,
-          precision,
-        })),
+        rows: sheet.rows.map(
+          ({ entryId, firstname, lastname, withdrawn, inputRule, precision, grade }) => ({
+            entryId,
+            firstname,
+            lastname,
+            withdrawn,
+            inputRule,
+            precision,
+            grade: grade && {
+              value: grade.value,
+              attempts: grade.attempts,
+              version: grade.version,
+            },
+          }),
+        ),
       },
     };
   } catch (error) {
@@ -49,11 +57,18 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 }
 
-/** Keeps the grades read from a page: `code`, `rows` as JSON, and `image-<row>` for each. */
+/**
+ * Keeps the grades read from a page: `code`, `rows` as JSON, and `image-<row>` for each. Or with
+ * `intent=discard`, drops the scanned grade `id`.
+ */
 export async function action({ request, context }: Route.ActionArgs) {
   const { id } = requireRole(context, 'EDITOR');
   const formData = await readForm(request, { allowFiles: true });
   try {
+    if (formData.get('intent') === 'discard') {
+      await discardScannedGrade(id, String(formData.get('id')));
+      return { discarded: true };
+    }
     const parsed = rowsSchema.safeParse(parseJson(formData.get('rows')));
     if (!parsed.success) throw new DomainError('INVALID_INPUT');
     const rows = await Promise.all(
@@ -63,7 +78,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         return { ...row, image: new Uint8Array(await image.arrayBuffer()) };
       }),
     );
-    return { count: await saveScannedGrades(id, String(formData.get('code')), rows) };
+    return { scanned: await saveScannedGrades(id, String(formData.get('code')), rows) };
   } catch (error) {
     return failure(error, context);
   }

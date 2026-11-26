@@ -73,12 +73,15 @@ describe('getScannedSheet', () => {
 describe('saveScannedGrades', () => {
   it('keeps the readings until a grade is saved', async () => {
     const { id, division, starters, code } = await setup();
-    const count = await saveScannedGrades(id, code, [
+    const kept = await saveScannedGrades(id, code, [
       { row: 0, value: 9350, confidence: 0.95, image: IMAGE },
       { row: 2, value: 8700, confidence: 0.4, image: IMAGE },
     ]);
-    expect(count).toBe(2);
     const [anna, bea, cleo] = await scannedOf(id, division.id);
+    expect(kept).toEqual([
+      { row: 0, id: anna?.id },
+      { row: 2, id: cleo?.id },
+    ]);
     expect(anna).toMatchObject({ value: 9350, attempts: [], confidence: 0.95 });
     expect(bea).toBeNull();
     expect(cleo?.value).toBe(8700);
@@ -99,10 +102,10 @@ describe('saveScannedGrades', () => {
       [{ entryId: starters[0].entry.id, apparatus: 'reck', value: 9350, version: null }],
       { kind: 'editor' },
     );
-    const count = await saveScannedGrades(id, code, [
+    const kept = await saveScannedGrades(id, code, [
       { row: 0, value: 9350, confidence: 1, image: IMAGE },
     ]);
-    expect(count).toBe(0);
+    expect(kept).toEqual([]);
   });
 
   it('replaces an earlier scan with a new one', async () => {
@@ -134,7 +137,7 @@ describe('saveScannedGrades', () => {
     });
     expect(
       await saveScannedGrades(id, code, [{ row: 1, value: 9000, confidence: 1, image: IMAGE }]),
-    ).toBe(0);
+    ).toEqual([]);
     expect((await scannedOf(id, division.id))[1]).toBeNull();
     const scan = (row: number, value: number) =>
       saveScannedGrades(id, code, [{ row, value, confidence: 1, image: IMAGE }]);
