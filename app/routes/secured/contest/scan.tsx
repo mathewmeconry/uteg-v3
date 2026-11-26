@@ -1,8 +1,9 @@
-import { CameraIcon, CircleAlertIcon, LoaderCircleIcon, XIcon } from 'lucide-react';
+import { CircleAlertIcon, ImagesIcon, LoaderCircleIcon, ScanLineIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Route } from './+types/scan';
+import { PageScanner } from '~/components/grading/PageScanner';
 import { ScanReview } from '~/components/grading/ScanReview';
 import { PageHeader } from '~/components/PageHeader';
 import { Button } from '~/components/ui/button';
@@ -25,6 +26,7 @@ export default function Scan({ params: { contestId } }: Route.ComponentProps) {
   const { t } = useTranslation(['judging', 'common']);
   const { competition } = useCompetition();
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
   const gradingUrl = `/competitions/${competition.id}/contests/${contestId}/grading`;
 
   async function read(files: File[]) {
@@ -50,24 +52,39 @@ export default function Scan({ params: { contestId } }: Route.ComponentProps) {
         title={t('scan.title')}
       />
       <p className="mb-4 max-w-prose text-muted-foreground">{t('scan.intro')}</p>
-      <Button asChild>
-        <label>
-          <CameraIcon aria-hidden />
-          {t('scan.choose')}
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            className="sr-only"
-            onChange={(event) => {
-              const files = [...(event.target.files ?? [])];
-              // The same photos may be chosen again.
-              event.target.value = '';
-              void read(files);
-            }}
-          />
-        </label>
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => setIsScanning(true)}>
+          <ScanLineIcon aria-hidden />
+          {t('scanner.open')}
+        </Button>
+        <Button asChild variant="outline">
+          <label>
+            <ImagesIcon aria-hidden />
+            {t('scan.choose')}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              onChange={(event) => {
+                const files = [...(event.target.files ?? [])];
+                // The same photos may be chosen again.
+                event.target.value = '';
+                void read(files);
+              }}
+            />
+          </label>
+        </Button>
+      </div>
+      {isScanning && (
+        <PageScanner
+          onPhoto={(photo) => {
+            const name = t('scanner.photo', { number: photos.length + 1 });
+            void read([new File([photo], `${name}.jpg`, { type: photo.type })]);
+          }}
+          onClose={() => setIsScanning(false)}
+        />
+      )}
       <ul className="mt-6 grid gap-4">
         {photos.map((photo) => (
           <li key={photo.key} className="flex items-start gap-2 rounded-xl border bg-card p-4">

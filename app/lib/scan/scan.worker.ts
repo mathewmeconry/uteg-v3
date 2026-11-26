@@ -1,6 +1,7 @@
 /**
  * Reads photos of judging sheets off the page's thread, which reading would stop for a moment per
- * photo. Answers `{ id, competitionId, photo }` with `{ id, result }`, or `{ id }` when it failed.
+ * photo. Answers `{ id, competitionId, photo }` with `{ id, result }`, or `{ id }` when it failed,
+ * and `{ id, frame }` of the camera with `{ id, corners }` of the sheet in it, or null.
  */
 import type { SavedGrade } from '~/lib/gradeRequests';
 import type { InputRule, Sex } from '~/modules/types';
@@ -46,10 +47,18 @@ const model = loadModel(stored);
 const scope = self as unknown as Worker;
 
 scope.onmessage = async ({
-  data: { id, competitionId, photo },
-}: MessageEvent<{ id: number; competitionId: string; photo: Blob }>) => {
+  data,
+}: MessageEvent<
+  { id: number; competitionId: string; photo: Blob } | { id: number; frame: ImageData }
+>) => {
+  const { id } = data;
+  if ('frame' in data) {
+    // Where a sheet is in a frame of the camera, quick enough for several a second.
+    scope.postMessage({ id, corners: findPage(toGray(data.frame))?.corners ?? null });
+    return;
+  }
   try {
-    scope.postMessage({ id, result: await scanPhoto(competitionId, photo) });
+    scope.postMessage({ id, result: await scanPhoto(data.competitionId, data.photo) });
   } catch {
     scope.postMessage({ id });
   }
@@ -117,7 +126,10 @@ async function loadPhoto(photo: Blob): Promise<Gray> {
   const context = new OffscreenCanvas(width, height).getContext('2d')!;
   context.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
-  const { data } = context.getImageData(0, 0, width, height);
+  return toGray(context.getImageData(0, 0, width, height));
+}
+
+function toGray({ width, height, data }: ImageData): Gray {
   const gray = new Uint8Array(width * height);
   for (let index = 0; index < gray.length; index++) {
     const pixel = index * 4;

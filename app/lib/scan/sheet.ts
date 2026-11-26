@@ -22,6 +22,8 @@ export function findPage(image: Gray) {
   const qr = qrCodeRect();
   const quiet = 8;
   return {
+    /** Of the corner squares on the photo, clockwise from the top left of the page. */
+    corners: cornerCentres().map((point) => project(toPhoto, point)),
     // With white around it, which QR readers look for.
     qrCode: crop(image, toPhoto, {
       x: qr.x - quiet,

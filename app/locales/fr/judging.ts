@@ -174,6 +174,19 @@ export default {
     acceptScanFor: 'Accepter la note scannée de {{name}}',
     discardScanFor: 'Rejeter la note scannée de {{name}}',
   },
+  scanner: {
+    open: 'Ouvrir le scanner',
+    starting: 'Démarrage de la caméra …',
+    searching: 'Tiens la caméra au-dessus d’une feuille de notes, les quatre coins dans l’image.',
+    hold: 'Ne bouge plus …',
+    taken: 'Photo prise. Pose la feuille suivante.',
+    noCamera: 'La caméra ne s’ouvre pas. Autorise l’accès ou choisis des photos.',
+    count_one: '{{count}} feuille prise',
+    count_other: '{{count}} feuilles prises',
+    take: 'Prendre une photo',
+    close: 'Fermer le scanner',
+    photo: 'Photo {{number}}',
+  },
   scan: {
     title: 'Scanner les feuilles de notes',
     intro:

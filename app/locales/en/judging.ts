@@ -172,6 +172,19 @@ export default {
     acceptScanFor: 'Accept the scanned grade of {{name}}',
     discardScanFor: 'Discard the scanned grade of {{name}}',
   },
+  scanner: {
+    open: 'Open scanner',
+    starting: 'Starting the camera …',
+    searching: 'Hold the camera over a judging sheet, all four corners in view.',
+    hold: 'Hold still …',
+    taken: 'Taken. Put down the next sheet.',
+    noCamera: 'The camera cannot be opened. Allow access or choose photos.',
+    count_one: '{{count}} sheet taken',
+    count_other: '{{count}} sheets taken',
+    take: 'Take photo',
+    close: 'Close scanner',
+    photo: 'Scan {{number}}',
+  },
   scan: {
     title: 'Scan judging sheets',
     intro:

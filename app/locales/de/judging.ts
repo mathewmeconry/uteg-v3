@@ -171,6 +171,19 @@ export default {
     acceptScanFor: 'Gescannte Note von {{name}} übernehmen',
     discardScanFor: 'Gescannte Note von {{name}} verwerfen',
   },
+  scanner: {
+    open: 'Scanner öffnen',
+    starting: 'Kamera wird gestartet …',
+    searching: 'Halte die Kamera über ein Notenblatt, alle vier Ecken im Bild.',
+    hold: 'Ruhig halten …',
+    taken: 'Aufgenommen. Leg das nächste Blatt hin.',
+    noCamera: 'Die Kamera lässt sich nicht öffnen. Erlaube den Zugriff oder wähle Fotos.',
+    count_one: '{{count}} Blatt aufgenommen',
+    count_other: '{{count}} Blätter aufgenommen',
+    take: 'Foto aufnehmen',
+    close: 'Scanner schliessen',
+    photo: 'Aufnahme {{number}}',
+  },
   scan: {
     title: 'Notenblätter scannen',
     intro:
