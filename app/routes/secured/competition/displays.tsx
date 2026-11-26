@@ -23,12 +23,12 @@ import { actionError } from '~/lib/domainErrors.server';
 import { parseForm } from '~/lib/forms.server';
 import { safeClientAction } from '~/lib/safeClientAction';
 import type { ServerT } from '~/locales';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requirePermission(context, 'edit');
   const displays = await listDisplays(id);
   return {
     displays: displays.map((link) => ({ id: link.id, ground: link.ground, url: accessUrl(link) })),
@@ -44,7 +44,7 @@ const schema = z.discriminatedUnion('intent', [
 ]);
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requirePermission(context, 'edit');
   const t = getT(context);
   const { data: values } = parseForm(await request.formData(), schema);
   if (!values) return data({ error: t('common:errors.invalid') }, 400);

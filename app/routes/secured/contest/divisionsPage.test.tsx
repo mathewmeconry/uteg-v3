@@ -72,7 +72,7 @@ async function renderPage(url = '/') {
       {
         id: 'routes/secured/competition/layout',
         path: '/',
-        loader: () => ({ competition: { id: 'c', grounds: 2 }, canEdit: true }),
+        loader: () => ({ competition: { id: 'c', grounds: 2 }, role: 'EDITOR' }),
         element: <Outlet />,
         HydrateFallback: () => null,
         children: [

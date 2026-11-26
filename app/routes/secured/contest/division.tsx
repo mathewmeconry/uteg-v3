@@ -41,7 +41,8 @@ export async function loader({ context, params: { divisionId } }: Route.LoaderAr
 export default function DivisionLayout({ loaderData }: Route.ComponentProps) {
   const { division, planned, running } = loaderData;
   const { t } = useTranslation(['divisions', 'common']);
-  const { competition, canEdit } = useCompetition();
+  const { competition, can } = useCompetition();
+  const canEdit = can('edit');
   const status = useLiveUpdates(`/api/events/${competition.id}`);
   const name = useDivisionName()(division);
   const [dialog, setDialog] = useState<'start' | 'stop' | null>(null);

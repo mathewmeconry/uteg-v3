@@ -42,7 +42,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'OWNER'); // first line of every action
+  const { id } = requirePermission(context, 'manage'); // first line of every action
   const t = getT(context);
   const { data: values, errors } = parseForm(await request.formData(), schema);
   if (errors) return data({ errors }, 400);
@@ -61,7 +61,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   competition or contest id first.
 - Layouts need a loader, otherwise client navigations skip their middleware.
 - Forms: `FormField`, `SubmitButton`, `ConfirmDialog`. Several forms on a page send `intent`.
-- `useCompetition()` gives the competition, contests, `role`, `canEdit` and `isOwner` to components.
+- Code asks for permissions, never for roles: the table in `lib/roles.ts` says what each role may
+  do. Servers call `requirePermission`, layouts `pageMiddleware` or `apiMiddleware`, components
+  `useCompetition().can('edit')`.
+- `useCompetition()` gives the competition, contests, `role` and `can` to components.
 - Live pages call `useLiveUpdates('/api/events/<id>')` (judges `/api/judge/<linkId>/events`, displays
   `/api/display/<linkId>/events`) and show `<ConnectionBadge status={…} />`. Services call `publish`.
 - Title: `<title>{`${t('title')} · UTEG`}</title>` in the component.

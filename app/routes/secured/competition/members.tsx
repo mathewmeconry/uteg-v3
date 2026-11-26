@@ -27,7 +27,7 @@ import {
 import { logger } from '~/lib/logger.server';
 import { ROLES } from '~/lib/roles';
 import { safeClientAction } from '~/lib/safeClientAction';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 
@@ -42,7 +42,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id, name } = requireRole(context, Role.OWNER);
+  const { id, name } = requirePermission(context, 'manage');
   const t = getT(context);
   const formData = await request.formData();
 
@@ -132,7 +132,7 @@ export default function Members({
   actionData,
 }: Route.ComponentProps) {
   const { t } = useTranslation(['settings', 'common']);
-  const { isOwner } = useCompetition();
+  const canManage = useCompetition().can('manage');
   const errors = useActionErrors(actionData);
   const owners = members.filter(({ role }) => role === Role.OWNER).length;
 
@@ -157,17 +157,17 @@ export default function Members({
               <MemberRow
                 key={member.userId}
                 member={member}
-                canManage={isOwner}
+                canManage={canManage}
                 isSelf={member.userId === ownId}
                 isLastOwner={member.role === Role.OWNER && owners === 1}
               />
             ))}
             {invitations.map((invitation) => (
-              <InvitationRow key={invitation.id} invitation={invitation} canManage={isOwner} />
+              <InvitationRow key={invitation.id} invitation={invitation} canManage={canManage} />
             ))}
           </ul>
 
-          {isOwner && (
+          {canManage && (
             <section aria-labelledby="add-title">
               <h2 id="add-title" className="mb-3 font-display text-lg">
                 {t('members.addTitle')}
