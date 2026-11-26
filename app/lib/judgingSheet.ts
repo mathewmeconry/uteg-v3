@@ -18,8 +18,6 @@ export const SHEET = {
   qrSize: 80,
   cornerInset: 20,
   cornerSize: 14,
-  /** Below the final grade, where the aggregation is printed. */
-  hintHeight: 12,
   /** Of the line left of each grade column. */
   border: 0.5,
 };
@@ -58,14 +56,11 @@ export function gradeCells(attempts: number, rowCount: number): Rect[][] {
   const left = SHEET.width - SHEET.paddingX - columns * width;
   const top = SHEET.paddingTop + SHEET.headerHeight + SHEET.headerGap + SHEET.tableHeaderHeight;
   return Array.from({ length: rowCount }, (_, row) =>
-    Array.from({ length: columns }, (_, column) => {
-      const isFinal = attempts > 1 && column === columns - 1;
-      return {
-        x: left + column * width + SHEET.border,
-        y: top + row * SHEET.rowHeight,
-        width: width - SHEET.border,
-        height: SHEET.rowHeight - (isFinal ? SHEET.hintHeight : 0),
-      };
-    }),
+    Array.from({ length: columns }, (_, column) => ({
+      x: left + column * width + SHEET.border,
+      y: top + row * SHEET.rowHeight,
+      width: width - SHEET.border,
+      height: SHEET.rowHeight,
+    })),
   );
 }

@@ -7,7 +7,9 @@ export type Gray = { width: number; height: number; data: Uint8Array };
 export type ScannedCell = { image: Gray; inked: boolean };
 
 /** Pixels per point of the cut out cells. */
-const CROP_SCALE = 4;
+export const CROP_SCALE = 4;
+/** Points below a cell that are cut out with it. */
+export const BELOW_LINE = 8;
 
 /**
  * The grade cells of a photographed page, by row as in `gradeCells`, or null when its corner
@@ -21,7 +23,8 @@ export function readSheet(
   if (!toPhoto) return null;
   return gradeCells(attempts, rowCount).map((row) =>
     row.map((rect) => {
-      const cell = crop(image, toPhoto, rect);
+      // People write on the line under the cell, so their digits reach below it.
+      const cell = crop(image, toPhoto, { ...rect, height: rect.height + BELOW_LINE });
       return { image: cell, inked: hasWriting(cell) };
     }),
   );
@@ -31,11 +34,13 @@ export function readSheet(
 function hasWriting(cell: Gray) {
   const mask = inkMask(cell, Math.round(cell.height / 2));
   const margin = 3 * CROP_SCALE;
+  // Below the line is the next row.
+  const bottom = cell.height - (BELOW_LINE + 2) * CROP_SCALE;
   let ink = 0;
-  for (let y = margin; y < cell.height - margin; y++) {
+  for (let y = margin; y < bottom; y++) {
     for (let x = margin; x < cell.width - margin; x++) ink += mask[y * cell.width + x];
   }
-  return ink > 0.002 * (cell.width - 2 * margin) * (cell.height - 2 * margin);
+  return ink > 0.002 * (cell.width - 2 * margin) * (bottom - margin);
 }
 
 /**

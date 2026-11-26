@@ -1,13 +1,21 @@
 /**
- * Trains the digit model of the sheet scan on MNIST and writes app/lib/scan/digitModel.json.
+ * Trains the digit model of the sheet scan and writes app/lib/scan/digitModel.json.
  *
- *   pnpm train:digits <folder with the four MNIST .gz files>
+ *   pnpm train:digits <folder with the four MNIST .gz files> [options]
+ *
+ *   --cells <folder>  cells cut out by readSheet as <name>.pgm, with labels.csv of "name,grade"
+ *                     lines. Their digits are learnt as well, many times as often as MNIST's.
+ *                     Can be given several times.
+ *   --from <file>     a model to go on training, instead of starting anew
+ *   --epochs <n>      8 by default
+ *   --out <file>      where to write the model
  *
  * The digits go through the same glyph normalisation as cells of photos, turned, slanted, sized
  * and with strokes as thin or thick as pens write them.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { parseArgs } from 'node:util';
 import { gunzipSync } from 'node:zlib';
 import {
   CHANNELS,
@@ -15,39 +23,59 @@ import {
   GLYPH_SIZE,
   HIDDEN,
   layerShapes,
+  loadModel,
   softmax,
   type Activations,
   type DigitModel,
   type Layer,
   type StoredModel,
 } from '../app/lib/scan/digits';
-import { glyphOf } from '../app/lib/scan/grade';
+import { glyphOf, segment } from '../app/lib/scan/grade';
 
-const EPOCHS = 8;
 const BATCH = 64;
 const LEARNING_RATE = 0.002;
 /** Digits are drawn this many times larger before they are normalised, like a photo's cell. */
 const UPSCALE = 3;
+/** How often each digit of a real cell is learnt per epoch: they are few, but what counts. */
+const REAL_REPEAT = 20;
 
-const folder = process.argv[2];
-if (!folder) throw new Error('Usage: pnpm train:digits <folder with the MNIST files>');
+const { values: options, positionals } = parseArgs({
+  allowPositionals: true,
+  options: {
+    cells: { type: 'string', multiple: true, default: [] },
+    from: { type: 'string' },
+    epochs: { type: 'string', default: '8' },
+    out: { type: 'string' },
+  },
+});
+const folder = positionals[0];
+if (!folder) throw new Error('Usage: pnpm train:digits <folder with the MNIST files> [options]');
 
 const random = seeded(1);
 const train = load('train');
 const test = load('t10k');
-const model = initialise();
+const real = options.cells.flatMap(loadCells);
+const samples = [
+  ...Array.from(train.labels, (label, index) => ({ image: train.image(index), label })),
+  ...Array.from({ length: REAL_REPEAT }, () => real).flat(),
+];
+process.stdout.write(`${real.length} digits of real cells\n`);
+const model = options.from
+  ? loadModel(JSON.parse(readFileSync(options.from, 'utf8')))
+  : initialise();
 const optimiser = adam(model);
 
-for (let epoch = 0; epoch < EPOCHS; epoch++) {
+for (let epoch = 0; epoch < Number(options.epochs); epoch++) {
   const started = Date.now();
-  const order = shuffle(Array.from(train.labels.keys()));
-  const rate = LEARNING_RATE * 0.75 ** epoch;
+  const order = shuffle(Array.from(samples.keys()));
+  // Going on from a model needs smaller steps, so it keeps what it knows.
+  const rate = (options.from ? LEARNING_RATE / 4 : LEARNING_RATE) * 0.75 ** epoch;
   let loss = 0;
   for (let start = 0; start < order.length; start += BATCH) {
     const gradients = zeros();
     for (const index of order.slice(start, start + BATCH)) {
-      const activations = forward(model, augment(train.image(index)));
-      loss += backward(model, activations, train.labels[index], gradients);
+      const { image, label } = samples[index];
+      loss += backward(model, forward(model, augment(image)), label, gradients);
     }
     optimiser.step(gradients, Math.min(BATCH, order.length - start), rate);
   }
@@ -56,9 +84,9 @@ for (let epoch = 0; epoch < EPOCHS; epoch++) {
   );
 }
 
-const path = new URL('../app/lib/scan/digitModel.json', import.meta.url);
+const path = options.out ?? new URL('../app/lib/scan/digitModel.json', import.meta.url).pathname;
 writeFileSync(path, `${JSON.stringify(store(model))}\n`);
-process.stdout.write(`Written to ${path.pathname}\n`);
+process.stdout.write(`Written to ${path}\n`);
 
 function load(name: 'train' | 't10k') {
   const images = gunzipSync(readFileSync(join(folder!, `${name}-images-idx3-ubyte.gz`)));
@@ -68,6 +96,40 @@ function load(name: 'train' | 't10k') {
     labels: labels.subarray(8),
     image: (index: number) => images.subarray(16 + index * size, 16 + (index + 1) * size),
   };
+}
+
+/**
+ * The digits of labelled cells as MNIST images. Only cells split into as many digits as their
+ * grade has, so each digit gets its label.
+ */
+function loadCells(cells: string) {
+  return readFileSync(join(cells, 'labels.csv'), 'utf8')
+    .trim()
+    .split('\n')
+    .flatMap((line) => {
+      const [name, grade] = line.split(',');
+      const pgm = readFileSync(join(cells, `${name}.pgm`));
+      const [header, width, height] = pgm
+        .toString('latin1', 0, 32)
+        .match(/^P5\s+(\d+)\s+(\d+)\s+255\s/)!;
+      const cell = {
+        width: Number(width),
+        height: Number(height),
+        data: new Uint8Array(pgm.subarray(header.length)),
+      };
+      const labels = grade.replace(/\D/g, '').split('').map(Number);
+      const { ink, digits } = segment(cell);
+      if (digits.length !== labels.length) return [];
+      return digits.map((group, index) => {
+        const mask = new Uint8Array(ink.length);
+        for (const blob of group) for (const pixel of blob.pixels) mask[pixel] = 1;
+        const glyph = glyphOf(mask, cell.width);
+        return {
+          image: Uint8Array.from(glyph, (value) => Math.round(value * 255)),
+          label: labels[index],
+        };
+      });
+    });
 }
 
 /** Accuracy on the test digits, upright but normalised like a photo's. */

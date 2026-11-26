@@ -30,7 +30,8 @@ const PAGE = {
 const NUMBER: Column = { width: 24 };
 const NAME: Column = { flex: 3 };
 const CLUB: Column = { flex: 2 };
-const CATEGORY: Column = { width: 34 };
+/** Also holds the aggregation of the final grade in small type. */
+const CATEGORY: Column = { width: 46 };
 
 /**
  * One sheet per ground, apparatus and round, filled in by hand. Each page has a QR code and a
@@ -185,6 +186,11 @@ function Sheet({
       }
       rows={rows.map((slot, index) => {
         const struck = { textDecoration: slot.withdrawn ? 'line-through' : 'none' } as const;
+        // Not in the grade's cell, where people would write over it.
+        const hint = slot.withdrawn
+          ? t('pdf:sheets.withdrawn')
+          : slot.inputRule.aggregation !== 'NONE' &&
+            t(`pdf:sheets.aggregation.${slot.inputRule.aggregation}`);
         return (
           <Row key={slot.entryId} style={{ height: SHEET.rowHeight }}>
             <Cell column={NUMBER} style={struck}>
@@ -196,8 +202,9 @@ function Sheet({
             <Cell column={CLUB} style={{ ...struck, ...clamp(2) }}>
               {slot.clubName}
             </Cell>
-            <Cell column={CATEGORY} style={struck}>
-              {categoryName(slot.category, t)}
+            <Cell column={CATEGORY}>
+              <Text style={struck}>{categoryName(slot.category, t)}</Text>
+              {hint && <Text style={{ fontSize: 6, color: MUTED }}>{`\n${hint}`}</Text>}
             </Cell>
             {numbers.map((number) => (
               <View key={number} style={box}>
@@ -206,14 +213,8 @@ function Sheet({
                 </Cell>
               </View>
             ))}
-            {/* At the bottom, the grade is written above it. */}
-            <View style={{ ...box, justifyContent: 'flex-end' }}>
-              <Cell column={gradeColumn} align="center" style={{ fontSize: 6, color: MUTED }}>
-                {slot.withdrawn
-                  ? t('pdf:sheets.withdrawn')
-                  : slot.inputRule.aggregation !== 'NONE' &&
-                    t(`pdf:sheets.aggregation.${slot.inputRule.aggregation}`)}
-              </Cell>
+            <View style={box}>
+              <Cell column={gradeColumn} />
             </View>
           </Row>
         );

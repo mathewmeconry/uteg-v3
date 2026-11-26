@@ -1,5 +1,5 @@
 import { classify, GLYPH_SIZE, type DigitModel } from './digits';
-import { inkMask, type Gray } from './sheet';
+import { BELOW_LINE, CROP_SCALE, inkMask, type Gray } from './sheet';
 
 /** In thousandths, with the next likely values. Confidence is the probability of the reading. */
 export type ReadGrade = { value: number; confidence: number; alternatives: number[] };
@@ -56,18 +56,14 @@ export function readGrade(model: DigitModel, cell: Gray, precision: number): Rea
 export function segment(cell: Gray): { ink: Uint8Array; digits: Blob[][]; point: Blob | null } {
   // Relative to the paper nearby, so a shadow over part of the cell is no ink.
   const ink = inkMask(cell, Math.round(cell.height / 2));
-  // The table's lines are at the edge. Photos are never cut exactly, so they may be a bit further
-  // in, and then they are long and thin.
-  for (let y = 0; y < cell.height; y++) {
-    for (let x = 0; x < cell.width; x++) {
-      if (x < EDGE || y < EDGE || x >= cell.width - EDGE || y >= cell.height - EDGE) {
-        ink[y * cell.width + x] = 0;
-      }
-    }
-  }
+  removeLines(ink, cell.width, cell.height);
+  // Below the line under the cell, what starts there belongs to the next row.
+  const line = cell.height - BELOW_LINE * CROP_SCALE;
+  // What is left of a line is long and thin, near the edge.
   const found = findBlobs(ink, cell.width).filter((blob) => {
     const width = blob.maxX - blob.minX + 1;
     const height = blob.maxY - blob.minY + 1;
+    if (blob.minY > line) return false;
     const nearEdge =
       blob.minX <= 2 * EDGE ||
       blob.minY <= 2 * EDGE ||
@@ -202,6 +198,48 @@ export function decodeGrade(
   ];
   const confidence = Math.exp(Math.max(...readings.map(({ score }) => score)));
   return { value: values[0], confidence, alternatives: values.slice(1, 3) };
+}
+
+/**
+ * Clears the table's lines: rows or columns that are mostly ink. People write on the line, so
+ * where a stroke crosses it, ink on both sides, the line stays to keep the digit whole.
+ */
+function removeLines(ink: Uint8Array, width: number, height: number) {
+  const at = (x: number, y: number) => ink[y * width + x];
+  const rows = Array.from({ length: height }, (_, y) => {
+    let count = 0;
+    for (let x = 0; x < width; x++) count += at(x, y);
+    return count > 0.6 * width;
+  });
+  const columns = Array.from({ length: width }, (_, x) => {
+    let count = 0;
+    for (let y = 0; y < height; y++) count += at(x, y);
+    return count > 0.6 * height;
+  });
+  const cleared = new Uint8Array(ink.length);
+  for (let y = 0; y < height; y++) {
+    if (!rows[y]) continue;
+    let above = y;
+    while (above > 0 && rows[above - 1]) above--;
+    let below = y;
+    while (below < height - 1 && rows[below + 1]) below++;
+    for (let x = 0; x < width; x++) {
+      const crossed = above > 0 && below < height - 1 && at(x, above - 1) && at(x, below + 1);
+      if (!crossed) cleared[y * width + x] = 1;
+    }
+  }
+  for (let x = 0; x < width; x++) {
+    if (!columns[x]) continue;
+    let left = x;
+    while (left > 0 && columns[left - 1]) left--;
+    let right = x;
+    while (right < width - 1 && columns[right + 1]) right++;
+    for (let y = 0; y < height; y++) {
+      const crossed = left > 0 && right < width - 1 && at(left - 1, y) && at(right + 1, y);
+      if (!crossed) cleared[y * width + x] = 1;
+    }
+  }
+  for (let index = 0; index < ink.length; index++) if (cleared[index]) ink[index] = 0;
 }
 
 /** 8-connected blobs of ink. */

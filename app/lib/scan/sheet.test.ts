@@ -118,10 +118,11 @@ describe('readSheet', () => {
     const cell = readSheet(photo(900, 1250, corners), LAYOUT)![2][1].image;
     const dark = (x: number, y: number) =>
       cell.data[Math.round(y) * cell.width + Math.round(x)] < 128;
-    // The ring's left edge is dark in its middle, its centre light.
+    // The ring's left edge is dark in its middle, its centre light. Below the cell, more is cut out.
     const scale = cell.width / cells[2][1].width;
-    expect(dark(cell.width / 2 - 5.25 * scale, cell.height / 2)).toBe(true);
-    expect(dark(cell.width / 2, cell.height / 2)).toBe(false);
+    const middle = (cells[2][1].height / 2) * scale;
+    expect(dark(cell.width / 2 - 5.25 * scale, middle)).toBe(true);
+    expect(dark(cell.width / 2, middle)).toBe(false);
   });
 
   it('gives up without corner squares', () => {
