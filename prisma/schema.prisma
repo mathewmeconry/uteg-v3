@@ -77,8 +77,7 @@ model Verification {
 
 // ── Competition ──────────────────────────────────────────────────────────────
 
-/// From the most to the least rights, the app relies on the order. The last two are beside the
-/// others and are checked by name, see requireRoleOr.
+/// The order of the member lists. What each role may do is in app/lib/roles.ts.
 enum Role {
   OWNER
   EDITOR
