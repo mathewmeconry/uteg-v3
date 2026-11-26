@@ -66,7 +66,7 @@ import { DomainError } from '~/lib/errors';
 import { safeClientAction } from '~/lib/safeClientAction';
 import { cn } from '~/lib/utils';
 import type { ServerT } from '~/locales';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 
@@ -106,7 +106,7 @@ const schema = z.discriminatedUnion('intent', [
 ]);
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requirePermission(context, 'edit');
   const contest = context.get(contestContext);
   const t = getT(context);
   const formData = await request.formData();
@@ -179,7 +179,8 @@ type OpenDialog = {
 export default function Divisions({ loaderData }: Route.ComponentProps) {
   const { running, categories } = loaderData;
   const { t } = useTranslation(['divisions', 'common']);
-  const { competition, canEdit } = useCompetition();
+  const { competition, can } = useCompetition();
+  const canEdit = can('edit');
   const status = useLiveUpdates(`/api/events/${competition.id}`);
   const [params, setParams] = useSearchParams();
   const [selection, setSelection] = useState<ReadonlySet<string>>(new Set());

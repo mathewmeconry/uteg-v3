@@ -48,7 +48,7 @@ function ariaCurrent({ to, active }: Pick<Item, 'to' | 'active'>, pathname: stri
 
 function useNavItems(): { main: Item[]; setup: Item[]; isSetup: boolean } {
   const { t } = useTranslation();
-  const { competition, contests, canEdit, isCheckIn } = useCompetition();
+  const { competition, contests, can } = useCompetition();
   const params = useParams();
   const { pathname } = useLocation();
 
@@ -56,7 +56,19 @@ function useNavItems(): { main: Item[]; setup: Item[]; isSetup: boolean } {
   const contest = contests.find(({ id }) => id === params.contestId) ?? contests[0];
   const contestBase = contest && `${base}/contests/${contest.id}`;
   const starters = item(`${base}/starters`, t('nav.starters'), UsersIcon);
-  if (isCheckIn) return { main: [starters], setup: [], isSetup: false };
+  const divisions =
+    contestBase &&
+    item(
+      `${contestBase}/divisions`,
+      t('nav.divisions'),
+      LayersIcon,
+      `${contestBase}/grading`,
+      `${contestBase}/scan`,
+    );
+  if (!can('view')) {
+    const main = can('checkIn') ? [starters] : divisions ? [divisions] : [];
+    return { main, setup: [], isSetup: false };
+  }
 
   function item(to: string, label: string, icon: LucideIcon, ...alsoActive: string[]): Item {
     const active = [to, ...alsoActive].some(
@@ -72,25 +84,14 @@ function useNavItems(): { main: Item[]; setup: Item[]; isSetup: boolean } {
       active: pathname === base || pathname === `${base}/`,
     },
     starters,
-    ...(contestBase
-      ? [
-          item(
-            `${contestBase}/divisions`,
-            t('nav.divisions'),
-            LayersIcon,
-            `${contestBase}/grading`,
-            `${contestBase}/scan`,
-          ),
-          item(`${contestBase}/ranking`, t('nav.ranking'), TrophyIcon),
-        ]
-      : []),
+    ...(divisions ? [divisions, item(`${contestBase}/ranking`, t('nav.ranking'), TrophyIcon)] : []),
   ];
   const setup = [
     item(`${base}/settings`, t('nav.settings'), SettingsIcon),
     ...(contestBase
       ? [item(`${contestBase}/settings`, t('nav.contestSettings'), SlidersHorizontalIcon)]
       : []),
-    ...(canEdit
+    ...(can('edit')
       ? [
           item(`${base}/judges`, t('nav.judges'), TabletIcon),
           item(`${base}/displays`, t('nav.displays'), MonitorIcon),
@@ -174,7 +175,7 @@ function TopLink({ to, label, active }: Pick<Item, 'to' | 'label' | 'active'>) {
 /** On phones and upright tablets the links are in `BottomNav`. */
 export function TopBar() {
   const { t } = useTranslation();
-  const { competition, role, isCheckIn } = useCompetition();
+  const { competition, role, can } = useCompetition();
   const { main, setup, isSetup } = useNavItems();
 
   return (
@@ -187,7 +188,7 @@ export function TopBar() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-1">
-          {!isCheckIn && (
+          {can('view') && (
             <>
               <CompetitionSearch pages={[...main, ...setup]} />
               <div className="hidden lg:block">
@@ -212,10 +213,10 @@ const TAB =
 export function BottomNav() {
   const { t } = useTranslation();
   const { main, setup, isSetup } = useNavItems();
-  const { isCheckIn } = useCompetition();
+  const { can } = useCompetition();
   const { pathname } = useLocation();
   // There is nowhere else to go.
-  if (isCheckIn) return null;
+  if (!can('view')) return null;
 
   function tabColour(active: boolean) {
     return active ? 'text-foreground' : 'text-muted-foreground';

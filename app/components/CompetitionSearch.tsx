@@ -80,7 +80,8 @@ function SearchDialog({ pages, onClose }: { pages: Page[]; onClose: () => void }
 
 function Results({ pages, onClose }: { pages: Page[]; onClose: () => void }) {
   const { t } = useTranslation(['common', 'divisions']);
-  const { competition, contests, canEdit } = useCompetition();
+  const { competition, contests, can } = useCompetition();
+  const canEdit = can('edit');
   const [index, setIndex] = useState<SearchIndex | null>(null);
   const [hasFailed, setHasFailed] = useState(false);
   const navigate = useNavigate();

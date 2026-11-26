@@ -5,7 +5,7 @@ import { contestContext } from '~/context';
 import { actionError } from '~/lib/domainErrors.server';
 import { DomainError } from '~/lib/errors';
 import { getDivisionLineups, moveEntriesToLineup, unassignEntries } from '~/lib/lineups.server';
-import { contestMiddleware, requireRole } from '~/middlewares/competition.server';
+import { contestMiddleware, requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 
 export const middleware: Route.MiddlewareFunction[] = [contestMiddleware];
@@ -25,7 +25,7 @@ const schema = z.discriminatedUnion('intent', [
 
 /** Called by useLineupMoves. */
 export async function action({ request, context, params }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requirePermission(context, 'edit');
   const t = getT(context);
   const formData = await request.formData();
   const { data: values } = schema.safeParse({

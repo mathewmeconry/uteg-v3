@@ -12,7 +12,7 @@ import {
   MAX_IMAGE_BYTES,
   saveScannedGrades,
 } from '~/lib/scans.server';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 
 // At most a page, each row once: every row reads an image.
@@ -38,7 +38,7 @@ const cellSizeSchema = z.object({
 
 /** `?code=`: the rows of a scanned page of the judging sheets, to read their cells. */
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requirePermission(context, 'grade');
   const code = new URL(request.url).searchParams.get('code') ?? '';
   try {
     const sheet = await getScannedSheet(id, code);
@@ -83,7 +83,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
  * `intent=discard`, drops the scanned grade `id`.
  */
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requirePermission(context, 'grade');
   const formData = await readForm(request, { allowFiles: true });
   try {
     if (formData.get('intent') === 'discard') {

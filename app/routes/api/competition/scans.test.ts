@@ -55,7 +55,7 @@ function save(
 }
 
 describe('scans', () => {
-  it('needs an editor', async () => {
+  it('is for those who enter grades', async () => {
     const { id, code } = await setup();
     const search = `?${new URLSearchParams({ code })}`;
     expect((await callRoute(loader, { competitionId: id, role: 'VIEWER', search })).status).toBe(
@@ -63,6 +63,8 @@ describe('scans', () => {
     );
     const form: [string, string][] = [['code', code]];
     expect((await callRoute(action, { competitionId: id, role: 'VIEWER', form })).status).toBe(403);
+    const { sheet } = await callRoute(loader, { competitionId: id, role: 'GRADE_ENTRY', search });
+    expect(sheet.rows).toHaveLength(2);
   });
 
   it('gives the rows of a sheet and keeps what was read from it', async () => {

@@ -1,14 +1,14 @@
 import { data } from 'react-router';
 import type { Route } from './+types/judgingManualPdf';
 import { accessUrl, getOrCreateJudgeLinks } from '~/lib/access.server';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getDocumentI18n } from '~/middlewares/i18n.server';
 import { parseGround, readParams } from '~/pdf/request.server';
 import { pdfResponse } from '~/pdf/response.server';
 
 /** `?link=<id>` or `?ground=1`, otherwise all. Contains the tokens, so it is not for viewers. */
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const competition = requireRole(context, 'EDITOR');
+  const competition = requirePermission(context, 'edit');
   const { language, t } = getDocumentI18n(request, context);
   const params = await readParams(request);
   const linkId = params.get('link');

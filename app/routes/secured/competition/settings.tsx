@@ -27,12 +27,12 @@ import { setKeepHandwriting } from '~/lib/handwriting.server';
 import { DomainError } from '~/lib/errors';
 import { parseForm } from '~/lib/forms.server';
 import { safeClientAction } from '~/lib/safeClientAction';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requirePermission(context, 'edit');
   const t = getT(context);
   const formData = await request.formData();
 
@@ -68,7 +68,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
     case 'handwriting': {
       // About people's handwriting: the owner decides.
-      requireRole(context, 'OWNER');
+      requirePermission(context, 'manage');
       await setKeepHandwriting(id, formData.get('keepHandwriting') === 'on');
       enqueueToast(context, { type: 'success', message: t('settings:saved') });
       return redirect('.');
@@ -81,7 +81,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     }
 
     case 'delete': {
-      const { name } = requireRole(context, 'OWNER');
+      const { name } = requirePermission(context, 'manage');
       if (String(formData.get('confirmName')).trim() !== name) {
         return data({ errors: { confirmName: t('settings:delete.nameMismatch') } }, 400);
       }
@@ -99,7 +99,8 @@ export const clientAction = safeClientAction;
 
 export default function Settings({ actionData }: Route.ComponentProps) {
   const { t } = useTranslation(['settings', 'competition', 'common']);
-  const { competition, canEdit, isOwner } = useCompetition();
+  const { competition, can } = useCompetition();
+  const canEdit = can('edit');
   const errors = useActionErrors(actionData);
   const [sexes, setSexes] = useState<Sexes>(
     competition.sexes.length > 1 ? 'BOTH' : competition.sexes[0],
@@ -172,7 +173,7 @@ export default function Settings({ actionData }: Route.ComponentProps) {
 
         <Section title={t('handwriting.title')} description={t('handwriting.text')}>
           <Form method="post">
-            <fieldset disabled={!isOwner} className="grid gap-4">
+            <fieldset disabled={!can('manage')} className="grid gap-4">
               <Label htmlFor="keep-handwriting" className="min-h-11 leading-normal font-normal">
                 <Switch
                   id="keep-handwriting"
@@ -181,7 +182,7 @@ export default function Settings({ actionData }: Route.ComponentProps) {
                 />
                 {t('handwriting.keep')}
               </Label>
-              {isOwner && (
+              {can('manage') && (
                 <SubmitButton
                   name="intent"
                   value="handwriting"
@@ -195,7 +196,7 @@ export default function Settings({ actionData }: Route.ComponentProps) {
           </Form>
         </Section>
 
-        {isOwner && (
+        {can('manage') && (
           <Section tone="danger" title={t('delete.title')} description={t('delete.text')}>
             <DeleteCompetitionDialog name={competition.name} />
           </Section>

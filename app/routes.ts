@@ -37,16 +37,19 @@ export default [
         route('templates', 'routes/secured/competition/templates.tsx'),
         route('settings', 'routes/secured/competition/settings.tsx'),
         route('members', 'routes/secured/competition/members.tsx'),
-        route('contests/:contestId', 'routes/secured/contest/layout.tsx', [
-          route('divisions', 'routes/secured/contest/divisions.tsx'),
+      ]),
+      route('contests/:contestId', 'routes/secured/contest/layout.tsx', [
+        // The pages for the grade entry.
+        route('divisions', 'routes/secured/contest/divisions.tsx'),
+        route('divisions/:divisionId', 'routes/secured/contest/division.tsx', [
+          index('routes/secured/contest/divisionIndex.ts'),
+          route('lineups', 'routes/secured/contest/lineups.tsx'),
+          route('grading', 'routes/secured/contest/divisionGrading.tsx'),
+        ]),
+        route('grading', 'routes/secured/contest/grading.tsx'),
+        route('scan', 'routes/secured/contest/scan.tsx'),
+        layout('routes/secured/competition/viewerLayout.tsx', { id: 'contestViewerLayout' }, [
           route('divisions/proposal', 'routes/secured/contest/divisionProposal.tsx'),
-          route('divisions/:divisionId', 'routes/secured/contest/division.tsx', [
-            index('routes/secured/contest/divisionIndex.ts'),
-            route('lineups', 'routes/secured/contest/lineups.tsx'),
-            route('grading', 'routes/secured/contest/divisionGrading.tsx'),
-          ]),
-          route('grading', 'routes/secured/contest/grading.tsx'),
-          route('scan', 'routes/secured/contest/scan.tsx'),
           route('ranking', 'routes/secured/contest/ranking.tsx'),
           route('settings', 'routes/secured/contest/settings.tsx'),
         ]),
@@ -75,13 +78,15 @@ export default [
       route('starters', 'routes/api/competition/starters.ts'),
       route('starters.xlsx', 'routes/api/competition/startersXlsx.ts'),
       route('pdf/starters', 'routes/api/competition/startersPdf.ts'),
-      layout('routes/api/competition/viewerLayout.ts', [
+      layout('routes/api/competition/gradeEntryLayout.ts', [
         route('grades', 'routes/api/competition/grades.ts'),
         route('scans', 'routes/api/competition/scans.ts'),
         route('scans/:scanId', 'routes/api/competition/scanImage.ts'),
+        route('pdf/judging-sheets', 'routes/api/competition/judgingSheetsPdf.ts'),
+      ]),
+      layout('routes/api/competition/viewerLayout.ts', [
         route('search', 'routes/api/competition/search.ts'),
         route('pdf/ranking', 'routes/api/competition/rankingPdf.ts'),
-        route('pdf/judging-sheets', 'routes/api/competition/judgingSheetsPdf.ts'),
         route('pdf/judging-manual', 'routes/api/competition/judgingManualPdf.ts'),
         route(
           'contests/:contestId/divisions/:divisionId/lineup-moves',

@@ -11,10 +11,10 @@ import { useApparatusName } from '~/hooks/useApparatusName';
 import { useCompetition } from '~/hooks/useCompetition';
 import { categoryName } from '~/lib/categoryName';
 import { scanPhoto, type ScanResult } from '~/lib/scan/scanPhoto.client';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 
 export function loader({ context }: Route.LoaderArgs) {
-  requireRole(context, 'EDITOR');
+  requirePermission(context, 'grade');
   return null;
 }
 

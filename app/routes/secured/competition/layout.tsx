@@ -2,10 +2,8 @@ import { Outlet } from 'react-router';
 import type { Route } from './+types/layout';
 import { BottomNav, ContestSelect, SetupNav, TopBar } from '~/components/CompetitionNav';
 import { competitionContext } from '~/context';
-import { Role } from '~/generated/prisma/enums';
 import { getUser } from '~/lib/auth/auth.server';
 import { listCompetitions } from '~/lib/competitions.server';
-import { hasRole } from '~/lib/roles';
 import { competitionMiddleware } from '~/middlewares/competition.server';
 
 export const middleware: Route.MiddlewareFunction[] = [competitionMiddleware];
@@ -33,10 +31,8 @@ export async function loader({ context }: Route.LoaderArgs) {
       endDate,
     })),
     contests: contests.map(({ id, name, module }) => ({ id, name, module })),
+    // See useCompetition's can.
     role,
-    canEdit: hasRole(role, Role.EDITOR),
-    isOwner: role === Role.OWNER,
-    isCheckIn: role === Role.CHECK_IN,
   };
 }
 

@@ -125,6 +125,7 @@ export default {
     EDITOR: 'Édition',
     VIEWER: 'Lecture',
     CHECK_IN: 'Accueil',
+    GRADE_ENTRY: 'Saisie des notes',
   },
   language: {
     de: 'Deutsch',

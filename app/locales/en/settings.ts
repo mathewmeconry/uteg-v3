@@ -72,6 +72,8 @@ export default {
       VIEWER: 'Sees everything, changes nothing',
       CHECK_IN:
         'Only sees the starters, adds them, edits personal data and category and removes them. Cannot assign',
+      GRADE_ENTRY:
+        'Only sees the divisions, enters grades and confirms rounds. Changes nothing else',
     },
   },
   honour: {

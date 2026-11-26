@@ -61,7 +61,7 @@ import {
   unassignTemplate,
 } from '~/lib/templateAssignments.server';
 import { cn } from '~/lib/utils';
-import { requireRole } from '~/middlewares/competition.server';
+import { requirePermission } from '~/middlewares/competition.server';
 import { getT } from '~/middlewares/i18n.server';
 import { enqueueToast } from '~/middlewares/toast.server';
 import { parseRankingGroup } from '~/pdf/request.server';
@@ -109,7 +109,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { id } = requireRole(context, 'EDITOR');
+  const { id } = requirePermission(context, 'edit');
   const t = getT(context);
   const formData = await readForm(request, { allowFiles: true });
   const page = `/competitions/${id}/templates`;
@@ -236,7 +236,7 @@ type Template = Route.ComponentProps['loaderData']['templates'][number];
 export default function Templates({ loaderData, actionData }: Route.ComponentProps) {
   const { templates, selected, categories, previewGroups } = loaderData;
   const { t } = useTranslation('pdf');
-  const { canEdit } = useCompetition();
+  const canEdit = useCompetition().can('edit');
   const errors = useActionErrors(actionData);
   const [discards, setDiscards] = useState(0);
   const [isDirty, setIsDirty] = useState(false);
@@ -309,7 +309,7 @@ function TemplateItem({
   canDuplicate: boolean;
 }) {
   const { t } = useTranslation(['pdf', 'common']);
-  const { canEdit } = useCompetition();
+  const canEdit = useCompetition().can('edit');
   const { submit: post, pending } = useActionFetcher();
   const isDuplicating = useRef(false);
   const { id, name, isDefault } = template;
