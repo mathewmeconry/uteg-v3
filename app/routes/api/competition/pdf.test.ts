@@ -423,7 +423,7 @@ describe('judging sheets', () => {
     expect(page).toMatch(/1 Anna Frei.*abgemeldet.*2 Bea Frei/);
   });
 
-  it('repeats the header on further pages without overlaps', async () => {
+  it('cuts long lists into pages of 18 rows with a header, without overlaps', async () => {
     const { id, division, add } = await setup();
     const club = await createClub({ name: 'Turnverein Schönenwerd-Niedergösgen-Oberdorf' });
     for (let index = 0; index < 40; index++) {
@@ -441,11 +441,13 @@ describe('judging sheets', () => {
     const pages = (await readPdf(response)).filter(
       ({ text }) => /Sprung/.test(text) && /Durchgang 1/.test(text),
     );
-    expect(pages.length).toBeGreaterThan(1);
+    expect(pages).toHaveLength(3);
     for (const { text, items } of pages) {
-      expect(text).toContain('Endnote');
+      expect(text).toMatch(/Wettkampfplatz 1.*Sprung.*Durchgang 1.*Endnote/);
       expect(findOverlaps(items)).toEqual([]);
     }
+    expect(pages[1]!.text).toMatch(/ 19 .* 36 /);
+    expect(pages[2]!.text).toMatch(/ 37 .* 40 /);
   }, 20_000);
 
   it('prints the running divisions of a ground, or a note', async () => {

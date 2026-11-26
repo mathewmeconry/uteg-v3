@@ -1,13 +1,9 @@
-import { Document, Link, Page, Path, Rect, Svg, Text, View } from '@react-pdf/renderer';
-import QRCode from 'qrcode';
+import { Document, Link, Page, Text, View } from '@react-pdf/renderer';
 import type { ReactNode } from 'react';
 import type { ServerT } from '~/locales';
-import { clamp, FONT, MUTED } from './components';
+import { clamp, FONT, MUTED, QrCode } from './components';
 
 export type ManualLink = { id: string; ground: number; apparatus: string; url: string };
-
-const QR_SIZE = 150;
-const QUIET_ZONE = 4;
 
 /** One page per judge link. */
 export function JudgingManualDocument({
@@ -47,7 +43,7 @@ export function JudgingManualDocument({
               <View style={{ flexDirection: 'row', gap: 18, alignItems: 'center' }}>
                 {/* Also a link, for those who get the manual by mail. */}
                 <Link src={link.url}>
-                  <PdfQrCode value={link.url} />
+                  <QrCode value={link.url} size={150} />
                 </Link>
                 <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, gap: 8 }}>
                   <Step number={1}>{t('pdf:manual.login1')}</Step>
@@ -99,24 +95,5 @@ function Step({ number, children }: { number: number; children: ReactNode }) {
       <Text style={{ width: 18, flexShrink: 0 }}>{`${number}.`}</Text>
       <Text style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}>{children}</Text>
     </View>
-  );
-}
-
-function PdfQrCode({ value }: { value: string }) {
-  const { modules } = QRCode.create(value, { errorCorrectionLevel: 'M' });
-  const size = modules.size + 2 * QUIET_ZONE;
-  let path = '';
-  for (let row = 0; row < modules.size; row++) {
-    for (let column = 0; column < modules.size; column++) {
-      if (modules.get(row, column)) {
-        path += `M${column + QUIET_ZONE} ${row + QUIET_ZONE}h1v1h-1z`;
-      }
-    }
-  }
-  return (
-    <Svg viewBox={`0 0 ${size} ${size}`} style={{ width: QR_SIZE, height: QR_SIZE }}>
-      <Rect x={0} y={0} width={size} height={size} fill="#ffffff" />
-      <Path d={path} fill="#000000" />
-    </Svg>
   );
 }

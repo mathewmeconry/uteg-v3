@@ -10,10 +10,12 @@ import {
   HeaderRow,
   MUTED,
   PageNumber,
+  QrCode,
   Row,
   Table,
   type Column,
 } from './components';
+import { sheetCode } from './sheetCode.server';
 
 type Slot = GradingState['apparatus'][number]['rounds'][number]['slots'][number];
 
@@ -25,12 +27,21 @@ const PAGE = {
   paddingBottom: 40,
 };
 const ROW_HEIGHT = 32;
-const NUMBER: Column = { width: 26 };
+/**
+ * Pages are cut here and not by react-pdf, so the QR code knows the rows of its page. Fits with
+ * the longest header.
+ */
+const ROWS_PER_PAGE = 18;
+const QR_SIZE = 72;
+const NUMBER: Column = { width: 24 };
 const NAME: Column = { flex: 3 };
-const CLUB: Column = { flex: 3 };
+const CLUB: Column = { flex: 2 };
 const CATEGORY: Column = { width: 34 };
 
-/** One page per ground, apparatus and round, filled in by hand. */
+/**
+ * One sheet per ground, apparatus and round, filled in by hand. Each page has a QR code and a
+ * square in each corner, so a photo of it can be read.
+ */
 export function JudgingSheetsDocument({
   grounds,
   competitionName,
@@ -42,18 +53,36 @@ export function JudgingSheetsDocument({
   t: ServerT;
   language: string;
 }) {
-  const sheets = grounds.flatMap(({ ground, divisions, apparatus }) =>
+  const pages = grounds.flatMap(({ ground, divisions, apparatus }) =>
     apparatus.flatMap(({ apparatus: key, rounds }) =>
-      rounds.map(({ round, slots }) => ({
-        ground,
+      rounds.flatMap(({ round, slots }) => {
         // Progress has a row for each apparatus of a division.
-        divisions: divisions.filter(
+        const here = divisions.filter(
           (division) => key in division.progress && round < division.rounds,
-        ),
-        apparatus: key,
-        round,
-        slots,
-      })),
+        );
+        const offsets =
+          slots.length === 0
+            ? [0]
+            : Array.from(slots.keys()).filter((i) => i % ROWS_PER_PAGE === 0);
+        return offsets.map((offset) => {
+          const rows = slots.slice(offset, offset + ROWS_PER_PAGE);
+          return {
+            ground,
+            divisions: here,
+            apparatus: key,
+            round,
+            offset,
+            rows,
+            code: sheetCode({
+              apparatus: key,
+              round,
+              divisionIds: here.map(({ id }) => id),
+              offset,
+              entryIds: rows.map(({ entryId }) => entryId),
+            }),
+          };
+        });
+      }),
     ),
   );
   return (
@@ -62,38 +91,46 @@ export function JudgingSheetsDocument({
       creator="UTEG"
       language={language}
     >
-      {sheets.map(({ ground, divisions, apparatus, round, slots }) => (
-        <Page key={`${ground}-${apparatus}-${round}`} size="A4" style={PAGE}>
-          <View fixed style={{ marginBottom: 12 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
-              <Text style={{ ...clamp(2), flexShrink: 1, color: MUTED }}>{competitionName}</Text>
-              <Text style={{ flexShrink: 0, color: MUTED }}>{t('ground', { number: ground })}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-              <Text style={{ fontSize: 18, fontWeight: 700 }}>
-                {t(`apparatus.${apparatus as 'reck'}`)}
+      {pages.map(({ ground, divisions, apparatus, round, offset, rows, code }) => (
+        <Page key={`${ground}-${apparatus}-${round}-${offset}`} size="A4" style={PAGE}>
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+            <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+                <Text style={{ ...clamp(2), flexShrink: 1, color: MUTED }}>{competitionName}</Text>
+                <Text style={{ flexShrink: 0, color: MUTED }}>
+                  {t('ground', { number: ground })}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                <Text style={{ fontSize: 18, fontWeight: 700 }}>
+                  {t(`apparatus.${apparatus as 'reck'}`)}
+                </Text>
+                <Text style={{ fontSize: 18, fontWeight: 700 }}>
+                  {t('round', { number: round + 1 })}
+                </Text>
+              </View>
+              <Text style={{ ...clamp(6), marginTop: 4 }}>
+                {divisions
+                  .map(({ category, sex, number }) => divisionLabel({ category, sex, number }, t))
+                  .join('  ·  ')}
               </Text>
-              <Text style={{ fontSize: 18, fontWeight: 700 }}>
-                {t('round', { number: round + 1 })}
-              </Text>
             </View>
-            <Text style={{ ...clamp(6), marginTop: 4 }}>
-              {divisions
-                .map(({ category, sex, number }) => divisionLabel({ category, sex, number }, t))
-                .join('  ·  ')}
-            </Text>
+            {rows.length > 0 && <QrCode value={code} size={QR_SIZE} />}
           </View>
-          {slots.length === 0 ? (
+          {rows.length === 0 ? (
             <Text style={{ marginTop: 24, fontSize: 14, textAlign: 'center' }}>
               {t('pdf:sheets.pause')}
             </Text>
           ) : (
-            <Sheet slots={slots} t={t} />
+            <>
+              <Sheet rows={rows} offset={offset} t={t} />
+              <CornerMarks />
+            </>
           )}
           <PageNumber />
         </Page>
       ))}
-      {sheets.length === 0 && (
+      {pages.length === 0 && (
         <Page size="A4" style={PAGE}>
           <Text style={{ fontSize: 14 }}>{t('pdf:sheets.noDivisions')}</Text>
         </Page>
@@ -102,10 +139,11 @@ export function JudgingSheetsDocument({
   );
 }
 
-function Sheet({ slots, t }: { slots: Slot[]; t: ServerT }) {
-  const attempts = Math.max(...slots.map(({ inputRule }) => inputRule.attempts));
+function Sheet({ rows, offset, t }: { rows: Slot[]; offset: number; t: ServerT }) {
+  const attempts = Math.max(...rows.map(({ inputRule }) => inputRule.attempts));
   const numbers = attempts > 1 ? Array.from({ length: attempts }, (_, index) => index + 1) : [];
-  const gradeColumn: Column = { width: attempts > 2 ? 54 : attempts > 1 ? 70 : 130 };
+  // Wide, as grades are read from photos.
+  const gradeColumn: Column = { width: attempts > 2 ? 76 : attempts > 1 ? 92 : 150 };
   const box = {
     alignSelf: 'stretch',
     justifyContent: 'center',
@@ -131,17 +169,18 @@ function Sheet({ slots, t }: { slots: Slot[]; t: ServerT }) {
           </Cell>
         </HeaderRow>
       }
-      rows={slots.map((slot, index) => {
+      rows={rows.map((slot, index) => {
         const struck = { textDecoration: slot.withdrawn ? 'line-through' : 'none' } as const;
         return (
-          <Row key={slot.entryId} style={{ minHeight: ROW_HEIGHT }}>
+          // Rows of the same height are where a scan expects them.
+          <Row key={slot.entryId} style={{ height: ROW_HEIGHT }}>
             <Cell column={NUMBER} style={struck}>
-              {index + 1}
+              {offset + index + 1}
             </Cell>
-            <Cell column={NAME} style={{ ...struck, fontSize: 10 }}>
+            <Cell column={NAME} style={{ ...struck, ...clamp(2), fontSize: 10 }}>
               {`${slot.firstname} ${slot.lastname}`}
             </Cell>
-            <Cell column={CLUB} style={struck}>
+            <Cell column={CLUB} style={{ ...struck, ...clamp(2) }}>
               {slot.clubName}
             </Cell>
             <Cell column={CATEGORY} style={struck}>
@@ -167,6 +206,27 @@ function Sheet({ slots, t }: { slots: Slot[]; t: ServerT }) {
         );
       })}
     />
+  );
+}
+
+/** Where a scan finds the corners of the page. */
+function CornerMarks() {
+  const size = 14;
+  const inset = 12;
+  return (['top', 'bottom'] as const).flatMap((vertical) =>
+    (['left', 'right'] as const).map((horizontal) => (
+      <View
+        key={`${vertical}-${horizontal}`}
+        style={{
+          position: 'absolute',
+          [vertical]: inset,
+          [horizontal]: inset,
+          width: size,
+          height: size,
+          backgroundColor: '#000000',
+        }}
+      />
+    )),
   );
 }
 
