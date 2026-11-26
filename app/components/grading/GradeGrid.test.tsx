@@ -32,6 +32,7 @@ function slot(firstname: string, apparatus: string, patch: Partial<TabletSlot> =
     precision: 2,
     decimals: 2,
     grade: null,
+    scanned: null,
     apparatus,
     ...patch,
   };

@@ -7,10 +7,11 @@ import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { useApparatusName } from '~/hooks/useApparatusName';
 import { categoryName } from '~/lib/categoryName';
-import { formatEntered } from '~/lib/domain/gradeInput';
+import { formatEntered, toFields } from '~/lib/domain/gradeInput';
 import { cn } from '~/lib/utils';
 import { GradeInputs } from './GradeInputs';
 import { ConflictNotice, RejectedNotice, SaveState } from './SaveState';
+import { ScannedGrade } from './ScannedGrade';
 import { draftKey, type GradeDrafts } from './useGradeDrafts';
 import { findInput, useGradeEditing } from './useGradeEditing';
 
@@ -179,6 +180,17 @@ export function GradingRow({
             <div className="w-full">
               <RejectedNotice code={state.rejected} />
             </div>
+          )}
+          {slot.scanned && !state.isDirty && (
+            <ScannedGrade
+              slot={slot}
+              scanned={slot.scanned}
+              saved={state.saved}
+              onAccept={() => {
+                drafts.change(slot, toFields(slot.scanned, slot.inputRule));
+                void drafts.submit(key);
+              }}
+            />
           )}
         </>
       )}

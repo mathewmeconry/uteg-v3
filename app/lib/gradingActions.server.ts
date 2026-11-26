@@ -6,6 +6,7 @@ import { actionError } from './domainErrors.server';
 import { DomainError } from './errors';
 import { parseForm } from './forms.server';
 import { confirmRound, deleteGrade } from './judging.server';
+import { discardScannedGrade } from './scans.server';
 
 const deleteSchema = z.object({
   entryId: z.string().min(1),
@@ -25,6 +26,15 @@ export async function runDeleteGrade(context: Context, competitionId: string, fo
   return run(context, async () => {
     if (!values) throw new DomainError('INVALID_INPUT');
     await deleteGrade(competitionId, values, { kind: 'editor' });
+  });
+}
+
+/** Discarding a grade read from a judging sheet. The role was checked by the action. */
+export async function runDiscardScan(context: Context, competitionId: string, formData: FormData) {
+  const { data: values } = parseForm(formData, z.object({ id: z.string().min(1) }));
+  return run(context, async () => {
+    if (!values) throw new DomainError('INVALID_INPUT');
+    await discardScannedGrade(competitionId, values.id);
   });
 }
 

@@ -186,6 +186,8 @@ export default {
     FORBIDDEN: 'You are not allowed to do this.',
     GRADES_MISSING: 'Some grades are missing.',
     GRADE_CHANGED: 'The grade was changed elsewhere in the meantime.',
+    SHEET_CHANGED:
+      'The list has changed since the judging sheet was printed. Enter these grades by hand.',
     GROUND_IN_USE: 'The ground is still in use.',
     SEX_IN_USE: 'There are still starters or divisions of the other sex.',
     SEX_NOT_ALLOWED: 'This sex does not take part in the competition.',

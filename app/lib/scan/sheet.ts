@@ -12,22 +12,37 @@ export const CROP_SCALE = 4;
 export const BELOW_LINE = 8;
 
 /**
- * The grade cells of a photographed page, by row as in `gradeCells`, or null when its corner
- * squares are not found. Cells without ink are not `inked`.
+ * A photographed page of the judging sheets, or null when its corner squares are not found: where
+ * its corners are, its QR code straightened, and its grade cells by row as in `gradeCells`. Cells
+ * without ink are not `inked`. The camera only needs the corners, so the rest is cut out on demand.
  */
-export function readSheet(
-  image: Gray,
-  { attempts, rowCount }: { attempts: number; rowCount: number },
-): ScannedCell[][] | null {
+export function findPage(image: Gray) {
   const toPhoto = locatePage(inkMask(image), image.width);
   if (!toPhoto) return null;
-  return gradeCells(attempts, rowCount).map((row) =>
-    row.map((rect) => {
-      // People write on the line under the cell, so their digits reach below it.
-      const cell = crop(image, toPhoto, { ...rect, height: rect.height + BELOW_LINE });
-      return { image: cell, inked: hasWriting(cell) };
-    }),
-  );
+  return {
+    /** Of the corner squares on the photo, clockwise from the top left of the page. */
+    corners: cornerCentres().map((point) => project(toPhoto, point)),
+    qrCode() {
+      const qr = qrCodeRect();
+      // With white around it, which QR readers look for.
+      const quiet = 8;
+      return crop(image, toPhoto, {
+        x: qr.x - quiet,
+        y: qr.y - quiet,
+        width: qr.width + 2 * quiet,
+        height: qr.height + 2 * quiet,
+      });
+    },
+    cells({ attempts, rowCount }: { attempts: number; rowCount: number }): ScannedCell[][] {
+      return gradeCells(attempts, rowCount).map((row) =>
+        row.map((rect) => {
+          // People write on the line under the cell, so their digits reach below it.
+          const cell = crop(image, toPhoto, { ...rect, height: rect.height + BELOW_LINE });
+          return { image: cell, inked: hasWriting(cell) };
+        }),
+      );
+    },
+  };
 }
 
 /** Whether a few strokes are in a cut out cell, away from the lines around it. */
@@ -68,8 +83,9 @@ function locatePage(mask: Uint8Array, width: number): Homography | null {
   );
   const ink = turns.map((turn) => inkShare(mask, width, turn, qrCodeRect()));
   const [best, second] = ink.toSorted((a, b) => b - a);
-  // About half of a QR code is ink. Without one, the squares were something else.
-  if (best < 0.3 || best < 1.5 * second) return null;
+  // A QR code with its white border is about a third ink, the other corners have little. Without
+  // one, the squares were something else.
+  if (best < 0.15 || best < 2 * second) return null;
   return turns[ink.indexOf(best)];
 }
 

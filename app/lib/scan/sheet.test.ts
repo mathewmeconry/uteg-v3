@@ -8,7 +8,7 @@ import {
   type Rect,
 } from '~/lib/judgingSheet';
 import { homography, project } from './homography';
-import { readSheet, type Gray } from './sheet';
+import { findPage, type Gray } from './sheet';
 
 const PAGE: Point[] = [
   { x: 0, y: 0 },
@@ -36,7 +36,7 @@ function isWritten(point: Point) {
   });
 }
 
-function isInk(point: Point) {
+function isInk(point: Point, withQrCode: boolean) {
   const half = SHEET.cornerSize / 2;
   const corner = cornerCentres().some(
     ({ x, y }) => Math.abs(point.x - x) <= half && Math.abs(point.y - y) <= half,
@@ -44,6 +44,7 @@ function isInk(point: Point) {
   const qr = qrCodeRect();
   // Modules of 4pt, not touching each other.
   const module =
+    withQrCode &&
     inside(point, qr) &&
     (Math.floor((point.x - qr.x) / 4) + Math.floor((point.y - qr.y) / 4)) % 2 === 0;
   // The line under the table header.
@@ -53,23 +54,23 @@ function isInk(point: Point) {
 }
 
 /** A photo of the page, whose corners land on `corners`, on a grey table. */
-function photo(width: number, height: number, corners: Point[]): Gray {
+function photo(width: number, height: number, corners: Point[], withQrCode = true): Gray {
   const toPage = homography(corners, PAGE);
   const data = new Uint8Array(width * height);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const point = project(toPage, { x: x + 0.5, y: y + 0.5 });
       const onPage = inside(point, { x: 0, y: 0, width: SHEET.width, height: SHEET.height });
-      data[y * width + x] = !onPage ? 110 : isInk(point) ? 20 : 235;
+      data[y * width + x] = !onPage ? 110 : isInk(point, withQrCode) ? 20 : 235;
     }
   }
   return { width, height, data };
 }
 
 function inked(image: Gray) {
-  const result = readSheet(image, LAYOUT);
-  expect(result).not.toBeNull();
-  return result!.map((row) => row.map((cell) => cell.inked));
+  const page = findPage(image);
+  expect(page).not.toBeNull();
+  return page!.cells(LAYOUT).map((row) => row.map((cell) => cell.inked));
 }
 
 const EXPECTED = [
@@ -80,7 +81,7 @@ const EXPECTED = [
   [false, false, true],
 ];
 
-describe('readSheet', () => {
+describe('findPage', () => {
   it('finds the written cells of a page photographed at an angle', () => {
     const corners = [
       { x: 90, y: 70 },
@@ -115,7 +116,7 @@ describe('readSheet', () => {
       { x: 880, y: 1230 },
       { x: 30, y: 1180 },
     ];
-    const cell = readSheet(photo(900, 1250, corners), LAYOUT)![2][1].image;
+    const cell = findPage(photo(900, 1250, corners))!.cells(LAYOUT)[2][1].image;
     const dark = (x: number, y: number) =>
       cell.data[Math.round(y) * cell.width + Math.round(x)] < 128;
     // The ring's left edge is dark in its middle, its centre light. Below the cell, more is cut out.
@@ -127,6 +128,32 @@ describe('readSheet', () => {
 
   it('gives up without corner squares', () => {
     const blank = { width: 200, height: 300, data: new Uint8Array(200 * 300).fill(235) };
-    expect(readSheet(blank, LAYOUT)).toBeNull();
+    expect(findPage(blank)).toBeNull();
+  });
+
+  it('takes no four squares without a QR code for a page', () => {
+    const corners = [
+      { x: 90, y: 70 },
+      { x: 820, y: 20 },
+      { x: 880, y: 1230 },
+      { x: 30, y: 1180 },
+    ];
+    expect(findPage(photo(900, 1250, corners, false))).toBeNull();
+  });
+
+  it('straightens the QR code', () => {
+    const qrCode = findPage(
+      photo(1250, 900, [
+        { x: 1210, y: 40 },
+        { x: 1215, y: 860 },
+        { x: 40, y: 855 },
+        { x: 35, y: 45 },
+      ]),
+    )!.qrCode();
+    // Its first module, 4pt at 4 pixels per point, after 8pt of white.
+    const at = (x: number, y: number) => qrCode.data[y * qrCode.width + x];
+    expect(at(10, 10)).toBeGreaterThan(200);
+    expect(at(34, 34)).toBeLessThan(50);
+    expect(at(50, 34)).toBeGreaterThan(200);
   });
 });

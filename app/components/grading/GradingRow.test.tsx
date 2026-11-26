@@ -9,6 +9,8 @@ import { GradingRow } from './GradingRow';
 import { GradingSaveStatus } from './GradingSaveStatus';
 import { useGradeDrafts } from './useGradeDrafts';
 
+vi.mock('~/hooks/useCompetition', () => ({ useCompetition: () => ({ competition: { id: 'c' } }) }));
+
 const URL = '/grades';
 
 function createSlot(patch: Partial<TabletSlot> = {}): TabletSlot {
@@ -28,6 +30,7 @@ function createSlot(patch: Partial<TabletSlot> = {}): TabletSlot {
     precision: 2,
     decimals: 2,
     grade: null,
+    scanned: null,
     apparatus: 'reck',
     ...patch,
   };
@@ -98,6 +101,16 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+
+it('accepts a scanned grade like a typed one', async () => {
+  const user = setup(
+    createSlot({ scanned: { id: 's1', value: 9350, attempts: [], confidence: 0.5 } }),
+  );
+  expect(screen.getByText('unsicher gelesen')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Gescannte Note von Anna Frei übernehmen' }));
+  await saved('9.35');
+  expect(values()).toEqual([9350]);
 });
 
 it('saves when the field is left, without a button', async () => {

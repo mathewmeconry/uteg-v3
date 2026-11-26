@@ -35,7 +35,8 @@ export async function loader({ request, params: { linkId } }: Route.LoaderArgs) 
       endedIds: state.endedIds,
       rounds: own.rounds.map(({ round, slots }) => ({
         round,
-        slots: slots.map((slot) => ({ ...slot, apparatus })),
+        // Scanned grades are for the office to check.
+        slots: slots.map((slot) => ({ ...slot, apparatus, scanned: null })),
       })),
     },
   };

@@ -58,7 +58,13 @@ function useNavItems(): { main: Item[]; setup: Item[]; isSetup: boolean } {
   const starters = item(`${base}/starters`, t('nav.starters'), UsersIcon);
   const divisions =
     contestBase &&
-    item(`${contestBase}/divisions`, t('nav.divisions'), LayersIcon, `${contestBase}/grading`);
+    item(
+      `${contestBase}/divisions`,
+      t('nav.divisions'),
+      LayersIcon,
+      `${contestBase}/grading`,
+      `${contestBase}/scan`,
+    );
   if (!can('view')) {
     const main = can('checkIn') ? [starters] : divisions ? [divisions] : [];
     return { main, setup: [], isSetup: false };

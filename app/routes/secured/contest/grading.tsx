@@ -1,4 +1,4 @@
-import { ClipboardPenIcon, UsersIcon } from 'lucide-react';
+import { ClipboardPenIcon, ScanLineIcon, UsersIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { data, Link, redirect, useSearchParams } from 'react-router';
 import type { Route } from './+types/grading';
@@ -23,7 +23,7 @@ import { useCompetition } from '~/hooks/useCompetition';
 import { useLiveUpdates } from '~/hooks/useLiveUpdates';
 import { categoryName } from '~/lib/categoryName';
 import { readForm } from '~/lib/forms.server';
-import { runConfirmRound, runDeleteGrade } from '~/lib/gradingActions.server';
+import { runConfirmRound, runDeleteGrade, runDiscardScan } from '~/lib/gradingActions.server';
 import { getJudgingState, listRunningDivisions } from '~/lib/judging.server';
 import { safeClientAction } from '~/lib/safeClientAction';
 import { requirePermission } from '~/middlewares/competition.server';
@@ -68,6 +68,8 @@ export async function action({ request, context }: Route.ActionArgs) {
       return runDeleteGrade(context, id, formData);
     case 'confirm':
       return runConfirmRound(context, id, formData);
+    case 'discardScan':
+      return runDiscardScan(context, id, formData);
     default:
       throw data(null, 400);
   }
@@ -130,6 +132,14 @@ export default function Grading({ loaderData, params: { contestId } }: Route.Com
           <>
             <GradingSaveStatus drafts={drafts} />
             <ConnectionBadge status={status} />
+            {canEdit && (
+              <Button asChild variant="outline">
+                <Link to="../scan" relative="path">
+                  <ScanLineIcon aria-hidden />
+                  {t('scan.title')}
+                </Link>
+              </Button>
+            )}
           </>
         }
       />
