@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import stored from './digitModel.json';
-import { classify, loadModel } from './digits';
+import { classify, loadModel, SEPARATOR, type Shape } from './digits';
 import { glyphOf } from './grade';
 
 const model = loadModel(stored);
@@ -15,10 +15,13 @@ function draw(isInk: (x: number, y: number) => boolean) {
   );
 }
 
-function read(glyph: Float32Array) {
-  const probabilities = classify(model, glyph);
+/** As tall as the cell's digits, unless `shape` says otherwise. */
+function read(glyph: Float32Array, shape: Shape = [1, 0]) {
+  const probabilities = classify(model, glyph, shape);
   return probabilities.indexOf(Math.max(...probabilities));
 }
+
+const stroke = draw((x, y) => x >= 27 && x <= 33 && y >= 10 && y <= 90);
 
 describe('the digit model', () => {
   it('reads a 0 and a 1', () => {
@@ -27,6 +30,10 @@ describe('the digit model', () => {
       return distance <= 1 && distance >= 0.6;
     });
     expect(read(zero)).toBe(0);
-    expect(read(draw((x, y) => x >= 27 && x <= 33 && y >= 10 && y <= 90))).toBe(1);
+    expect(read(stroke)).toBe(1);
+  });
+
+  it('takes a short stroke low down for a comma', () => {
+    expect(read(stroke, [0.4, 0.7])).toBe(SEPARATOR);
   });
 });

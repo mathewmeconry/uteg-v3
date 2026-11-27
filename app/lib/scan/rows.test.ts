@@ -22,13 +22,19 @@ function cell(boxes: Box[]): ScannedCell {
   return { image: { width, height: 100, data }, inked: boxes.length > 0 };
 }
 
+/** An oval 0, 24 wide and 30 high: a square one reads as a 4 as well. */
 function ring(x: number): Box[] {
-  return [
-    [x, 20, 24, 4],
-    [x, 46, 24, 4],
-    [x, 20, 4, 30],
-    [x + 20, 20, 4, 30],
-  ];
+  return Array.from({ length: 30 }, (_, row) => {
+    const y = (row + 0.5 - 15) / 15;
+    const outer = 12 * Math.sqrt(1 - y * y);
+    const inner = Math.abs(y) < 0.75 ? 8 * Math.sqrt(1 - (y / 0.75) ** 2) : 0;
+    const left = Math.round(12 - outer);
+    const width = Math.max(1, Math.round(outer - inner));
+    return [
+      [x + left, 20 + row, width, 1],
+      [x + 24 - left - width, 20 + row, width, 1],
+    ] satisfies Box[];
+  }).flat();
 }
 
 /** "10.00" as a bar and rings. */

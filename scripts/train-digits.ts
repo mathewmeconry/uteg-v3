@@ -11,7 +11,8 @@
  *   --out <file>      where to write the model
  *
  * The digits go through the same glyph normalisation as cells of photos, turned, slanted, sized
- * and with strokes as thin or thick as pens write them.
+ * and with strokes as thin or thick as pens write them. Decimal commas and points are drawn, as
+ * MNIST has none, and taken from the cells where one stands between the digits.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -24,13 +25,15 @@ import {
   HIDDEN,
   layerShapes,
   loadModel,
+  SEPARATOR,
   softmax,
   type Activations,
   type DigitModel,
   type Layer,
+  type Shape,
   type StoredModel,
 } from '../app/lib/scan/digits';
-import { glyphOf, segment } from '../app/lib/scan/grade';
+import { glyphOf, segment, shapes } from '../app/lib/scan/grade';
 
 const BATCH = 64;
 const LEARNING_RATE = 0.002;
@@ -38,6 +41,11 @@ const LEARNING_RATE = 0.002;
 const UPSCALE = 3;
 /** How often each digit of a real cell is learnt per epoch: they are few, but what counts. */
 const REAL_REPEAT = 20;
+/** Drawn commas and points per epoch, about as many as each digit of MNIST. */
+const DRAWN_SEPARATORS = 6000;
+
+/** An MNIST image, or none for a drawn separator. Without a shape, one is made up. */
+type Sample = { image: Uint8Array | null; label: number; shape?: Shape };
 
 const { values: options, positionals } = parseArgs({
   allowPositionals: true,
@@ -55,11 +63,13 @@ const random = seeded(1);
 const train = load('train');
 const test = load('t10k');
 const real = options.cells.flatMap(loadCells);
-const samples = [
+const samples: Sample[] = [
   ...Array.from(train.labels, (label, index) => ({ image: train.image(index), label })),
   ...Array.from({ length: REAL_REPEAT }, () => real).flat(),
+  ...Array.from({ length: DRAWN_SEPARATORS }, () => ({ image: null, label: SEPARATOR })),
 ];
-process.stdout.write(`${real.length} digits of real cells\n`);
+const separators = real.filter(({ label }) => label === SEPARATOR).length;
+process.stdout.write(`${real.length - separators} digits and ${separators} commas of real cells\n`);
 const model = options.from
   ? loadModel(JSON.parse(readFileSync(options.from, 'utf8')))
   : initialise();
@@ -74,8 +84,9 @@ for (let epoch = 0; epoch < Number(options.epochs); epoch++) {
   for (let start = 0; start < order.length; start += BATCH) {
     const gradients = zeros();
     for (const index of order.slice(start, start + BATCH)) {
-      const { image, label } = samples[index];
-      loss += backward(model, forward(model, augment(image)), label, gradients);
+      const { image, label, shape } = samples[index];
+      const [glyph, drawnShape] = image ? [augment(image), digitShape()] : drawSeparator();
+      loss += backward(model, forward(model, glyph, shape ?? drawnShape), label, gradients);
     }
     optimiser.step(gradients, Math.min(BATCH, order.length - start), rate);
   }
@@ -99,10 +110,11 @@ function load(name: 'train' | 't10k') {
 }
 
 /**
- * The digits of labelled cells as MNIST images. Only cells split into as many digits as their
- * grade has, so each digit gets its label.
+ * The digits of labelled cells as MNIST images. Only cells split into as many pieces as their
+ * grade has digits, so each digit gets its label, or one more without a point: then the piece
+ * where the point belongs is a comma.
  */
-function loadCells(cells: string) {
+function loadCells(cells: string): Sample[] {
   return readFileSync(join(cells, 'labels.csv'), 'utf8')
     .trim()
     .split('\n')
@@ -117,16 +129,23 @@ function loadCells(cells: string) {
         height: Number(height),
         data: new Uint8Array(pgm.subarray(header.length)),
       };
-      const labels = grade.replace(/\D/g, '').split('').map(Number);
-      const { ink, digits } = segment(cell);
+      const digitLabels = grade.replace(/\D/g, '').split('').map(Number);
+      const whole = grade.split('.')[0].length;
+      const { ink, width: inkWidth, digits, point } = segment(cell);
+      const labels =
+        digits.length === digitLabels.length + 1 && point === null && whole < digitLabels.length
+          ? digitLabels.toSpliced(whole, 0, SEPARATOR)
+          : digitLabels;
       if (digits.length !== labels.length) return [];
+      const shapeOf = shapes(digits);
       return digits.map((group, index) => {
         const mask = new Uint8Array(ink.length);
         for (const blob of group) for (const pixel of blob.pixels) mask[pixel] = 1;
-        const glyph = glyphOf(mask, cell.width);
+        const glyph = glyphOf(mask, inkWidth);
         return {
           image: Uint8Array.from(glyph, (value) => Math.round(value * 255)),
           label: labels[index],
+          shape: shapeOf(group),
         };
       });
     });
@@ -136,7 +155,7 @@ function loadCells(cells: string) {
 function accuracy() {
   let correct = 0;
   for (let index = 0; index < test.labels.length; index++) {
-    const { logits } = forward(model, augment(test.image(index), false));
+    const { logits } = forward(model, augment(test.image(index), false), [1, 0]);
     if (logits.indexOf(Math.max(...logits)) === test.labels[index]) correct++;
   }
   return correct / test.labels.length;
@@ -166,6 +185,45 @@ function augment(image: Uint8Array, vary = true) {
   return glyphOf(ink, size);
 }
 
+/** A digit in a cell: nearly as tall as the tallest there, decimals sometimes a bit smaller. */
+function digitShape(): Shape {
+  const height = 0.7 + random() * 0.3;
+  return [height, random() * (1 - height)];
+}
+
+/**
+ * A decimal comma, a stroke leaning to the lower left, sometimes curved, or a point, as a glyph
+ * and with its shape: short, and low down, a comma reaching below the digits.
+ */
+function drawSeparator(): [Float32Array, Shape] {
+  const size = GLYPH_SIZE * UPSCALE;
+  const ink = new Float32Array(size * size);
+  const isPoint = random() < 0.3;
+  const thickness = 2 + random() * 5;
+  // From the top end to the bottom end, curving to the left on the way down.
+  const length = isPoint ? 0 : 20 + random() * 50;
+  const lean = random() * 0.8;
+  const curve = random() * 0.5;
+  const from = { x: size / 2 + (lean * length) / 2, y: size / 2 - length / 2 };
+  for (let step = 0; step <= 100; step++) {
+    const t = step / 100;
+    const x = from.x - lean * length * t - curve * length * t * t;
+    const y = from.y + length * t;
+    for (let dy = -thickness; dy <= thickness; dy++) {
+      for (let dx = -thickness; dx <= thickness; dx++) {
+        const px = Math.round(x + dx);
+        const py = Math.round(y + dy);
+        if (dx * dx + dy * dy > thickness * thickness) continue;
+        if (px >= 0 && py >= 0 && px < size && py < size) ink[py * size + px] = 1;
+      }
+    }
+  }
+  const shape: Shape = isPoint
+    ? [0.08 + random() * 0.17, 0.7 + random() * 0.3]
+    : [0.2 + random() * 0.45, 0.45 + random() * 0.45];
+  return [glyphOf(ink, size), shape];
+}
+
 function sample(image: Uint8Array, x: number, y: number) {
   const left = Math.floor(x - 0.5);
   const top = Math.floor(y - 0.5);
@@ -189,7 +247,9 @@ function backward(model: DigitModel, a: Activations, label: number, g: DigitMode
   const dHidden = denseBackward(a.hidden, dLogits, model.dense2, g.dense2);
   for (let index = 0; index < HIDDEN; index++) if (a.hidden[index] <= 0) dHidden[index] = 0;
 
-  const dPool2 = denseBackward(a.pool2.values, dHidden, model.dense1, g.dense1);
+  // The shape at the end of the features has no layer below to go back to.
+  const dFeatures = denseBackward(a.features, dHidden, model.dense1, g.dense1);
+  const dPool2 = dFeatures.subarray(0, a.pool2.values.length);
   const dConv2 = unpool(dPool2, a.pool2.from, a.conv2);
   const dPool1 = convolveBackward(
     a.pool1.values,

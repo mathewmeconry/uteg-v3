@@ -1,11 +1,21 @@
 /**
  * A small convolutional network that tells which digit a handwritten glyph of 28×28 pixels is, as
- * in MNIST: ink is 1, paper 0. Two 3×3 convolutions with max pooling, then two dense layers.
+ * in MNIST: ink is 1, paper 0, or whether it is a decimal comma. Two 3×3 convolutions with max
+ * pooling, then two dense layers, the first also given the glyph's shape in its cell.
  */
 
 export const GLYPH_SIZE = 28;
 export const CHANNELS = [8, 16] as const;
 export const HIDDEN = 64;
+/** The class after the digits 0 to 9. */
+export const SEPARATOR = 10;
+export const CLASSES = 11;
+
+/**
+ * Height and top of a glyph in its cell, relative to the tallest written there: what a glyph
+ * scaled to fill 28×28 no longer shows. A comma is short and low, a 1 as tall as the digits.
+ */
+export type Shape = [height: number, top: number];
 
 export type Layer = { weights: Float32Array; bias: Float32Array };
 export type DigitModel = { conv1: Layer; conv2: Layer; dense1: Layer; dense2: Layer };
@@ -17,6 +27,8 @@ export type Activations = {
   pool1: Pooled;
   conv2: Float32Array;
   pool2: Pooled;
+  /** What the first dense layer gets: the pooled features and the shape. */
+  features: Float32Array;
   hidden: Float32Array;
   logits: Float32Array;
 };
@@ -24,30 +36,33 @@ type Pooled = { values: Float32Array; from: Int32Array };
 
 /** The layers' sizes, in the order they are stored. */
 export function layerShapes() {
-  const flat = CHANNELS[1] * (GLYPH_SIZE / 4) ** 2;
+  const features = CHANNELS[1] * (GLYPH_SIZE / 4) ** 2 + 2;
   return {
     conv1: { weights: CHANNELS[0] * 9, bias: CHANNELS[0] },
     conv2: { weights: CHANNELS[1] * CHANNELS[0] * 9, bias: CHANNELS[1] },
-    dense1: { weights: HIDDEN * flat, bias: HIDDEN },
-    dense2: { weights: 10 * HIDDEN, bias: 10 },
+    dense1: { weights: HIDDEN * features, bias: HIDDEN },
+    dense2: { weights: CLASSES * HIDDEN, bias: CLASSES },
   };
 }
 
-export function forward(model: DigitModel, input: Float32Array): Activations {
+export function forward(model: DigitModel, input: Float32Array, shape: Shape): Activations {
   const size = GLYPH_SIZE;
   const conv1 = convolve(input, 1, size, model.conv1, CHANNELS[0]);
   const pool1 = pool(conv1, CHANNELS[0], size);
   const conv2 = convolve(pool1.values, CHANNELS[0], size / 2, model.conv2, CHANNELS[1]);
   const pool2 = pool(conv2, CHANNELS[1], size / 2);
-  const hidden = dense(pool2.values, model.dense1, HIDDEN);
+  const features = new Float32Array(pool2.values.length + 2);
+  features.set(pool2.values);
+  features.set(shape, pool2.values.length);
+  const hidden = dense(features, model.dense1, HIDDEN);
   for (let index = 0; index < hidden.length; index++) hidden[index] = Math.max(0, hidden[index]);
-  const logits = dense(hidden, model.dense2, 10);
-  return { input, conv1, pool1, conv2, pool2, hidden, logits };
+  const logits = dense(hidden, model.dense2, CLASSES);
+  return { input, conv1, pool1, conv2, pool2, features, hidden, logits };
 }
 
-/** The probability of each digit. */
-export function classify(model: DigitModel, input: Float32Array) {
-  return softmax(forward(model, input).logits);
+/** The probability of each digit, and at SEPARATOR of a decimal comma. */
+export function classify(model: DigitModel, input: Float32Array, shape: Shape) {
+  return softmax(forward(model, input, shape).logits);
 }
 
 export function softmax(logits: Float32Array) {
