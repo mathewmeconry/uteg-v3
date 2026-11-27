@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import stored from './digitModel.json';
-import { loadModel } from './digits';
+import { CLASSES, loadModel, SEPARATOR } from './digits';
 import { decodeGrade, readGrade, segment } from './grade';
 import type { Gray } from './sheet';
 
@@ -27,10 +27,10 @@ function ring(x: number, width = 24): Box[] {
   ];
 }
 
-/** Mostly the digit, a bit of the others. `second` gets a fair share. */
+/** Mostly the digit or the separator, a bit of the others. `second` gets a fair share. */
 function probabilities(digit: number, second?: number) {
-  return Float32Array.from({ length: 10 }, (_, index) =>
-    index === digit ? 0.7 : index === second ? 0.25 : 0.05 / 9,
+  return Float32Array.from({ length: CLASSES }, (_, index) =>
+    index === digit ? 0.7 : index === second ? 0.25 : 0.05 / (CLASSES - 1),
   );
 }
 
@@ -72,6 +72,12 @@ describe('decodeGrade', () => {
     const grade = decodeGrade([probabilities(9), probabilities(3, 8), probabilities(5)], 1, 2);
     expect(grade?.value).toBe(9350);
     expect(grade?.alternatives[0]).toBe(9850);
+  });
+
+  it('takes a comma for the point, but no 1', () => {
+    expect(decode([9, SEPARATOR, 3, 1], null)?.value).toBe(9310);
+    expect(decode([1, 0, SEPARATOR, 0, 0], null)?.value).toBe(10000);
+    expect(decode([9, 1, 8], null)?.value).toBe(9180);
   });
 
   it('gives up on more decimals than allowed', () => {
@@ -123,9 +129,24 @@ describe('segment', () => {
   });
 });
 
+/** An oval 0, 24 wide and 50 high: a square one reads as a 4 as well. */
+function oval(x: number): Box[] {
+  return Array.from({ length: 50 }, (_, row) => {
+    const y = (row + 0.5 - 25) / 25;
+    const outer = 12 * Math.sqrt(1 - y * y);
+    const inner = Math.abs(y) < 0.85 ? 8 * Math.sqrt(1 - (y / 0.85) ** 2) : 0;
+    const left = Math.round(12 - outer);
+    const width = Math.max(1, Math.round(outer - inner));
+    return [
+      [x + left, 20 + row, width, 1],
+      [x + 24 - left - width, 20 + row, width, 1],
+    ] satisfies Box[];
+  }).flat();
+}
+
 describe('readGrade', () => {
-  it('reads 10.00 drawn as bars and rings', () => {
-    const ten = cell([[24, 20, 5, 50], ...ring(42), [74, 64, 5, 5], ...ring(88), ...ring(124)]);
+  it('reads 10.00 drawn as a bar and ovals', () => {
+    const ten = cell([[24, 20, 5, 50], ...oval(42), [74, 64, 5, 5], ...oval(88), ...oval(124)]);
     expect(readGrade(loadModel(stored), ten, 2)?.value).toBe(10000);
   });
 });

@@ -1,4 +1,4 @@
-import { classify, GLYPH_SIZE, type DigitModel } from './digits';
+import { classify, GLYPH_SIZE, SEPARATOR, type DigitModel, type Shape } from './digits';
 import { BELOW_LINE, CROP_SCALE, inkMask, type Gray } from './sheet';
 
 /** In thousandths, with the next likely values. Confidence is the probability of the reading. */
@@ -21,12 +21,13 @@ const LINE_BAND = 2;
 
 /** The grade written in a cell, or null when nothing readable is in it. */
 export function readGrade(model: DigitModel, cell: Gray, precision: number): ReadGrade | null {
-  const { ink, digits, point } = segment(cell);
+  const { ink, width, digits, point } = segment(cell);
   const pointX = point && centreX([point]);
+  const shapeOf = shapes(digits);
   const classified = new Map<Blob[], Float32Array>();
   const probabilities = (group: Blob[]) => {
     if (!classified.has(group)) {
-      classified.set(group, classify(model, toGlyph(ink, cell.width, group)));
+      classified.set(group, classify(model, toGlyph(ink, width, group), shapeOf(group)));
     }
     return classified.get(group)!;
   };
@@ -52,28 +53,46 @@ export function readGrade(model: DigitModel, cell: Gray, precision: number): Rea
 }
 
 /**
- * The digits of a cell from left to right, each as the blobs it is made of, and the decimal point
- * if there is one: a small blob in the lower half of the digits.
+ * For each group of the pieces, how tall it is and how far down it starts, both relative to the
+ * pieces' tallest. A decimal comma is short and low, which its stretched glyph no longer shows.
  */
-export function segment(cell: Gray): { ink: Uint8Array; digits: Blob[][]; point: Blob | null } {
-  // Relative to the paper nearby, so a shadow over part of the cell is no ink.
-  const ink = inkMask(cell, Math.round(cell.height / 2));
-  removeLines(ink, cell.width, cell.height);
-  // Below the line under the cell, what starts there belongs to the next row.
-  const line = cell.height - BELOW_LINE * CROP_SCALE;
-  // What is left of a line is long and thin, near the edge.
-  const found = findBlobs(ink, cell.width).filter((blob) => {
-    const width = blob.maxX - blob.minX + 1;
-    const height = blob.maxY - blob.minY + 1;
-    if (blob.minY > line) return false;
-    const nearEdge =
-      blob.minX <= 2 * EDGE ||
-      blob.minY <= 2 * EDGE ||
-      blob.maxX >= cell.width - 1 - 2 * EDGE ||
-      blob.maxY >= cell.height - 1 - 2 * EDGE;
-    return blob.pixels.length >= 3 && !(nearEdge && (width > 6 * height || height > 6 * width));
-  });
-  if (found.length === 0) return { ink, digits: [], point: null };
+export function shapes(pieces: Blob[][]) {
+  const top = Math.min(...pieces.flat().map(({ minY }) => minY));
+  const tallest = Math.max(...pieces.map((group) => heightOf(group)));
+  return (group: Blob[]): Shape => [
+    heightOf(group) / tallest,
+    (Math.min(...group.map(({ minY }) => minY)) - top) / tallest,
+  ];
+}
+
+function heightOf(group: Blob[]) {
+  return (
+    Math.max(...group.map(({ maxY }) => maxY)) - Math.min(...group.map(({ minY }) => minY)) + 1
+  );
+}
+
+/**
+ * The digits of a cell from left to right, each as the blobs it is made of, and the decimal point
+ * if there is one: a small blob in the lower half of the digits. A comma is one of the digits, the
+ * decoder tells it apart. They are in the cell's ink with the slant undone, which is `width` wide.
+ */
+export function segment(cell: Gray): {
+  ink: Uint8Array;
+  width: number;
+  digits: Blob[][];
+  point: Blob | null;
+} {
+  const strokes = strokesOf(cell);
+  if (strokes.length === 0) {
+    return {
+      ink: new Uint8Array(cell.width * cell.height),
+      width: cell.width,
+      digits: [],
+      point: null,
+    };
+  }
+  const { ink, width } = upright(strokes, cell.width);
+  const found = findBlobs(ink, width);
 
   const tallest = Math.max(...found.map(({ minY, maxY }) => maxY - minY + 1));
   const tall = found.filter(({ minY, maxY }) => maxY - minY + 1 >= 0.6 * tallest);
@@ -104,7 +123,7 @@ export function segment(cell: Gray): { ink: Uint8Array; digits: Blob[][]; point:
     const nearest = groups.toSorted((a, b) => distance(a) - distance(b))[0];
     if (nearest && distance(nearest) < 0.5 * tallest) nearest.push(mark);
   }
-  const digits = groups.flatMap((group) => splitTouching(group, ink, cell.width, bottom - top + 1));
+  const digits = groups.flatMap((group) => splitTouching(group, ink, width, bottom - top + 1));
   // Between digits, the largest: a speck before or after them is no point.
   const first = digits.at(0);
   const last = digits.at(-1);
@@ -118,9 +137,80 @@ export function segment(cell: Gray): { ink: Uint8Array; digits: Blob[][]; point:
   );
   return {
     ink,
+    width,
     digits,
     point: points.toSorted((a, b) => b.pixels.length - a.pixels.length)[0] ?? null,
   };
+}
+
+/**
+ * What is written in a cell: its ink without the table's lines, without what belongs to the next
+ * row, and without specks.
+ */
+function strokesOf(cell: Gray) {
+  // Relative to the paper nearby, so a shadow over part of the cell is no ink.
+  const mask = inkMask(cell, Math.round(cell.height / 2));
+  removeLines(mask, cell.width, cell.height);
+  // Below the line under the cell, what starts there belongs to the next row.
+  const line = cell.height - BELOW_LINE * CROP_SCALE;
+  // What is left of a line is long and thin, near the edge.
+  return findBlobs(mask, cell.width).filter((blob) => {
+    const width = blob.maxX - blob.minX + 1;
+    const height = blob.maxY - blob.minY + 1;
+    if (blob.minY > line) return false;
+    const nearEdge =
+      blob.minX <= 2 * EDGE ||
+      blob.minY <= 2 * EDGE ||
+      blob.maxX >= cell.width - 1 - 2 * EDGE ||
+      blob.maxY >= cell.height - 1 - 2 * EDGE;
+    return blob.pixels.length >= 3 && !(nearEdge && (width > 6 * height || height > 6 * width));
+  });
+}
+
+/** Slants tried each way, as a shift of one pixel per this many rows at most: up to 45°. */
+const SLANT_STEPS = 16;
+
+/**
+ * The strokes' ink with their slant undone, and its width. The slant is the one that, undone,
+ * leaves the sharpest columns of ink. Digits that lean into each other's columns come apart, and
+ * look like the upright ones of MNIST.
+ */
+function upright(strokes: Blob[], width: number) {
+  const height = Math.max(...strokes.map((blob) => blob.maxY)) + 1;
+  const pixels = strokes.flatMap((blob) => blob.pixels);
+  // Rows keep their place at the bottom and move the more the higher they are.
+  const shiftOf = (slant: number, y: number) => Math.round(slant * (height - 1 - y));
+  const sharpness = (slant: number) => {
+    const columns = new Map<number, number>();
+    for (const index of pixels) {
+      const x = index % width;
+      const column = x - shiftOf(slant, (index - x) / width);
+      columns.set(column, (columns.get(column) ?? 0) + 1);
+    }
+    let sum = 0;
+    for (const count of columns.values()) sum += count * count;
+    return sum;
+  };
+  // Upright first, so writing without a clear slant stays as it is.
+  let slant = 0;
+  let best = sharpness(0);
+  for (let step = 1; step <= SLANT_STEPS; step++) {
+    for (const candidate of [step / SLANT_STEPS, -step / SLANT_STEPS]) {
+      const score = sharpness(candidate);
+      if (score > best) [slant, best] = [candidate, score];
+    }
+  }
+
+  const left = Math.max(0, shiftOf(slant, 0));
+  const right = Math.max(0, -shiftOf(slant, 0));
+  const uprightWidth = width + left + right;
+  const ink = new Uint8Array(uprightWidth * height);
+  for (const index of pixels) {
+    const x = index % width;
+    const y = (index - x) / width;
+    ink[y * uprightWidth + x - shiftOf(slant, y) + left] = 1;
+  }
+  return { ink, width: uprightWidth };
 }
 
 /**
@@ -174,14 +264,28 @@ export function decodeGrade(
   pointAfter: number | null,
   precision: number,
 ): ReadGrade | null {
-  const logs = probabilities.map((digit) => Array.from(digit, (p) => Math.log(Math.max(p, 1e-6))));
+  const all = probabilities.map((digit) => Array.from(digit, (p) => Math.log(Math.max(p, 1e-6))));
+  // Without a point, the piece after the first digit, or after a 10, may be a decimal comma.
+  const layouts =
+    pointAfter !== null
+      ? [{ logs: all, whole: pointAfter, separator: 0 }]
+      : [
+          ...[1, 2].map((whole) => ({ logs: all, whole, separator: null })),
+          ...[1, 2]
+            .filter((whole) => whole < all.length - 1)
+            .map((whole) => ({
+              logs: all.toSpliced(whole, 1),
+              whole,
+              separator: all[whole][SEPARATOR],
+            })),
+        ];
   const readings: { digits: number[]; whole: number; score: number }[] = [];
-  for (const whole of pointAfter === null ? [1, 2] : [pointAfter]) {
+  for (const { logs, whole, separator } of layouts) {
     const decimals = logs.length - whole;
     if (whole < 1 || whole > 2 || decimals < 0 || decimals > precision) continue;
     // 10 is the only grade with two digits before the point, and nothing after it.
     const allowed = (index: number) => (whole === 2 ? [index === 0 ? 1 : 0] : ALL_DIGITS);
-    const penalty = pointAfter === null && decimals > 0 ? MISSING_POINT : 0;
+    const penalty = separator ?? (decimals > 0 ? MISSING_POINT : 0);
     const ranked = logs.map((log, index) => allowed(index).toSorted((a, b) => log[b] - log[a]));
     const best = ranked.map((digits) => digits[0]);
     const score = best.reduce((sum, digit, index) => sum + logs[index][digit], penalty);
