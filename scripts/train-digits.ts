@@ -41,6 +41,9 @@ const LEARNING_RATE = 0.002;
 const UPSCALE = 3;
 /** How often each digit of a real cell is learnt per epoch: they are few, but what counts. */
 const REAL_REPEAT = 20;
+/** How far a glyph is warped at most, in pixels of 28×28, and over how many squares. */
+const WARP = 1.5;
+const WARP_GRID = 4;
 /** Drawn commas and points per epoch, about as many as each digit of MNIST. */
 const DRAWN_SEPARATORS = 6000;
 
@@ -171,6 +174,7 @@ function augment(image: Uint8Array, vary = true) {
   const threshold = vary ? 0.15 + random() * 0.6 : 0.4;
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
+  const bend = vary ? warp() : () => [0, 0];
   const ink = new Float32Array(size * size);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -178,11 +182,35 @@ function augment(image: Uint8Array, vary = true) {
       const dy = (y - size / 2) / UPSCALE;
       const sourceX = (cos * dx + sin * dy - slant * dy) * stretch + GLYPH_SIZE / 2;
       const sourceY = -sin * dx + cos * dy + GLYPH_SIZE / 2;
-      const value = sample(image, sourceX, sourceY) / 255;
+      const [bendX, bendY] = bend(sourceX, sourceY);
+      const value = sample(image, sourceX + bendX, sourceY + bendY) / 255;
       ink[y * size + x] = Math.min(1, Math.max(0, (value - threshold) / 0.2));
     }
   }
   return glyphOf(ink, size);
+}
+
+/**
+ * A smooth random warp of a glyph, as the same hand writes a digit a bit differently each time:
+ * offsets in pixels of 28×28 on a coarse grid, and in between them interpolated.
+ */
+function warp() {
+  const offsets = Array.from({ length: (WARP_GRID + 1) ** 2 }, () => [
+    (random() * 2 - 1) * WARP,
+    (random() * 2 - 1) * WARP,
+  ]);
+  return (x: number, y: number) => {
+    const gridX = Math.min(WARP_GRID - 1e-6, Math.max(0, (x / GLYPH_SIZE) * WARP_GRID));
+    const gridY = Math.min(WARP_GRID - 1e-6, Math.max(0, (y / GLYPH_SIZE) * WARP_GRID));
+    const [left, top] = [Math.floor(gridX), Math.floor(gridY)];
+    const [fx, fy] = [gridX - left, gridY - top];
+    const at = (column: number, row: number) => offsets[row * (WARP_GRID + 1) + column];
+    return [0, 1].map(
+      (axis) =>
+        (at(left, top)[axis] * (1 - fx) + at(left + 1, top)[axis] * fx) * (1 - fy) +
+        (at(left, top + 1)[axis] * (1 - fx) + at(left + 1, top + 1)[axis] * fx) * fy,
+    );
+  };
 }
 
 /** A digit in a cell: nearly as tall as the tallest there, decimals sometimes a bit smaller. */
