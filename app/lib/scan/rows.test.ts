@@ -54,6 +54,14 @@ describe('readRow', () => {
     expect(readRow(model, [EMPTY, EMPTY, TEN], SINGLE)?.value).toBe(10000);
   });
 
+  it('takes the final grade alone when no attempt is written', () => {
+    expect(readRow(model, [EMPTY, EMPTY, TEN], VAULT)).toEqual({
+      value: 10000,
+      confidence: expect.any(Number),
+    });
+    expect(readRow(model, [EMPTY, EMPTY, EMPTY], VAULT)).toBeNull();
+  });
+
   it('needs every attempt, and trusts them more with a matching final grade', () => {
     expect(readRow(model, [TEN, EMPTY, TEN], VAULT)).toBeNull();
     const without = readRow(model, [TEN, TEN, EMPTY], VAULT)!;
