@@ -83,12 +83,31 @@ export function segment(cell: Gray): { ink: Uint8Array; digits: Blob[][]; point:
     maxY - minY + 1 < 0.4 * tallest &&
     maxX - minX + 1 < 0.6 * tallest &&
     (minY + maxY) / 2 > top + 0.55 * (bottom - top);
+  // A decimal comma is longer, but narrow, and starts low, where the digits are under way.
+  const isComma = ({ minX, maxX, minY, maxY }: Blob) =>
+    maxY - minY + 1 < 0.8 * tallest &&
+    maxX - minX + 1 < 0.6 * tallest &&
+    minY > top + 0.4 * tallest;
   const isMark = (blob: Blob) => !isPoint(blob) && blob.maxY - blob.minY + 1 < 0.3 * tallest;
 
-  // Strokes of one digit overlap horizontally, like the two of a 4.
+  // Between digits: a speck before or after them is no point. The largest point, or else the first
+  // comma, as digits after it can look like one too, like a short 1.
+  const strokes = found.filter((blob) => !isPoint(blob) && !isComma(blob) && !isMark(blob));
+  const between = (blob: Blob) =>
+    strokes.some((stroke) => centreX([stroke]) < centreX([blob])) &&
+    strokes.some((stroke) => centreX([stroke]) > centreX([blob]));
+  const point =
+    found
+      .filter((blob) => isPoint(blob) && between(blob))
+      .toSorted((a, b) => b.pixels.length - a.pixels.length)[0] ??
+    found.filter((blob) => isComma(blob) && between(blob)).toSorted((a, b) => a.minX - b.minX)[0] ??
+    null;
+
+  // Strokes of one digit overlap horizontally, like the two of a 4. Taking the comma out first keeps
+  // it from joining the digit it reaches under.
   const groups: Blob[][] = [];
   for (const blob of found
-    .filter((blob) => !isPoint(blob) && !isMark(blob))
+    .filter((blob) => blob !== point && !isPoint(blob) && !isMark(blob))
     .toSorted((a, b) => a.minX - b.minX)) {
     const last = groups.at(-1);
     const right = last ? Math.max(...last.map(({ maxX }) => maxX)) : -Infinity;
@@ -105,22 +124,7 @@ export function segment(cell: Gray): { ink: Uint8Array; digits: Blob[][]; point:
     if (nearest && distance(nearest) < 0.5 * tallest) nearest.push(mark);
   }
   const digits = groups.flatMap((group) => splitTouching(group, ink, cell.width, bottom - top + 1));
-  // Between digits, the largest: a speck before or after them is no point.
-  const first = digits.at(0);
-  const last = digits.at(-1);
-  const points = found.filter(
-    (blob) =>
-      isPoint(blob) &&
-      first !== undefined &&
-      last !== undefined &&
-      centreX([blob]) > centreX(first) &&
-      centreX([blob]) < centreX(last),
-  );
-  return {
-    ink,
-    digits,
-    point: points.toSorted((a, b) => b.pixels.length - a.pixels.length)[0] ?? null,
-  };
+  return { ink, digits, point };
 }
 
 /**

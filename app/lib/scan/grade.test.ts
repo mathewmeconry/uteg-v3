@@ -88,6 +88,18 @@ describe('segment', () => {
     expect(point?.minX).toBe(52);
   });
 
+  it('takes a comma for the point, also where it reaches under the digit before', () => {
+    // A digit open at the lower right, and the comma from halfway down to below the digits.
+    const open: Box[] = [
+      [20, 20, 24, 4],
+      [20, 20, 4, 50],
+      [20, 66, 14, 4],
+    ];
+    const { digits, point } = segment(cell([...open, [38, 48, 4, 31], ...ring(64), ...ring(100)]));
+    expect(digits.map((digit) => digit[0].minX)).toEqual([20, 64, 100]);
+    expect(point?.minX).toBe(38);
+  });
+
   it('takes no speck after the digits for the point', () => {
     const { digits, point } = segment(cell([...ring(20), ...ring(64), [100, 64, 5, 5]]));
     expect(digits).toHaveLength(2);
