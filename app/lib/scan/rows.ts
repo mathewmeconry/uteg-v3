@@ -21,9 +21,9 @@ export function readQrCode({ width, height, data }: Gray) {
 
 /**
  * What a starter's cells of a sheet say: one per attempt of the sheet's columns, then the final
- * grade, or only the grade when the sheet has one column. Null when nothing is written or a cell
- * that is needed cannot be read. A written final grade that matches the attempts makes the reading
- * more likely.
+ * grade, or only the grade when the sheet has one column. Some judges only write the final grade,
+ * then it is the reading. Null when nothing is written or a cell that is needed cannot be read. A
+ * written final grade that matches the attempts makes the reading more likely.
  */
 export function readRow(
   model: DigitModel,
@@ -39,6 +39,11 @@ export function readRow(
   }
 
   const attempts = cells.slice(0, inputRule.attempts);
+  // Only without any attempt: a final next to missing ones would be saved without those written.
+  if (attempts.every(({ inked }) => !inked)) {
+    const grade = final.inked && readGrade(model, final.image, precision);
+    return grade ? { value: grade.value, confidence: grade.confidence } : null;
+  }
   if (!attempts.every(({ inked }) => inked)) return null;
   const read = attempts.map(({ image }) => readGrade(model, image, ATTEMPT_PRECISION));
   if (read.some((grade) => grade === null)) return null;
